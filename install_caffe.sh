@@ -65,7 +65,7 @@ mkdir build
 cd build
 cmake -D CMAKE_BUILD_TYPE=RELEASE -D CMAKE_INSTALL_PREFIX=$PWD/../../caffe-env/ -D WITH_IPP=OFF ..
 make
-#make install
+make install
 cd ../..
 rm -rf opencv
 
@@ -87,19 +87,32 @@ cp libopenblas.a ../caffe-env/lib/
 cd ..
 rm -r openblas-* openblas_*
 
+apt-get source libsnappy-dev
+cd snappy-./configure --prefix=$PWD/../caffe-env1.1.0
+./configure --prefix=$PWD/../caffe-env
+make
+make install
+rm snappy*
+
 git clone https://github.com/BVLC/caffe
+cd caffe
 sed -e "s/# CPU_ONLY/CPU_ONLY/;s/BLAS := atlas/BLAS := open/;s|# BLAS_INCLUDE := /p.*|BLAS_INCLUDE := $PWD/../caffe-env/include|;s|# BLAS_LIB := /p.*|BLAS_LIB := $PWD/../caffe-env/lib|;s|^PYTHON_INCLUDE := |PYTHON_INCLUDE := $PWD/../caffe-env/include |;s|^PYTHON_LIB := |PYTHON_LIB := $PWD/../caffe-env/lib|;" Makefile.config.example > Makefile.config
 sed -ie "s/opencv_imgproc\$/opencv_imgproc opencv_imgcodecs/" Makefile
 make all
-make pycaffe
+make distribute
+cp -r distribute/bin ../caffe-env/bin
+cp -r distribute/lib ../caffe-env/lib
+cp -r distribute/include ../caffe-env/include
+cp -r distribute/python ../caffe-env/lib/python2.7
+cd ..
+rm caffe
 
+pip install protobuf
 pip install scikit-image
 pip install cython
 pip install pyaml
 
-cd caffe/data/ilsvrc12
-bash get_ilsvrc_aux.sh
-cd ../../..
+pip install --upgrade https://storage.googleapis.com/tensorflow/linux/cpu/tensorflow-0.6.0-cp27-none-linux_x86_64.whl
 
 echo "" >> caffe-env/bin/activate
 echo "export LD_LIBRARY_PATH=$PWD/caffe-env/lib" >> caffe-env/bin/activate
