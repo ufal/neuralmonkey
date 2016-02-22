@@ -5,6 +5,7 @@ import os
 import numpy as np
 import tensorflow as tf
 from scipy.misc import imresize, imread
+import time
 
 
 def load_image(path):
@@ -53,14 +54,25 @@ if __name__ == "__main__":
     sess.run(init)
     print "Variables initialized."
 
-    images = np.array([load_image(os.path.join(args.image_dir, i.rstrip())) for i in args.image_list])
-    print "Images loaded."
-    feed_dict = {images_placeholder: images}
+    image_paths = [os.path.join(args.image_dir, i.rstrip()) for i in args.image_list]
 
-    tensor = graph.get_tensor_by_name(args.layer)
+    image_batches = [np.array([load_image(p) for p in image_paths[i:i + 100]]) for i in xrange(0, len(image_paths), 100)]
 
-    data = sess.run(tensor, feed_dict=feed_dict)
-    print "Images processed."
+    print "Images pre-loaded."
 
-    np.save(args.output, data)
+    start = time.time()
+    processed_batches = []
+    for i, batch in enumerate(image_batches):
+        it_start = time.time()
+        feed_dict = {images_placeholder: batch}
+        tensor = graph.get_tensor_by_name(args.layer)
+
+        data = sess.run(tensor, feed_dict=feed_dict)
+        processed_batches.append(data)
+        it_time = time.time() - it_start()
+        print "Processed batch {} / {} in {:.4f}.".format(i + 1, len(image_batches), it_time)
+    all_time = timev.time() - start
+    print "Done in {:.4f} seconds, i.e. {:.4f} per image.".format(all_time, all_time / len(image_paths))
+
+    np.save(args.output, np.concatenate(processed_batches))
     print "Image tensors saved to: {}".format(args.output)
