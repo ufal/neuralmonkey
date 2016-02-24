@@ -32,3 +32,6 @@ class Vocabulary(object):
         else:
             return self.word_to_index[word]
 
+    def __len__(self):
+        return len(self.index_to_word)
+
