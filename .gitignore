@@ -3,3 +3,4 @@ caffe-env
 **/.history*
 tensorflow-vgg16
 vgg16.tfmodel
+jwordsplitter
