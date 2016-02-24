@@ -35,3 +35,19 @@ class Vocabulary(object):
     def __len__(self):
         return len(self.index_to_word)
 
+    def sentences_to_tensor(sentences, max_len, train=False):
+        """
+        Generates the tensor representation for the provided sentences.
+
+        Args:
+
+            sentences: List of sentences as lists of tokens.
+            max_len: Maximum lengh of a sentence toward which they will be
+              padded to.
+            train: Flag whehter this is for training purposes.
+
+        """
+
+        return np.array([[self.get_train_word_index(w) if train
+                else self.get_word_index(w) for w in s]
+                    for s in sentences_to_tensor])
