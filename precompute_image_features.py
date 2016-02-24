@@ -69,9 +69,9 @@ if __name__ == "__main__":
 
         data = sess.run(tensor, feed_dict=feed_dict)
         processed_batches.append(data)
-        it_time = time.time() - it_start()
+        it_time = time.time() - it_start
         print "Processed batch {} / {} in {:.4f}.".format(i + 1, len(image_batches), it_time)
-    all_time = timev.time() - start
+    all_time = time.time() - start
     print "Done in {:.4f} seconds, i.e. {:.4f} per image.".format(all_time, all_time / len(image_paths))
 
     np.save(args.output, np.concatenate(processed_batches))
