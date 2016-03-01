@@ -71,14 +71,14 @@ class Vocabulary(object):
         return word_indices, weights
 
     def vectors_to_sentences(self, vectors):
-        sentences = [["<s>"] for _ in range(vectors[0].shape[0])]
+        sentences = [[] for _ in range(vectors[0].shape[0])]
 
         for vec in vectors:
             for sentence, word_i in zip(sentences, vec):
                 if sentence[-1] != "</s>":
                     sentence.append(self.index_to_word[word_i])
 
-        return [s[1:-1] for s in sentences]
+        return [s[:-1] for s in sentences]
 
 
 
