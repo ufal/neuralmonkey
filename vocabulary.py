@@ -67,6 +67,7 @@ class Vocabulary(object):
                     weights[i][j] = 1.0
                 elif i == len(sent):
                     word_indices[i + 1][j] = self.get_word_index("</s>")
+                    weights[i][j] = 1.0
 
         return word_indices, weights
 
