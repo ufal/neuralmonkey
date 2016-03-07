@@ -1,13 +1,17 @@
 #!/usr/bin/env python
 
-import argparse
+import argparse, time
 import numpy as np
 import tensorflow as tf
 from nltk.translate.bleu_score import bleu
+from termcolor import colored
 
 from image_encoder import ImageEncoder
 from decoder import Decoder
 from vocabulary import Vocabulary
+
+def log(message):
+    print "{}: {}".format(colored(time.strftime("%Y-%m-%d %H:%M:%S"), 'yellow'), message)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Trains the image captioning.')
@@ -26,22 +30,37 @@ if __name__ == "__main__":
     parser.add_argument("--epochs", type=int, default=10)
     args = parser.parse_args()
 
+    print colored("=========================================================", 'green')
+    print colored("TRAINING THE IMAGE CAPTIONING ONLY", 'green')
+    print colored("=========================================================", 'green')
+
+    print ""
+    for arg in vars(args):
+        value = str(getattr(args, arg))
+        dots_count = 78 - len(arg) - len(value)
+        print "{} {} {}".format(arg, "".join(['.' for _ in range(dots_count)]), value)
+    print ""
+
+    log("The training script started")
     training_images = np.load(args.train_images)
     args.train_images.close()
+    log("Loaded training images.")
     validation_images = np.load(args.valid_images)
     args.valid_images.close()
-
+    log("Loaded validation images.")
 
     training_sentences = [l.rstrip().split(" ") for l in args.tokenized_train_text][:len(training_images)]
+    log("Loaded {} training sentences.".format(len(training_sentences)))
     validation_sentences = [l.rstrip().split(" ") for l in args.tokenized_valid_text][:len(validation_images)]
+    log("Loaded {} validation sentences.".format(len(validation_sentences)))
 
     vocabulary = \
         Vocabulary(tokenized_text=[w for s in training_sentences for w in s])
 
-    print "Vocabulary has {} words".format(len(vocabulary))
+    log("Training vocabulary has {} words".format(len(vocabulary)))
 
+    log("Buiding the TensorFlow computation graph.")
     encoder = ImageEncoder()
-    # TODO parameters of the decoder to the command line
     decoder = Decoder(encoder, vocabulary, embedding_size=args.embeddings_size,
             use_attention=args.use_attention, max_out_len=args.maximum_output, use_peepholes=True,
             scheduled_sampling=args.scheduled_sampling)
@@ -64,10 +83,12 @@ if __name__ == "__main__":
     summary_train = tf.merge_summary(tf.get_collection("summary_train"))
     summary_test = tf.merge_summary(tf.get_collection("summary_test"))
 
+    log("Initializing the TensorFlow session.")
     sess = tf.Session(config=tf.ConfigProto(inter_op_parallelism_threads=4,
                                             intra_op_parallelism_threads=4))
     sess.run(tf.initialize_all_variables())
 
+    log("Starting training")
     step = 0
     for i in range(args.epochs):
         for start in range(0, len(training_sentences), args.batch_size):
