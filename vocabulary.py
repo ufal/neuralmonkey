@@ -76,7 +76,7 @@ class Vocabulary(object):
 
         for vec in vectors:
             for sentence, word_i in zip(sentences, vec):
-                if sentence and sentence[-1] != "</s>":
+                if not sentence or (sentence and sentence[-1] != "</s>"):
                     sentence.append(self.index_to_word[word_i])
 
         return [s[:-1] for s in sentences]
