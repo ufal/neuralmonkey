@@ -10,11 +10,11 @@ fi
 cat tf-gpu/bin/activate - << EOF > tf-gpu/bin/activate-cuda
 CUDA_DIR=/usr/local/cuda
 
-if [ -d $CUDA_DIR ] ; then
+if [ -d \$CUDA_DIR ] ; then
     echo "Initializing CUDA directories"
-    export CUDA_HOME=$CUDA_DIR
-    export PATH=$PATH:$CUDA_DIR/bin
-    export LD_LIBRARY_PATH=$CUDA_DIR/lib64:/home/helcl/cudnn/lib64
+    export CUDA_HOME=\$CUDA_DIR
+    export PATH=\$PATH:\$CUDA_DIR/bin
+    export LD_LIBRARY_PATH=\$CUDA_DIR/lib64:/home/helcl/cudnn/lib64
 fi
 EOF
 
@@ -32,6 +32,7 @@ for ENV in tf tf-gpu; do
     pip install --upgrade ipdb
     pip install --upgrade javabridge
     pip install --upgrade termcolor
+    pip install --upgrade nltk
     deactivate
 done
 
