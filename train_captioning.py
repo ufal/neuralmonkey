@@ -3,15 +3,15 @@
 import argparse, time
 import numpy as np
 import tensorflow as tf
-from nltk.translate.bleu_score import bleu
+from nltk.translate.bleu_score import corpus_bleu
 from termcolor import colored
 
 from image_encoder import ImageEncoder
 from decoder import Decoder
 from vocabulary import Vocabulary
 
-def log(message):
-    print "{}: {}".format(colored(time.strftime("%Y-%m-%d %H:%M:%S"), 'yellow'), message)
+def log(message, color='yellow'):
+    print "{}: {}".format(colored(time.strftime("%Y-%m-%d %H:%M:%S"), color), message)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Trains the image captioning.')
@@ -30,9 +30,9 @@ if __name__ == "__main__":
     parser.add_argument("--epochs", type=int, default=10)
     args = parser.parse_args()
 
-    print colored("=========================================================", 'green')
+    print colored("===================================================================", 'green')
     print colored("TRAINING THE IMAGE CAPTIONING ONLY", 'green')
-    print colored("=========================================================", 'green')
+    print colored("===================================================================", 'green')
 
     print ""
     for arg in vars(args):
@@ -52,6 +52,7 @@ if __name__ == "__main__":
     training_sentences = [l.rstrip().split(" ") for l in args.tokenized_train_text][:len(training_images)]
     log("Loaded {} training sentences.".format(len(training_sentences)))
     validation_sentences = [l.rstrip().split(" ") for l in args.tokenized_valid_text][:len(validation_images)]
+    validation_l = [[s] for s in validation_sentences]
     log("Loaded {} validation sentences.".format(len(validation_sentences)))
 
     vocabulary = \
@@ -101,16 +102,14 @@ if __name__ == "__main__":
                 decoded_sentences = \
                     vocabulary.vectors_to_sentences(computation[-args.maximum_output - 1:])
 
-                batch_sentences = training_sentences[start:start + args.batch_size]
+                batch_sentences = [[r] for r in training_sentences[start:start + args.batch_size]]
                 bleu_1 = \
-                    100 * sum([bleu([ref], hyp, [1., 0., 0., 0.])
-                            for ref, hyp in zip(batch_sentences, decoded_sentences)])/ args.batch_size
+                    100 * corpus_bleu(batch_sentences, decoded_sentences, weights=[1., 0., 0., 0.])
                 bleu_4 = \
-                    100 * sum([bleu([ref], hyp, [0.25, 0.25, 0.25, 0.25])
-                            for ref, hyp in zip(batch_sentences, decoded_sentences)]) / args.batch_size
+                    100 * corpus_bleu(batch_sentences, decoded_sentences, weights=[0.25, 0.25, 0.25, 0.25])
 
-                print "opt. loss: {:.4f}    dec. loss: {:.4f}    BLEU-1: {:.2f}    BLEU-4: {:.2f}"\
-                        .format(computation[2], computation[1], bleu_1, bleu_4)
+                log("opt. loss: {:.4f}    dec. loss: {:.4f}    BLEU-1: {:.2f}    BLEU-4: {:.2f}"\
+                        .format(computation[2], computation[1], bleu_1, bleu_4))
             else:
                 sess.run([optimize_op], feed_dict=batch_feed_dict)
 
@@ -121,20 +120,19 @@ if __name__ == "__main__":
                     vocabulary.vectors_to_sentences(computation[-args.maximum_output - 1:])
 
                 validation_bleu_1 = \
-                    100 * sum([bleu([ref], hyp, [1., 0., 0., 0.])
-                            for ref, hyp in zip(validation_sentences, decoded_validation_sentences)]) / len(validation_sentences)
+                        100 * corpus_bleu(validation_l, decoded_validation_sentences, weights=[1., 0., 0., 0.0])
                 validation_bleu_4 = \
-                    100 * sum([bleu([ref], hyp, [0.25, 0.25, 0.25, 0.25])
-                            for ref, hyp in zip(validation_sentences, decoded_validation_sentences)]) / len(validation_sentences)
+                    100 * corpus_bleu(validation_l, decoded_validation_sentences, weights=[0.25, 0.25, 0.25, 0.25])
                 print ""
-                print "Validation (epoch {}, batch start {}):".format(i, start)
-                print "opt. loss: {:.4f}    dec. loss: {:.4f}    BLEU-1: {:.2f}    BLEU-4: {:.2f}"\
-                        .format(computation[1], computation[0], validation_bleu_1, validation_bleu_4)
+                log("Validation (epoch {}, batch start {}):".format(i, start), color='cyan')
+                log("opt. loss: {:.4f}    dec. loss: {:.4f}    BLEU-1: {:.2f}    BLEU-4: {:.2f}"\
+                        .format(computation[1], computation[0], validation_bleu_1, validation_bleu_4), color='cyan')
 
                 print ""
                 print "Examples:"
-                for sent in decoded_validation_sentences[:8]:
+                for sent, ref_sent in zip(decoded_validation_sentences[:8], validation_sentences):
                     print "    {}".format(" ".join(sent))
+                    print colored("      ref.: {}".format(" ".join(ref_sent)), color="magenta")
                 print ""
 
 
