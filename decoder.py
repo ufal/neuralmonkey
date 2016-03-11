@@ -6,7 +6,8 @@ from tensorflow.models.rnn import rnn
 
 class Decoder:
     def __init__(self, encoder, vocabulary, embedding_size=128, use_attention=False,
-                 max_out_len=20, use_peepholes=False, scheduled_sampling=None):
+                 max_out_len=20, use_peepholes=False, scheduled_sampling=None,
+                 dropout_placeholder=None):
         """
 
         A class that collects the part of the computation graph that is needed
@@ -39,6 +40,9 @@ class Decoder:
             scheduled_sampling: Parameter k for inverse sigmoid decay in
                 scheduled sampling. If set to None, linear combination of the
                 decoded and supervised loss is used as a cost function.
+
+            dropoout_placeholder: If not None, dropout with this placeholder's
+                keep probablity will be applied on the logits
 
 
         Attributes:
@@ -145,6 +149,8 @@ class Decoder:
         decoded_with_gt_ins = []
         for o in rnn_outputs_gt_ins:
             out_activation = tf.matmul(o, decoding_W) + decoding_B
+            if dropout_placeholder:
+                out_activation = tf.nn.dropout(out_activation, dropout_placeholder)
             logits_with_gt_ins.append(out_activation)
             decoded_with_gt_ins.append(tf.argmax(out_activation, 1))
 

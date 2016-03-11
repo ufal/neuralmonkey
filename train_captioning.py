@@ -27,6 +27,7 @@ if __name__ == "__main__":
     parser.add_argument("--use-attention", type=bool, default=True)
     parser.add_argument("--embeddings-size", type=int, default=256)
     parser.add_argument("--scheduled-sampling", type=float, default=None)
+    parser.add_argument("--dropout-keep-prob", type=float, default=0.5)
     parser.add_argument("--epochs", type=int, default=10)
     args = parser.parse_args()
 
@@ -61,10 +62,11 @@ if __name__ == "__main__":
     log("Training vocabulary has {} words".format(len(vocabulary)))
 
     log("Buiding the TensorFlow computation graph.")
-    encoder = ImageEncoder()
+    dropout_placeholder = tf.placeholder(tf.float32, name="dropout_keep_prob")
+    encoder = ImageEncoder(dropout_placeholder=dropout_placeholder)
     decoder = Decoder(encoder, vocabulary, embedding_size=args.embeddings_size,
             use_attention=args.use_attention, max_out_len=args.maximum_output, use_peepholes=True,
-            scheduled_sampling=args.scheduled_sampling)
+            scheduled_sampling=args.scheduled_sampling, dropout_placeholder=dropout_placeholder)
 
     def feed_dict(images, sentences, train=False):
         fd = {encoder.image_features: images}
@@ -75,6 +77,12 @@ if __name__ == "__main__":
 
         for words_plc, words_tensor in zip(decoder.inputs, sentnces_tensors):
             fd[words_plc] = words_tensor
+
+        if train:
+            fd[dropout_placeholder] = args.dropout_keep_prob
+        else:
+            fd[dropout_placeholder] = 1.0
+
         return fd
 
     valid_feed_dict = feed_dict(validation_images, validation_sentences)
@@ -130,7 +138,7 @@ if __name__ == "__main__":
 
                 print ""
                 print "Examples:"
-                for sent, ref_sent in zip(decoded_validation_sentences[:8], validation_sentences):
+                for sent, ref_sent in zip(decoded_validation_sentences[:15], validation_sentences):
                     print "    {}".format(" ".join(sent))
                     print colored("      ref.: {}".format(" ".join(ref_sent)), color="magenta")
                 print ""
