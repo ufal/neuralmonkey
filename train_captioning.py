@@ -28,6 +28,7 @@ if __name__ == "__main__":
     parser.add_argument("--embeddings-size", type=int, default=256)
     parser.add_argument("--scheduled-sampling", type=float, default=None)
     parser.add_argument("--dropout-keep-prob", type=float, default=0.5)
+    parser.add_argument("--l2-regularization", type=float, default=0.0)
     parser.add_argument("--epochs", type=int, default=10)
     args = parser.parse_args()
 
@@ -86,7 +87,13 @@ if __name__ == "__main__":
         return fd
 
     valid_feed_dict = feed_dict(validation_images, validation_sentences)
-    optimize_op = tf.train.AdamOptimizer().minimize(decoder.cost)
+    if args.l2_regularization > 0:
+        with tf.variable_scope("l2_regularization"):
+            l2_cost = args.l2_regularization * \
+                sum([tf.reduce_sum(v ** 2) for v in tf.trainable_variables()])
+    else:
+        l2_cost = 0.0
+    optimize_op = tf.train.AdamOptimizer().minimize(decoder.cost + l2_cost)
     # gradients = optimizer.compute_gradients(cost)
 
     summary_train = tf.merge_summary(tf.get_collection("summary_train"))
