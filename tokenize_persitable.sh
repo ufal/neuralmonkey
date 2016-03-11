@@ -6,7 +6,7 @@ TARGET=$3
 
 CONTINUE=1
 
-rm $TARGET
+#rm $TARGET
 touch $TARGET
 
 while [ $CONTINUE == 1 ]; do
