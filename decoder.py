@@ -71,7 +71,7 @@ class Decoder:
 
         lstm_size = encoder.encoded.get_shape()[1].value / 2
 
-        self.learning_step = tf.placeholder(tf.float32, name="learning_step")
+        self.learning_step = tf.Variable(0, name="learning_step", trainable=False)
         self.inputs = []
         with tf.variable_scope("decoder_inputs"):
             for i in range(max_out_len + 2):
@@ -106,7 +106,7 @@ class Decoder:
                 return tf.nn.embedding_lookup(decoding_EM, prev_word_index)
 
             def sampling_loop(prev_state, i):
-                threshold = scheduled_sampling / (scheduled_sampling + tf.exp(self.learning_step))
+                threshold = scheduled_sampling / (scheduled_sampling + tf.exp(tf.to_float(self.learning_step)))
                 condition = tf.less_equal(tf.random_uniform(tf.shape(embedded_outputs[0])), threshold)
                 return tf.select(condition, embedded_outputs[i], loop(prev_state, i))
 
