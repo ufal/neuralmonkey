@@ -114,7 +114,8 @@ if __name__ == "__main__":
                     #cprint(tokenized_string, 'red')
                     #javabridge.kill_vm()
                     #exit()
-                    print "<ERROR>"
+                    tokenized_chars_result = list("<ERROR>")
+                    break
 
             print "".join(tokenized_chars_result)
     except:
