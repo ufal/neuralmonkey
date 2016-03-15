@@ -3,7 +3,7 @@
 import argparse, time
 import numpy as np
 import tensorflow as tf
-from nltk.translate.bleu_score import corpus_bleu
+from nltk.translate.bleu_score import corpus_bleu, SmoothingFunction
 from termcolor import colored
 
 from image_encoder import ImageEncoder
@@ -106,6 +106,7 @@ if __name__ == "__main__":
 
     log("Starting training")
     step = 0
+    bleu_smoothing = SmoothingFunction(epsilon=0.01).method1
     for i in range(args.epochs):
         for start in range(0, len(training_sentences), args.batch_size):
             step += 1
@@ -119,9 +120,11 @@ if __name__ == "__main__":
 
                 batch_sentences = [[r] for r in training_sentences[start:start + args.batch_size]]
                 bleu_1 = \
-                    100 * corpus_bleu(batch_sentences, decoded_sentences, weights=[1., 0., 0., 0.])
+                    100 * corpus_bleu(batch_sentences, decoded_sentences, weights=[1., 0., 0., 0.],
+                                      smoothing_function=bleu_smoothing)
                 bleu_4 = \
-                    100 * corpus_bleu(batch_sentences, decoded_sentences, weights=[0.25, 0.25, 0.25, 0.25])
+                    100 * corpus_bleu(batch_sentences, decoded_sentences, weights=[0.25, 0.25, 0.25, 0.25],
+                                      smoothing_function=bleu_smoothing)
 
                 log("opt. loss: {:.4f}    dec. loss: {:.4f}    BLEU-1: {:.2f}    BLEU-4: {:.2f}"\
                         .format(computation[2], computation[1], bleu_1, bleu_4))
@@ -135,9 +138,11 @@ if __name__ == "__main__":
                     vocabulary.vectors_to_sentences(computation[-args.maximum_output - 1:])
 
                 validation_bleu_1 = \
-                        100 * corpus_bleu(validation_l, decoded_validation_sentences, weights=[1., 0., 0., 0.0])
+                        100 * corpus_bleu(validation_l, decoded_validation_sentences, weights=[1., 0., 0., 0.0],
+                                          smoothing_function=bleu_smoothing)
                 validation_bleu_4 = \
-                    100 * corpus_bleu(validation_l, decoded_validation_sentences, weights=[0.25, 0.25, 0.25, 0.25])
+                    100 * corpus_bleu(validation_l, decoded_validation_sentences, weights=[0.25, 0.25, 0.25, 0.25],
+                                      smoothing_function=bleu_smoothing)
                 print ""
                 log("Validation (epoch {}, batch start {}):".format(i, start), color='cyan')
                 log("opt. loss: {:.4f}    dec. loss: {:.4f}    BLEU-1: {:.2f}    BLEU-4: {:.2f}"\
