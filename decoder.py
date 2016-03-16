@@ -110,7 +110,8 @@ class Decoder:
                 return tf.nn.embedding_lookup(decoding_EM, prev_word_index)
 
             def sampling_loop(prev_state, i):
-                threshold = scheduled_sampling / (scheduled_sampling + tf.exp(tf.to_float(self.learning_step)))
+                threshold = scheduled_sampling / \
+                        (scheduled_sampling + tf.exp(tf.to_float(self.learning_step) / scheduled_sampling))
                 condition = tf.less_equal(tf.random_uniform(tf.shape(embedded_gt_inputs[0])), threshold)
                 return tf.select(condition, embedded_gt_inputs[i], loop(prev_state, i))
 
