@@ -5,6 +5,7 @@ import numpy as np
 import tensorflow as tf
 from nltk.translate.bleu_score import corpus_bleu, SmoothingFunction
 from termcolor import colored
+import regex as re
 
 from image_encoder import ImageEncoder
 from decoder import Decoder
@@ -24,10 +25,10 @@ if __name__ == "__main__":
     parser.add_argument("--tokenized-valid-text", type=argparse.FileType('r'), required=True)
     parser.add_argument("--batch-size", type=int, default=128)
     parser.add_argument("--maximum-output", type=int, default=20)
-    parser.add_argument("--use-attention", type=bool, default=True)
+    parser.add_argument("--use-attention", type=bool, default=False)
     parser.add_argument("--embeddings-size", type=int, default=256)
     parser.add_argument("--scheduled-sampling", type=float, default=None)
-    parser.add_argument("--dropout-keep-prob", type=float, default=0.5)
+    parser.add_argument("--dropout-keep-prob", type=float, default=1.0)
     parser.add_argument("--l2-regularization", type=float, default=0.0)
     parser.add_argument("--epochs", type=int, default=10)
     args = parser.parse_args()
@@ -51,9 +52,9 @@ if __name__ == "__main__":
     args.valid_images.close()
     log("Loaded validation images.")
 
-    training_sentences = [l.rstrip().split(" ") for l in args.tokenized_train_text][:len(training_images)]
+    training_sentences = [re.split(ur"[ @#]", l.rstrip()) for l in args.tokenized_train_text][:len(training_images)]
     log("Loaded {} training sentences.".format(len(training_sentences)))
-    validation_sentences = [l.rstrip().split(" ") for l in args.tokenized_valid_text][:len(validation_images)]
+    validation_sentences = [re.split(ur"[ @#]", l.rstrip()) for l in args.tokenized_valid_text][:len(validation_images)]
     validation_l = [[s] for s in validation_sentences]
     log("Loaded {} validation sentences.".format(len(validation_sentences)))
 
@@ -76,7 +77,7 @@ if __name__ == "__main__":
         for weight_plc, weight_tensor in zip(decoder.weights_ins, weights_tensors):
             fd[weight_plc] = weight_tensor
 
-        for words_plc, words_tensor in zip(decoder.inputs, sentnces_tensors):
+        for words_plc, words_tensor in zip(decoder.gt_inputs, sentnces_tensors):
             fd[words_plc] = words_tensor
 
         if train:
@@ -93,6 +94,7 @@ if __name__ == "__main__":
                 sum([tf.reduce_sum(v ** 2) for v in tf.trainable_variables()])
     else:
         l2_cost = 0.0
+
     optimize_op = tf.train.AdamOptimizer().minimize(decoder.cost + l2_cost, global_step=decoder.learning_step)
     # gradients = optimizer.compute_gradients(cost)
 
@@ -108,6 +110,9 @@ if __name__ == "__main__":
     step = 0
     bleu_smoothing = SmoothingFunction(epsilon=0.01).method1
     for i in range(args.epochs):
+        print ""
+        log("Epoch {} starts".format(i + 1), color='red')
+
         for start in range(0, len(training_sentences), args.batch_size):
             step += 1
             batch_feed_dict = feed_dict(training_images[start:start + args.batch_size],

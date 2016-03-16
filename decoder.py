@@ -72,18 +72,19 @@ class Decoder:
         lstm_size = encoder.encoded.get_shape()[1].value / 2
 
         self.learning_step = tf.Variable(0, name="learning_step", trainable=False)
-        self.inputs = []
+        self.gt_inputs = []
+
         with tf.variable_scope("decoder_inputs"):
             for i in range(max_out_len + 2):
                 dec = tf.placeholder(tf.int32, [None],
                                      name='decoder{0}'.format(i))
                 tf.add_to_collection('dec_encoder_ins', dec)
-                self.inputs.append(dec)
+                self.gt_inputs.append(dec)
 
-        targets = self.inputs[1:]
+        targets = self.gt_inputs[1:]
 
         self.weights_ins = []
-        with tf.variable_scope("weight_inputs"):
+        with tf.variable_scope("input_weights"):
             for _ in range(len(targets)):
                 self.weights_ins.append(tf.placeholder(tf.float32, [None]))
 
@@ -98,6 +99,9 @@ class Decoder:
                 tf.Variable(tf.random_uniform([len(vocabulary), embedding_size], -0.5, 0.5),
                         name="word_embeddings")
 
+            embedded_gt_inputs = \
+                    [tf.nn.embedding_lookup(decoding_EM, o) for o in self.gt_inputs[:-1]]
+
             def loop(prev_state, _):
                 # it takes the previous hidden state, finds the word and formats it
                 # as input for the next time step ... used in the decoder in the "real decoding scenario"
@@ -107,12 +111,8 @@ class Decoder:
 
             def sampling_loop(prev_state, i):
                 threshold = scheduled_sampling / (scheduled_sampling + tf.exp(tf.to_float(self.learning_step)))
-                condition = tf.less_equal(tf.random_uniform(tf.shape(embedded_outputs[0])), threshold)
-                return tf.select(condition, embedded_outputs[i], loop(prev_state, i))
-
-            embedded_outputs = []
-            for o in self.inputs[:-1]:
-                embedded_outputs.append(tf.nn.embedding_lookup(decoding_EM, o))
+                condition = tf.less_equal(tf.random_uniform(tf.shape(embedded_gt_inputs[0])), threshold)
+                return tf.select(condition, embedded_gt_inputs[i], loop(prev_state, i))
 
             decoder_cell = \
                 rnn_cell.LSTMCell(lstm_size, embedding_size,
@@ -121,13 +121,12 @@ class Decoder:
             gt_loop_function = sampling_loop if scheduled_sampling else None
 
             if use_attention:
-                attention_initial_state = tf.reduce_mean(encoder.attention_tensor, 1)
-                rnn_outputs_gt_ins, _ = seq2seq.attention_decoder(embedded_outputs, attention_initial_state,
+                rnn_outputs_gt_ins, _ = seq2seq.attention_decoder(embedded_gt_inputs, encoder.encoded,
                                                       attention_states=encoder.attention_tensor,
                                                       cell=decoder_cell,
                                                       loop_function=gt_loop_function)
             else:
-                rnn_outputs_gt_ins, _ = seq2seq.rnn_decoder(embedded_outputs, encoder.encoded,
+                rnn_outputs_gt_ins, _ = seq2seq.rnn_decoder(embedded_gt_inputs, encoder.encoded,
                                                 cell=decoder_cell,
                                                 loop_function=gt_loop_function)
 
@@ -135,37 +134,38 @@ class Decoder:
 
             if use_attention:
                 rnn_outputs_decoded_ins, _ = \
-                    seq2seq.attention_decoder(embedded_outputs, attention_initial_state,
+                    seq2seq.attention_decoder(embedded_gt_inputs, encoder.encoded,
                                               cell=decoder_cell,
                                               attention_states=encoder.attention_tensor,
                                               loop_function=loop)
             else:
                 rnn_outputs_decoded_ins, _ = \
-                    seq2seq.rnn_decoder(embedded_outputs, encoder.encoded,
+                    seq2seq.rnn_decoder(embedded_gt_inputs, encoder.encoded,
                                         cell=decoder_cell,
                                         loop_function=loop)
 
-        logits_with_gt_ins = []
-        decoded_with_gt_ins = []
-        for o in rnn_outputs_gt_ins:
-            out_activation = tf.matmul(o, decoding_W) + decoding_B
-            if dropout_placeholder:
-                out_activation = tf.nn.dropout(out_activation, dropout_placeholder)
-            logits_with_gt_ins.append(out_activation)
-            decoded_with_gt_ins.append(tf.argmax(out_activation, 1))
+        def loss_and_decoded(rnn_outputs, use_dropout):
+            logits = []
+            decoded = []
+            for o in rnn_outputs:
+                if use_dropout and dropout_placeholder:
+                    o = tf.nn.dropout(o, dropout_placeholder)
+                out_activation = tf.matmul(o, decoding_W) + decoding_B
+                logits.append(out_activation)
+                decoded.append(tf.argmax(out_activation, 1))
+            loss = seq2seq.sequence_loss(logits, targets,
+                                         self.weights_ins, len(vocabulary))
+            return loss, decoded
 
-        self.loss_with_gt_ins = seq2seq.sequence_loss(logits_with_gt_ins, targets, self.weights_ins, len(vocabulary))
+        self.loss_with_gt_ins, _ = \
+                loss_and_decoded(rnn_outputs_gt_ins, True)
+
         tf.scalar_summary('loss_on_dev_data_with_gt_input', self.loss_with_gt_ins, collections=["summary_test"])
         tf.scalar_summary('loss_on_train_data_with_gt_intpus', self.loss_with_gt_ins, collections=["summary_train"])
 
-        self.decoded_seq = []
-        for o in rnn_outputs_decoded_ins:
-            out_activation = tf.matmul(o, decoding_W) + decoding_B
-            self.decoded_seq.append(tf.argmax(out_activation, 1))
+        self.loss_with_decoded_ins, self.decoded_seq = \
+                loss_and_decoded(rnn_outputs_decoded_ins, False)
 
-        self.loss_with_decoded_ins = \
-            seq2seq.sequence_loss([tf.matmul(o, decoding_W) + decoding_B for o in rnn_outputs_decoded_ins],
-                                  targets, self.weights_ins, len(vocabulary))
         tf.scalar_summary('loss_on_dev_data_with_decoded_inputs', self.loss_with_decoded_ins, collections=["summary_test"])
         tf.scalar_summary('loss_on_train_data_with_decoded_inputs', self.loss_with_decoded_ins, collections=["summary_train"])
 
