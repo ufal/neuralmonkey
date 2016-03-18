@@ -37,7 +37,9 @@ def training_loop(sess, vocabulary, epochs, optimize_op,
 
         decoder: The decoder object.
 
-        train_feed_dicts: List of feed dictionaires for training batches.
+        train_feed_dicts: List of feed dictionaires for training batches. Each
+            sentence must be clsoed in one additional list (potentially more
+            reference sentences for BLEU computation).
 
         train_tgt_sentences: List of batches of target training
             sentences.
@@ -46,7 +48,6 @@ def training_loop(sess, vocabulary, epochs, optimize_op,
 
         val_tgt_sentences: Validation target sentences. Lists of lists (there
             may be multiple references for a sentece) of list of words.
-
 
     """
 

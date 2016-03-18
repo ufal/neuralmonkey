@@ -45,7 +45,7 @@ if __name__ == "__main__":
     training_sentences = [re.split(ur"[ @#]", l.rstrip()) for l in args.tokenized_train_text][:len(training_images)]
     log("Loaded {} training sentences.".format(len(training_sentences)))
     validation_sentences = [re.split(ur"[ @#]", l.rstrip()) for l in args.tokenized_valid_text][:len(validation_images)]
-    validation_l = [[s] for s in validation_sentences]
+    listed_validation_sentences = [[s] for s in validation_sentences]
     log("Loaded {} validation sentences.".format(len(validation_sentences)))
 
     vocabulary = \
@@ -99,11 +99,13 @@ if __name__ == "__main__":
     batched_training_sentenes = \
             [training_sentences[start:start + args.batch_size] \
              for start in range(0, len(training_sentences), args.batch_size)]
+    batched_listed_training_sentences = \
+            [[[sent] for sent in batch] for batch in batched_training_sentenes]
     batched_train_images = [training_images[start:start + args.batch_size]
              for start in range(0, len(training_sentences), args.batch_size)]
     training_feed_dicts = [feed_dict(imgs, sents) \
             for imgs, sents in zip(batched_train_images, batched_training_sentenes)]
 
     training_loop(sess, vocabulary, args.epochs, optimize_op, decoder,
-                  training_feed_dicts, batched_training_sentenes,
-                  valid_feed_dict, validation_l)
+                  training_feed_dicts, batched_listed_training_sentences,
+                  valid_feed_dict, listed_validation_sentences)
