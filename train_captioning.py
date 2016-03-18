@@ -3,16 +3,14 @@
 import argparse, time
 import numpy as np
 import tensorflow as tf
-from nltk.translate.bleu_score import corpus_bleu, SmoothingFunction
 from termcolor import colored
 import regex as re
 
 from image_encoder import ImageEncoder
 from decoder import Decoder
 from vocabulary import Vocabulary
+from learning_utils import log, training_loop, print_args, print_title
 
-def log(message, color='yellow'):
-    print "{}: {}".format(colored(time.strftime("%Y-%m-%d %H:%M:%S"), color), message)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Trains the image captioning.')
@@ -33,16 +31,8 @@ if __name__ == "__main__":
     parser.add_argument("--epochs", type=int, default=10)
     args = parser.parse_args()
 
-    print colored("===================================================================", 'green')
-    print colored("TRAINING THE IMAGE CAPTIONING ONLY", 'green')
-    print colored("===================================================================", 'green')
-
-    print ""
-    for arg in vars(args):
-        value = str(getattr(args, arg))
-        dots_count = 78 - len(arg) - len(value)
-        print "{} {} {}".format(arg, "".join(['.' for _ in range(dots_count)]), value)
-    print ""
+    print_title("IMAGE CAPTIONING ONLY")
+    print_args(args)
 
     log("The training script started")
     training_images = np.load(args.train_images)
@@ -106,58 +96,14 @@ if __name__ == "__main__":
                                             intra_op_parallelism_threads=4))
     sess.run(tf.initialize_all_variables())
 
-    log("Starting training")
-    step = 0
-    bleu_smoothing = SmoothingFunction(epsilon=0.01).method1
-    for i in range(args.epochs):
-        print ""
-        log("Epoch {} starts".format(i + 1), color='red')
+    batched_training_sentenes = \
+            [training_sentences[start:start + args.batch_size] \
+             for start in range(0, len(training_sentences), args.batch_size)]
+    batched_train_images = [training_images[start:start + args.batch_size]
+             for start in range(0, len(training_sentences), args.batch_size)]
+    training_feed_dicts = [feed_dict(imgs, sents) \
+            for imgs, sents in zip(batched_train_images, batched_training_sentenes)]
 
-        for start in range(0, len(training_sentences), args.batch_size):
-            step += 1
-            batch_feed_dict = feed_dict(training_images[start:start + args.batch_size],
-                    training_sentences[start:start + args.batch_size], train=True)
-            if step % 20 == 1:
-                computation = sess.run([optimize_op, decoder.loss_with_decoded_ins, decoder.loss_with_gt_ins] \
-                        + decoder.decoded_seq, feed_dict=batch_feed_dict)
-                decoded_sentences = \
-                    vocabulary.vectors_to_sentences(computation[-args.maximum_output - 1:])
-
-                batch_sentences = [[r] for r in training_sentences[start:start + args.batch_size]]
-                bleu_1 = \
-                    100 * corpus_bleu(batch_sentences, decoded_sentences, weights=[1., 0., 0., 0.],
-                                      smoothing_function=bleu_smoothing)
-                bleu_4 = \
-                    100 * corpus_bleu(batch_sentences, decoded_sentences, weights=[0.25, 0.25, 0.25, 0.25],
-                                      smoothing_function=bleu_smoothing)
-
-                log("opt. loss: {:.4f}    dec. loss: {:.4f}    BLEU-1: {:.2f}    BLEU-4: {:.2f}"\
-                        .format(computation[2], computation[1], bleu_1, bleu_4))
-            else:
-                sess.run([optimize_op], feed_dict=batch_feed_dict)
-
-            if step % 500 == 499:
-                computation = sess.run([decoder.loss_with_decoded_ins, decoder.loss_with_gt_ins] \
-                        + decoder.decoded_seq, feed_dict=valid_feed_dict)
-                decoded_validation_sentences = \
-                    vocabulary.vectors_to_sentences(computation[-args.maximum_output - 1:])
-
-                validation_bleu_1 = \
-                        100 * corpus_bleu(validation_l, decoded_validation_sentences, weights=[1., 0., 0., 0.0],
-                                          smoothing_function=bleu_smoothing)
-                validation_bleu_4 = \
-                    100 * corpus_bleu(validation_l, decoded_validation_sentences, weights=[0.25, 0.25, 0.25, 0.25],
-                                      smoothing_function=bleu_smoothing)
-                print ""
-                log("Validation (epoch {}, batch start {}):".format(i, start), color='cyan')
-                log("opt. loss: {:.4f}    dec. loss: {:.4f}    BLEU-1: {:.2f}    BLEU-4: {:.2f}"\
-                        .format(computation[1], computation[0], validation_bleu_1, validation_bleu_4), color='cyan')
-
-                print ""
-                print "Examples:"
-                for sent, ref_sent in zip(decoded_validation_sentences[:15], validation_sentences):
-                    print "    {}".format(" ".join(sent))
-                    print colored("      ref.: {}".format(" ".join(ref_sent)), color="magenta")
-                print ""
-
-
+    training_loop(sess, vocabulary, args.epochs, optimize_op, decoder,
+                  training_feed_dicts, batched_training_sentenes,
+                  valid_feed_dict, validation_l)

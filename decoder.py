@@ -69,6 +69,7 @@ class Decoder:
 
         """
 
+        self.max_output_len = max_out_len
         lstm_size = encoder.encoded.get_shape()[1].value / 2
 
         self.learning_step = tf.Variable(0, name="learning_step", trainable=False)
@@ -149,8 +150,8 @@ class Decoder:
             logits = []
             decoded = []
             for o in rnn_outputs:
-                if use_dropout and dropout_placeholder:
-                    o = tf.nn.dropout(o, dropout_placeholder)
+                #if use_dropout and dropout_placeholder:
+                #    o = tf.nn.dropout(o, dropout_placeholder)
                 out_activation = tf.matmul(o, decoding_W) + decoding_B
                 logits.append(out_activation)
                 decoded.append(tf.argmax(out_activation, 1))
@@ -173,7 +174,8 @@ class Decoder:
         if scheduled_sampling:
             self.cost = self.loss_with_gt_ins
         else:
-            self.cost = 0.5 * (self.loss_with_decoded_ins + self.loss_with_gt_ins)
+            self.cost = self.loss_with_gt_ins
+            #self.cost = 0.5 * (self.loss_with_decoded_ins + self.loss_with_gt_ins)
 
         tf.scalar_summary('optimization_cost_on_dev_data', self.cost, collections=["summary_test"])
         tf.scalar_summary('optimization_cost_on_train_data', self.cost, collections=["summary_train"])
