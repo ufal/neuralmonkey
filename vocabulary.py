@@ -41,6 +41,9 @@ class Vocabulary(object):
     def __len__(self):
         return len(self.index_to_word)
 
+    def __contains__(self, word):
+        return word in self.word_to_index
+
     def sentences_to_tensor(self, sentences, max_len, train=False):
         """
         Generates the tensor representation for the provided sentences.
