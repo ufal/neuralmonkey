@@ -103,12 +103,23 @@ class Decoder:
             embedded_gt_inputs = \
                     [tf.nn.embedding_lookup(decoding_EM, o) for o in self.gt_inputs[:-1]]
 
+            if use_dropout and dropout_placeholder:
+                embedded_gt_inputs = \
+                    [tf.nn.dropout(i, dropout_placeholder) for i in embedded_gt_inputs]
+
             def loop(prev_state, _):
                 # it takes the previous hidden state, finds the word and formats it
                 # as input for the next time step ... used in the decoder in the "real decoding scenario"
+                if use_dropout and dropout_placeholder:
+                    prev_state = tf.nn.dropout(prev_state, dropout_placeholder)
                 out_activation = tf.matmul(prev_state, decoding_W) + decoding_B
                 prev_word_index = tf.argmax(out_activation, 1)
-                return tf.nn.embedding_lookup(decoding_EM, prev_word_index)
+                next_step_embedding = \
+                        tf.nn.embedding_lookup(decoding_EM, prev_word_index)
+                if use_dropout and dropout_placeholder:
+                    return tf.nn.dropout(next_step_embedding, dropout_placeholder)
+                else:
+                    return next_step_embedding
 
             def sampling_loop(prev_state, i):
                 threshold = scheduled_sampling / \
@@ -134,15 +145,19 @@ class Decoder:
 
             tf.get_variable_scope().reuse_variables()
 
+            encoded = encoder.encoded
+            if use_dropout and dropout_placeholder:
+                encoded = tf.nn.dropout(encoded, dropout_placeholder)
+
             if use_attention:
                 rnn_outputs_decoded_ins, _ = \
-                    seq2seq.attention_decoder(embedded_gt_inputs, encoder.encoded,
+                    seq2seq.attention_decoder(embedded_gt_inputs, encoded,
                                               cell=decoder_cell,
                                               attention_states=encoder.attention_tensor,
                                               loop_function=loop)
             else:
                 rnn_outputs_decoded_ins, _ = \
-                    seq2seq.rnn_decoder(embedded_gt_inputs, encoder.encoded,
+                    seq2seq.rnn_decoder(embedded_gt_inputs, encoded,
                                         cell=decoder_cell,
                                         loop_function=loop)
 
@@ -150,8 +165,8 @@ class Decoder:
             logits = []
             decoded = []
             for o in rnn_outputs:
-                #if use_dropout and dropout_placeholder:
-                #    o = tf.nn.dropout(o, dropout_placeholder)
+                if use_dropout and dropout_placeholder:
+                    o = tf.nn.dropout(o, dropout_placeholder)
                 out_activation = tf.matmul(o, decoding_W) + decoding_B
                 logits.append(out_activation)
                 decoded.append(tf.argmax(out_activation, 1))
