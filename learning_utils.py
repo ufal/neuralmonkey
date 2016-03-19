@@ -1,22 +1,29 @@
 from nltk.translate.bleu_score import corpus_bleu, SmoothingFunction
 from termcolor import colored
-import time
+import os, time
 
 def log(message, color='yellow'):
     print "{}: {}".format(colored(time.strftime("%Y-%m-%d %H:%M:%S"), color), message)
 
-def print_args(args):
+def print_header(title, args):
+    """
+    Prints the title of the experiment
+    """
+    print colored("".join("=" for _ in range(80)), 'green')
+    print colored(title.upper(), 'green')
+    print colored("".join("=" for _ in range(80)), 'green')
+
     print ""
     for arg in vars(args):
         value = str(getattr(args, arg))
         dots_count = 78 - len(arg) - len(value)
+        # TODO if it is file print its path
         print "{} {} {}".format(arg, "".join(['.' for _ in range(dots_count)]), value)
     print ""
 
-def print_title(title):
-    print colored("".join("=" for _ in range(80)), 'green')
-    print colored(title.upper, 'green')
-    print colored("".join("=" for _ in range(80)), 'green')
+    os.system("echo last commit: `git log -1 --format=%H`")
+    os.system("git --no-pager diff --color=always")
+    print ""
 
 def training_loop(sess, vocabulary, epochs, optimize_op,
                   decoder, train_feed_dicts, train_tgt_sentences,
@@ -79,7 +86,7 @@ def training_loop(sess, vocabulary, epochs, optimize_op,
             else:
                 sess.run([optimize_op], feed_dict=batch_feed_dict)
 
-            if step % 50 == 49:
+            if step % 500 == 490:
                 computation = sess.run([decoder.loss_with_decoded_ins, decoder.loss_with_gt_ins] \
                         + decoder.decoded_seq, feed_dict=val_feed_dict)
                 decoded_val_sentences = \
