@@ -8,8 +8,9 @@ class ImageEncoder(object):
 
             self.encoded = tf.reduce_mean(self.image_features, reduction_indices=[1, 2],
                                           name="average_image")
-            self.attention_tensor = tf.reshape(self.image_features,
-                    [-1, 196, 512], name="flatten_image")
+            self.attention_tensor = \
+                tf.transpose(tf.reshape(self.image_features,
+                                        [-1, 196, 512], name="flatten_image"), [0, 2, 1])
 
             if dropout_placeholder:
                 self.encoded = tf.nn.dropout(self.encoded, dropout_placeholder, name="avg_image_dropped")
