@@ -133,27 +133,29 @@ class Decoder:
 
             gt_loop_function = sampling_loop if scheduled_sampling else None
 
+            encoded = encoder.encoded
+            attention_tensor = encoder.attention_tensor
+            if dropout_placeholder:
+                encoded = tf.nn.dropout(encoded, dropout_placeholder)
+                attention_tensor = tf.nn.dropout(attention_tensor, dropout_placeholder)
+
             if use_attention:
-                rnn_outputs_gt_ins, _ = seq2seq.attention_decoder(embedded_gt_inputs, encoder.encoded,
-                                                      attention_states=encoder.attention_tensor,
+                rnn_outputs_gt_ins, _ = seq2seq.attention_decoder(embedded_gt_inputs, encoded,
+                                                      attention_states=attention_tensor,
                                                       cell=decoder_cell,
                                                       loop_function=gt_loop_function)
             else:
-                rnn_outputs_gt_ins, _ = seq2seq.rnn_decoder(embedded_gt_inputs, encoder.encoded,
+                rnn_outputs_gt_ins, _ = seq2seq.rnn_decoder(embedded_gt_inputs, encoded,
                                                 cell=decoder_cell,
                                                 loop_function=gt_loop_function)
 
             tf.get_variable_scope().reuse_variables()
 
-            encoded = encoder.encoded
-            if dropout_placeholder:
-                encoded = tf.nn.dropout(encoded, dropout_placeholder)
-
             if use_attention:
                 rnn_outputs_decoded_ins, _ = \
                     seq2seq.attention_decoder(embedded_gt_inputs, encoded,
                                               cell=decoder_cell,
-                                              attention_states=encoder.attention_tensor,
+                                              attention_states=attention_tensor,
                                               loop_function=loop)
             else:
                 rnn_outputs_decoded_ins, _ = \
