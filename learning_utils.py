@@ -1,4 +1,5 @@
 from nltk.translate.bleu_score import corpus_bleu, SmoothingFunction
+from nltk.tokenize import word_tokenize
 from termcolor import colored
 import os, time
 
@@ -25,9 +26,14 @@ def print_header(title, args):
     os.system("git --no-pager diff --color=always")
     print ""
 
+
+def tokenize_char_seq(chars):
+    return word_tokenize("".join(chars))
+
+
 def training_loop(sess, vocabulary, epochs, optimize_op,
                   decoder, train_feed_dicts, train_tgt_sentences,
-                  val_feed_dict, val_tgt_sentences):
+                  val_feed_dict, val_tgt_sentences, char_based=False):
     """
 
     Performs the training loop for given graph and data.
@@ -44,17 +50,22 @@ def training_loop(sess, vocabulary, epochs, optimize_op,
 
         decoder: The decoder object.
 
-        train_feed_dicts: List of feed dictionaires for training batches. Each
-            sentence must be clsoed in one additional list (potentially more
-            reference sentences for BLEU computation).
+        train_feed_dicts: List of feed dictionaires for training batches.
 
-        train_tgt_sentences: List of batches of target training
+        train_tgt_sentences: List of batches of target training sentences for
+            BLEU computation. Each sentence must be clsoed in one additional list
+            (potentially more reference sentences for BLEU computation). Even if
+            the character based decoding is done, these must be tokenized
             sentences.
 
         val_feed_dict: Feed dictionaty for the validation data.
 
-        val_tgt_sentences: Validation target sentences. Lists of lists (there
-            may be multiple references for a sentece) of list of words.
+        val_tgt_sentences: Validation target sentences for BLEU computation.
+            Lists of lists (there may be multiple references for a sentece) of list
+            of words. Each sentence must be clsoed in one additional list
+            (potentially more reference sentences for BLEU computation). Even if
+            the character based decoding is done, these must be tokenized
+            sentences.
 
     """
 
@@ -69,16 +80,23 @@ def training_loop(sess, vocabulary, epochs, optimize_op,
                 enumerate(zip(train_feed_dicts, train_tgt_sentences)):
             step += 1
             if step % 20 == 1:
-                computation = sess.run([optimize_op, decoder.loss_with_decoded_ins, decoder.loss_with_gt_ins] \
-                        + decoder.decoded_seq, feed_dict=batch_feed_dict)
+                computation = sess.run([optimize_op, decoder.loss_with_decoded_ins,
+                    decoder.loss_with_gt_ins] + decoder.decoded_seq,
+                    feed_dict=batch_feed_dict)
                 decoded_sentences = \
                     vocabulary.vectors_to_sentences(computation[-decoder.max_output_len - 1:])
 
+                if char_based:
+                    decoded_sentences = \
+                            [tokenize_char_seq(chars) for chars in decoded_sentences]
+
                 bleu_1 = \
-                    100 * corpus_bleu(batch_sentences, decoded_sentences, weights=[1., 0., 0., 0.],
+                    100 * corpus_bleu(batch_sentences, decoded_sentences,
+                                      weights=[1., 0., 0., 0.],
                                       smoothing_function=bleu_smoothing)
                 bleu_4 = \
-                    100 * corpus_bleu(batch_sentences, decoded_sentences, weights=[0.25, 0.25, 0.25, 0.25],
+                    100 * corpus_bleu(batch_sentences, decoded_sentences,
+                                      weights=[0.25, 0.25, 0.25, 0.25],
                                       smoothing_function=bleu_smoothing)
 
                 log("opt. loss: {:.4f}    dec. loss: {:.4f}    BLEU-1: {:.2f}    BLEU-4: {:.2f}"\
@@ -91,6 +109,10 @@ def training_loop(sess, vocabulary, epochs, optimize_op,
                         + decoder.decoded_seq, feed_dict=val_feed_dict)
                 decoded_val_sentences = \
                     vocabulary.vectors_to_sentences(computation[-decoder.max_output_len - 1:])
+
+                if char_based:
+                    decoded_val_sentences = \
+                            [tokenize_char_seq(chars) for chars in decoded_val_sentences]
 
                 val_bleu_1 = \
                         100 * corpus_bleu(val_tgt_sentences, decoded_val_sentences, weights=[1., 0., 0., 0.0],

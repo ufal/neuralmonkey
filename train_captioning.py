@@ -8,7 +8,7 @@ import regex as re
 from image_encoder import ImageEncoder
 from decoder import Decoder
 from vocabulary import Vocabulary
-from learning_utils import log, training_loop, print_header
+from learning_utils import log, training_loop, print_header, tokenize_char_seq
 
 
 if __name__ == "__main__":
@@ -27,6 +27,7 @@ if __name__ == "__main__":
     parser.add_argument("--scheduled-sampling", type=float, default=None)
     parser.add_argument("--dropout-keep-prob", type=float, default=1.0)
     parser.add_argument("--l2-regularization", type=float, default=0.0)
+    parser.add_argument("--character-based", type=bool, default=False)
     parser.add_argument("--epochs", type=int, default=10)
     args = parser.parse_args()
 
@@ -40,11 +41,22 @@ if __name__ == "__main__":
     args.val_images.close()
     log("Loaded validation images.")
 
-    train_sentences = [re.split(ur"[ @#]", l.rstrip()) for l in args.tokenized_train_text][:len(train_images)]
-    log("Loaded {} training sentences.".format(len(train_sentences)))
-    val_sentences = [re.split(ur"[ @#]", l.rstrip()) for l in args.tokenized_val_text][:len(val_images)]
-    listed_val_sentences = [[s] for s in val_sentences]
-    log("Loaded {} validation sentences.".format(len(val_sentences)))
+    if args.character_based:
+        train_sentences = [list(re.sub(ur"[@#]", "", l.rstrip())) for l in args.tokenized_train_text]
+        tokenized_train_senteces = [tokenize_char_seq(chars) for chars in train_sentences]
+        log("Loaded {} training sentences.".format(len(train_sentences)))
+        val_sentences = [list(re.sub(ur"[@#]", "", l.rstrip())) for l in args.tokenized_val_text]
+        tokenized_val_sentences = [tokenize_char_seq(chars) for chars in val_sentences]
+        log("Loaded {} validation sentences.".format(len(val_sentences)))
+    else:
+        train_sentences = [re.split(ur"[ @#-]", l.rstrip()) for l in args.tokenized_train_text][:len(train_images)]
+        tokenized_train_senteces = train_sentences
+        log("Loaded {} training sentences.".format(len(train_sentences)))
+        val_sentences = [re.split(ur"[ @#-]", l.rstrip()) for l in args.tokenized_val_text][:len(val_images)]
+        tokenized_val_sentences = val_sentences
+        log("Loaded {} validation sentences.".format(len(val_sentences)))
+
+    listed_val_sentences = [[s] for s in tokenized_val_sentences]
 
     vocabulary = \
         Vocabulary(tokenized_text=[w for s in train_sentences for w in s])
