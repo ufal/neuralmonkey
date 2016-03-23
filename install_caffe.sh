@@ -105,14 +105,12 @@ cp -r distribute/lib ../caffe-env/lib
 cp -r distribute/include ../caffe-env/include
 cp -r distribute/python ../caffe-env/lib/python2.7
 cd ..
-rm caffe
+#rm caffe
 
 pip install protobuf
 pip install scikit-image
 pip install cython
 pip install pyaml
-
-pip install --upgrade https://storage.googleapis.com/tensorflow/linux/cpu/tensorflow-0.6.0-cp27-none-linux_x86_64.whl
 
 echo "" >> caffe-env/bin/activate
 echo "export LD_LIBRARY_PATH=$PWD/caffe-env/lib" >> caffe-env/bin/activate
