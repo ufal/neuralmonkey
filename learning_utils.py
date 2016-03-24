@@ -104,7 +104,8 @@ def training_loop(sess, vocabulary, epochs, optimize_op,
             else:
                 sess.run([optimize_op], feed_dict=batch_feed_dict)
 
-            if step % 500 == 490:
+            if step % 500 == 499:
+                print "Haf"
                 computation = sess.run([decoder.loss_with_decoded_ins, decoder.loss_with_gt_ins] \
                         + decoder.decoded_seq, feed_dict=val_feed_dict)
                 decoded_val_sentences = \

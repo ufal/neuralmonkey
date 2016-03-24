@@ -10,6 +10,9 @@ from decoder import Decoder
 from vocabulary import Vocabulary
 from learning_utils import log, training_loop, print_header, tokenize_char_seq
 
+def shape(string):
+    res_shape = [int(s) for s in string.split("x")]
+    return res_shape
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Trains the image captioning.')
@@ -28,6 +31,7 @@ if __name__ == "__main__":
     parser.add_argument("--dropout-keep-prob", type=float, default=1.0)
     parser.add_argument("--l2-regularization", type=float, default=0.0)
     parser.add_argument("--character-based", type=bool, default=False)
+    parser.add_argument("--img-features-shape", type=shape, default='14x14x256')
     parser.add_argument("--epochs", type=int, default=10)
     args = parser.parse_args()
 
@@ -65,7 +69,7 @@ if __name__ == "__main__":
 
     log("Buiding the TensorFlow computation graph.")
     dropout_placeholder = tf.placeholder(tf.float32, name="dropout_keep_prob")
-    encoder = ImageEncoder(dropout_placeholder=dropout_placeholder)
+    encoder = ImageEncoder(args.img_features_shape, dropout_placeholder=dropout_placeholder)
     decoder = Decoder(encoder, vocabulary, embedding_size=args.embeddings_size,
             use_attention=args.use_attention, max_out_len=args.maximum_output, use_peepholes=True,
             scheduled_sampling=args.scheduled_sampling, dropout_placeholder=dropout_placeholder)
