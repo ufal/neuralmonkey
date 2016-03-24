@@ -2,10 +2,12 @@
 
 """
 Does the Image feature extraction by calling directly Caffe.
+Based on tutorial http://www.marekrei.com/blog/transforming-images-to-feature-vectors/
 
 """
-
-import argparse, caffe
+import sys
+sys.path.append("caffe/python")
+import os, argparse, caffe
 import numpy as np
 from learning_utils import log
 
@@ -14,7 +16,8 @@ if __name__ == "__main__":
     parser.add_argument("--model-prototxt", type=str, required=True)
     parser.add_argument("--model-parameters", type=str, required=True)
     parser.add_argument("--img-mean", type=str, required=True)
-    parser.add_argument("--feature-layer-id", type=str, required=True)
+    parser.add_argument("--feature-layer", type=str, required=True)
+    parser.add_argument("--image-directory", type=str, required=True)
     parser.add_argument("--image-list", type=argparse.FileType('r'), required=True)
     parser.add_argument("--output-file", type=argparse.FileType('wb'), required=True)
     args = parser.parse_args()
@@ -35,12 +38,12 @@ if __name__ == "__main__":
     data = []
     for i, image_path in enumerate(args.image_list):
         image_path = image_path.strip()
-        input_image = caffe.io.load_image(image_path)
+        input_image = caffe.io.load_image(os.path.join(args.image_directory, image_path))
         prediction = net.predict([input_image], oversample=False)
-        data.append(net.blobs[layer_name].data[0].reshape(1,-1))
+        data.append(net.blobs[args.feature_layer].data[0].reshape(1,-1))
         if i % 99 == 0:
             log("Processed {} images.".format(i + 1))
 
     log("All images processed.")
-    np.save(args.output_file, np.concatenate(features))
+    np.save(args.output_file, np.concatenate(data))
     log("Featurs saved.")
