@@ -1,7 +1,10 @@
 **/*.pyc
 tf
+tf-gpu
+caffe
 caffe-env
 **/.history*
-tensorflow-vgg16
-vgg16.tfmodel
-jwordsplitter
+data
+logs
+*.log
+*.o[0-9]*
