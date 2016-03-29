@@ -41,8 +41,8 @@ if __name__ == "__main__":
         image_path = image_path.strip()
         input_image = caffe.io.load_image(os.path.join(args.image_directory, image_path))
         prediction = net.predict([input_image], oversample=False)
-        f_output = net.blobs[args.feature_layer]
-        data.append(net.blobs[args.feature_layer].data[0].transpose((1,2,0)).copy())
+        f_output = net.blobs[args.feature_layer].data[0].transpose((1,2,0)).copy()
+        data.append(np.expand_dims(f_output, axis=0))
         if i % 99 == 0:
             log("Processed {} images.".format(i + 1))
 
