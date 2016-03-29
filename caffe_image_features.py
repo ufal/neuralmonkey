@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 """
+
 Does the Image feature extraction by calling directly Caffe.
 Based on tutorial http://www.marekrei.com/blog/transforming-images-to-feature-vectors/
 
@@ -40,10 +41,11 @@ if __name__ == "__main__":
         image_path = image_path.strip()
         input_image = caffe.io.load_image(os.path.join(args.image_directory, image_path))
         prediction = net.predict([input_image], oversample=False)
-        data.append(net.blobs[args.feature_layer].data[0].reshape(1,-1))
+        f_output = net.blobs[args.feature_layer]
+        data.append(net.blobs[args.feature_layer].data[0].transpose((1,2,0)).copy())
         if i % 99 == 0:
             log("Processed {} images.".format(i + 1))
 
     log("All images processed.")
     np.save(args.output_file, np.concatenate(data))
-    log("Featurs saved.")
+    log("Featurs saved. Shape: {}".format(data[0].shape))
