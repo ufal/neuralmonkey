@@ -5,7 +5,7 @@ from tensorflow.models.rnn import rnn_cell
 from tensorflow.models.rnn import rnn
 
 class Decoder:
-    def __init__(self, encoder, vocabulary, embedding_size=128, use_attention=False,
+    def __init__(self, encoders, vocabulary, rnn_size, embedding_size=128, use_attention=False,
                  max_out_len=20, use_peepholes=False, scheduled_sampling=None,
                  dropout_placeholder=None):
         """
@@ -23,9 +23,11 @@ class Decoder:
 
         Arguments:
 
-            encoder: Encoder
+            encoders: List of encoders
 
             vocabulary: Vocabulary used for decoding
+
+            rnn_size: Size of the RNN state.
 
             embedding_size (int): Dimensionality of the word
                 embeddings used during decoding.
@@ -35,7 +37,7 @@ class Decoder:
             max_out_len (int): Maximum length of the decoder output.
 
             use_peepholes (bool): Flag whether peephole connections should be
-                used in the LSTM decoder.
+                used in the GRU decoder.
 
             scheduled_sampling: Parameter k for inverse sigmoid decay in
                 scheduled sampling. If set to None, linear combination of the
@@ -70,7 +72,17 @@ class Decoder:
         """
 
         self.max_output_len = max_out_len
-        lstm_size = encoder.encoded.get_shape()[1].value / 2
+
+        with tf.variable_scope("encoders_projection"):
+            projected = []
+            for i, encoder in enumerate(encoders):
+                encoder_shape = encoder.encoded.get_shape()[1].value
+                proj = tf.Variable(tf.truncated_normal([encoder_shape, rnn_size]),
+                                   name="project_encoder_{}".format(i))
+                projected.append(tf.matmul(encoder.encoded, proj))
+            proj_bias = tf.Variable(tf.zeros([rnn_size]))
+            encoded = sum(projected) + proj_bias
+
 
         self.learning_step = tf.Variable(0, name="learning_step", trainable=False)
         self.gt_inputs = []
@@ -91,7 +103,7 @@ class Decoder:
 
         with tf.variable_scope('decoder'):
             decoding_W = \
-                tf.Variable(tf.random_uniform([lstm_size, len(vocabulary)], -0.5, 0.5),
+                tf.Variable(tf.random_uniform([rnn_size, len(vocabulary)], -0.5, 0.5),
                         name="state_to_word_W")
             decoding_B = \
                 tf.Variable(tf.fill([len(vocabulary)], - math.log(len(vocabulary))),
@@ -128,13 +140,11 @@ class Decoder:
                 return tf.select(condition, embedded_gt_inputs[i], loop(prev_state, i))
 
             decoder_cell = \
-                rnn_cell.LSTMCell(lstm_size, embedding_size,
-                                  use_peepholes=use_peepholes)
+                rnn_cell.GRUCell(rnn_size, embedding_size)
 
             gt_loop_function = sampling_loop if scheduled_sampling else None
 
-            encoded = encoder.encoded
-            attention_tensor = encoder.attention_tensor
+            attention_tensor = encoders[0].attention_tensor
             if dropout_placeholder:
                 encoded = tf.nn.dropout(encoded, dropout_placeholder)
                 attention_tensor = tf.nn.dropout(attention_tensor, dropout_placeholder)

@@ -20,6 +20,10 @@ if __name__ == "__main__":
                         help="File with training source sentences", required=True)
     parser.add_argument("--val-source-sentences", type=argparse.FileType('r'),
                         help="File with validation source sentences.", required=True)
+    parser.add_argument("--train-translated-sentences", type=argparse.FileType('r'),
+                        help="File with training source sentences", required=True)
+    parser.add_argument("--val-translated-sentences", type=argparse.FileType('r'),
+                        help="File with validation source sentences.", required=True)
     parser.add_argument("--train-target-sentences", type=argparse.FileType('r'),
                         help="File with tokenized training target sentences.", required=True)
     parser.add_argument("--val-target-sentences", type=argparse.FileType('r'), required=True)
@@ -59,15 +63,22 @@ if __name__ == "__main__":
         val_tgt_sentences = load_tokenized(args.val_target_sentences)
         tokenized_val_tgt_sentences = val_tgt_sentences
         log("Loaded {} validation tgt_sentences.".format(len(val_tgt_sentences)))
+
         train_src_sentences = load_tokenized(args.train_source_sentences)
         log("Loaded {} training src_sentences.".format(len(train_src_sentences)))
         val_src_sentences = load_tokenized(args.val_source_sentences)
         log("Loaded {} validation src_sentences.".format(len(val_src_sentences)))
 
+        train_trans_sentences = load_tokenized(args.train_translated_sentences)
+        log("Loaded {} training translated sentences.".format(len(train_trans_sentences)))
+        val_trans_sentences = load_tokenized(args.val_translated_sentences)
+        log("Loaded {} validation translated sentences.".format(len(val_trans_sentences)))
+
     listed_val_tgt_sentences = [[s] for s in tokenized_val_tgt_sentences]
 
     tgt_vocabulary = \
         Vocabulary(tokenized_text=[w for s in train_tgt_sentences for w in s])
+    tgt_vocabulary.add_tokenized_text([w for s in train_trans_sentences for w in s])
     src_vocabulary = \
         Vocabulary(tokenized_text=[w for s in train_src_sentences for w in s])
 
@@ -75,18 +86,30 @@ if __name__ == "__main__":
 
     log("Buiding the TensorFlow computation graph.")
     dropout_placeholder = tf.placeholder(tf.float32, name="dropout_keep_prob")
-    encoder = SentenceEncoder(args.maximum_output, src_vocabulary, args.embeddings_size, args.encoder_rnn_size, dropout_placeholder)
-    decoder = Decoder([encoder], tgt_vocabulary, args.decoder_rnn_size, embedding_size=args.embeddings_size,
+    encoder_src = SentenceEncoder(args.maximum_output, src_vocabulary,
+                                  args.embeddings_size, args.encoder_rnn_size, dropout_placeholder,
+                                  name="source_encoder")
+    encoder_trans = SentenceEncoder(args.maximum_output, tgt_vocabulary,
+                                    args.embeddings_size, args.encoder_rnn_size, dropout_placeholder,
+                                    name="trans_encoder")
+    decoder = Decoder([encoder_src, encoder_trans], tgt_vocabulary, args.decoder_rnn_size,
+                      embedding_size=args.embeddings_size,
             use_attention=args.use_attention, max_out_len=args.maximum_output, use_peepholes=True,
             scheduled_sampling=args.scheduled_sampling, dropout_placeholder=dropout_placeholder)
 
-    def feed_dict(src_sentences, tgt_sentences, train=False):
+    def feed_dict(src_sentences, trans_sentences, tgt_sentences, train=False):
         fd = {}
 
-        fd[encoder.sentence_lengths] = np.array([len(s) + 2 for s in src_sentences])
+        fd[encoder_src.sentence_lengths] = np.array([len(s) + 2 for s in src_sentences])
         src_vectors, _ = \
                 src_vocabulary.sentences_to_tensor(src_sentences, args.maximum_output, train=train)
-        for words_plc, words_tensor in zip(encoder.inputs, src_vectors):
+        for words_plc, words_tensor in zip(encoder_src.inputs, src_vectors):
+            fd[words_plc] = words_tensor
+
+        fd[encoder_trans.sentence_lengths] = np.array([len(s) + 2 for s in trans_sentences])
+        trans_vectors, _ = \
+                tgt_vocabulary.sentences_to_tensor(trans_sentences, args.maximum_output, train=train)
+        for words_plc, words_tensor in zip(encoder_trans.inputs, trans_vectors):
             fd[words_plc] = words_tensor
 
         tgt_vectors, weights_tensors = \
@@ -104,7 +127,7 @@ if __name__ == "__main__":
 
         return fd
 
-    val_feed_dict = feed_dict(val_src_sentences, val_tgt_sentences)
+    val_feed_dict = feed_dict(val_src_sentences, val_trans_sentences, val_tgt_sentences)
     if args.l2_regularization > 0:
         with tf.variable_scope("l2_regularization"):
             l2_cost = args.l2_regularization * \
@@ -131,8 +154,10 @@ if __name__ == "__main__":
 
     batched_train_src_sentences = [train_src_sentences[start:start + args.batch_size]
              for start in range(0, len(train_src_sentences), args.batch_size)]
-    train_feed_dicts = [feed_dict(src, tgt) \
-            for src, tgt in zip(batched_train_src_sentences, batched_train_tgt_sentences)]
+    batched_train_trans_sentences = [train_trans_sentences[start:start + args.batch_size]
+             for start in range(0, len(train_trans_sentences), args.batch_size)]
+    train_feed_dicts = [feed_dict(src, trans, tgt) \
+            for src, trans, tgt in zip(batched_train_src_sentences, batched_train_trans_sentences, batched_train_tgt_sentences)]
 
     training_loop(sess, tgt_vocabulary, args.epochs, optimize_op, decoder,
                   train_feed_dicts, batched_listed_train_tgt_sentences,

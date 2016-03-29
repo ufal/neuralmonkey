@@ -28,6 +28,7 @@ if __name__ == "__main__":
     parser.add_argument("--use-attention", type=bool, default=False)
     parser.add_argument("--embeddings-size", type=int, default=256)
     parser.add_argument("--scheduled-sampling", type=float, default=None)
+    parser.add_argument("--decoder-rnn-size", type=int, default=256)
     parser.add_argument("--dropout-keep-prob", type=float, default=1.0)
     parser.add_argument("--l2-regularization", type=float, default=0.0)
     parser.add_argument("--character-based", type=bool, default=False)
@@ -70,7 +71,7 @@ if __name__ == "__main__":
     log("Buiding the TensorFlow computation graph.")
     dropout_placeholder = tf.placeholder(tf.float32, name="dropout_keep_prob")
     encoder = ImageEncoder(args.img_features_shape, dropout_placeholder=dropout_placeholder)
-    decoder = Decoder(encoder, vocabulary, embedding_size=args.embeddings_size,
+    decoder = Decoder([encoder], vocabulary, args.decoder_rnn_size, embedding_size=args.embeddings_size,
             use_attention=args.use_attention, max_out_len=args.maximum_output, use_peepholes=True,
             scheduled_sampling=args.scheduled_sampling, dropout_placeholder=dropout_placeholder)
 
