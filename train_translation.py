@@ -28,7 +28,7 @@ if __name__ == "__main__":
     parser.add_argument("--use-attention", type=bool, default=False)
     parser.add_argument("--embeddings-size", type=int, default=256)
     parser.add_argument("--encoder-rnn-size", type=int, default=256)
-    parser.add_argument("--decoder-rnn-size", type=int, default=256)
+    parser.add_argument("--decoder-rnn-size", type=int, default=512)
     parser.add_argument("--scheduled-sampling", type=float, default=None)
     parser.add_argument("--dropout-keep-prob", type=float, default=1.0)
     parser.add_argument("--l2-regularization", type=float, default=0.0)

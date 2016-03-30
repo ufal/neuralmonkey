@@ -4,6 +4,8 @@ from tensorflow.models.rnn import seq2seq
 from tensorflow.models.rnn import rnn_cell
 from tensorflow.models.rnn import rnn
 
+from learning_utils import log
+
 class Decoder:
     def __init__(self, encoders, vocabulary, rnn_size, embedding_size=128, use_attention=False,
                  max_out_len=20, use_peepholes=False, scheduled_sampling=None,
@@ -23,7 +25,8 @@ class Decoder:
 
         Arguments:
 
-            encoders: List of encoders
+            encoders: List of encoders. If no encoder is provided, the decoder
+                can be used to train a LM.
 
             vocabulary: Vocabulary used for decoding
 
@@ -73,15 +76,26 @@ class Decoder:
 
         self.max_output_len = max_out_len
 
-        with tf.variable_scope("encoders_projection"):
-            projected = []
-            for i, encoder in enumerate(encoders):
-                encoder_shape = encoder.encoded.get_shape()[1].value
-                proj = tf.Variable(tf.truncated_normal([encoder_shape, rnn_size]),
-                                   name="project_encoder_{}".format(i))
-                projected.append(tf.matmul(encoder.encoded, proj))
-            proj_bias = tf.Variable(tf.zeros([rnn_size]))
-            encoded = sum(projected) + proj_bias
+        if len(encoders) == 1 and rnn_size == encoders[0].encoded.get_shape()[1].value:
+            encoded = encoders[0].encoded
+            log("Using encoder output wihtout projection.")
+        elif len(encoders) >= 1:
+            with tf.variable_scope("encoders_projection"):
+                projected = []
+                encoders_shapes = []
+                for i, encoder in enumerate(encoders):
+                    encoder_shape = encoder.encoded.get_shape()[1].value
+                    encoders_shapes.append(encoder_shape)
+                    proj = tf.Variable(tf.truncated_normal([encoder_shape, rnn_size]),
+                                       name="project_encoder_{}".format(i))
+                    dropped_encoded = tf.nn.dropout(encoder.encoded, dropout_placeholder)
+                    projected.append(tf.matmul(dropped_encoded, proj))
+                proj_bias = tf.Variable(tf.zeros([rnn_size]))
+                encoded = sum(projected) + proj_bias
+            log("Projection {} encoders (dimensions: {}) into single vector (dimension {}).".format(len(encoders), encoders_shapes, rnn_size))
+        elif len(encoders) == 0: # if we want to train just LM
+            encoded = tf.zeros(rnn_size)
+            log("No encoder - language model only.")
 
 
         self.learning_step = tf.Variable(0, name="learning_step", trainable=False)
