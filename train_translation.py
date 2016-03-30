@@ -8,7 +8,7 @@ import regex as re
 from sentence_encoder import SentenceEncoder
 from decoder import Decoder
 from vocabulary import Vocabulary
-from learning_utils import log, training_loop, print_header, tokenize_char_seq
+from learning_utils import log, training_loop, print_header, tokenize_char_seq, load_tokenized
 
 def shape(string):
     res_shape = [int(s) for s in string.split("x")]
@@ -37,12 +37,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     print_header("TRANSLATION ONLY", args)
-
-    def load_tokenized(text_file):
-        return [re.split(ur"[ @#-]", l.rstrip()) for l in text_file]
-
-    def load_char_based(test_file):
-        pass
 
     if args.character_based:
         raise Exception("Not implemented")

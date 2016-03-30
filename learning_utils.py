@@ -1,10 +1,12 @@
 from nltk.translate.bleu_score import corpus_bleu, SmoothingFunction
 from nltk.tokenize import word_tokenize
 from termcolor import colored
+import regex as re
 import os, time
 
 def log(message, color='yellow'):
     print "{}: {}".format(colored(time.strftime("%Y-%m-%d %H:%M:%S"), color), message)
+
 
 def print_header(title, args):
     """
@@ -25,6 +27,20 @@ def print_header(title, args):
     os.system("echo last commit: `git log -1 --format=%H`")
     os.system("git --no-pager diff --color=always")
     print ""
+
+
+def load_tokenized(text_file):
+    """
+    Loads a tokenized text file a list of list of tokens.
+    """
+    return [re.split(ur"[ @#-]", l.rstrip()) for l in text_file]
+
+
+def load_char_based(test_file):
+    """
+    Loads a tokenized text for character-based decoding.
+    """
+    pass
 
 
 def tokenize_char_seq(chars):
