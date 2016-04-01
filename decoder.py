@@ -10,7 +10,7 @@ from learning_utils import log
 class Decoder:
     def __init__(self, encoders, vocabulary, rnn_size, embedding_size=128, use_attention=False,
                  max_out_len=20, use_peepholes=False, scheduled_sampling=None,
-                 dropout_placeholder=None):
+                 dropout_placeholder=None, copy_net=None):
         """
 
         A class that collects the part of the computation graph that is needed
@@ -50,6 +50,7 @@ class Decoder:
             dropoout_placeholder: If not None, dropout with this placeholder's
                 keep probablity will be applied on the logits
 
+            copy_net: The tensor over which the copying will be done
 
         Attributes:
 
@@ -77,10 +78,10 @@ class Decoder:
 
         self.max_output_len = max_out_len
 
-        if len(encoders) == 1 and rnn_size == encoders[0].encoded.get_shape()[1].value:
-            encoded = encoders[0].encoded
-            log("Using encoder output wihtout projection.")
-        elif len(encoders) >= 1:
+#        if len(encoders) == 1 and rnn_size == encoders[0].encoded.get_shape()[1].value:
+#            encoded = encoders[0].encoded
+#            log("Using encoder output wihtout projection.")
+        if len(encoders) >= 1:
             with tf.variable_scope("encoders_projection"):
                 encoded_concat = tf.concat(1, [e.encoded for e in encoders])
                 concat_size = encoded_concat.get_shape()[1].value
@@ -155,6 +156,41 @@ class Decoder:
                     return tf.nn.dropout(next_step_embedding, dropout_placeholder)
                 else:
                     return next_step_embedding
+
+            if copy_net:
+                self.encoder_input_indices = tf.placeholder(dtype=tf.int32, shape=[None, max_out_len])
+                copy_tensor = copy_net
+                copy_features_size = copy_tensor.get_shape()[2].value
+                copy_W = \
+                        tf.Variable(tf.random_uniform([copy_features_size, 2 * rnn_size], -0.5, 0.5),
+                            name="copy_W")
+                copy_tensor_dropped = tf.nn.dropout(copy_tensor, dropout_placeholder)
+
+                def log_sum_exp(a, b):
+                    maxima = tf.maximum(a, b)
+                    minima = tf.minimum(a, b)
+                    return maxima + tf.log(1 + tf.exp(minima - maxima))
+
+                def copy_net_loop(prev_state, _):
+                    if dropout_placeholder:
+                        prev_state = tf.nn.dropout(prev_state, dropout_placeholder)
+                    generate_logits = tf.matmul(prev_state, decoding_W) + decoding_B
+                    projected_inputs = tf.batch_matmul(copy_tensor_dropped, copy_W)
+                    copy_logits = tf.batch_matmul(projected_inputs, prev_state)
+
+                    sparse_copy_logits = \
+                            tf.SparseTensor(self.encoder_input_indices, copy_logits, shape=[None, len(vocabulary)])
+                    logits = log_sum_exp(generate_logits, sparse_copy_logits)
+
+                    prev_word_index = tf.argmax(logits, 1)
+                    next_step_embedding = \
+                            tf.nn.embedding_lookup(decoding_EM, prev_word_index)
+                    if dropout_placeholder:
+                        return tf.nn.dropout(next_step_embedding, dropout_placeholder)
+                    else:
+                        return next_step_embedding
+
+                loop = copy_net_loop
 
             def sampling_loop(prev_state, i):
                 threshold = scheduled_sampling / \

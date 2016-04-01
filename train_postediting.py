@@ -38,6 +38,7 @@ if __name__ == "__main__":
     parser.add_argument("--l2-regularization", type=float, default=0.0)
     parser.add_argument("--character-based", type=bool, default=False)
     parser.add_argument("--epochs", type=int, default=10)
+    parser.add_argument("--use-copy-net", type=bool, default=False)
     args = parser.parse_args()
 
     print_header("TRANSLATION + POSTEDITING", args)
@@ -86,10 +87,16 @@ if __name__ == "__main__":
     encoder_trans = SentenceEncoder(args.maximum_output, tgt_vocabulary,
                                     args.embeddings_size, args.encoder_rnn_size, dropout_placeholder,
                                     name="trans_encoder")
+
+    copy_net = None
+    if args.use_copy_net:
+        copy_net = encoder_trans.attention_tensor
+
     decoder = Decoder([encoder_src, encoder_trans], tgt_vocabulary, args.decoder_rnn_size,
                       embedding_size=args.embeddings_size,
             use_attention=args.use_attention, max_out_len=args.maximum_output, use_peepholes=True,
-            scheduled_sampling=args.scheduled_sampling, dropout_placeholder=dropout_placeholder)
+            scheduled_sampling=args.scheduled_sampling, dropout_placeholder=dropout_placeholder,
+            copy_net=copy_net)
 
     def feed_dict(src_sentences, trans_sentences, tgt_sentences, train=False):
         fd = {}
@@ -113,6 +120,10 @@ if __name__ == "__main__":
 
         for words_plc, words_tensor in zip(decoder.gt_inputs, tgt_vectors):
             fd[words_plc] = words_tensor
+
+        if args.use_copy_net:
+            fd[decoder.encoder_input_indices] = \
+                    np.concatenate([np.expand_dims(v, 1) for v in trans_vectors], axis=1)
 
         if train:
             fd[dropout_placeholder] = args.dropout_keep_prob
