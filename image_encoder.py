@@ -12,3 +12,4 @@ class ImageEncoder(object):
             self.attention_tensor = \
                 tf.transpose(tf.reshape(self.image_features,
                                         [-1, shape[0] * shape[1], shape[2]], name="flatten_image"), [0, 2, 1])
+                #tf.reshape(self.image_features, [-1, shape[0] * shape[1], shape[2]], name="flatten_image")

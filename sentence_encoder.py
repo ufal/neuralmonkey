@@ -37,7 +37,8 @@ class SentenceEncoder(object):
             self.encoded = tf.concat(1, [last_state, last_state_rev])
 
             self.attention_tensor = \
-                    tf.transpose(tf.concat(1, [tf.expand_dims(o, 1) for o in outputs_bidi]), [0, 2, 1])
+                    tf.concat(1, [tf.expand_dims(o, 1) for o in outputs_bidi])
+                    #tf.transpose(tf.concat(1, [tf.expand_dims(o, 1) for o in outputs_bidi]), [0, 2, 1])
 
     def _reverse_seq(self, input_seq, lengths):
       """Reverse a list of Tensors up to specified lengths.

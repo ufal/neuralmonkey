@@ -4,6 +4,7 @@ from tensorflow.models.rnn import seq2seq
 from tensorflow.models.rnn import rnn_cell
 from tensorflow.models.rnn import rnn
 
+from decoding_function import attention_decoder
 from learning_utils import log
 
 class Decoder:
@@ -81,18 +82,26 @@ class Decoder:
             log("Using encoder output wihtout projection.")
         elif len(encoders) >= 1:
             with tf.variable_scope("encoders_projection"):
-                projected = []
-                encoders_shapes = []
-                for i, encoder in enumerate(encoders):
-                    encoder_shape = encoder.encoded.get_shape()[1].value
-                    encoders_shapes.append(encoder_shape)
-                    proj = tf.Variable(tf.truncated_normal([encoder_shape, rnn_size]),
-                                       name="project_encoder_{}".format(i))
-                    dropped_encoded = tf.nn.dropout(encoder.encoded, dropout_placeholder)
-                    projected.append(tf.matmul(dropped_encoded, proj))
+                encoded_concat = tf.concat(1, [e.encoded for e in encoders])
+                concat_size = encoded_concat.get_shape()[1].value
+                proj = tf.Variable(tf.truncated_normal([concat_size, rnn_size]),
+                                   name="project_encoders")
+                encoded_concat_dropped = tf.nn.dropout(encoded_concat, dropout_placeholder)
                 proj_bias = tf.Variable(tf.zeros([rnn_size]))
-                encoded = sum(projected) + proj_bias
-            log("Projection {} encoders (dimensions: {}) into single vector (dimension {}).".format(len(encoders), encoders_shapes, rnn_size))
+                encoded = tf.matmul(encoded_concat_dropped, proj) + proj_bias
+#            with tf.variable_scope("encoders_projection"):
+#                projected = []
+#                encoders_shapes = []
+#                for i, encoder in enumerate(encoders):
+#                    encoder_shape = encoder.encoded.get_shape()[1].value
+#                    encoders_shapes.append(encoder_shape)
+#                    proj = tf.Variable(tf.truncated_normal([encoder_shape, rnn_size]),
+#                                       name="project_encoder_{}".format(i))
+#                    dropped_encoded = tf.nn.dropout(encoder.encoded, dropout_placeholder)
+#                    projected.append(tf.matmul(dropped_encoded, proj))
+#                proj_bias = tf.Variable(tf.zeros([rnn_size]))
+#                encoded = sum(projected) + proj_bias
+#            log("Projection {} encoders (dimensions: {}) into single vector (dimension {}).".format(len(encoders), encoders_shapes, rnn_size))
         elif len(encoders) == 0: # if we want to train just LM
             encoded = tf.zeros(rnn_size)
             log("No encoder - language model only.")
@@ -158,14 +167,15 @@ class Decoder:
 
             gt_loop_function = sampling_loop if scheduled_sampling else None
 
-            attention_tensor = encoders[0].attention_tensor
+            attention_tensors = [e.attention_tensor for e in encoders]
             if dropout_placeholder:
                 encoded = tf.nn.dropout(encoded, dropout_placeholder)
-                attention_tensor = tf.nn.dropout(attention_tensor, dropout_placeholder)
+                attention_tensors_dropped = \
+                    [tf.nn.dropout(t, dropout_placeholder) for t in attention_tensors]
 
             if use_attention:
-                rnn_outputs_gt_ins, _ = seq2seq.attention_decoder(embedded_gt_inputs, encoded,
-                                                      attention_states=attention_tensor,
+                rnn_outputs_gt_ins, _ = attention_decoder(embedded_gt_inputs, encoded,
+                                                      attention_states=attention_tensors_dropped,
                                                       cell=decoder_cell,
                                                       loop_function=gt_loop_function)
             else:
@@ -177,9 +187,9 @@ class Decoder:
 
             if use_attention:
                 rnn_outputs_decoded_ins, _ = \
-                    seq2seq.attention_decoder(embedded_gt_inputs, encoded,
+                    attention_decoder(embedded_gt_inputs, encoded,
                                               cell=decoder_cell,
-                                              attention_states=attention_tensor,
+                                              attention_states=attention_tensors_dropped,
                                               loop_function=loop)
             else:
                 rnn_outputs_decoded_ins, _ = \
@@ -215,8 +225,8 @@ class Decoder:
         if scheduled_sampling:
             self.cost = self.loss_with_gt_ins
         else:
-            self.cost = self.loss_with_gt_ins
-            #self.cost = 0.5 * (self.loss_with_decoded_ins + self.loss_with_gt_ins)
+            #self.cost = self.loss_with_gt_ins
+            self.cost = 0.5 * (self.loss_with_decoded_ins + self.loss_with_gt_ins)
 
         tf.scalar_summary('optimization_cost_on_dev_data', self.cost, collections=["summary_test"])
         tf.scalar_summary('optimization_cost_on_train_data', self.cost, collections=["summary_train"])

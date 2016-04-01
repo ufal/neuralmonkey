@@ -129,7 +129,7 @@ if __name__ == "__main__":
     else:
         l2_cost = 0.0
 
-    optimize_op = tf.train.AdamOptimizer().minimize(decoder.cost + l2_cost, global_step=decoder.learning_step)
+    optimize_op = tf.train.AdamOptimizer(1e-4).minimize(decoder.cost + l2_cost, global_step=decoder.learning_step)
     # gradients = optimizer.compute_gradients(cost)
 
     summary_train = tf.merge_summary(tf.get_collection("summary_train"))
