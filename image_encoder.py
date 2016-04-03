@@ -10,6 +10,7 @@ class ImageEncoder(object):
             self.encoded = tf.reduce_mean(self.image_features, reduction_indices=[1, 2],
                                           name="average_image")
             self.attention_tensor = \
-                tf.transpose(tf.reshape(self.image_features,
-                                        [-1, shape[0] * shape[1], shape[2]], name="flatten_image"), [0, 2, 1])
+                tf.reshape(self.image_features, [-1, shape[0] * shape[1], shape[2]], name="flatten_image")
+                #tf.transpose(tf.reshape(self.image_features,
+                #                        [-1, shape[0] * shape[1], shape[2]], name="flatten_image"), [0, 2, 1])
                 #tf.reshape(self.image_features, [-1, shape[0] * shape[1], shape[2]], name="flatten_image")

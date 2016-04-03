@@ -158,13 +158,14 @@ class Decoder:
                     return next_step_embedding
 
             if copy_net:
-                self.encoder_input_indices = tf.placeholder(dtype=tf.int32, shape=[None, max_out_len])
-                copy_tensor = copy_net
-                copy_features_size = copy_tensor.get_shape()[2].value
+                self.encoder_input_indices = tf.placeholder(dtype=tf.int64, shape=[None, 2])
+                copy_tensor_dropped = tf.nn.dropout(copy_net, dropout_placeholder)
+                copy_tensors = [tf.squeeze(t, [1]) for t in tf.split(1, max_out_len + 2, copy_tensor_dropped)]
+                copy_features_size = copy_net.get_shape()[2].value
                 copy_W = \
-                        tf.Variable(tf.random_uniform([copy_features_size, 2 * rnn_size], -0.5, 0.5),
+                        tf.Variable(tf.random_uniform([copy_features_size, rnn_size], -0.5, 0.5),
                             name="copy_W")
-                copy_tensor_dropped = tf.nn.dropout(copy_tensor, dropout_placeholder)
+                projected_inputs = tf.concat(1, [tf.expand_dims(tf.matmul(c, copy_W), 1) for c in copy_tensors])
 
                 def log_sum_exp(a, b):
                     maxima = tf.maximum(a, b)
@@ -175,12 +176,16 @@ class Decoder:
                     if dropout_placeholder:
                         prev_state = tf.nn.dropout(prev_state, dropout_placeholder)
                     generate_logits = tf.matmul(prev_state, decoding_W) + decoding_B
-                    projected_inputs = tf.batch_matmul(copy_tensor_dropped, copy_W)
-                    copy_logits = tf.batch_matmul(projected_inputs, prev_state)
+                    copy_logits = tf.reduce_sum(projected_inputs * tf.expand_dims(prev_state, 1), [2])
 
-                    sparse_copy_logits = \
-                            tf.SparseTensor(self.encoder_input_indices, copy_logits, shape=[None, len(vocabulary)])
-                    logits = log_sum_exp(generate_logits, sparse_copy_logits)
+                    # TODO: what happens with non-unique indices ???
+                    vocabulary_copy_logits = \
+                            tf.sparse_to_dense(self.encoder_input_indices,
+                                               tf.to_int64(tf.shape(generate_logits)),
+                                               tf.reshape(copy_logits, [-1]),
+                                               validate_indices=False)
+
+                    logits = log_sum_exp(generate_logits, vocabulary_copy_logits)
 
                     prev_word_index = tf.argmax(logits, 1)
                     next_step_embedding = \

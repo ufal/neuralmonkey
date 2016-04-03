@@ -101,13 +101,13 @@ if __name__ == "__main__":
     def feed_dict(src_sentences, trans_sentences, tgt_sentences, train=False):
         fd = {}
 
-        fd[encoder_src.sentence_lengths] = np.array([len(s) + 2 for s in src_sentences])
+        fd[encoder_src.sentence_lengths] = np.array([min(len(s), args.maximum_output) + 2 for s in src_sentences])
         src_vectors, _ = \
                 src_vocabulary.sentences_to_tensor(src_sentences, args.maximum_output, train=train)
         for words_plc, words_tensor in zip(encoder_src.inputs, src_vectors):
             fd[words_plc] = words_tensor
 
-        fd[encoder_trans.sentence_lengths] = np.array([len(s) + 2 for s in trans_sentences])
+        fd[encoder_trans.sentence_lengths] = np.array([min(len(s), args.maximum_output) + 2 for s in trans_sentences])
         trans_vectors, _ = \
                 tgt_vocabulary.sentences_to_tensor(trans_sentences, args.maximum_output, train=train)
         for words_plc, words_tensor in zip(encoder_trans.inputs, trans_vectors):
@@ -122,8 +122,12 @@ if __name__ == "__main__":
             fd[words_plc] = words_tensor
 
         if args.use_copy_net:
-            fd[decoder.encoder_input_indices] = \
-                    np.concatenate([np.expand_dims(v, 1) for v in trans_vectors], axis=1)
+            indices = []
+            for i in range(len(trans_sentences)):
+                for j in range(args.maximum_output + 2):
+                    indices.append([i, trans_vectors[j][i]])
+
+            fd[decoder.encoder_input_indices] = np.array(indices)
 
         if train:
             fd[dropout_placeholder] = args.dropout_keep_prob
