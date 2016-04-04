@@ -204,7 +204,7 @@ class Decoder:
                         voabulary_shaped = \
                                 tf.sparse_to_dense(complete_indices,
                                                    tf.shape(generate_logits),
-                                                   copy_logits_i))
+                                                   copy_logits_i)
                         all_vocabulary_logits.append(voabulary_shaped)
 
                     logits = log_sum_exp(all_vocabulary_logits)
