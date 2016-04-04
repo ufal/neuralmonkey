@@ -88,6 +88,11 @@ def training_loop(sess, vocabulary, epochs, optimize_op,
     log("Starting training")
     step = 0
     bleu_smoothing = SmoothingFunction(epsilon=0.01).method1
+
+    max_bleu = 0.0
+    max_bleu_epoch = 0
+    max_bleu_batch_no = 0
+
     for i in range(epochs):
         print ""
         log("Epoch {} starts".format(i + 1), color='red')
@@ -136,10 +141,17 @@ def training_loop(sess, vocabulary, epochs, optimize_op,
                 val_bleu_4 = \
                     100 * corpus_bleu(val_tgt_sentences, decoded_val_sentences, weights=[0.25, 0.25, 0.25, 0.25],
                                       smoothing_function=bleu_smoothing)
+
+                if val_bleu_4 > max_bleu:
+                    max_bleu = val_bleu_4
+                    max_bleu_epoch = i
+                    max_bleu_batch_no = batch_n
+
                 print ""
                 log("Validation (epoch {}, batch number {}):".format(i, batch_n), color='cyan')
                 log("opt. loss: {:.4f}    dec. loss: {:.4f}    BLEU-1: {:.2f}    BLEU-4: {:.2f}"\
                         .format(computation[1], computation[0], val_bleu_1, val_bleu_4), color='cyan')
+                log("max BLEU-4 on validation: {:.2f} (in epoch {}, after batch number {})".format(max_bleu, max_bleu_epoch, max_bleu_batch_no), color='cyan')
 
                 print ""
                 print "Examples:"
@@ -147,4 +159,6 @@ def training_loop(sess, vocabulary, epochs, optimize_op,
                     print "    {}".format(" ".join(sent))
                     print colored("      ref.: {}".format(" ".join(ref_sent[0])), color="magenta")
                 print ""
+        
+        log("Finished. Maximum BLEU-4 on validation data: {:.2f}, epoch {}".format(max_bleu, max_bleu_epoch))
 
