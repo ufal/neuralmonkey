@@ -50,7 +50,10 @@ class Decoder:
             dropoout_placeholder: If not None, dropout with this placeholder's
                 keep probablity will be applied on the logits
 
-            copy_net: The tensor over which the copying will be done
+            copy_net: Pair of (i) list of indices to the target vocabulary
+                (most likely input placeholders of a different encoder) and (ii) he
+                tensor over which the copying will be done
+
 
         Attributes:
 
@@ -158,34 +161,53 @@ class Decoder:
                     return next_step_embedding
 
             if copy_net:
-                self.encoder_input_indices = tf.placeholder(dtype=tf.int64, shape=[None, 2])
-                copy_tensor_dropped = tf.nn.dropout(copy_net, dropout_placeholder)
+                # This is implementation of Copy-net (http://arxiv.org/pdf/1603.06393v2.pdf)
+                encoder_input_indices, copy_states = copy_net
+                copy_tensor_dropped = tf.nn.dropout(copy_states, dropout_placeholder)
                 copy_tensors = [tf.squeeze(t, [1]) for t in tf.split(1, max_out_len + 2, copy_tensor_dropped)]
-                copy_features_size = copy_net.get_shape()[2].value
-                copy_W = \
-                        tf.Variable(tf.random_uniform([copy_features_size, rnn_size], -0.5, 0.5),
-                            name="copy_W")
-                projected_inputs = tf.concat(1, [tf.expand_dims(tf.matmul(c, copy_W), 1) for c in copy_tensors])
+                copy_features_size = copy_states.get_shape()[2].value
 
-                def log_sum_exp(a, b):
-                    maxima = tf.maximum(a, b)
-                    minima = tf.minimum(a, b)
-                    return maxima + tf.log(1 + tf.exp(minima - maxima))
+                # first we do the learned projection of the ecnoder outputs
+                copy_W = \
+                    tf.Variable(tf.random_uniform([copy_features_size, rnn_size], -0.5, 0.5),
+                            name="copy_W")
+                projected_inputs = [tf.matmul(c, copy_W) for c in copy_tensors]
+
+                def log_sum_exp(matrices):
+                    """
+                    Performs the sum of matrices in exponential domain using a
+                    numerically stable formula. See Wikipedia
+                    (https://en.wikipedia.org/wiki/LogSumExp) for details.
+
+                    Args:
+                        matrices: Python list of matrices.
+
+                    """
+                    maxima = tf.reduce_max(tf.concat(2, [tf.expand_dims(m, 2) for m in matrices]), [2])
+                    return maxima + tf.log(sum([tf.exp(m - maxima) for m in matrices]))
 
                 def copy_net_loop(prev_state, _):
                     if dropout_placeholder:
                         prev_state = tf.nn.dropout(prev_state, dropout_placeholder)
+                    # the logits for generating the next word are computed in the standard way
                     generate_logits = tf.matmul(prev_state, decoding_W) + decoding_B
-                    copy_logits = tf.reduce_sum(projected_inputs * tf.expand_dims(prev_state, 1), [2])
 
-                    # TODO: what happens with non-unique indices ???
-                    vocabulary_copy_logits = \
-                            tf.sparse_to_dense(self.encoder_input_indices,
-                                               tf.to_int64(tf.shape(generate_logits)),
-                                               tf.reshape(copy_logits, [-1]),
-                                               validate_indices=False)
+                    # in addition to that logits for copying a word from the
+                    # input are computed, here in a loop for each of the
+                    # encoder words
+                    all_vocabulary_logits = [generate_logits]
+                    for slice_indices, proj_input in zip(encoder_input_indices, projected_inputs):
+                        batch_range = tf.range(start=0, limit=tf.shape(slice_indices)[0])
+                        complete_indices = \
+                            tf.concat(1, [tf.expand_dims(batch_range, 1), tf.expand_dims(slice_indices, 1)])
+                        copy_logits_i = tf.reduce_sum(proj_input * prev_state, [1])
+                        voabulary_shaped = \
+                                tf.sparse_to_dense(complete_indices,
+                                                   tf.shape(generate_logits),
+                                                   copy_logits_i))
+                        all_vocabulary_logits.append(voabulary_shaped)
 
-                    logits = log_sum_exp(generate_logits, vocabulary_copy_logits)
+                    logits = log_sum_exp(all_vocabulary_logits)
 
                     prev_word_index = tf.argmax(logits, 1)
                     next_step_embedding = \
@@ -198,6 +220,11 @@ class Decoder:
                 loop = copy_net_loop
 
             def sampling_loop(prev_state, i):
+                """
+                Loop function performing the scheduled sampling
+                (http://arxiv.org/pdf/1506.03099v3.pdf) with the inverse
+                sigmoid decay.
+                """
                 threshold = scheduled_sampling / \
                         (scheduled_sampling + tf.exp(tf.to_float(self.learning_step) / scheduled_sampling))
                 condition = tf.less_equal(tf.random_uniform(tf.shape(embedded_gt_inputs[0])), threshold)

@@ -90,7 +90,7 @@ if __name__ == "__main__":
 
     copy_net = None
     if args.use_copy_net:
-        copy_net = encoder_trans.attention_tensor
+        copy_net = (encoder_trans.inputs, encoder_trans.attention_tensor)
 
     decoder = Decoder([encoder_src, encoder_trans], tgt_vocabulary, args.decoder_rnn_size,
                       embedding_size=args.embeddings_size,
@@ -120,14 +120,6 @@ if __name__ == "__main__":
 
         for words_plc, words_tensor in zip(decoder.gt_inputs, tgt_vectors):
             fd[words_plc] = words_tensor
-
-        if args.use_copy_net:
-            indices = []
-            for i in range(len(trans_sentences)):
-                for j in range(args.maximum_output + 2):
-                    indices.append([i, trans_vectors[j][i]])
-
-            fd[decoder.encoder_input_indices] = np.array(indices)
 
         if train:
             fd[dropout_placeholder] = args.dropout_keep_prob
