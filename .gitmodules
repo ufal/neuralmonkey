@@ -1,0 +1,3 @@
+[submodule "GroundedTranslation"]
+	path = GroundedTranslation
+	url = git@github.com:elliottd/GroundedTranslation.git
