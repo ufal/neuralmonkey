@@ -9,6 +9,8 @@ from sentence_encoder import SentenceEncoder
 from decoder import Decoder
 from vocabulary import Vocabulary
 from learning_utils import log, training_loop, print_header, tokenize_char_seq, load_tokenized
+from mixer import Mixer
+from cross_entropy_trainer import CrossEntropyTrainer
 
 def shape(string):
     res_shape = [int(s) for s in string.split("x")]
@@ -34,6 +36,7 @@ if __name__ == "__main__":
     parser.add_argument("--l2-regularization", type=float, default=0.0)
     parser.add_argument("--character-based", type=bool, default=False)
     parser.add_argument("--epochs", type=int, default=10)
+    parser.add_argument("--mixer", type=bool, default=False)
     args = parser.parse_args()
 
     print_header("TRANSLATION ONLY", args)
@@ -99,16 +102,11 @@ if __name__ == "__main__":
         return fd
 
     val_feed_dict = feed_dict(val_src_sentences, val_tgt_sentences)
-    if args.l2_regularization > 0:
-        with tf.variable_scope("l2_regularization"):
-            l2_cost = args.l2_regularization * \
-                sum([tf.reduce_sum(v ** 2) for v in tf.trainable_variables()])
-    else:
-        l2_cost = 0.0
 
-    optimize_op = tf.train.AdamOptimizer(1e-4).minimize(decoder.cost + l2_cost, global_step=decoder.learning_step)
-    #optimize_op = tf.train.AdagradOptimizer(1e-3).minimize(decoder.cost + l2_cost, global_step=decoder.learning_step)
-    # gradients = optimizer.compute_gradients(cost)
+    if args.mixer:
+        trainer = Mixer(decoder)
+    else:
+        trainer = CrossEntropyTrainer(decoder, args.l2_regularization)
 
     summary_train = tf.merge_summary(tf.get_collection("summary_train"))
     summary_test = tf.merge_summary(tf.get_collection("summary_test"))
@@ -129,6 +127,6 @@ if __name__ == "__main__":
     train_feed_dicts = [feed_dict(src, tgt) \
             for src, tgt in zip(batched_train_src_sentences, batched_train_tgt_sentences)]
 
-    training_loop(sess, tgt_vocabulary, args.epochs, optimize_op, decoder,
+    training_loop(sess, tgt_vocabulary, args.epochs, trainer, decoder,
                   train_feed_dicts, batched_listed_train_tgt_sentences,
                   val_feed_dict, listed_val_tgt_sentences)

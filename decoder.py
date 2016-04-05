@@ -79,6 +79,8 @@ class Decoder:
 
         """
 
+        self.vocabulary = vocabulary
+        self.rnn_size = rnn_size
         self.max_output_len = max_out_len
 
 #        if len(encoders) == 1 and rnn_size == encoders[0].encoded.get_shape()[1].value:
@@ -121,11 +123,11 @@ class Decoder:
                 tf.add_to_collection('dec_encoder_ins', dec)
                 self.gt_inputs.append(dec)
 
-        targets = self.gt_inputs[1:]
+        self.targets = self.gt_inputs[1:]
 
         self.weights_ins = []
         with tf.variable_scope("input_weights"):
-            for _ in range(len(targets)):
+            for _ in range(len(self.targets)):
                 self.weights_ins.append(tf.placeholder(tf.float32, [None]))
 
         with tf.variable_scope('decoder'):
@@ -265,6 +267,8 @@ class Decoder:
                                         cell=decoder_cell,
                                         loop_function=loop)
 
+            self.hidden_states = rnn_outputs_decoded_ins
+
         def loss_and_decoded(rnn_outputs, use_dropout):
             logits = []
             decoded = []
@@ -274,17 +278,17 @@ class Decoder:
                 out_activation = tf.matmul(o, decoding_W) + decoding_B
                 logits.append(out_activation)
                 decoded.append(tf.argmax(out_activation, 1))
-            loss = seq2seq.sequence_loss(logits, targets,
+            loss = seq2seq.sequence_loss(logits, self.targets,
                                          self.weights_ins, len(vocabulary))
-            return loss, decoded
+            return loss, decoded, logits
 
-        self.loss_with_gt_ins, _ = \
+        self.loss_with_gt_ins, _, _ = \
                 loss_and_decoded(rnn_outputs_gt_ins, True)
 
         tf.scalar_summary('loss_on_dev_data_with_gt_input', self.loss_with_gt_ins, collections=["summary_test"])
         tf.scalar_summary('loss_on_train_data_with_gt_intpus', self.loss_with_gt_ins, collections=["summary_train"])
 
-        self.loss_with_decoded_ins, self.decoded_seq = \
+        self.loss_with_decoded_ins, self.decoded_seq, self.decoded_logits = \
                 loss_and_decoded(rnn_outputs_decoded_ins, False)
 
         tf.scalar_summary('loss_on_dev_data_with_decoded_inputs', self.loss_with_decoded_ins, collections=["summary_test"])

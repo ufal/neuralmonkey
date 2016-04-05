@@ -29,11 +29,19 @@ def print_header(title, args):
     print ""
 
 
-def load_tokenized(text_file):
+def load_tokenized(text_file, lowercase=False):
     """
     Loads a tokenized text file a list of list of tokens.
     """
+
     return [re.split(ur"[ @#-]", l.rstrip()) for l in text_file]
+    
+    # if lowercase:
+    #     return [ [ t.lower for token in sentence ] for sentence in tokenized ]
+    # else:
+    #     return lowercase
+    
+
 
 
 def load_char_based(test_file):
@@ -47,7 +55,29 @@ def tokenize_char_seq(chars):
     return word_tokenize("".join(chars))
 
 
-def training_loop(sess, vocabulary, epochs, optimize_op,
+def corpus_bleu_deduplicated_unigrams(batch_sentences, decoded_sentences,
+                                      weights, smoothing_function):
+
+    deduplicated_sentences = []
+
+    for sentence in decoded_sentences:
+
+        last_w = None
+        dedup_snt = []
+    
+        for word in sentence:
+            if word != last_w:
+                dedup_snt.append(word)
+                last_w = word
+
+        deduplicated_sentences.append(dedup_snt)
+
+    return corpus_bleu(batch_sentences, deduplicated_sentences, weights,
+                       smoothing_function)
+
+
+
+def training_loop(sess, vocabulary, epochs, trainer,
                   decoder, train_feed_dicts, train_tgt_sentences,
                   val_feed_dict, val_tgt_sentences, char_based=False):
     """
@@ -62,7 +92,7 @@ def training_loop(sess, vocabulary, epochs, optimize_op,
 
         epochs: Number of epochs for which the algoritm will learn.
 
-        optimize_op: The optimization oepration.
+        trainer: The trainer object.
 
         decoder: The decoder object.
 
@@ -101,9 +131,10 @@ def training_loop(sess, vocabulary, epochs, optimize_op,
                 enumerate(zip(train_feed_dicts, train_tgt_sentences)):
             step += 1
             if step % 20 == 1:
-                computation = sess.run([optimize_op, decoder.loss_with_decoded_ins,
-                    decoder.loss_with_gt_ins] + decoder.decoded_seq,
-                    feed_dict=batch_feed_dict)
+                
+
+                computation = trainer.run(sess, batch_feed_dict, batch_sentences, verbose=True)                
+
                 decoded_sentences = \
                     vocabulary.vectors_to_sentences(computation[-decoder.max_output_len - 1:])
 
@@ -120,10 +151,15 @@ def training_loop(sess, vocabulary, epochs, optimize_op,
                                       weights=[0.25, 0.25, 0.25, 0.25],
                                       smoothing_function=bleu_smoothing)
 
-                log("opt. loss: {:.4f}    dec. loss: {:.4f}    BLEU-1: {:.2f}    BLEU-4: {:.2f}"\
-                        .format(computation[2], computation[1], bleu_1, bleu_4))
+                bleu_4_dedup = \
+                    100 * corpus_bleu_deduplicated_unigrams(batch_sentences, decoded_sentences,
+                                                            weights=[0.25, 0.25, 0.25, 0.25],
+                                                            smoothing_function=bleu_smoothing)
+
+                log("opt. loss: {:.4f}    dec. loss: {:.4f}    BLEU-1: {:.2f}    BLEU-4: {:.2f}    BLEU-4-dedup: {:.2f}"\
+                        .format(computation[2], computation[1], bleu_1, bleu_4, bleu_4_dedup))
             else:
-                sess.run([optimize_op], feed_dict=batch_feed_dict)
+                trainer.run(sess, batch_feed_dict, batch_sentences, verbose=False)
 
             if step % 500 == 499:
                 computation = sess.run([decoder.loss_with_decoded_ins, decoder.loss_with_gt_ins] \
@@ -142,6 +178,11 @@ def training_loop(sess, vocabulary, epochs, optimize_op,
                     100 * corpus_bleu(val_tgt_sentences, decoded_val_sentences, weights=[0.25, 0.25, 0.25, 0.25],
                                       smoothing_function=bleu_smoothing)
 
+                val_bleu_4_dedup = \
+                    100 * corpus_bleu_deduplicated_unigrams(val_tgt_sentences, decoded_val_sentences,
+                                                            weights=[0.25, 0.25, 0.25, 0.25],
+                                                            smoothing_function=bleu_smoothing)
+
                 if val_bleu_4 > max_bleu:
                     max_bleu = val_bleu_4
                     max_bleu_epoch = i
@@ -149,8 +190,8 @@ def training_loop(sess, vocabulary, epochs, optimize_op,
 
                 print ""
                 log("Validation (epoch {}, batch number {}):".format(i, batch_n), color='cyan')
-                log("opt. loss: {:.4f}    dec. loss: {:.4f}    BLEU-1: {:.2f}    BLEU-4: {:.2f}"\
-                        .format(computation[1], computation[0], val_bleu_1, val_bleu_4), color='cyan')
+                log("opt. loss: {:.4f}    dec. loss: {:.4f}    BLEU-1: {:.2f}    BLEU-4: {:.2f}    BLEU-4-dedup: {:.2f}"\
+                        .format(computation[1], computation[0], val_bleu_1, val_bleu_4, val_bleu_4_dedup), color='cyan')
                 log("max BLEU-4 on validation: {:.2f} (in epoch {}, after batch number {})".format(max_bleu, max_bleu_epoch, max_bleu_batch_no), color='cyan')
 
                 print ""
@@ -160,5 +201,5 @@ def training_loop(sess, vocabulary, epochs, optimize_op,
                     print colored("      ref.: {}".format(" ".join(ref_sent[0])), color="magenta")
                 print ""
         
-        log("Finished. Maximum BLEU-4 on validation data: {:.2f}, epoch {}".format(max_bleu, max_bleu_epoch))
+    log("Finished. Maximum BLEU-4 on validation data: {:.2f}, epoch {}".format(max_bleu, max_bleu_epoch))
 
