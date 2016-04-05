@@ -10,7 +10,7 @@ from learning_utils import log
 class Decoder:
     def __init__(self, encoders, vocabulary, rnn_size, embedding_size=128, use_attention=False,
                  max_out_len=20, use_peepholes=False, scheduled_sampling=None,
-                 dropout_placeholder=None, copy_net=None):
+                 dropout_placeholder=None, copy_net=None, reused_word_embeddings=None):
         """
 
         A class that collects the part of the computation graph that is needed
@@ -137,9 +137,13 @@ class Decoder:
             decoding_B = \
                 tf.Variable(tf.fill([len(vocabulary)], - math.log(len(vocabulary))),
                         name="state_to_word_b")
-            decoding_EM = \
-                tf.Variable(tf.random_uniform([len(vocabulary), embedding_size], -0.5, 0.5),
-                        name="word_embeddings")
+
+            if reused_word_embeddings is None:
+                decoding_EM = \
+                    tf.Variable(tf.random_uniform([len(vocabulary), embedding_size], -0.5, 0.5),
+                                name="word_embeddings")
+            else:
+                decoding_EM = reused_word_embeddings
 
             embedded_gt_inputs = \
                     [tf.nn.embedding_lookup(decoding_EM, o) for o in self.gt_inputs[:-1]]

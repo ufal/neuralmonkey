@@ -10,9 +10,9 @@ class SentenceEncoder(object):
                     [tf.placeholder(tf.int32, shape=[None], name="input_{}".format(i)) for i in range(max_input_len + 2)]
             self.sentence_lengths = tf.placeholder(tf.int64, shape=[None], name="sequence_lengths")
 
-            word_embeddings = tf.Variable(tf.random_uniform([len(vocabulary), embedding_size], -1.0, 1.0))
+            self.word_embeddings = tf.Variable(tf.random_uniform([len(vocabulary), embedding_size], -1.0, 1.0))
 
-            embedded_inputs = [tf.nn.embedding_lookup(word_embeddings, input_) for input_ in self.inputs]
+            embedded_inputs = [tf.nn.embedding_lookup(self.word_embeddings, input_) for input_ in self.inputs]
 
             dropped_embedded_inputs = [tf.nn.dropout(i, dropout_placeholder) for i in embedded_inputs]
 

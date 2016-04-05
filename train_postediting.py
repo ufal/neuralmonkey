@@ -9,6 +9,7 @@ from sentence_encoder import SentenceEncoder
 from decoder import Decoder
 from vocabulary import Vocabulary
 from learning_utils import log, training_loop, print_header, tokenize_char_seq, load_tokenized
+from cross_entropy_trainer import CrossEntropyTrainer
 
 def shape(string):
     res_shape = [int(s) for s in string.split("x")]
@@ -39,6 +40,9 @@ if __name__ == "__main__":
     parser.add_argument("--character-based", type=bool, default=False)
     parser.add_argument("--epochs", type=int, default=10)
     parser.add_argument("--use-copy-net", type=bool, default=False)
+    parser.add_argument("--shared-embeddings", type=bool, default=False,
+                        help="Share word embeddings between encoders of the same language")
+    
     args = parser.parse_args()
 
     print_header("TRANSLATION + POSTEDITING", args)
@@ -92,11 +96,16 @@ if __name__ == "__main__":
     if args.use_copy_net:
         copy_net = (encoder_trans.inputs, encoder_trans.attention_tensor)
 
+    if args.shared_embeddings:
+        reused_word_embeddings = encoder_trans.word_embeddings
+    else:
+        reused_word_embeddings = None
+        
     decoder = Decoder([encoder_src, encoder_trans], tgt_vocabulary, args.decoder_rnn_size,
-                      embedding_size=args.embeddings_size,
-            use_attention=args.use_attention, max_out_len=args.maximum_output, use_peepholes=True,
-            scheduled_sampling=args.scheduled_sampling, dropout_placeholder=dropout_placeholder,
-            copy_net=copy_net)
+                      embedding_size=args.embeddings_size, use_attention=args.use_attention,
+                      max_out_len=args.maximum_output, use_peepholes=True,
+                      scheduled_sampling=args.scheduled_sampling, dropout_placeholder=dropout_placeholder,
+                      copy_net=copy_net, reused_word_embeddings=reused_word_embeddings)
 
     def feed_dict(src_sentences, trans_sentences, tgt_sentences, train=False):
         fd = {}
@@ -129,16 +138,9 @@ if __name__ == "__main__":
         return fd
 
     val_feed_dict = feed_dict(val_src_sentences, val_trans_sentences, val_tgt_sentences)
-    if args.l2_regularization > 0:
-        with tf.variable_scope("l2_regularization"):
-            l2_cost = args.l2_regularization * \
-                sum([tf.reduce_sum(v ** 2) for v in tf.trainable_variables()])
-    else:
-        l2_cost = 0.0
 
-    optimize_op = tf.train.AdamOptimizer(1e-4).minimize(decoder.cost + l2_cost, global_step=decoder.learning_step)
-    # gradients = optimizer.compute_gradients(cost)
-
+    trainer = CrossEntropyTrainer(decoder, args.l2_regularization)
+    
     summary_train = tf.merge_summary(tf.get_collection("summary_train"))
     summary_test = tf.merge_summary(tf.get_collection("summary_test"))
 
@@ -160,6 +162,6 @@ if __name__ == "__main__":
     train_feed_dicts = [feed_dict(src, trans, tgt) \
             for src, trans, tgt in zip(batched_train_src_sentences, batched_train_trans_sentences, batched_train_tgt_sentences)]
 
-    training_loop(sess, tgt_vocabulary, args.epochs, optimize_op, decoder,
+    training_loop(sess, tgt_vocabulary, args.epochs, trainer, decoder,
                   train_feed_dicts, batched_listed_train_tgt_sentences,
                   val_feed_dict, listed_val_tgt_sentences)
