@@ -2,8 +2,14 @@
 
 """
 
-Does the Image feature extraction by calling directly Caffe.
-Based on tutorial http://www.marekrei.com/blog/transforming-images-to-feature-vectors/
+Does the Image feature extraction by calling directly Caffe. Based on tutorial
+at http://www.marekrei.com/blog/transforming-images-to-feature-vectors
+
+If the layers in the prototxt definition have the same name, only the last
+layer of the given name then appears in the blob dictionary of the Classifier
+object. If you want to extract such layer from a network, you need to edit he
+prototxt file in such a way that the layer you are willing to extract will have
+a unique name.
 
 """
 import sys, os
@@ -52,7 +58,7 @@ if __name__ == "__main__":
         f_output = net.blobs[args.feature_layer].data.transpose((0,2,3,1)).copy()
         for img, p in zip(paths, prediction):
             print os.path.basename(img), ' : ' , labels[p.argmax()].strip() , ' (', p[p.argmax()] , ')'
-        data.append(f_output)
+        data.append(f_output[:len(input_images)])
 
     for i, image_path in enumerate(args.image_list):
         image_path = image_path.strip()
