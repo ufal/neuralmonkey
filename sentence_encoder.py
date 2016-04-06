@@ -2,9 +2,11 @@ import tensorflow as tf
 from tensorflow.python.ops import array_ops
 from tensorflow.models.rnn import rnn_cell, rnn, seq2seq
 
+from noisy_gru_cell import NoisyGRUCell
+
 class SentenceEncoder(object):
     def __init__(self, max_input_len, vocabulary, embedding_size, rnn_size, dropout_placeholder,
-                 name="sentence_encoder"):
+                 is_training, use_noisy_activations=False, name="sentence_encoder"):
         with tf.variable_scope(name):
             self.inputs = \
                     [tf.placeholder(tf.int32, shape=[None], name="input_{}".format(i)) for i in range(max_input_len + 2)]
@@ -17,14 +19,20 @@ class SentenceEncoder(object):
             dropped_embedded_inputs = [tf.nn.dropout(i, dropout_placeholder) for i in embedded_inputs]
 
             with tf.variable_scope('forward'):
-                gru = rnn_cell.GRUCell(rnn_size, input_size=embedding_size)
+                if use_noisy_activations:
+                    gru = rnn_cell.GRUCell(rnn_size, input_size=embedding_size)
+                else:
+                    gru = NoisyGRUCell(rnn_size, is_training, input_size=embedding_size)
                 outputs, last_state = rnn.rnn(
                     cell=gru,
                     inputs=dropped_embedded_inputs, dtype=tf.float32,
                     sequence_length=self.sentence_lengths)
 
             with tf.variable_scope('backward'):
-                gru_rev = rnn_cell.GRUCell(rnn_size, input_size=embedding_size)
+                if use_noisy_activations:
+                    gru_rev = rnn_cell.GRUCell(rnn_size, input_size=embedding_size)
+                else:
+                    gru_rev = NoisyGRUCell(rnn_size, is_training, input_size=embedding_size)
                 outputs_rev_rev, last_state_rev = rnn.rnn(
                     cell=gru_rev,
                     inputs=self._reverse_seq(dropped_embedded_inputs, self.sentence_lengths), dtype=tf.float32,

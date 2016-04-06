@@ -42,7 +42,8 @@ if __name__ == "__main__":
     parser.add_argument("--use-copy-net", type=bool, default=False)
     parser.add_argument("--shared-embeddings", type=bool, default=False,
                         help="Share word embeddings between encoders of the same language")
-    
+    parser.add_argument("--use-noisy-activations", type=bool, default=False)
+
     args = parser.parse_args()
 
     print_header("TRANSLATION + POSTEDITING", args)
@@ -85,11 +86,14 @@ if __name__ == "__main__":
 
     log("Buiding the TensorFlow computation graph.")
     dropout_placeholder = tf.placeholder(tf.float32, name="dropout_keep_prob")
+    training_placeholder = tf.placeholder(tf.bool, name="is_training")
     encoder_src = SentenceEncoder(args.maximum_output, src_vocabulary,
                                   args.embeddings_size, args.encoder_rnn_size, dropout_placeholder,
+                                  training_placeholder, use_noisy_activations=args.use_noisy_activations,
                                   name="source_encoder")
     encoder_trans = SentenceEncoder(args.maximum_output, tgt_vocabulary,
                                     args.embeddings_size, args.encoder_rnn_size, dropout_placeholder,
+                                    training_placeholder, use_noisy_activations=args.use_noisy_activations,
                                     name="trans_encoder")
 
     copy_net = None
@@ -100,12 +104,14 @@ if __name__ == "__main__":
         reused_word_embeddings = encoder_trans.word_embeddings
     else:
         reused_word_embeddings = None
-        
+
     decoder = Decoder([encoder_src, encoder_trans], tgt_vocabulary, args.decoder_rnn_size,
+                      training_placeholder,
                       embedding_size=args.embeddings_size, use_attention=args.use_attention,
                       max_out_len=args.maximum_output, use_peepholes=True,
                       scheduled_sampling=args.scheduled_sampling, dropout_placeholder=dropout_placeholder,
-                      copy_net=copy_net, reused_word_embeddings=reused_word_embeddings)
+                      copy_net=copy_net, reused_word_embeddings=reused_word_embeddings,
+                      use_noisy_activations=args.use_noisy_activations)
 
     def feed_dict(src_sentences, trans_sentences, tgt_sentences, train=False):
         fd = {}
@@ -134,6 +140,7 @@ if __name__ == "__main__":
             fd[dropout_placeholder] = args.dropout_keep_prob
         else:
             fd[dropout_placeholder] = 1.0
+        fd[training_placeholder] = train
 
         return fd
 

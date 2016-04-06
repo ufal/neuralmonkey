@@ -34,6 +34,7 @@ if __name__ == "__main__":
     parser.add_argument("--scheduled-sampling", type=float, default=None)
     parser.add_argument("--dropout-keep-prob", type=float, default=1.0)
     parser.add_argument("--l2-regularization", type=float, default=0.0)
+    parser.add_argument("--use-noisy-activations", type=bool, default=False)
     parser.add_argument("--character-based", type=bool, default=False)
     parser.add_argument("--epochs", type=int, default=10)
     parser.add_argument("--mixer", type=bool, default=False)
@@ -72,15 +73,20 @@ if __name__ == "__main__":
 
     log("Buiding the TensorFlow computation graph.")
     dropout_placeholder = tf.placeholder(tf.float32, name="dropout_keep_prob")
-    encoder = SentenceEncoder(args.maximum_output, src_vocabulary, args.embeddings_size, args.encoder_rnn_size, dropout_placeholder)
-    decoder = Decoder([encoder], tgt_vocabulary, args.decoder_rnn_size, embedding_size=args.embeddings_size,
+    training_placeholder = tf.placeholder(tf.bool, name="is_training")
+    encoder = SentenceEncoder(args.maximum_output, src_vocabulary, args.embeddings_size,
+                              args.encoder_rnn_size, dropout_placeholder, training_placeholder,
+                              args.use_noisy_activations)
+    decoder = Decoder([encoder], tgt_vocabulary, args.decoder_rnn_size, training_placeholder,
+            embedding_size=args.embeddings_size,
             use_attention=args.use_attention, max_out_len=args.maximum_output, use_peepholes=True,
-            scheduled_sampling=args.scheduled_sampling, dropout_placeholder=dropout_placeholder)
+            scheduled_sampling=args.scheduled_sampling, dropout_placeholder=dropout_placeholder,
+            use_noisy_activations=args.use_noisy_activations)
 
     def feed_dict(src_sentences, tgt_sentences, train=False):
         fd = {}
 
-        fd[encoder.sentence_lengths] = np.array([len(s) + 2 for s in src_sentences])
+        fd[encoder.sentence_lengths] = np.array([min(args.maximum_output, len(s)) + 2 for s in src_sentences])
         src_vectors, _ = \
                 src_vocabulary.sentences_to_tensor(src_sentences, args.maximum_output, train=train)
         for words_plc, words_tensor in zip(encoder.inputs, src_vectors):
@@ -98,6 +104,7 @@ if __name__ == "__main__":
             fd[dropout_placeholder] = args.dropout_keep_prob
         else:
             fd[dropout_placeholder] = 1.0
+        fd[training_placeholder] = train
 
         return fd
 

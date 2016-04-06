@@ -32,16 +32,16 @@ class NoisyGRUCell(RNNCell):
     with tf.variable_scope(scope or type(self).__name__):  # "GRUCell"
       with tf.variable_scope("Gates"):  # Reset gate and update gate.
         # We start with bias of 1.0 to not reset and not update.
-        r, u = array_ops.split(1, 2, linear([inputs, state],
+        r, u = tf.split(1, 2, linear([inputs, state],
                                             2 * self._num_units, True, 1.0))
-        r, u = noisy_sigmoid(r), noisy_sigmoid(u)
+        r, u = noisy_sigmoid(r, self.training), noisy_sigmoid(u, self.training)
       with tf.variable_scope("Candidate"):
-        c = tanh(linear([inputs, r * state], self._num_units, True))
+        c = noisy_tanh(linear([inputs, r * state], self._num_units, True), self.training)
       new_h = u * state + (1 - u) * c
     return new_h, new_h
 
 
-def noisy_activation(x, generic, linearized, training, alhpa=1.1):
+def noisy_activation(x, generic, linearized, training, alpha=1.1):
     """
     Implements the noisy activation with Half-Normal Noise for Hard-Saturation
     functions. See http://arxiv.org/abs/1603.00391, Algorithm 1.
@@ -64,12 +64,12 @@ def noisy_activation(x, generic, linearized, training, alhpa=1.1):
 
     """
 
-    delta = generic(x) - linerized(x)
+    delta = generic(x) - linearized(x)
     d = -tf.sign(x) * tf.sign(1 - alpha)
     p = tf.Variable(1.0)
     sigma = (tf.sigmoid(p * delta) - 0.5)  ** 2
-    noise = tf.select(training, tf.abs(tf.random_normal([1])), math.sqrt(2 / math.pi))
-    activation = alpha * generic + (1 - alhpa) * linerized + d * sigma * noise
+    noise = tf.select(training, tf.abs(tf.random_normal([])), math.sqrt(2 / math.pi))
+    activation = alpha * generic(x) + (1 - alpha) * linearized(x) + d * sigma * noise
     return activation
 
 

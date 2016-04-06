@@ -6,11 +6,14 @@ from tensorflow.models.rnn import rnn
 
 from decoding_function import attention_decoder
 from learning_utils import log
+from noisy_gru_cell import NoisyGRUCell
 
 class Decoder:
-    def __init__(self, encoders, vocabulary, rnn_size, embedding_size=128, use_attention=False,
+    def __init__(self, encoders, vocabulary, rnn_size, is_training, embedding_size=128, use_attention=False,
                  max_out_len=20, use_peepholes=False, scheduled_sampling=None,
-                 dropout_placeholder=None, copy_net=None, reused_word_embeddings=None):
+                 dropout_placeholder=None, copy_net=None, reused_word_embeddings=None,
+                 use_noisy_activations=False):
+
         """
 
         A class that collects the part of the computation graph that is needed
@@ -33,6 +36,9 @@ class Decoder:
 
             rnn_size: Size of the RNN state.
 
+            is_training: Placeholder for boolean telling whether we are in the
+                training or testing stage.
+
             embedding_size (int): Dimensionality of the word
                 embeddings used during decoding.
 
@@ -53,6 +59,14 @@ class Decoder:
             copy_net: Pair of (i) list of indices to the target vocabulary
                 (most likely input placeholders of a different encoder) and (ii) he
                 tensor over which the copying will be done
+
+            reused_word_embeddings: The decoder can be given the matrix of word
+                embeddings from outside (if the vocabulary indexing is the same).
+                If it is None, the decoder creates its own matrix of word
+                embeddings.
+
+            use_noisy_activations: If set to True, the deocder will use the GRU
+                units with noisy activation.
 
 
         Attributes:
@@ -236,8 +250,10 @@ class Decoder:
                 condition = tf.less_equal(tf.random_uniform(tf.shape(embedded_gt_inputs[0])), threshold)
                 return tf.select(condition, embedded_gt_inputs[i], loop(prev_state, i))
 
-            decoder_cell = \
-                rnn_cell.GRUCell(rnn_size, embedding_size)
+            if use_noisy_activations:
+                decoder_cell = NoisyGRUCell(rnn_size, training=is_training, input_size=embedding_size)
+            else:
+                decoder_cell = rnn_cell.GRUCell(rnn_size, embedding_size)
 
             gt_loop_function = sampling_loop if scheduled_sampling else None
 

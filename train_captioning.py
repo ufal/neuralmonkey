@@ -9,6 +9,7 @@ from image_encoder import ImageEncoder
 from decoder import Decoder
 from vocabulary import Vocabulary
 from learning_utils import log, training_loop, print_header, tokenize_char_seq
+from cross_entropy_trainer import CrossEntropyTrainer
 
 def shape(string):
     res_shape = [int(s) for s in string.split("x")]
@@ -34,6 +35,7 @@ if __name__ == "__main__":
     parser.add_argument("--character-based", type=bool, default=False)
     parser.add_argument("--img-features-shape", type=shape, default='14x14x256')
     parser.add_argument("--epochs", type=int, default=10)
+    parser.add_argument("--use-noisy-activations", type=bool, default=False)
     args = parser.parse_args()
 
     print_header("IMAGE CAPTIONING ONLY", args)
@@ -70,10 +72,12 @@ if __name__ == "__main__":
 
     log("Buiding the TensorFlow computation graph.")
     dropout_placeholder = tf.placeholder(tf.float32, name="dropout_keep_prob")
+    training_placeholder = tf.placeholder(tf.bool, name="is_training")
     encoder = ImageEncoder(args.img_features_shape, dropout_placeholder=dropout_placeholder)
-    decoder = Decoder([encoder], vocabulary, args.decoder_rnn_size, embedding_size=args.embeddings_size,
+    decoder = Decoder([encoder], vocabulary, args.decoder_rnn_size, training_placeholder, embedding_size=args.embeddings_size,
             use_attention=args.use_attention, max_out_len=args.maximum_output, use_peepholes=True,
-            scheduled_sampling=args.scheduled_sampling, dropout_placeholder=dropout_placeholder)
+            scheduled_sampling=args.scheduled_sampling, dropout_placeholder=dropout_placeholder,
+            use_noisy_activations=args.use_noisy_activations)
 
     def feed_dict(images, sentences, train=False):
         fd = {encoder.image_features: images}
@@ -89,19 +93,12 @@ if __name__ == "__main__":
             fd[dropout_placeholder] = args.dropout_keep_prob
         else:
             fd[dropout_placeholder] = 1.0
+        fd[training_placeholder] = train
 
         return fd
 
     val_feed_dict = feed_dict(val_images, val_sentences)
-    if args.l2_regularization > 0:
-        with tf.variable_scope("l2_regularization"):
-            l2_cost = args.l2_regularization * \
-                sum([tf.reduce_sum(v ** 2) for v in tf.trainable_variables()])
-    else:
-        l2_cost = 0.0
-
-    optimize_op = tf.train.AdamOptimizer().minimize(decoder.cost + l2_cost, global_step=decoder.learning_step)
-    # gradients = optimizer.compute_gradients(cost)
+    trainer = CrossEntropyTrainer(decoder, args.l2_regularization)
 
     summary_train = tf.merge_summary(tf.get_collection("summary_train"))
     summary_test = tf.merge_summary(tf.get_collection("summary_test"))
@@ -121,6 +118,6 @@ if __name__ == "__main__":
     train_feed_dicts = [feed_dict(imgs, sents) \
             for imgs, sents in zip(batched_train_images, batched_train_sentenes)]
 
-    training_loop(sess, vocabulary, args.epochs, optimize_op, decoder,
+    training_loop(sess, vocabulary, args.epochs, trainer, decoder,
                   train_feed_dicts, batched_listed_train_sentences,
                   val_feed_dict, listed_val_sentences)
