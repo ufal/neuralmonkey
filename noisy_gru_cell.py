@@ -5,11 +5,12 @@ import math
 class NoisyGRUCell(RNNCell):
   """
   Gated Recurrent Unit cell (cf. http://arxiv.org/abs/1406.1078) with noisy
-  activation functions (http://arxiv.org/abs/1603.00391). It is based on the
-  TensorFlow implementatin of GRU just the activation function are changed for
-  the noisy ones.
-  """
+  activation functions (http://arxiv.org/abs/1603.00391). The theano code is
+  availble at https://github.com/caglar/noisy_units.
 
+  It is based on the TensorFlow implementatin of GRU just the activation
+  function are changed for the noisy ones.
+  """
   def __init__(self, num_units, training, input_size=None):
     self._num_units = num_units
     self._input_size = num_units if input_size is None else input_size
@@ -41,7 +42,7 @@ class NoisyGRUCell(RNNCell):
     return new_h, new_h
 
 
-def noisy_activation(x, generic, linearized, training, alpha=1.1):
+def noisy_activation(x, generic, linearized, training, alpha=1.1, c=0.5):
     """
     Implements the noisy activation with Half-Normal Noise for Hard-Saturation
     functions. See http://arxiv.org/abs/1603.00391, Algorithm 1.
@@ -60,22 +61,31 @@ def noisy_activation(x, generic, linearized, training, alpha=1.1):
             (and the noise is sampled) or in runtime when the expactation is
             used instead.
 
-        alpha: Mixing hyper-parameter.
+        alpha: Mixing hyper-parameter. The leakage rate from the linearized
+            function to the nonlinear one.
+
+        c: Standard deviation of the sampled noise.
 
     """
 
     delta = generic(x) - linearized(x)
     d = -tf.sign(x) * tf.sign(1 - alpha)
     p = tf.Variable(1.0)
-    sigma = (tf.sigmoid(p * delta) - 0.5)  ** 2
+    scale = c * (tf.sigmoid(p * delta) - 0.5)  ** 2
     noise = tf.select(training, tf.abs(tf.random_normal([])), math.sqrt(2 / math.pi))
-    activation = alpha * generic(x) + (1 - alpha) * linearized(x) + d * sigma * noise
+    activation = alpha * generic(x) + (1 - alpha) * linearized(x) + d * scale * noise
     return activation
 
 
-def noisy_sigmoid(x, training, alpha=1.1):
-    return noisy_activation(x, tf.sigmoid, lambda y: .25 * y + .5, training, alpha)
+# These are equations (1), (3) and (4) in the Noisy Activation FUnctions paper
+lin_sigmoid = lambda x: 0.25 * x + 0.5
+hard_tanh = lambda x: tf.minimum(tf.maximum(x, -1.), 1.)
+hard_sigmoid = lambda x: tf.minimum(tf.maximum(lin_sigmoid(x), 0.), 1.)
 
 
-def noisy_tanh(x, training, alpha=1.1):
-    return noisy_activation(x, tf.tanh, lambda y: y, training, alpha)
+def noisy_sigmoid(x, training):
+    return noisy_activation(x, hard_sigmoid, lin_sigmoid, training)
+
+
+def noisy_tanh(x, training):
+    return noisy_activation(x, hard_tanh, lambda y: y, training)
