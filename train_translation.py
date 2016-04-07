@@ -11,7 +11,7 @@ from vocabulary import Vocabulary
 from learning_utils import log, training_loop, print_header, tokenize_char_seq, load_tokenized
 from mixer import Mixer
 from cross_entropy_trainer import CrossEntropyTrainer
-from language_utils import untruecase
+from language_utils import untruecase, GermanPreprocessor, GermanPostprocessor
 
 def shape(string):
     res_shape = [int(s) for s in string.split("x")]
@@ -39,25 +39,24 @@ if __name__ == "__main__":
     parser.add_argument("--character-based", type=bool, default=False)
     parser.add_argument("--epochs", type=int, default=10)
     parser.add_argument("--mixer", type=bool, default=False)
+    parser.add_argument("--target-german", type=bool, default=False)
     args = parser.parse_args()
 
     print_header("TRANSLATION ONLY", args)
 
     postedit = untruecase
+    preprocess = None
+    if args.target_german:
+        postedit = GermanPostprocessor()
+        preprocess = GermanPreprocessor()
 
     if args.character_based:
         raise Exception("Not implemented")
-        train_tgt_sentences = [list(re.sub(ur"[@#]", "", l.rstrip())) for l in args.tokenized_train_text]
-        tokenized_train_tgt_sentences = [tokenize_char_seq(chars) for chars in train_tgt_sentences]
-        log("Loaded {} training tgt_sentences.".format(len(train_tgt_sentences)))
-        val_tgt_sentences = [list(re.sub(ur"[@#]", "", l.rstrip())) for l in args.tokenized_val_text]
-        tokenized_val_tgt_sentences = [tokenize_char_seq(chars) for chars in val_tgt_sentences]
-        log("Loaded {} validation tgt_sentences.".format(len(val_tgt_sentences)))
     else:
-        train_tgt_sentences = load_tokenized(args.train_target_sentences)
+        train_tgt_sentences = load_tokenized(args.train_target_sentences, preprocess=preprocess)
         tokenized_train_tgt_sentences = train_tgt_sentences
         log("Loaded {} training tgt_sentences.".format(len(train_tgt_sentences)))
-        val_tgt_sentences = load_tokenized(args.val_target_sentences)
+        val_tgt_sentences = load_tokenized(args.val_target_sentences, preprocess=preprocess)
         tokenized_val_tgt_sentences = val_tgt_sentences
         log("Loaded {} validation tgt_sentences.".format(len(val_tgt_sentences)))
         train_src_sentences = load_tokenized(args.train_source_sentences)
