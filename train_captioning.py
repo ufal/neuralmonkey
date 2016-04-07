@@ -10,6 +10,7 @@ from decoder import Decoder
 from vocabulary import Vocabulary
 from learning_utils import log, training_loop, print_header, tokenize_char_seq
 from cross_entropy_trainer import CrossEntropyTrainer
+from language_utils import untruecase
 
 def shape(string):
     res_shape = [int(s) for s in string.split("x")]
@@ -40,7 +41,9 @@ if __name__ == "__main__":
 
     print_header("IMAGE CAPTIONING ONLY", args)
 
-    if len(arg.img_features_shape) == 1 and args.use_attention:
+    postedit = untruecase
+
+    if len(args.img_features_shape) == 1 and args.use_attention:
         log("Attention can be used only with 3D image features.")
         exit()
 
@@ -53,6 +56,7 @@ if __name__ == "__main__":
     log("Loaded validation images.")
 
     if args.character_based:
+        raise Exception("Not implemented.")
         train_sentences = [list(re.sub(ur"[@#]", "", l.rstrip())) for l in args.tokenized_train_text]
         tokenized_train_senteces = [tokenize_char_seq(chars) for chars in train_sentences]
         log("Loaded {} training sentences.".format(len(train_sentences)))
@@ -67,7 +71,7 @@ if __name__ == "__main__":
         tokenized_val_sentences = val_sentences
         log("Loaded {} validation sentences.".format(len(val_sentences)))
 
-    listed_val_sentences = [[s] for s in tokenized_val_sentences]
+    listed_val_sentences = [[postedit(s)] for s in tokenized_val_sentences]
 
     vocabulary = \
         Vocabulary(tokenized_text=[w for s in train_sentences for w in s])
@@ -119,7 +123,7 @@ if __name__ == "__main__":
             [train_sentences[start:start + args.batch_size] \
              for start in range(0, len(train_sentences), args.batch_size)]
     batched_listed_train_sentences = \
-            [[[sent] for sent in batch] for batch in batched_train_sentenes]
+            [[[postedit(sent)] for sent in batch] for batch in batched_train_sentenes]
     batched_train_images = [train_images[start:start + args.batch_size]
              for start in range(0, len(train_sentences), args.batch_size)]
     train_feed_dicts = [feed_dict(imgs, sents) \
@@ -127,4 +131,4 @@ if __name__ == "__main__":
 
     training_loop(sess, vocabulary, args.epochs, trainer, decoder,
                   train_feed_dicts, batched_listed_train_sentences,
-                  val_feed_dict, listed_val_sentences)
+                  val_feed_dict, listed_val_sentences, postedit)

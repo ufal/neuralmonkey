@@ -11,6 +11,7 @@ from vocabulary import Vocabulary
 from learning_utils import log, training_loop, print_header, tokenize_char_seq, load_tokenized
 from mixer import Mixer
 from cross_entropy_trainer import CrossEntropyTrainer
+from language_utils import untruecase
 
 def shape(string):
     res_shape = [int(s) for s in string.split("x")]
@@ -42,6 +43,8 @@ if __name__ == "__main__":
 
     print_header("TRANSLATION ONLY", args)
 
+    postedit = untruecase
+
     if args.character_based:
         raise Exception("Not implemented")
         train_tgt_sentences = [list(re.sub(ur"[@#]", "", l.rstrip())) for l in args.tokenized_train_text]
@@ -62,7 +65,7 @@ if __name__ == "__main__":
         val_src_sentences = load_tokenized(args.val_source_sentences)
         log("Loaded {} validation src_sentences.".format(len(val_src_sentences)))
 
-    listed_val_tgt_sentences = [[s] for s in tokenized_val_tgt_sentences]
+    listed_val_tgt_sentences = [[postedit(s)] for s in tokenized_val_tgt_sentences]
 
     tgt_vocabulary = \
         Vocabulary(tokenized_text=[w for s in train_tgt_sentences for w in s])
@@ -127,7 +130,7 @@ if __name__ == "__main__":
             [train_tgt_sentences[start:start + args.batch_size] \
              for start in range(0, len(train_tgt_sentences), args.batch_size)]
     batched_listed_train_tgt_sentences = \
-            [[[sent] for sent in batch] for batch in batched_train_tgt_sentences]
+            [[[postedit(sent)] for sent in batch] for batch in batched_train_tgt_sentences]
 
     batched_train_src_sentences = [train_src_sentences[start:start + args.batch_size]
              for start in range(0, len(train_src_sentences), args.batch_size)]
@@ -136,4 +139,4 @@ if __name__ == "__main__":
 
     training_loop(sess, tgt_vocabulary, args.epochs, trainer, decoder,
                   train_feed_dicts, batched_listed_train_tgt_sentences,
-                  val_feed_dict, listed_val_tgt_sentences)
+                  val_feed_dict, listed_val_tgt_sentences, postedit)

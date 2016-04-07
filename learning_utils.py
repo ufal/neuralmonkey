@@ -10,18 +10,22 @@ def log(message, color='yellow'):
 
 def print_header(title, args):
     """
-    Prints the title of the experiment
+    Prints the title of the experiment and the set of arguments it uses.
     """
     print colored("".join("=" for _ in range(80)), 'green')
     print colored(title.upper(), 'green')
     print colored("".join("=" for _ in range(80)), 'green')
+    print "Launched at {}".format(time.strftime("%Y-%m-%d %H:%M:%S"))
 
     print ""
     for arg in vars(args):
-        value = str(getattr(args, arg))
-        dots_count = 78 - len(arg) - len(value)
-        # TODO if it is file print its path
-        print "{} {} {}".format(arg, "".join(['.' for _ in range(dots_count)]), value)
+        value = getattr(args, arg)
+        if type(value) == file:
+            value_str = value.name
+        else:
+            value_str = str(value)
+        dots_count = 78 - len(arg) - len(value_str)
+        print "{} {} {}".format(arg, "".join(['.' for _ in range(dots_count)]), value_str)
     print ""
 
     os.system("echo last commit: `git log -1 --format=%H`")
@@ -29,18 +33,23 @@ def print_header(title, args):
     print ""
 
 
-def load_tokenized(text_file, lowercase=False):
+def load_tokenized(text_file, preprocess=None):
     """
     Loads a tokenized text file a list of list of tokens.
+
+    Args:
+
+        text_file: An opened file.
+
+        preprocess: A function/callable that (linguistically) preprocesses the
+            sentences
+
     """
 
-    return [re.split(ur"[ @#-]", l.rstrip()) for l in text_file]
-    
-    # if lowercase:
-    #     return [ [ t.lower for token in sentence ] for sentence in tokenized ]
-    # else:
-    #     return lowercase
-    
+    if not preprocess:
+        preprocess = lambda x: x
+
+    return [preprocess(re.split(ur"[ ]", l.rstrip())) for l in text_file]
 
 
 
@@ -64,7 +73,7 @@ def corpus_bleu_deduplicated_unigrams(batch_sentences, decoded_sentences,
 
         last_w = None
         dedup_snt = []
-    
+
         for word in sentence:
             if word != last_w:
                 dedup_snt.append(word)
@@ -79,7 +88,8 @@ def corpus_bleu_deduplicated_unigrams(batch_sentences, decoded_sentences,
 
 def training_loop(sess, vocabulary, epochs, trainer,
                   decoder, train_feed_dicts, train_tgt_sentences,
-                  val_feed_dict, val_tgt_sentences, char_based=False):
+                  val_feed_dict, val_tgt_sentences,
+                  postprocess, char_based=False):
     """
 
     Performs the training loop for given graph and data.
@@ -92,7 +102,8 @@ def training_loop(sess, vocabulary, epochs, trainer,
 
         epochs: Number of epochs for which the algoritm will learn.
 
-        trainer: The trainer object.
+        trainer: The trainer object containg the TensorFlow code for computing
+            the loss and optimization operation.
 
         decoder: The decoder object.
 
@@ -113,6 +124,9 @@ def training_loop(sess, vocabulary, epochs, trainer,
             the character based decoding is done, these must be tokenized
             sentences.
 
+        postprocess: Function that takes the output sentence as produced by the
+            decoder and transforms into tokenized sentence.
+
     """
 
     log("Starting training")
@@ -131,12 +145,11 @@ def training_loop(sess, vocabulary, epochs, trainer,
                 enumerate(zip(train_feed_dicts, train_tgt_sentences)):
             step += 1
             if step % 20 == 1:
-                
 
-                computation = trainer.run(sess, batch_feed_dict, batch_sentences, verbose=True)                
+                computation = trainer.run(sess, batch_feed_dict, batch_sentences, verbose=True)
 
-                decoded_sentences = \
-                    vocabulary.vectors_to_sentences(computation[-decoder.max_output_len - 1:])
+                decoded_sentences = [postprocess(s) for s in \
+                   vocabulary.vectors_to_sentences(computation[-decoder.max_output_len - 1:])]
 
                 if char_based:
                     decoded_sentences = \
@@ -164,8 +177,8 @@ def training_loop(sess, vocabulary, epochs, trainer,
             if step % 500 == 499:
                 computation = sess.run([decoder.loss_with_decoded_ins, decoder.loss_with_gt_ins] \
                         + decoder.decoded_seq, feed_dict=val_feed_dict)
-                decoded_val_sentences = \
-                    vocabulary.vectors_to_sentences(computation[-decoder.max_output_len - 1:])
+                decoded_val_sentences =  [postprocess(s) for s in \
+                    vocabulary.vectors_to_sentences(computation[-decoder.max_output_len - 1:])]
 
                 if char_based:
                     decoded_val_sentences = \
@@ -192,7 +205,8 @@ def training_loop(sess, vocabulary, epochs, trainer,
                 log("Validation (epoch {}, batch number {}):".format(i, batch_n), color='cyan')
                 log("opt. loss: {:.4f}    dec. loss: {:.4f}    BLEU-1: {:.2f}    BLEU-4: {:.2f}    BLEU-4-dedup: {:.2f}"\
                         .format(computation[1], computation[0], val_bleu_1, val_bleu_4, val_bleu_4_dedup), color='cyan')
-                log("max BLEU-4 on validation: {:.2f} (in epoch {}, after batch number {})".format(max_bleu, max_bleu_epoch, max_bleu_batch_no), color='cyan')
+                log("max BLEU-4 on validation: {:.2f} (in epoch {}, after batch number {})".\
+                        format(max_bleu, max_bleu_epoch, max_bleu_batch_no), color='cyan')
 
                 print ""
                 print "Examples:"
@@ -200,6 +214,6 @@ def training_loop(sess, vocabulary, epochs, trainer,
                     print "    {}".format(" ".join(sent))
                     print colored("      ref.: {}".format(" ".join(ref_sent[0])), color="magenta")
                 print ""
-        
+
     log("Finished. Maximum BLEU-4 on validation data: {:.2f}, epoch {}".format(max_bleu, max_bleu_epoch))
 
