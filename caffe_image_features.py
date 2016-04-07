@@ -28,6 +28,7 @@ if __name__ == "__main__":
     parser.add_argument("--image-directory", type=str, required=True)
     parser.add_argument("--image-list", type=argparse.FileType('r'), required=True)
     parser.add_argument("--output-file", type=argparse.FileType('wb'), required=True)
+    parser.add_argument("--vector", type=bool, required=False)
     args = parser.parse_args()
 
     log("Loading the ImageNet labels")
@@ -55,7 +56,10 @@ if __name__ == "__main__":
 
     def process_batch(input_images, paths):
         prediction = net.predict(input_images, oversample=False)
-        f_output = net.blobs[args.feature_layer].data.transpose((0,2,3,1)).copy()
+        if args.vector:
+            f_output = net.blobs[args.feature_layer].data.copy()
+        else:
+            f_output = net.blobs[args.feature_layer].data.transpose((0,2,3,1)).copy()
         for img, p in zip(paths, prediction):
             print os.path.basename(img), ' : ' , labels[p.argmax()].strip() , ' (', p[p.argmax()] , ')'
         data.append(f_output[:len(input_images)])
@@ -73,7 +77,8 @@ if __name__ == "__main__":
         if i % 99 == 0:
             log("Processed {} images.".format(i + 1))
 
-    process_batch(input_images, paths)
+    if input_images:
+        process_batch(input_images, paths)
 
     log("All images processed.")
     np.save(args.output_file, np.concatenate(data, axis=0))
