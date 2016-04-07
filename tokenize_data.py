@@ -13,7 +13,7 @@ def get_decompounder():
     Restarts the JVM with the decompounder. It is necessary once in a while.
     """
     javabridge.start_vm(class_path=["tf/jwordsplitter/target/jwordsplitter-4.2-SNAPSHOT.jar"])
-    java_instance = javabridge.make_instance("de/danielnaber/jwordsplitter/GermanWordSplitter", "(Z)V", True)
+    java_instance = javabridge.make_instance("de/danielnaber/jwordsplitter/GermanWordSplitter", "(Z)V", False)
     decompounder = javabridge.JWrapper(java_instance)
     return decompounder
 
