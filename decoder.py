@@ -109,19 +109,6 @@ class Decoder:
                 encoded_concat_dropped = tf.nn.dropout(encoded_concat, dropout_placeholder)
                 proj_bias = tf.Variable(tf.zeros([rnn_size]))
                 encoded = tf.matmul(encoded_concat_dropped, proj) + proj_bias
-#            with tf.variable_scope("encoders_projection"):
-#                projected = []
-#                encoders_shapes = []
-#                for i, encoder in enumerate(encoders):
-#                    encoder_shape = encoder.encoded.get_shape()[1].value
-#                    encoders_shapes.append(encoder_shape)
-#                    proj = tf.Variable(tf.truncated_normal([encoder_shape, rnn_size]),
-#                                       name="project_encoder_{}".format(i))
-#                    dropped_encoded = tf.nn.dropout(encoder.encoded, dropout_placeholder)
-#                    projected.append(tf.matmul(dropped_encoded, proj))
-#                proj_bias = tf.Variable(tf.zeros([rnn_size]))
-#                encoded = sum(projected) + proj_bias
-#            log("Projection {} encoders (dimensions: {}) into single vector (dimension {}).".format(len(encoders), encoders_shapes, rnn_size))
         elif len(encoders) == 0: # if we want to train just LM
             encoded = tf.zeros(rnn_size)
             log("No encoder - language model only.")
@@ -257,11 +244,13 @@ class Decoder:
 
             gt_loop_function = sampling_loop if scheduled_sampling else None
 
-            attention_tensors = [e.attention_tensor for e in encoders]
-            if dropout_placeholder:
-                encoded = tf.nn.dropout(encoded, dropout_placeholder)
-                attention_tensors_dropped = \
-                    [tf.nn.dropout(t, dropout_placeholder) for t in attention_tensors]
+            if use_attention:
+                attention_tensors = \
+                        [e.attention_tensor for e in encoders if e.attention_tensor is not None]
+                if dropout_placeholder:
+                    encoded = tf.nn.dropout(encoded, dropout_placeholder)
+                    attention_tensors_dropped = \
+                        [tf.nn.dropout(t, dropout_placeholder) for t in attention_tensors]
 
             if use_attention:
                 rnn_outputs_gt_ins, _ = attention_decoder(embedded_gt_inputs, encoded,

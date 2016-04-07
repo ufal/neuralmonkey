@@ -5,7 +5,7 @@ import numpy as np
 import tensorflow as tf
 import regex as re
 
-from image_encoder import ImageEncoder
+from image_encoder import ImageEncoder, VectorImageEncoder
 from decoder import Decoder
 from vocabulary import Vocabulary
 from learning_utils import log, training_loop, print_header, tokenize_char_seq

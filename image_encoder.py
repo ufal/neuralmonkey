@@ -20,3 +20,5 @@ class VectorImageEncoder(object):
         self.image_features = tf.placeholder(tf.float32, shape=[None, dimension])
 
         self.encoded = self.image_features
+
+        self.attention_tensor = None
