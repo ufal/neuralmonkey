@@ -40,6 +40,10 @@ if __name__ == "__main__":
 
     print_header("IMAGE CAPTIONING ONLY", args)
 
+    if len(arg.img_features_shape) == 1 and args.use_attention:
+        log("Attention can be used only with 3D image features.")
+        exit()
+
     log("The training script started")
     train_images = np.load(args.train_images)
     args.train_images.close()
@@ -73,7 +77,10 @@ if __name__ == "__main__":
     log("Buiding the TensorFlow computation graph.")
     dropout_placeholder = tf.placeholder(tf.float32, name="dropout_keep_prob")
     training_placeholder = tf.placeholder(tf.bool, name="is_training")
-    encoder = ImageEncoder(args.img_features_shape, dropout_placeholder=dropout_placeholder)
+    if len(args.img_features_shape) == 1:
+        encoder = VectorImageEncoder(args.img_features_shape[0], dropout_placeholder=dropout_placeholder)
+    else:
+        encoder = ImageEncoder(args.img_features_shape, dropout_placeholder=dropout_placeholder)
     decoder = Decoder([encoder], vocabulary, args.decoder_rnn_size, training_placeholder, embedding_size=args.embeddings_size,
             use_attention=args.use_attention, max_out_len=args.maximum_output, use_peepholes=True,
             scheduled_sampling=args.scheduled_sampling, dropout_placeholder=dropout_placeholder,
