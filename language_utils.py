@@ -25,8 +25,6 @@ for cont, (prep, article) in zip(contractions, uncontracted_forms):
 ein_type_pronouns = re.compile("^(ein|[mdsk]ein|ihr|unser|euer|Ihr)(e|es|er|em|en)$")
 der_type_pronouns = re.compile("^(dies|welch|jed|all)(e|es|er|em|en)$")
 
-
-
 class GermanPreprocessor(object):
     def __init__(self, compounding=True, contracting=True, pronouns=True):
         self.compounding = compounding
@@ -81,11 +79,12 @@ class GermanPostprocessor(object):
             elif self.compounding and result and word == ">><<":
                 compound = True
             elif self.compounding and compound:
-                # TODO inserting 's'
                 result[-1] += word.lower()
+                compound = False
             else:
                 result.append(word)
 
-        result[0] = result[0].capitalize()
+        if result:
+            result[0] = result[0].capitalize()
 
         return result
