@@ -21,7 +21,7 @@ class CrossEntropyTrainer(object):
     def run(self, sess, fd, references, verbose=False):
         if verbose:
             return sess.run([self.optimize_op, self.decoder.loss_with_decoded_ins,
-                             self.decoder.loss_with_gt_ins] + self.decoder.decoded_seq,
+                             self.decoder.loss_with_gt_ins, self.decoder.summary_train] + self.decoder.decoded_seq,
                             feed_dict=fd)
         else:
             return sess.run([self.optimize_op], feed_dict=fd)

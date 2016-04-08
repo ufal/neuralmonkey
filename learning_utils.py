@@ -1,3 +1,4 @@
+import tensorflow as tf
 from nltk.translate.bleu_score import corpus_bleu, SmoothingFunction
 from nltk.tokenize import word_tokenize
 from termcolor import colored
@@ -89,7 +90,7 @@ def corpus_bleu_deduplicated_unigrams(batch_sentences, decoded_sentences,
 def training_loop(sess, vocabulary, epochs, trainer,
                   decoder, train_feed_dicts, train_tgt_sentences,
                   val_feed_dict, val_tgt_sentences,
-                  postprocess, char_based=False):
+                  postprocess, tensorboard_log, char_based=False):
     """
 
     Performs the training loop for given graph and data.
@@ -127,11 +128,17 @@ def training_loop(sess, vocabulary, epochs, trainer,
         postprocess: Function that takes the output sentence as produced by the
             decoder and transforms into tokenized sentence.
 
+        tensorboard_log: Directory where the TensordBoard log will be generated.
+            If None, nothing will be done.
+
     """
 
     log("Starting training")
     step = 0
+    seen_instances = 0
     bleu_smoothing = SmoothingFunction(epsilon=0.01).method1
+
+    tb_writer = tf.train.SummaryWriter(tensorboard_log, sess.graph_def)
 
     max_bleu = 0.0
     max_bleu_epoch = 0
@@ -144,6 +151,7 @@ def training_loop(sess, vocabulary, epochs, trainer,
         for batch_n, (batch_feed_dict, batch_sentences) in \
                 enumerate(zip(train_feed_dicts, train_tgt_sentences)):
             step += 1
+            seen_instances += len(batch_sentences)
             if step % 20 == 1:
 
                 computation = trainer.run(sess, batch_feed_dict, batch_sentences, verbose=True)
@@ -171,11 +179,21 @@ def training_loop(sess, vocabulary, epochs, trainer,
 
                 log("opt. loss: {:.4f}    dec. loss: {:.4f}    BLEU-1: {:.2f}    BLEU-4: {:.2f}    BLEU-4-dedup: {:.2f}"\
                         .format(computation[2], computation[1], bleu_1, bleu_4, bleu_4_dedup))
+
+                if tensorboard_log:
+                    summary_str = computation[3]
+                    tb_writer.add_summary(summary_str, seen_instances)
+                    external_str = tf.Summary(value=[
+                        tf.Summary.Value(tag="train_bleu_1", simple_value=bleu_1),
+                        tf.Summary.Value(tag="train_bleu_4", simple_value=bleu_4),
+                    ])
+                    tb_writer.add_summary(external_str, seen_instances)
             else:
                 trainer.run(sess, batch_feed_dict, batch_sentences, verbose=False)
 
             if step % 500 == 499:
-                computation = sess.run([decoder.loss_with_decoded_ins, decoder.loss_with_gt_ins] \
+                computation = sess.run([decoder.loss_with_decoded_ins,
+                    decoder.loss_with_gt_ins, decoder.summary_val] \
                         + decoder.decoded_seq, feed_dict=val_feed_dict)
                 decoded_val_sentences =  [postprocess(s) for s in \
                     vocabulary.vectors_to_sentences(computation[-decoder.max_output_len - 1:])]
@@ -214,6 +232,15 @@ def training_loop(sess, vocabulary, epochs, trainer,
                     print "    {}".format(" ".join(sent))
                     print colored("      ref.: {}".format(" ".join(ref_sent[0])), color="magenta")
                 print ""
+
+                if tensorboard_log:
+                    summary_str = computation[2]
+                    tb_writer.add_summary(summary_str, seen_instances)
+                    external_str = tf.Summary(value=[
+                        tf.Summary.Value(tag="val_bleu_1", simple_value=val_bleu_1),
+                        tf.Summary.Value(tag="val_bleu_4", simple_value=val_bleu_4),
+                    ])
+                    tb_writer.add_summary(external_str, seen_instances)
 
     log("Finished. Maximum BLEU-4 on validation data: {:.2f}, epoch {}".format(max_bleu, max_bleu_epoch))
 

@@ -24,7 +24,7 @@ class Decoder:
 
             * 'summary_train' - collects statistics from the train-time
 
-            * 'sumarry_test' - collects statistics while being tested on the
+            * 'sumarry_val' - collects statistics while being tested on the
                  development data
 
         Arguments:
@@ -97,10 +97,10 @@ class Decoder:
         self.rnn_size = rnn_size
         self.max_output_len = max_out_len
 
-#        if len(encoders) == 1 and rnn_size == encoders[0].encoded.get_shape()[1].value:
-#            encoded = encoders[0].encoded
-#            log("Using encoder output wihtout projection.")
-        if len(encoders) >= 1:
+        if len(encoders) == 1 and rnn_size == encoders[0].encoded.get_shape()[1].value:
+            encoded = encoders[0].encoded
+            log("Using encoder output wihtout projection.")
+        elif len(encoders) >= 1:
             with tf.variable_scope("encoders_projection"):
                 encoded_concat = tf.concat(1, [e.encoded for e in encoders])
                 concat_size = encoded_concat.get_shape()[1].value
@@ -294,14 +294,14 @@ class Decoder:
         self.loss_with_gt_ins, _, _ = \
                 loss_and_decoded(rnn_outputs_gt_ins, True)
 
-        tf.scalar_summary('loss_on_dev_data_with_gt_input', self.loss_with_gt_ins, collections=["summary_test"])
-        tf.scalar_summary('loss_on_train_data_with_gt_intpus', self.loss_with_gt_ins, collections=["summary_train"])
+        #tf.scalar_summary('val_loss_with_gt_input', self.loss_with_gt_ins, collections=["summary_val"])
+        #tf.scalar_summary('train_loss_with_gt_intpus', self.loss_with_gt_ins, collections=["summary_train"])
 
         self.loss_with_decoded_ins, self.decoded_seq, self.decoded_logits = \
                 loss_and_decoded(rnn_outputs_decoded_ins, False)
 
-        tf.scalar_summary('loss_on_dev_data_with_decoded_inputs', self.loss_with_decoded_ins, collections=["summary_test"])
-        tf.scalar_summary('loss_on_train_data_with_decoded_inputs', self.loss_with_decoded_ins, collections=["summary_train"])
+        tf.scalar_summary('val_loss_with_decoded_inputs', self.loss_with_decoded_ins, collections=["summary_val"])
+        tf.scalar_summary('train_loss_with_decoded_inputs', self.loss_with_decoded_ins, collections=["summary_train"])
 
         if scheduled_sampling:
             self.cost = self.loss_with_gt_ins
@@ -309,6 +309,9 @@ class Decoder:
             #self.cost = self.loss_with_gt_ins
             self.cost = 0.5 * (self.loss_with_decoded_ins + self.loss_with_gt_ins)
 
-        tf.scalar_summary('optimization_cost_on_dev_data', self.cost, collections=["summary_test"])
-        tf.scalar_summary('optimization_cost_on_train_data', self.cost, collections=["summary_train"])
+        tf.scalar_summary('val_optimization_cost', self.cost, collections=["summary_val"])
+        tf.scalar_summary('train_optimization_cost', self.cost, collections=["summary_train"])
+
+        self.summary_train = summary_train = tf.merge_summary(tf.get_collection("summary_train"))
+        self.summary_val = summary_train = tf.merge_summary(tf.get_collection("summary_val"))
 

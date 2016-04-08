@@ -111,9 +111,6 @@ if __name__ == "__main__":
     val_feed_dict = feed_dict(val_images, val_sentences)
     trainer = CrossEntropyTrainer(decoder, args.l2_regularization)
 
-    summary_train = tf.merge_summary(tf.get_collection("summary_train"))
-    summary_test = tf.merge_summary(tf.get_collection("summary_test"))
-
     log("Initializing the TensorFlow session.")
     sess = tf.Session(config=tf.ConfigProto(inter_op_parallelism_threads=4,
                                             intra_op_parallelism_threads=4))
@@ -131,4 +128,4 @@ if __name__ == "__main__":
 
     training_loop(sess, vocabulary, args.epochs, trainer, decoder,
                   train_feed_dicts, batched_listed_train_sentences,
-                  val_feed_dict, listed_val_sentences, postedit)
+                  val_feed_dict, listed_val_sentences, postedit, "logs-captioing/"+str(int(time.time())))
