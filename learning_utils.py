@@ -144,112 +144,114 @@ def training_loop(sess, vocabulary, epochs, trainer,
     max_bleu_epoch = 0
     max_bleu_batch_no = 0
 
-    for i in range(epochs):
-        print ""
-        log("Epoch {} starts".format(i + 1), color='red')
+    try:
+        for i in range(epochs):
+            print ""
+            log("Epoch {} starts".format(i + 1), color='red')
 
-        for batch_n, (batch_feed_dict, batch_sentences) in \
-                enumerate(zip(train_feed_dicts, train_tgt_sentences)):
-            step += 1
-            seen_instances += len(batch_sentences)
-            if step % 20 == 1:
+            for batch_n, (batch_feed_dict, batch_sentences) in \
+                    enumerate(zip(train_feed_dicts, train_tgt_sentences)):
+                step += 1
+                seen_instances += len(batch_sentences)
+                if step % 20 == 1:
 
-                computation = trainer.run(sess, batch_feed_dict, batch_sentences, verbose=True)
+                    computation = trainer.run(sess, batch_feed_dict, batch_sentences, verbose=True)
 
-                decoded_sentences = [postprocess(s) for s in \
-                   vocabulary.vectors_to_sentences(computation[-decoder.max_output_len - 1:])]
+                    decoded_sentences = [postprocess(s) for s in \
+                       vocabulary.vectors_to_sentences(computation[-decoder.max_output_len - 1:])]
 
-                if char_based:
-                    decoded_sentences = \
-                            [tokenize_char_seq(chars) for chars in decoded_sentences]
+                    if char_based:
+                        decoded_sentences = \
+                                [tokenize_char_seq(chars) for chars in decoded_sentences]
 
-                bleu_1 = \
-                    100 * corpus_bleu(batch_sentences, decoded_sentences,
-                                      weights=[1., 0., 0., 0.],
-                                      smoothing_function=bleu_smoothing)
-                bleu_4 = \
-                    100 * corpus_bleu(batch_sentences, decoded_sentences,
-                                      weights=[0.25, 0.25, 0.25, 0.25],
-                                      smoothing_function=bleu_smoothing)
-
-                bleu_4_dedup = \
-                    100 * corpus_bleu_deduplicated_unigrams(batch_sentences, decoded_sentences,
-                                                            weights=[0.25, 0.25, 0.25, 0.25],
-                                                            smoothing_function=bleu_smoothing)
-
-                log("opt. loss: {:.4f}    dec. loss: {:.4f}    BLEU-1: {:.2f}    BLEU-4: {:.2f}    BLEU-4-dedup: {:.2f}"\
-                        .format(computation[2], computation[1], bleu_1, bleu_4, bleu_4_dedup))
-
-                if tensorboard_log:
-                    summary_str = computation[3]
-                    tb_writer.add_summary(summary_str, seen_instances)
-                    external_str = tf.Summary(value=[
-                        tf.Summary.Value(tag="train_bleu_1", simple_value=bleu_1),
-                        tf.Summary.Value(tag="train_bleu_4", simple_value=bleu_4),
-                    ])
-                    tb_writer.add_summary(external_str, seen_instances)
-            else:
-                trainer.run(sess, batch_feed_dict, batch_sentences, verbose=False)
-
-            if step % 500 == 499:
-
-                decoded_val_sentences = []
-                val_tgt_sentences_flatten = [s for batch in val_tgt_sentences for s in batch]
-                
-                for val_barch_n, (val_batch_feed_dict, val_batch_sentences) in \
-                    enumerate (zip(val_feed_dicts, val_tgt_sentences)):
-
-                    computation = sess.run([decoder.loss_with_decoded_ins,
-                        decoder.loss_with_gt_ins, decoder.summary_val] \
-                            + decoder.decoded_seq, feed_dict=val_batch_feed_dict)
-
-                    decoded_val_sentences +=  [postprocess(s) for s in \
-                        vocabulary.vectors_to_sentences(computation[-decoder.max_output_len - 1:])]
-                    
-
-                if char_based:
-                    decoded_val_sentences = \
-                            [tokenize_char_seq(chars) for chars in decoded_val_sentences]
-
-                val_bleu_1 = \
-                        100 * corpus_bleu(val_tgt_sentences_flatten, decoded_val_sentences, weights=[1., 0., 0., 0.0],
+                    bleu_1 = \
+                        100 * corpus_bleu(batch_sentences, decoded_sentences,
+                                          weights=[1., 0., 0., 0.],
                                           smoothing_function=bleu_smoothing)
-                val_bleu_4 = \
-                    100 * corpus_bleu(val_tgt_sentences_flatten, decoded_val_sentences, weights=[0.25, 0.25, 0.25, 0.25],
-                                      smoothing_function=bleu_smoothing)
+                    bleu_4 = \
+                        100 * corpus_bleu(batch_sentences, decoded_sentences,
+                                          weights=[0.25, 0.25, 0.25, 0.25],
+                                          smoothing_function=bleu_smoothing)
 
-                val_bleu_4_dedup = \
-                    100 * corpus_bleu_deduplicated_unigrams(val_tgt_sentences_flatten, decoded_val_sentences,
-                                                            weights=[0.25, 0.25, 0.25, 0.25],
-                                                            smoothing_function=bleu_smoothing)
+                    bleu_4_dedup = \
+                        100 * corpus_bleu_deduplicated_unigrams(batch_sentences, decoded_sentences,
+                                                                weights=[0.25, 0.25, 0.25, 0.25],
+                                                                smoothing_function=bleu_smoothing)
 
-                if val_bleu_4 > max_bleu:
-                    max_bleu = val_bleu_4
-                    max_bleu_epoch = i
-                    max_bleu_batch_no = batch_n
+                    log("opt. loss: {:.4f}    dec. loss: {:.4f}    BLEU-1: {:.2f}    BLEU-4: {:.2f}    BLEU-4-dedup: {:.2f}"\
+                            .format(computation[2], computation[1], bleu_1, bleu_4, bleu_4_dedup))
 
-                print ""
-                log("Validation (epoch {}, batch number {}):".format(i, batch_n), color='cyan')
-                log("opt. loss: {:.4f}    dec. loss: {:.4f}    BLEU-1: {:.2f}    BLEU-4: {:.2f}    BLEU-4-dedup: {:.2f}"\
-                        .format(computation[1], computation[0], val_bleu_1, val_bleu_4, val_bleu_4_dedup), color='cyan')
-                log("max BLEU-4 on validation: {:.2f} (in epoch {}, after batch number {})".\
-                        format(max_bleu, max_bleu_epoch, max_bleu_batch_no), color='cyan')
+                    if tensorboard_log:
+                        summary_str = computation[3]
+                        tb_writer.add_summary(summary_str, seen_instances)
+                        external_str = tf.Summary(value=[
+                            tf.Summary.Value(tag="train_bleu_1", simple_value=bleu_1),
+                            tf.Summary.Value(tag="train_bleu_4", simple_value=bleu_4),
+                        ])
+                        tb_writer.add_summary(external_str, seen_instances)
+                else:
+                    trainer.run(sess, batch_feed_dict, batch_sentences, verbose=False)
 
-                print ""
-                print "Examples:"
-                for sent, ref_sent in zip(decoded_val_sentences[:15], val_tgt_sentences_flatten):
-                    print "    {}".format(" ".join(sent))
-                    print colored("      ref.: {}".format(" ".join(ref_sent[0])), color="magenta")
-                print ""
+                if step % 500 == 499:
+                    decoded_val_sentences = []
+                    val_tgt_sentences_flatten = [s for batch in val_tgt_sentences for s in batch]
+                
+                    for val_barch_n, (val_batch_feed_dict, val_batch_sentences) in \
+                        enumerate (zip(val_feed_dicts, val_tgt_sentences)):
 
-                if tensorboard_log:
-                    summary_str = computation[2]
-                    tb_writer.add_summary(summary_str, seen_instances)
-                    external_str = tf.Summary(value=[
-                        tf.Summary.Value(tag="val_bleu_1", simple_value=val_bleu_1),
-                        tf.Summary.Value(tag="val_bleu_4", simple_value=val_bleu_4),
-                    ])
-                    tb_writer.add_summary(external_str, seen_instances)
+                        computation = sess.run([decoder.loss_with_decoded_ins,
+                            decoder.loss_with_gt_ins, decoder.summary_val] \
+                                + decoder.decoded_seq, feed_dict=val_batch_feed_dict)
+
+                        decoded_val_sentences +=  [postprocess(s) for s in \
+                            vocabulary.vectors_to_sentences(computation[-decoder.max_output_len - 1:])]
+
+                    if char_based:
+                        decoded_val_sentences = \
+                                [tokenize_char_seq(chars) for chars in decoded_val_sentences]
+
+                    val_bleu_1 = \
+                            100 * corpus_bleu(val_tgt_sentences_flatten, decoded_val_sentences, weights=[1., 0., 0., 0.0],
+                                              smoothing_function=bleu_smoothing)
+                    val_bleu_4 = \
+                        100 * corpus_bleu(val_tgt_sentences_flatten, decoded_val_sentences, weights=[0.25, 0.25, 0.25, 0.25],
+                                          smoothing_function=bleu_smoothing)
+
+                    val_bleu_4_dedup = \
+                        100 * corpus_bleu_deduplicated_unigrams(val_tgt_sentences_flatten,
+                                                                decoded_val_sentences,
+                                                                weights=[0.25, 0.25, 0.25, 0.25],
+                                                                smoothing_function=bleu_smoothing)
+
+                    if val_bleu_4 > max_bleu:
+                        max_bleu = val_bleu_4
+                        max_bleu_epoch = i
+                        max_bleu_batch_no = batch_n
+
+                    print ""
+                    log("Validation (epoch {}, batch number {}):".format(i, batch_n), color='cyan')
+                    log("opt. loss: {:.4f}    dec. loss: {:.4f}    BLEU-1: {:.2f}    BLEU-4: {:.2f}    BLEU-4-dedup: {:.2f}"\
+                            .format(computation[1], computation[0], val_bleu_1, val_bleu_4, val_bleu_4_dedup), color='cyan')
+                    log("max BLEU-4 on validation: {:.2f} (in epoch {}, after batch number {})".\
+                            format(max_bleu, max_bleu_epoch, max_bleu_batch_no), color='cyan')
+
+                    print ""
+                    print "Examples:"
+                    for sent, ref_sent in zip(decoded_val_sentences[:15], val_tgt_sentences):
+                        print "    {}".format(" ".join(sent))
+                        print colored("      ref.: {}".format(" ".join(ref_sent[0])), color="magenta")
+                    print ""
+
+                    if tensorboard_log:
+                        summary_str = computation[2]
+                        tb_writer.add_summary(summary_str, seen_instances)
+                        external_str = tf.Summary(value=[
+                            tf.Summary.Value(tag="val_bleu_1", simple_value=val_bleu_1),
+                            tf.Summary.Value(tag="val_bleu_4", simple_value=val_bleu_4),
+                        ])
+                        tb_writer.add_summary(external_str, seen_instances)
+    except KeyboardInterrupt:
+        log("Training interrupted by user.")
 
     log("Finished. Maximum BLEU-4 on validation data: {:.2f}, epoch {}".format(max_bleu, max_bleu_epoch))
 
