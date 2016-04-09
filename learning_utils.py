@@ -89,7 +89,7 @@ def corpus_bleu_deduplicated_unigrams(batch_sentences, decoded_sentences,
 
 def training_loop(sess, vocabulary, epochs, trainer,
                   decoder, train_feed_dicts, train_tgt_sentences,
-                  val_feed_dict, val_tgt_sentences,
+                  val_feed_dicts, val_tgt_sentences,
                   postprocess, tensorboard_log, char_based=False):
     """
 
@@ -116,9 +116,9 @@ def training_loop(sess, vocabulary, epochs, trainer,
             the character based decoding is done, these must be tokenized
             sentences.
 
-        val_feed_dict: Feed dictionaty for the validation data.
+        val_feed_dict: TODO list Feed dictionaty for the validation data.
 
-        val_tgt_sentences: Validation target sentences for BLEU computation.
+        val_tgt_sentences: TODO list Validation target sentences for BLEU computation.
             Lists of lists (there may be multiple references for a sentece) of list
             of words. Each sentence must be clsoed in one additional list
             (potentially more reference sentences for BLEU computation). Even if
@@ -192,25 +192,34 @@ def training_loop(sess, vocabulary, epochs, trainer,
                 trainer.run(sess, batch_feed_dict, batch_sentences, verbose=False)
 
             if step % 500 == 499:
-                computation = sess.run([decoder.loss_with_decoded_ins,
-                    decoder.loss_with_gt_ins, decoder.summary_val] \
-                        + decoder.decoded_seq, feed_dict=val_feed_dict)
-                decoded_val_sentences =  [postprocess(s) for s in \
-                    vocabulary.vectors_to_sentences(computation[-decoder.max_output_len - 1:])]
+
+                decoded_val_sentences = []
+                val_tgt_sentences_flatten = [s for batch in val_tgt_sentences for s in batch]
+                
+                for val_barch_n, (val_batch_feed_dict, val_batch_sentences) in \
+                    enumerate (zip(val_feed_dicts, val_tgt_sentences)):
+
+                    computation = sess.run([decoder.loss_with_decoded_ins,
+                        decoder.loss_with_gt_ins, decoder.summary_val] \
+                            + decoder.decoded_seq, feed_dict=val_batch_feed_dict)
+
+                    decoded_val_sentences +=  [postprocess(s) for s in \
+                        vocabulary.vectors_to_sentences(computation[-decoder.max_output_len - 1:])]
+                    
 
                 if char_based:
                     decoded_val_sentences = \
                             [tokenize_char_seq(chars) for chars in decoded_val_sentences]
 
                 val_bleu_1 = \
-                        100 * corpus_bleu(val_tgt_sentences, decoded_val_sentences, weights=[1., 0., 0., 0.0],
+                        100 * corpus_bleu(val_tgt_sentences_flatten, decoded_val_sentences, weights=[1., 0., 0., 0.0],
                                           smoothing_function=bleu_smoothing)
                 val_bleu_4 = \
-                    100 * corpus_bleu(val_tgt_sentences, decoded_val_sentences, weights=[0.25, 0.25, 0.25, 0.25],
+                    100 * corpus_bleu(val_tgt_sentences_flatten, decoded_val_sentences, weights=[0.25, 0.25, 0.25, 0.25],
                                       smoothing_function=bleu_smoothing)
 
                 val_bleu_4_dedup = \
-                    100 * corpus_bleu_deduplicated_unigrams(val_tgt_sentences, decoded_val_sentences,
+                    100 * corpus_bleu_deduplicated_unigrams(val_tgt_sentences_flatten, decoded_val_sentences,
                                                             weights=[0.25, 0.25, 0.25, 0.25],
                                                             smoothing_function=bleu_smoothing)
 
@@ -228,7 +237,7 @@ def training_loop(sess, vocabulary, epochs, trainer,
 
                 print ""
                 print "Examples:"
-                for sent, ref_sent in zip(decoded_val_sentences[:15], val_tgt_sentences):
+                for sent, ref_sent in zip(decoded_val_sentences[:15], val_tgt_sentences_flatten):
                     print "    {}".format(" ".join(sent))
                     print colored("      ref.: {}".format(" ".join(ref_sent[0])), color="magenta")
                 print ""

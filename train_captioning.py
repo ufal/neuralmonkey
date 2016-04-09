@@ -108,7 +108,25 @@ if __name__ == "__main__":
 
         return fd
 
-    val_feed_dict = feed_dict(val_images, val_sentences)
+
+
+    def batch_feed_dict(sentences, images, batch_size):
+        batched_sentenes = \
+            [sentences[start:start + batch_size] \
+             for start in range(0, len(sentences), batch_size)]
+        
+        batched_listed_sentences = \
+            [[[postedit(sent)] for sent in batch] for batch in batched_sentenes]
+
+        batched_images = [images[start:start + batch_size]
+             for start in range(0, len(sentences), batch_size)]
+
+        feed_dicts = [feed_dict(imgs, sents) \
+            for imgs, sents in zip(batched_images, batched_sentenes)]
+
+        return feed_dicts, batched_listed_sentences
+
+
     trainer = CrossEntropyTrainer(decoder, args.l2_regularization)
 
     log("Initializing the TensorFlow session.")
@@ -116,16 +134,12 @@ if __name__ == "__main__":
                                             intra_op_parallelism_threads=4))
     sess.run(tf.initialize_all_variables())
 
-    batched_train_sentenes = \
-            [train_sentences[start:start + args.batch_size] \
-             for start in range(0, len(train_sentences), args.batch_size)]
-    batched_listed_train_sentences = \
-            [[[postedit(sent)] for sent in batch] for batch in batched_train_sentenes]
-    batched_train_images = [train_images[start:start + args.batch_size]
-             for start in range(0, len(train_sentences), args.batch_size)]
-    train_feed_dicts = [feed_dict(imgs, sents) \
-            for imgs, sents in zip(batched_train_images, batched_train_sentenes)]
-
+    
+    train_feed_dicts, batched_listed_train_sentences = batch_feed_dict(train_sentences, train_images, args.batch_size)
+    val_feed_dicts, batched_listed_val_sentences = batch_feed_dict(val_sentences, val_images, args.batch_size)
+   
+    
+    
     training_loop(sess, vocabulary, args.epochs, trainer, decoder,
                   train_feed_dicts, batched_listed_train_sentences,
-                  val_feed_dict, listed_val_sentences, postedit, "logs-captioing/"+str(int(time.time())))
+                  val_feed_dicts, batched_listed_val_sentences, postedit, "logs-captioing/"+str(int(time.time())))

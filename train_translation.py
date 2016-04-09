@@ -110,7 +110,25 @@ if __name__ == "__main__":
 
         return fd
 
-    val_feed_dict = feed_dict(val_src_sentences, val_tgt_sentences)
+
+    def batch_feed_dict(src_sentences, tgt_sentences, batch_size, train=False):
+
+        batched_tgt_sentences = \
+            [tgt_sentences[start:start + batch_size] \
+             for start in range(0, len(tgt_sentences), batch_size)]
+        
+        batched_listed_tgt_sentences = \
+            [[[postedit(sent)] for sent in batch] for batch in batched_tgt_sentences]
+        
+        batched_src_sentences = [src_sentences[start:start + batch_size]
+            for start in range(0, len(src_sentences), batch_size)]
+
+        feed_dicts = [feed_dict(src, trans, tgt) \
+            for src, tgt in zip(batched_src_sentences, batched_tgt_sentences)]
+
+        return feed_dicts, batched_listed_tgt_sentences
+
+    
 
     if args.mixer:
         trainer = Mixer(decoder)
@@ -122,17 +140,10 @@ if __name__ == "__main__":
                                             intra_op_parallelism_threads=4))
     sess.run(tf.initialize_all_variables())
 
-    batched_train_tgt_sentences = \
-            [train_tgt_sentences[start:start + args.batch_size] \
-             for start in range(0, len(train_tgt_sentences), args.batch_size)]
-    batched_listed_train_tgt_sentences = \
-            [[[postedit(sent)] for sent in batch] for batch in batched_train_tgt_sentences]
 
-    batched_train_src_sentences = [train_src_sentences[start:start + args.batch_size]
-             for start in range(0, len(train_src_sentences), args.batch_size)]
-    train_feed_dicts = [feed_dict(src, tgt) \
-            for src, tgt in zip(batched_train_src_sentences, batched_train_tgt_sentences)]
-
+    val_feed_dicts, batched_listed_val_tgt_sentences = batch_feed_dict(val_src_sentences, val_tgt_sentences, args.batch_size)
+    train_feed_dicts, bathed_listed_train_tgt_sentences = batch_feed_dict(train_src_sentences, train_tgt_sentences, args.batch_size)
+    
     training_loop(sess, tgt_vocabulary, args.epochs, trainer, decoder,
                   train_feed_dicts, batched_listed_train_tgt_sentences,
-                  val_feed_dict, listed_val_tgt_sentences, postedit, "logs-translation/"+str(int(time.time())))
+                  val_feed_dicts, batched_listed_val_tgt_sentences, postedit, "logs-translation/"+str(int(time.time())))
