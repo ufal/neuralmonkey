@@ -114,7 +114,7 @@ if __name__ == "__main__":
         batched_sentenes = \
             [sentences[start:start + batch_size] \
              for start in range(0, len(sentences), batch_size)]
-        
+
         batched_listed_sentences = \
             [[[postedit(sent)] for sent in batch] for batch in batched_sentenes]
 
@@ -134,12 +134,10 @@ if __name__ == "__main__":
                                             intra_op_parallelism_threads=4))
     sess.run(tf.initialize_all_variables())
 
-    
+
     train_feed_dicts, batched_listed_train_sentences = batch_feed_dict(train_sentences, train_images, args.batch_size)
     val_feed_dicts, batched_listed_val_sentences = batch_feed_dict(val_sentences, val_images, args.batch_size)
-   
-    
-    
+
     training_loop(sess, vocabulary, args.epochs, trainer, decoder,
                   train_feed_dicts, batched_listed_train_sentences,
                   val_feed_dicts, batched_listed_val_sentences, postedit, "logs-captioing/"+str(int(time.time())))

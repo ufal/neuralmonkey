@@ -116,14 +116,14 @@ def training_loop(sess, vocabulary, epochs, trainer,
             the character based decoding is done, these must be tokenized
             sentences.
 
-        val_feed_dict: TODO list Feed dictionaty for the validation data.
+        val_feed_dict: List of feed dictionaries for validation data batches.
 
-        val_tgt_sentences: TODO list Validation target sentences for BLEU computation.
-            Lists of lists (there may be multiple references for a sentece) of list
-            of words. Each sentence must be clsoed in one additional list
-            (potentially more reference sentences for BLEU computation). Even if
-            the character based decoding is done, these must be tokenized
-            sentences.
+        val_tgt_sentences: List of batches (=lists) of validation target
+            sentences for BLEU computation.  Lists of lists (there may be multiple
+            references for a sentece) of list of words. Each sentence must be
+            clsoed in one additional list (potentially more reference sentences for
+            BLEU computation). Even if the character based decoding is done, these
+            must be tokenized sentences.
 
         postprocess: Function that takes the output sentence as produced by the
             decoder and transforms into tokenized sentence.
@@ -143,6 +143,7 @@ def training_loop(sess, vocabulary, epochs, trainer,
     max_bleu = 0.0
     max_bleu_epoch = 0
     max_bleu_batch_no = 0
+    val_tgt_sentences_flatten = [s for batch in val_tgt_sentences for s in batch]
 
     try:
         for i in range(epochs):
@@ -194,8 +195,7 @@ def training_loop(sess, vocabulary, epochs, trainer,
 
                 if step % 500 == 499:
                     decoded_val_sentences = []
-                    val_tgt_sentences_flatten = [s for batch in val_tgt_sentences for s in batch]
-                
+
                     for val_barch_n, (val_batch_feed_dict, val_batch_sentences) in \
                         enumerate (zip(val_feed_dicts, val_tgt_sentences)):
 
@@ -237,7 +237,7 @@ def training_loop(sess, vocabulary, epochs, trainer,
 
                     print ""
                     print "Examples:"
-                    for sent, ref_sent in zip(decoded_val_sentences[:15], val_tgt_sentences):
+                    for sent, ref_sent in zip(decoded_val_sentences[:15], val_tgt_sentences_flatten):
                         print "    {}".format(" ".join(sent))
                         print colored("      ref.: {}".format(" ".join(ref_sent[0])), color="magenta")
                     print ""
