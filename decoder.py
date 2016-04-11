@@ -291,14 +291,17 @@ class Decoder:
                                          self.weights_ins, len(vocabulary))
             return loss, decoded, logits
 
-        self.loss_with_gt_ins, _, _ = \
+        self.loss_with_gt_ins, _, gt_logits = \
                 loss_and_decoded(rnn_outputs_gt_ins, True)
+
+        self.decoded_probs = [tf.nn.softmax(l) for l in gt_logits]
 
         #tf.scalar_summary('val_loss_with_gt_input', self.loss_with_gt_ins, collections=["summary_val"])
         #tf.scalar_summary('train_loss_with_gt_intpus', self.loss_with_gt_ins, collections=["summary_train"])
 
         self.loss_with_decoded_ins, self.decoded_seq, self.decoded_logits = \
                 loss_and_decoded(rnn_outputs_decoded_ins, False)
+
 
         tf.scalar_summary('val_loss_with_decoded_inputs', self.loss_with_decoded_ins, collections=["summary_val"])
         tf.scalar_summary('train_loss_with_decoded_inputs', self.loss_with_decoded_ins, collections=["summary_train"])
