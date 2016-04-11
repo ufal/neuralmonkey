@@ -306,8 +306,8 @@ class Decoder:
         if scheduled_sampling:
             self.cost = self.loss_with_gt_ins
         else:
-            #self.cost = self.loss_with_gt_ins
-            self.cost = 0.5 * (self.loss_with_decoded_ins + self.loss_with_gt_ins)
+            self.cost = self.loss_with_gt_ins
+            #self.cost = 0.5 * (self.loss_with_decoded_ins + self.loss_with_gt_ins)
 
         tf.scalar_summary('val_optimization_cost', self.cost, collections=["summary_val"])
         tf.scalar_summary('train_optimization_cost', self.cost, collections=["summary_train"])
