@@ -123,7 +123,7 @@ if __name__ == "__main__":
         batched_src_sentences = [src_sentences[start:start + batch_size]
             for start in range(0, len(src_sentences), batch_size)]
 
-        feed_dicts = [feed_dict(src, trans, tgt) \
+        feed_dicts = [feed_dict(src, tgt) \
             for src, tgt in zip(batched_src_sentences, batched_tgt_sentences)]
 
         return feed_dicts, batched_listed_tgt_sentences
