@@ -119,7 +119,7 @@ class Decoder:
 
         with tf.variable_scope("decoder_inputs"):
             for i in range(max_out_len + 2):
-                dec = tf.placeholder(tf.int32, [None],
+                dec = tf.placeholder(tf.int64, [None],
                                      name='decoder{0}'.format(i))
                 tf.add_to_collection('dec_encoder_ins', dec)
                 self.gt_inputs.append(dec)

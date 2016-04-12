@@ -16,8 +16,6 @@ class CrossEntropyTrainer(object):
         self.optimize_op = tf.train.AdamOptimizer(1e-4).minimize(decoder.cost + l2_cost, \
                                                                      global_step=decoder.learning_step)
 
-
-
     def run(self, sess, fd, references, verbose=False):
         if verbose:
             return sess.run([self.optimize_op, self.decoder.loss_with_decoded_ins,
