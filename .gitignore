@@ -8,3 +8,7 @@ data
 logs
 *.log
 *.o[0-9]*
+logs-translation
+logs-captioning
+logs-captioing
+logs-postedit
