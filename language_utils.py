@@ -50,7 +50,7 @@ class GermanPreprocessor(object):
             elif self.compounding and word.find(">><<") > -1:
                 compound_parts = word.split(">><<")
                 result.append(compound_parts[0])
-                for w in compound_parts[:1]:
+                for w in compound_parts[1:]:
                     result.append(">><<")
                     result.append(w.capitalize())
             else:
