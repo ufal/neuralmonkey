@@ -17,6 +17,11 @@ def shape(string):
     res_shape = [int(s) for s in string.split("x")]
     return res_shape
 
+def mixer_values(string):
+    values = [int(s) for s in string.split(",")]
+    assert(len(values) == 2)
+    return values
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Trains the translation.')
     parser.add_argument("--train-source-sentences", type=argparse.FileType('r'),
@@ -38,7 +43,7 @@ if __name__ == "__main__":
     parser.add_argument("--use-noisy-activations", type=bool, default=False)
     parser.add_argument("--character-based", type=bool, default=False)
     parser.add_argument("--epochs", type=int, default=10)
-    parser.add_argument("--mixer", type=bool, default=False)
+    parser.add_argument("--mixer", type=mixer_values, default=None)
     parser.add_argument("--target-german", type=bool, default=False)
     args = parser.parse_args()
 
@@ -131,7 +136,8 @@ if __name__ == "__main__":
 
 
     if args.mixer:
-        trainer = Mixer(decoder)
+        xent_calls, moving_calls = args.mixer
+        trainer = Mixer(decoder, xent_calls, moving_calls)
     else:
         trainer = CrossEntropyTrainer(decoder, args.l2_regularization)
 

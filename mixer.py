@@ -2,11 +2,35 @@ import tensorflow as tf
 import numpy as np
 from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
 from learning_utils import log
+from cross_entropy_trainer import CrossEntropyTrainer
 
 class Mixer(object):
 
-    def __init__(self, decoder):
+    def __init__(self, decoder, xent_calls, moving_calls):
+        """
+
+        Constructs the TensorFlow graph for the MIXER code - i.e. the regressor
+        estimating BLEU from hidden states and the gradients from the REINFORCE
+        algorithm.
+
+        Args:
+
+            decoder: Decoder.
+
+            xent_calls: The number minibatches for which the standard
+                crossentropy learning will be used.
+
+            moving_calls: NUmber of minibatches after which the algorithm will
+                proceed to use the REINFORCE algorithm for a longer suffix of the
+                senntences.
+
+        """
+        # TODO L2 regularization
+        self.xent_trainer = CrossEntropyTrainer(decoder, 0.0)
         self.decoder = decoder
+        self.called = 0
+        self.xent_calls = xent_calls
+        self.moving_calls = moving_calls
 
         with tf.variable_scope('mixer'):
             self.bleu = tf.placeholder(tf.float32, [None])
@@ -20,7 +44,7 @@ class Mixer(object):
                 expected_rewards = [tf.squeeze(tf.matmul(h, linear_reg_W)) + linear_reg_b for h in hidden_states]
 
                 regression_loss = sum([(r - self.bleu) ** 2 for r in expected_rewards]) * 0.5
-                regression_optimizer = tf.train.GradientDescentOptimizer(1e-3).minimize(regression_loss)
+                self.regression_optimizer = tf.train.GradientDescentOptimizer(1e-3).minimize(regression_loss)
 
             ## decoded logits: [batch * slovnik] (delky max sequence) - obsahuje logity
             ## decoded_seq: [batch * 1] (delky max sequence) - obsahuje indexy do slovniku (argmaxy)
@@ -49,11 +73,11 @@ class Mixer(object):
 
                 xent_gradients = [tf.gradients(e, trainable_vars) for e in cross_entropies]
                 log("Cross-entropy gradients computed")
-            self.mixer_weights = [tf.placeholder(tf.float32, []) for _ in hidden_states]
+            self.mixer_weights_plc = [tf.placeholder(tf.float32, []) for _ in hidden_states]
 
             mixed_gradients = [] # a list for each of the traininable variables
 
-            for i, (rgs, xent_gs, mix_w) in enumerate(zip(reinforce_gradients, xent_gradients, self.mixer_weights)):
+            for i, (rgs, xent_gs, mix_w) in enumerate(zip(reinforce_gradients, xent_gradients, self.mixer_weights_plc)):
                 for j, (rg, xent_g) in enumerate(zip(rgs, xent_gs)):
                     if xent_g is None and i == 0:
                         mixed_gradients.append(None)
@@ -77,11 +101,12 @@ class Mixer(object):
             self.mixer_optimizer = \
                     tf.train.AdamOptimizer().apply_gradients(zip(mixed_gradients, trainable_vars))
 
-
     def run(self, sess, fd, references, verbose=False):
-        # TODO for some first steps call the XENT traininer onl
+        self.called += 1
+        if self.called < self.xent_calls:
+            return self.xent_trainer.run(sess, fd, references, verbose=verbose)
 
-        # TODO compute gradually add renforce steps
+        reinforce_steps = max(self.decoder.max_output_len + 2, (self.called - self.xent_calls) / self.moving_calls + 1)
 
         decoded_sequence = sess.run(self.decoder.decoded_seq, feed_dict=fd)
         sentences = self.decoder.vocabulary.vectors_to_sentences(decoded_sequence)
@@ -90,12 +115,19 @@ class Mixer(object):
 
         fd[self.bleu] = bleus
 
-        for w in self.mixer_weights:
-            fd[w] = 1
+        for i, w_plc in enumerate(reversed(self.mixer_weights_plc)):
+            if i <= reinforce_steps:
+                fd[w_plc] = 0.
+            else:
+                fd[w_plc] = 1.
 
         if verbose:
-            return sess.run([self.mixer_optimizer, self.decoder.loss_with_decoded_ins,
+            computation = sess.run([self.mixer_optimizer, self.decoder.loss_with_decoded_ins,
                              self.decoder.loss_with_gt_ins, self.decoder.summary_train] + self.decoder.decoded_seq,
                             feed_dict=fd)
         else:
-            return sess.run([self.mixer_optimizer], feed_dict=fd)
+            computation = sess.run([self.mixer_optimizer], feed_dict=fd)
+
+        sess.run(self.regression_optimizer, feed_dict=fd)
+
+        return computation
