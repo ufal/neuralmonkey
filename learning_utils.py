@@ -197,15 +197,17 @@ def training_loop(sess, vocabulary, epochs, trainer,
                 else:
                     trainer.run(sess, batch_feed_dict, batch_sentences, verbose=False)
 
-                if step % 500 == 499:
+                if step % 500 == 1:#TODO set back to 499
                     decoded_val_sentences = []
 
                     for val_batch_n, (val_batch_feed_dict, val_batch_sentences) in \
                         enumerate (zip(val_feed_dicts, val_tgt_sentences)):
 
-                        def expand(feed_dict, state, hypothesis):
-                            p, s = hypothesis
+                        def expand(feed_dict, state, hypotheses):
+                            #p, s = hypothesis
                             feed_dict[decoder.encoded] = state
+                            for k in feed_dict:
+                                print feed_dict[k]
                             for i, n in zip(decoder.gt_inputs, s):
                                 feed_dict[i] = [n]
                             probs = sess.run(decoder.decoded_probs[len(hypothesis) - 1],
