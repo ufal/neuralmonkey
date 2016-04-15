@@ -18,14 +18,15 @@ class CrossEntropyTrainer(object):
         for (g, v) in gradients:
             if g is not None:
                 tf.histogram_summary('gr_' + v.name, g, collections=["summary_gradients"])
+        exit()
         self.optimize_op = optimizer.apply_gradients(gradients, global_step=decoder.learning_step)
-        #self.summary_gradients = tf.merge_summary(tf.get_collection("summary_gradients"))
+        self.summary_gradients = tf.merge_summary(tf.get_collection("summary_gradients"))
 
     def run(self, sess, fd, references, verbose=False):
         if verbose:
             return sess.run([self.optimize_op, self.decoder.loss_with_decoded_ins,
                              self.decoder.loss_with_gt_ins,
-                             self.decoder.summary_train]#, self.summary_gradients] TODO fix me
+                             self.decoder.summary_train, self.summary_gradients]
                              + self.decoder.decoded_seq,
                             feed_dict=fd)
         else:
