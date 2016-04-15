@@ -92,7 +92,7 @@ def training_loop(sess, vocabulary, epochs, trainer,
                   decoder, train_feed_dicts, train_tgt_sentences,
                   val_feed_dicts, val_tgt_sentences,
                   postprocess, tensorboard_log, char_based=False,
-                  beamsearch=False):
+                  use_beamsearch=False):
     """
 
     Performs the training loop for given graph and data.
@@ -195,7 +195,7 @@ def training_loop(sess, vocabulary, epochs, trainer,
                 else:
                     trainer.run(sess, batch_feed_dict, batch_sentences, verbose=False)
 
-                if step % 500 == 1:
+                if step % 500 == 499:
                     decoded_val_sentences = []
 
                     for val_batch_n, (val_batch_feed_dict, val_batch_sentences) in \
@@ -221,8 +221,9 @@ def training_loop(sess, vocabulary, epochs, trainer,
                                  beam = new_beam[:10]
                             return beam[0][1]
 
-                        if beamsearch:
+                        if use_beamsearch:
                              decoded_val_sentences.append(beamsearch(val_batch_feed_dict))
+                             log("Sentence done.")
                         else:
                             computation = sess.run([decoder.loss_with_decoded_ins,
                                 decoder.loss_with_gt_ins, decoder.summary_val] \
