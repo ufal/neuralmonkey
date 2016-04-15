@@ -197,7 +197,7 @@ def training_loop(sess, vocabulary, epochs, trainer,
                 if step % 500 == 499:
                     decoded_val_sentences = []
 
-                    for val_barch_n, (val_batch_feed_dict, val_batch_sentences) in \
+                    for val_batch_n, (val_batch_feed_dict, val_batch_sentences) in \
                         enumerate (zip(val_feed_dicts, val_tgt_sentences)):
 
                         def expand(feed_dict, hypothesis):
@@ -207,21 +207,20 @@ def training_loop(sess, vocabulary, epochs, trainer,
                             probs = sess.run(decoder.decoded_probs[:len(hypothesis)],
                                              feed_dict=feed_dict)
                             new = np.argpartition(probs[-1], -10)[-10:]
-                            return [(p * probs[-1][i], s + [i] for i in new]
+                            return [(p * probs[-1][i], s + [i]) for i in new]
 
 
                         def beamsearch(fd):
                             beam = [(1.0, [1])]
                             for _ in range(len(decoder.decoded_probs)):
-                                 new_beam = sum(expand(fd, h) for h in beam, [])
+                                 new_beam = sum([expand(fd, h) for h in beam], [])
                                  new_beam.sort(reversed=True)
                                  beam = new_beam[:10]
                             return beam[0][1]
 
                         if beamsearch:
-                             decoded_val_sentences.append(beamsearch(fd))
+                             decoded_val_sentences.append(beamsearch(val_batch_feed_dict))
                         else:
-
                             computation = sess.run([decoder.loss_with_decoded_ins,
                                 decoder.loss_with_gt_ins, decoder.summary_val] \
                                     + decoder.decoded_seq, feed_dict=val_batch_feed_dict)

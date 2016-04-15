@@ -146,7 +146,7 @@ if __name__ == "__main__":
     sess.run(tf.initialize_all_variables())
 
 
-    val_feed_dicts, batched_listed_val_tgt_sentences =
+    val_feed_dicts, batched_listed_val_tgt_sentences = \
         batch_feed_dict(val_src_sentences, val_tgt_sentences,
                         1 if args.beamsearch else args.batch_size)
     train_feed_dicts, batched_listed_train_tgt_sentences = batch_feed_dict(train_src_sentences, train_tgt_sentences, args.batch_size)
