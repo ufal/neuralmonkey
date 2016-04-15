@@ -34,7 +34,7 @@ if __name__ == "__main__":
     parser.add_argument("--dropout-keep-prob", type=float, default=1.0)
     parser.add_argument("--l2-regularization", type=float, default=0.0)
     parser.add_argument("--character-based", type=bool, default=False)
-    parser.add_argument("--img-features-shape", type=shape, default='14x14x256')
+    parser.add_argument("--img-features-shape", type=shape, default='14x14x256', required=True)
     parser.add_argument("--epochs", type=int, default=10)
     parser.add_argument("--use-noisy-activations", type=bool, default=False)
     args = parser.parse_args()
