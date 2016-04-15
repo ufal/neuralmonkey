@@ -228,7 +228,7 @@ def training_loop(sess, vocabulary, epochs, trainer,
                              log("Sentence done.")
                         else:
                             computation = sess.run([decoder.loss_with_decoded_ins,
-                                decoder.loss_with_gt_ins, decoder.summary_val] \
+                                decoder.loss_with_gt_ins, trainer.summary_val] \
                                     + decoder.decoded_seq, feed_dict=val_batch_feed_dict)
 
                             decoded_val_sentences +=  [postprocess(s) for s in \

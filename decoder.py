@@ -314,7 +314,3 @@ class Decoder:
 
         tf.scalar_summary('val_optimization_cost', self.cost, collections=["summary_val"])
         tf.scalar_summary('train_optimization_cost', self.cost, collections=["summary_train"])
-
-        self.summary_train = summary_train = tf.merge_summary(tf.get_collection("summary_train"))
-        self.summary_val = summary_train = tf.merge_summary(tf.get_collection("summary_val"))
-
