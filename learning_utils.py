@@ -201,8 +201,9 @@ def training_loop(sess, vocabulary, epochs, trainer,
                     for val_batch_n, (val_batch_feed_dict, val_batch_sentences) in \
                         enumerate (zip(val_feed_dicts, val_tgt_sentences)):
 
-                        def expand(feed_dict, hypothesis):
+                        def expand(feed_dict, state, hypothesis):
                             p, s = hypothesis
+                            feed_dict[decoder.encoded] = state
                             for i, n in zip(decoder.gt_inputs, s):
                                 feed_dict[i] = [n]
                             probs = sess.run(decoder.decoded_probs[len(hypothesis) - 1],
@@ -213,8 +214,9 @@ def training_loop(sess, vocabulary, epochs, trainer,
 
                         def beamsearch(fd):
                             beam = [(1.0, [1])]
+                            state = sess.run(decoder.encoded, fd)
                             for _ in range(len(decoder.decoded_probs)):
-                                 new_beam = sum([expand(fd, h) for h in beam], [])
+                                 new_beam = sum([expand(fd, state, h) for h in beam], [])
                                  new_beam.sort(reverse=True)
                                  beam = new_beam[:10]
                             return beam[0][1]
