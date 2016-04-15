@@ -248,9 +248,11 @@ class Decoder:
                 attention_tensors = \
                         [e.attention_tensor for e in encoders if e.attention_tensor is not None]
                 if dropout_placeholder:
-                    encoded = tf.nn.dropout(encoded, dropout_placeholder)
                     attention_tensors_dropped = \
                         [tf.nn.dropout(t, dropout_placeholder) for t in attention_tensors]
+
+            if dropout_placeholder:
+                encoded = tf.nn.dropout(encoded, dropout_placeholder)
 
             if use_attention:
                 rnn_outputs_gt_ins, _ = attention_decoder(embedded_gt_inputs, encoded,
