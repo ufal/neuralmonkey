@@ -104,8 +104,7 @@ class Decoder:
             with tf.variable_scope("encoders_projection"):
                 encoded_concat = tf.concat(1, [e.encoded for e in encoders])
                 concat_size = encoded_concat.get_shape()[1].value
-                proj = tf.Variable(tf.truncated_normal([concat_size, rnn_size]),
-                                   name="project_encoders")
+                proj = tf.get_variable(name="project_encoders", shape=[concat_size, rnn_size])
                 encoded_concat_dropped = tf.nn.dropout(encoded_concat, dropout_placeholder)
                 proj_bias = tf.Variable(tf.zeros([rnn_size]))
                 encoded = tf.matmul(encoded_concat_dropped, proj) + proj_bias

@@ -155,4 +155,4 @@ if __name__ == "__main__":
                   train_feed_dicts, batched_listed_train_tgt_sentences,
                   val_feed_dicts, batched_listed_val_tgt_sentences, postedit,
                   "logs-translation/"+str(int(time.time())),
-                  beamsearch=args.beamsearch)
+                  use_beamsearch=args.beamsearch)
