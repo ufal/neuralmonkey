@@ -187,8 +187,9 @@ def training_loop(sess, vocabulary, epochs, trainer,
                     if tensorboard_log:
                         summary_str = computation[3]
                         tb_writer.add_summary(summary_str, seen_instances)
-                        histograms_str = computation[4]
-                        tb_writer.add_summary(histograms_str, seen_instances)
+                        #TODO fix me:
+                        #histograms_str = computation[4]
+                        #tb_writer.add_summary(histograms_str, seen_instances)
                         external_str = tf.Summary(value=[
                             tf.Summary.Value(tag="train_bleu_1", simple_value=bleu_1),
                             tf.Summary.Value(tag="train_bleu_4", simple_value=bleu_4),
