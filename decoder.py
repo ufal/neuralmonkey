@@ -112,6 +112,7 @@ class Decoder:
         elif len(encoders) == 0: # if we want to train just LM
             encoded = tf.zeros(rnn_size)
             log("No encoder - language model only.")
+        self.encoded = encoded
 
 
         self.learning_step = tf.Variable(0, name="learning_step", trainable=False)
