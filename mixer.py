@@ -26,6 +26,7 @@ class Mixer(object):
 
         """
         # TODO L2 regularization
+        # TODO plot gradients
         self.xent_trainer = CrossEntropyTrainer(decoder, 0.0)
         self.decoder = decoder
         self.called = 0
@@ -112,6 +113,7 @@ class Mixer(object):
         sentences = self.decoder.vocabulary.vectors_to_sentences(decoded_sequence)
         bleu_smoothing = SmoothingFunction(epsilon=0.01).method1
         bleus = [sentence_bleu(r, s, smoothing_function=bleu_smoothing) for r, s in zip(references, sentences)]
+        print bleus
 
         fd[self.bleu] = bleus
 
