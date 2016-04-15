@@ -15,9 +15,9 @@ class CrossEntropyTrainer(object):
 
         optimizer = tf.train.AdamOptimizer(1e-4)
         gradients = optimizer.compute_gradients(decoder.cost + l2_cost)
-        #TODO: fix me
-        #for (g, v) in gradients:
-        #    tf.histogram_summary('gr_' + v.name, g, collections=["summary_gradients"])
+        for (g, v) in gradients:
+            if g is not None:
+                tf.histogram_summary('gr_' + v.name, g, collections=["summary_gradients"])
         self.optimize_op = optimizer.apply_gradients(gradients, global_step=decoder.learning_step)
         #self.summary_gradients = tf.merge_summary(tf.get_collection("summary_gradients"))
 
