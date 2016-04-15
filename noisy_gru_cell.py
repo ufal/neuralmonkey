@@ -50,13 +50,16 @@ class NoisyGRUCell(RNNCell):
     def __call__(self, inputs, state, scope=None):
         """Gated recurrent unit (GRU) with nunits cells."""
         with tf.variable_scope(scope or type(self).__name__):    # "GRUCell"
-            with tf.variable_scope("Gates"):    # Reset gate and update gate.
+            with tf.variable_scope("Remember_Gate"):
                 # We start with bias of 1.0 to not reset and not update.
 
-                r = linear([inputs, state], self._num_units, True, 1.0, "remember", batch_normalize=self.batch_norm, is_training=self.training)
-                u = linear([inputs, state], self._num_units, True, 1.0, "update", batch_normalize=self.batch_norm, is_training=self.training)
-
-                r, u = noisy_sigmoid(r, self.training), noisy_sigmoid(u, self.training)
+                r = linear([inputs, state], self._num_units, True, 1.0,
+                            batch_normalize=self.batch_norm, is_training=self.training)
+                r = noisy_sigmoid(r, self.training)
+            with tf.variable_scope("Update_Gate"):
+                u = linear([inputs, state], self._num_units, True, 1.0,
+                           batch_normalize=self.batch_norm, is_training=self.training)
+                u =noisy_sigmoid(u, self.training)
 
             with tf.variable_scope("Candidate"):
                 c = noisy_tanh(linear([inputs, r * state], self._num_units, True), self.training)
@@ -67,7 +70,7 @@ class NoisyGRUCell(RNNCell):
         return new_h, new_h
 
 
-def noisy_activation(x, generic, linearized, training, alpha=1.1, c=0.5):
+def noisy_activation(x, generic, linearized, training, scope="noisy_f", alpha=1.1, c=0.15):
     """
     Implements the noisy activation with Half-Normal Noise for Hard-Saturation
     functions. See http://arxiv.org/abs/1603.00391, Algorithm 1.
@@ -93,13 +96,15 @@ def noisy_activation(x, generic, linearized, training, alpha=1.1, c=0.5):
 
     """
 
-    delta = generic(x) - linearized(x)
-    d = -tf.sign(x) * tf.sign(1 - alpha)
-    p = tf.Variable(1.0)
-    scale = c * (tf.sigmoid(p * delta) - 0.5)  ** 2
-    noise = tf.select(training, tf.abs(tf.random_normal([])), math.sqrt(2 / math.pi))
-    activation = alpha * generic(x) + (1 - alpha) * linearized(x) + d * scale * noise
-    return activation
+    with tf.variable_scope(scope):
+        delta = generic(x) - linearized(x)
+        d = -tf.sign(x) * tf.sign(1 - alpha)
+        # TODO why does this p have None gradient?
+        p = tf.Variable(1.0, name="p")
+        scale = c * (tf.sigmoid(p * delta) - 0.5)  ** 2
+        noise = tf.select(training, tf.abs(tf.random_normal([])), math.sqrt(2 / math.pi))
+        activation = alpha * generic(x) + (1 - alpha) * linearized(x) - d * scale * noise
+        return activation
 
 
 # These are equations (1), (3) and (4) in the Noisy Activation FUnctions paper
@@ -109,11 +114,11 @@ hard_sigmoid = lambda x: tf.minimum(tf.maximum(lin_sigmoid(x), 0.), 1.)
 
 
 def noisy_sigmoid(x, training):
-    return noisy_activation(x, hard_sigmoid, lin_sigmoid, training)
+    return noisy_activation(x, hard_sigmoid, lin_sigmoid, training, scope="noisy_sigmoid")
 
 
 def noisy_tanh(x, training):
-    return noisy_activation(x, hard_tanh, lambda y: y, training)
+    return noisy_activation(x, hard_tanh, lambda y: y, training, scope="noisy_tanh")
 
 
 def batch_norm(x, n_out, phase_train, scope='batch_norm', affine=True):
@@ -157,8 +162,8 @@ def batch_norm(x, n_out, phase_train, scope='batch_norm', affine=True):
         return tf.reshape(normed, shape=[-1, n_out])
 
 
-def linear(args, output_size, bias, bias_start=0.0, scope=None, batch_normalize=False, is_training=None):
-    with tf.variable_scope("linear" if scope is None else scope):
+def linear(args, output_size, bias, bias_start=0.0, scope="linear", batch_normalize=False, is_training=None):
+    with tf.variable_scope(scope):
         projected = []
         for i, arg in enumerate(args):
             input_size = arg.get_shape()[1].value
