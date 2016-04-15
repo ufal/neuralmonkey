@@ -45,6 +45,7 @@ if __name__ == "__main__":
     parser.add_argument("--epochs", type=int, default=10)
     parser.add_argument("--mixer", type=mixer_values, default=None)
     parser.add_argument("--target-german", type=bool, default=False)
+    parser.add_argument("--beamsearch", type=bool, default=False)
     args = parser.parse_args()
 
     print_header("TRANSLATION ONLY", args)
@@ -133,8 +134,6 @@ if __name__ == "__main__":
 
         return feed_dicts, batched_listed_tgt_sentences
 
-
-
     if args.mixer:
         xent_calls, moving_calls = args.mixer
         trainer = Mixer(decoder, xent_calls, moving_calls)
@@ -147,9 +146,13 @@ if __name__ == "__main__":
     sess.run(tf.initialize_all_variables())
 
 
-    val_feed_dicts, batched_listed_val_tgt_sentences = batch_feed_dict(val_src_sentences, val_tgt_sentences, args.batch_size)
+    val_feed_dicts, batched_listed_val_tgt_sentences =
+        batch_feed_dict(val_src_sentences, val_tgt_sentences,
+                        1 if args.beamsearch else args.batch_size)
     train_feed_dicts, batched_listed_train_tgt_sentences = batch_feed_dict(train_src_sentences, train_tgt_sentences, args.batch_size)
 
     training_loop(sess, tgt_vocabulary, args.epochs, trainer, decoder,
                   train_feed_dicts, batched_listed_train_tgt_sentences,
-                  val_feed_dicts, batched_listed_val_tgt_sentences, postedit, "logs-translation/"+str(int(time.time())))
+                  val_feed_dicts, batched_listed_val_tgt_sentences, postedit,
+                  "logs-translation/"+str(int(time.time())),
+                  beamsearch=args.beamsearch)

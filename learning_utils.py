@@ -90,7 +90,8 @@ def corpus_bleu_deduplicated_unigrams(batch_sentences, decoded_sentences,
 def training_loop(sess, vocabulary, epochs, trainer,
                   decoder, train_feed_dicts, train_tgt_sentences,
                   val_feed_dicts, val_tgt_sentences,
-                  postprocess, tensorboard_log, char_based=False):
+                  postprocess, tensorboard_log, char_based=False,
+                  beamsearch=False):
     """
 
     Performs the training loop for given graph and data.
@@ -199,30 +200,34 @@ def training_loop(sess, vocabulary, epochs, trainer,
                     for val_barch_n, (val_batch_feed_dict, val_batch_sentences) in \
                         enumerate (zip(val_feed_dicts, val_tgt_sentences)):
 
-                        def expand(source, hypothesis):
+                        def expand(feed_dict, hypothesis):
                             p, s = hypothesis
-                            feed_dict = dict()
-                            #TODO construct feed_dict
+                            for i, n in zip(decoder.gt_inputs, s):
+                                feed_dict[i] = n
                             probs = sess.run(decoder.decoded_probs[:len(hypothesis)],
                                              feed_dict=feed_dict)
                             new = np.argpartition(probs[-1], -10)[-10:]
                             return [(p * probs[-1][i], s + [i] for i in new]
 
 
-                        def beamsearch():
+                        def beamsearch(fd):
                             beam = [(1.0, [1])]
                             for _ in range(len(decoder.decoded_probs)):
-                                 new_beam = sum(expand(source, h) for h in beam, [])
+                                 new_beam = sum(expand(fd, h) for h in beam, [])
                                  new_beam.sort(reversed=True)
                                  beam = new_beam[:10]
                             return beam[0][1]
 
-                        computation = sess.run([decoder.loss_with_decoded_ins,
-                            decoder.loss_with_gt_ins, decoder.summary_val] \
-                                + decoder.decoded_seq, feed_dict=val_batch_feed_dict)
+                        if beamsearch:
+                             decoded_val_sentences.append(beamsearch(fd))
+                        else:
 
-                        decoded_val_sentences +=  [postprocess(s) for s in \
-                            vocabulary.vectors_to_sentences(computation[-decoder.max_output_len - 1:])]
+                            computation = sess.run([decoder.loss_with_decoded_ins,
+                                decoder.loss_with_gt_ins, decoder.summary_val] \
+                                    + decoder.decoded_seq, feed_dict=val_batch_feed_dict)
+
+                            decoded_val_sentences +=  [postprocess(s) for s in \
+                                vocabulary.vectors_to_sentences(computation[-decoder.max_output_len - 1:])]
 
                     if char_based:
                         decoded_val_sentences = \
