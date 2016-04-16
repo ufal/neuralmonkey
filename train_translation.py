@@ -118,7 +118,6 @@ if __name__ == "__main__":
 
 
     def batch_feed_dict(src_sentences, tgt_sentences, batch_size, train=False):
-
         batched_tgt_sentences = \
             [tgt_sentences[start:start + batch_size] \
              for start in range(0, len(tgt_sentences), batch_size)]
@@ -129,7 +128,7 @@ if __name__ == "__main__":
         batched_src_sentences = [src_sentences[start:start + batch_size]
             for start in range(0, len(src_sentences), batch_size)]
 
-        feed_dicts = [feed_dict(src, tgt) \
+        feed_dicts = [feed_dict(src, tgt, train=train) \
             for src, tgt in zip(batched_src_sentences, batched_tgt_sentences)]
 
         return feed_dicts, batched_listed_tgt_sentences
@@ -148,8 +147,9 @@ if __name__ == "__main__":
 
     val_feed_dicts, batched_listed_val_tgt_sentences = \
         batch_feed_dict(val_src_sentences, val_tgt_sentences,
-                        1 if args.beamsearch else args.batch_size)
-    train_feed_dicts, batched_listed_train_tgt_sentences = batch_feed_dict(train_src_sentences, train_tgt_sentences, args.batch_size)
+                        1 if args.beamsearch else args.batch_size, train=False)
+    train_feed_dicts, batched_listed_train_tgt_sentences = \
+        batch_feed_dict(train_src_sentences, train_tgt_sentences, args.batch_size, train=True)
 
     training_loop(sess, tgt_vocabulary, args.epochs, trainer, decoder,
                   train_feed_dicts, batched_listed_train_tgt_sentences,

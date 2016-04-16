@@ -108,9 +108,7 @@ if __name__ == "__main__":
 
         return fd
 
-
-
-    def batch_feed_dict(sentences, images, batch_size):
+    def batch_feed_dict(sentences, images, batch_size, train=False):
         batched_sentenes = \
             [sentences[start:start + batch_size] \
              for start in range(0, len(sentences), batch_size)]
@@ -121,7 +119,7 @@ if __name__ == "__main__":
         batched_images = [images[start:start + batch_size]
              for start in range(0, len(sentences), batch_size)]
 
-        feed_dicts = [feed_dict(imgs, sents) \
+        feed_dicts = [feed_dict(imgs, sents, train=train) \
             for imgs, sents in zip(batched_images, batched_sentenes)]
 
         return feed_dicts, batched_listed_sentences
@@ -135,8 +133,10 @@ if __name__ == "__main__":
     sess.run(tf.initialize_all_variables())
 
 
-    train_feed_dicts, batched_listed_train_sentences = batch_feed_dict(train_sentences, train_images, args.batch_size)
-    val_feed_dicts, batched_listed_val_sentences = batch_feed_dict(val_sentences, val_images, args.batch_size)
+    train_feed_dicts, batched_listed_train_sentences = \
+            batch_feed_dict(train_sentences, train_images, args.batch_size, train=True)
+    val_feed_dicts, batched_listed_val_sentences = \
+            batch_feed_dict(val_sentences, val_images, args.batch_size, train=False)
 
     training_loop(sess, vocabulary, args.epochs, trainer, decoder,
                   train_feed_dicts, batched_listed_train_sentences,
