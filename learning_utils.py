@@ -204,36 +204,43 @@ def training_loop(sess, vocabulary, epochs, trainer,
                         enumerate (zip(val_feed_dicts, val_tgt_sentences)):
 
                         def expand(feed_dict, state, hypotheses):
-                            #p, s = hypothesis
                             feed_dict[decoder.encoded] = state
                             lh = len(hypotheses[0][1])
-                            for k in feed_dict:
-                                sh = k.get_shape()
-                                #print k.name, k.get_shape()#, len(k.get_shape()), feed_dict[k]
-                                if sh == tf.TensorShape(None):
-                                    #print "UNKNOWN shape, doing nothing"
-                                    pass
-                                else:
-                                    if len(sh) == 1:
-                                        #print "SHAPE 1", feed_dict[k]
-                                        feed_dict[k] = lh * feed_dict[k]
-                                    elif len(sh) == 2:
-                                        #print "SHAPE 2, COPYING"
-                                        feed_dict[k] = np.repeat(np.array(feed_dict[k]), 10, axis=0)
+                            nh = len(hypotheses)
+                            if lh == 2:
+                                for k in feed_dict:
+                                    sh = k.get_shape()
+                                    #print k.name, k.get_shape()#, len(k.get_shape()), feed_dict[k]
+                                    if sh == tf.TensorShape(None):
+                                        #print "UNKNOWN shape, doing nothing"
+                                        pass
                                     else:
-                                        print "ERROR"
-                                #print ""
+                                        if len(sh) == 1:
+                                            #print feed_dict[k]
+                                            feed_dict[k] = np.repeat(feed_dict[k], nh)
+                                            #print feed_dict[k]
+                                        elif len(sh) == 2:
+                                            #print "SHAPE 2, COPYING"
+                                            feed_dict[k] = np.repeat(np.array(feed_dict[k]), nh, axis=0)
+                                        else:
+                                            print "ERROR"
+                                    #print ""
                                     
                             for i, n in zip(decoder.gt_inputs, range(lh)):
-                                for k in range(len(hypotheses)):
-                                    print feed_dict[i], k, hypotheses[k][1][n]
+                                for k in range(nh):
+                                    #print feed_dict[i], k, hypotheses[k][1][n]
                                     feed_dict[i][k] = hypotheses[k][1][n]
                             probs = sess.run(decoder.decoded_probs[lh - 1],
                                              feed_dict=feed_dict)
                             new = np.argpartition(probs, -12)[-12:]
-                            print new.shape
-                            #TODO repair this:
-                            return [(p * probs[0, i], s + [i]) for i in new[0]]
+                            #print new.shape
+                            beam = []
+                            for i in range(nh):
+                                for x in new[i]:
+                                    #print hypotheses[i][0], probs[i, x], hypotheses[i][1], [x]
+                                    beam.append((hypotheses[i][0] * probs[i, x], hypotheses[i][1] + [x]))
+                            #print "DONE"
+                            return beam
 
 
                         def beamsearch(fd):
