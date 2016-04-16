@@ -210,38 +210,27 @@ def training_loop(sess, vocabulary, epochs, trainer,
                             if lh == 2:
                                 for k in feed_dict:
                                     sh = k.get_shape()
-                                    #print k.name, k.get_shape()#, len(k.get_shape()), feed_dict[k]
-                                    if sh == tf.TensorShape(None):
-                                        #print "UNKNOWN shape, doing nothing"
-                                        pass
-                                    else:
+                                    if sh != tf.TensorShape(None):
                                         if len(sh) == 1:
-                                            #print feed_dict[k]
                                             feed_dict[k] = np.repeat(feed_dict[k], nh)
-                                            #print feed_dict[k]
                                         elif len(sh) == 2:
-                                            #print "SHAPE 2, COPYING"
                                             feed_dict[k] = np.repeat(np.array(feed_dict[k]), nh, axis=0)
                                         else:
-                                            print "ERROR"
-                                    #print ""
+                                            log("ERROR in expanding beamsearch \
+                                                hypothesis")
                                     
                             for i, n in zip(decoder.gt_inputs, range(lh)):
                                 for k in range(nh):
-                                    #print feed_dict[i], k, hypotheses[k][1][n]
                                     feed_dict[i][k] = hypotheses[k][1][n]
                             probs = sess.run(decoder.decoded_probs[lh - 1],
                                              feed_dict=feed_dict)
                             new = np.argpartition(probs, -12)[-12:]
-                            #print new.shape
+
                             beam = []
                             for i in range(nh):
                                 for x in new[i]:
-                                    #print hypotheses[i][0], probs[i, x], hypotheses[i][1], [x]
                                     beam.append((hypotheses[i][0] * probs[i, x], hypotheses[i][1] + [x]))
-                            #print "DONE"
                             return beam
-
 
                         def beamsearch(fd):
                             beam = [(1.0, [1])]
