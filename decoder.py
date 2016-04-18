@@ -153,19 +153,13 @@ class Decoder:
                 embedded_gt_inputs = \
                     [tf.nn.dropout(i, dropout_placeholder) for i in embedded_gt_inputs]
 
-            def loop(prev_state, _):
-                # it takes the previous hidden state, finds the word and formats it
-                # as input for the next time step ... used in the decoder in the "real decoding scenario"
+            def standard_logits(state):
                 if dropout_placeholder:
-                    prev_state = tf.nn.dropout(prev_state, dropout_placeholder)
-                out_activation = tf.matmul(prev_state, decoding_W) + decoding_B
-                prev_word_index = tf.argmax(out_activation, 1)
-                next_step_embedding = \
-                        tf.nn.embedding_lookup(decoding_EM, prev_word_index)
-                if dropout_placeholder:
-                    return tf.nn.dropout(next_step_embedding, dropout_placeholder)
-                else:
-                    return next_step_embedding
+                    state = tf.nn.dropout(state, dropout_placeholder)
+                return tf.matmul(state, decoding_W) + decoding_B
+
+            logit_function = standard_logits
+
 
             if copy_net:
                 # This is implementation of Copy-net (http://arxiv.org/pdf/1603.06393v2.pdf)
@@ -179,6 +173,22 @@ class Decoder:
                     tf.Variable(tf.random_uniform([copy_features_size, rnn_size], -0.5, 0.5),
                             name="copy_W")
                 projected_inputs = [tf.matmul(c, copy_W) for c in copy_tensors]
+                batch_size = tf.shape(encoder_input_indices[0])[0]
+
+                # tensor of batch numbers for indexing in a sparse vector
+                batch_range = tf.range(start=0, limit=batch_size)
+                batch_time_vocabulary_shape = \
+                        tf.concat(0, [tf.expand_dims(batch_size, 0), tf.constant(len(vocabulary), shape=[1])])
+                ones = tf.ones(tf.expand_dims(batch_size, 0))
+                vocabulary_shaped_list = []
+                for slice_indices in encoder_input_indices:
+                    complete_indices = \
+                        tf.concat(1, [tf.expand_dims(batch_range, 1), tf.expand_dims(slice_indices, 1)])
+                    vocabulary_shaped = \
+                                tf.sparse_to_dense(complete_indices,
+                                                   batch_time_vocabulary_shape,
+                                                   ones)
+                    vocabulary_shaped_list.append(vocabulary_shaped)
 
                 def log_sum_exp(matrices):
                     """
@@ -193,38 +203,38 @@ class Decoder:
                     maxima = tf.reduce_max(tf.concat(2, [tf.expand_dims(m, 2) for m in matrices]), [2])
                     return maxima + tf.log(sum([tf.exp(m - maxima) for m in matrices]))
 
-                def copy_net_loop(prev_state, _):
+                def copy_net_logit_function(state):
                     if dropout_placeholder:
-                        prev_state = tf.nn.dropout(prev_state, dropout_placeholder)
+                        state = tf.nn.dropout(state, dropout_placeholder)
                     # the logits for generating the next word are computed in the standard way
-                    generate_logits = tf.matmul(prev_state, decoding_W) + decoding_B
+                    generate_logits = tf.matmul(state, decoding_W) + decoding_B
 
                     # in addition to that logits for copying a word from the
                     # input are computed, here in a loop for each of the
                     # encoder words
                     all_vocabulary_logits = [generate_logits]
-                    for slice_indices, proj_input in zip(encoder_input_indices, projected_inputs):
-                        batch_range = tf.range(start=0, limit=tf.shape(slice_indices)[0])
-                        complete_indices = \
-                            tf.concat(1, [tf.expand_dims(batch_range, 1), tf.expand_dims(slice_indices, 1)])
-                        copy_logits_i = tf.reduce_sum(proj_input * prev_state, [1])
-                        voabulary_shaped = \
-                                tf.sparse_to_dense(complete_indices,
-                                                   tf.shape(generate_logits),
-                                                   copy_logits_i)
-                        all_vocabulary_logits.append(voabulary_shaped)
+                    for indication_matrix, proj_input in zip(vocabulary_shaped_list, projected_inputs):
+                        copy_logits_i = tf.reduce_sum(proj_input * state, [1])
+                        vocabulary_shaped = indication_matrix * tf.expand_dims(copy_logits_i, 1)
+                        all_vocabulary_logits.append(vocabulary_shaped)
 
                     logits = log_sum_exp(all_vocabulary_logits)
 
-                    prev_word_index = tf.argmax(logits, 1)
-                    next_step_embedding = \
-                            tf.nn.embedding_lookup(decoding_EM, prev_word_index)
-                    if dropout_placeholder:
-                        return tf.nn.dropout(next_step_embedding, dropout_placeholder)
-                    else:
-                        return next_step_embedding
+                    return logits
 
-                loop = copy_net_loop
+                logit_function = copy_net_logit_function
+
+            def loop(prev_state, _):
+                # it takes the previous hidden state, finds the word and formats it
+                # as input for the next time step ... used in the decoder in the "real decoding scenario"
+                out_activation = logit_function(prev_state)
+                prev_word_index = tf.argmax(out_activation, 1)
+                next_step_embedding = \
+                        tf.nn.embedding_lookup(decoding_EM, prev_word_index)
+                if dropout_placeholder:
+                    return tf.nn.dropout(next_step_embedding, dropout_placeholder)
+                else:
+                    return next_step_embedding
 
             def sampling_loop(prev_state, i):
                 """
@@ -284,9 +294,7 @@ class Decoder:
             logits = []
             decoded = []
             for o in rnn_outputs:
-                if use_dropout and dropout_placeholder:
-                    o = tf.nn.dropout(o, dropout_placeholder)
-                out_activation = tf.matmul(o, decoding_W) + decoding_B
+                out_activation = logit_function(o)
                 logits.append(out_activation)
                 decoded.append(tf.argmax(out_activation, 1))
             loss = seq2seq.sequence_loss(logits, self.targets,

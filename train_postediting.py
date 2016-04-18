@@ -181,7 +181,7 @@ if __name__ == "__main__":
                     args.batch_size, train=False)
     train_feed_dicts, batched_listed_train_tgt_sentences = \
             batch_feed_dict(train_src_sentences, train_trans_sentences, train_tgt_sentences,
-                    args.batch_size, train=Train)
+                    args.batch_size, train=True)
 
 
     training_loop(sess, tgt_vocabulary, args.epochs, trainer, decoder,
