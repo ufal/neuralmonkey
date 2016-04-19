@@ -149,12 +149,12 @@ class Decoder:
             embedded_gt_inputs = \
                     [tf.nn.embedding_lookup(decoding_EM, o) for o in self.gt_inputs[:-1]]
 
-            if dropout_placeholder:
+            if dropout_placeholder is not None:
                 embedded_gt_inputs = \
                     [tf.nn.dropout(i, dropout_placeholder) for i in embedded_gt_inputs]
 
             def standard_logits(state):
-                if dropout_placeholder:
+                if dropout_placeholder is not None:
                     state = tf.nn.dropout(state, dropout_placeholder)
                 return tf.matmul(state, decoding_W) + decoding_B
 
@@ -208,7 +208,7 @@ class Decoder:
                     return result
 
                 def copy_net_logit_function(state):
-                    if dropout_placeholder:
+                    if dropout_placeholder is not None:
                         state = tf.nn.dropout(state, dropout_placeholder)
                     # the logits for generating the next word are computed in the standard way
                     generate_logits = tf.matmul(state, decoding_W) + decoding_B
@@ -239,7 +239,7 @@ class Decoder:
                 prev_word_index = tf.argmax(out_activation, 1)
                 next_step_embedding = \
                         tf.nn.embedding_lookup(decoding_EM, prev_word_index)
-                if dropout_placeholder:
+                if dropout_placeholder is not None:
                     return tf.nn.dropout(next_step_embedding, dropout_placeholder)
                 else:
                     return next_step_embedding
@@ -265,11 +265,11 @@ class Decoder:
             if use_attention:
                 attention_tensors = \
                         [e.attention_tensor for e in encoders if e.attention_tensor is not None]
-                if dropout_placeholder:
+                if dropout_placeholder is not None:
                     attention_tensors_dropped = \
                         [tf.nn.dropout(t, dropout_placeholder) for t in attention_tensors]
 
-            if dropout_placeholder:
+            if dropout_placeholder is not None:
                 encoded = tf.nn.dropout(encoded, dropout_placeholder)
 
             if use_attention:
@@ -311,8 +311,12 @@ class Decoder:
 
         self.loss_with_gt_ins, _, gt_logits = \
                 loss_and_decoded(rnn_outputs_gt_ins, True)
-
-        self.decoded_probs = [tf.nn.softmax(l) for l in gt_logits]
+        
+        if (tf.__version__ == "0.8.0rc0"):
+            self.decoded_probs = [tf.nn.log_softmax(l) for l in gt_logits]
+        else:
+            self.decoded_probs = [tf.log(tf.nn.softmax(l)) for l in gt_logits]
+        self.top10_probs = [tf.nn.top_k(p, 10) for p in self.decoded_probs]
 
         #tf.scalar_summary('val_loss_with_gt_input', self.loss_with_gt_ins, collections=["summary_val"])
         #tf.scalar_summary('train_loss_with_gt_intpus', self.loss_with_gt_ins, collections=["summary_train"])

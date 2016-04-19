@@ -197,7 +197,7 @@ def training_loop(sess, vocabulary, epochs, trainer,
                 else:
                     trainer.run(sess, batch_feed_dict, batch_sentences, verbose=False)
 
-                if step % 500 == 1:#TODO set back to 499
+                if step % 500 == 499:
                     decoded_val_sentences = []
 
                     for val_batch_n, (val_batch_feed_dict, val_batch_sentences) in \
@@ -210,7 +210,7 @@ def training_loop(sess, vocabulary, epochs, trainer,
                             if lh == 2:
                                 for k in feed_dict:
                                     sh = k.get_shape()
-                                    if sh != tf.TensorShape(None):
+                                    if not sh == tf.TensorShape(None):
                                         if len(sh) == 1:
                                             feed_dict[k] = np.repeat(feed_dict[k], nh)
                                         elif len(sh) == 2:
@@ -222,14 +222,13 @@ def training_loop(sess, vocabulary, epochs, trainer,
                             for i, n in zip(decoder.gt_inputs, range(lh)):
                                 for k in range(nh):
                                     feed_dict[i][k] = hypotheses[k][1][n]
-                            probs = sess.run(decoder.decoded_probs[lh - 1],
+                            probs, prob_i = sess.run([decoder.top10_probs[lh - 1][0],
+                                             decoder.top10_probs[lh - 1][1]],
                                              feed_dict=feed_dict)
-                            new = np.argpartition(probs, -12)[-12:]
-
                             beam = []
                             for i in range(nh):
-                                for x in new[i]:
-                                    beam.append((hypotheses[i][0] * probs[i, x], hypotheses[i][1] + [x]))
+                                for p, x in zip(probs[i], prob_i[i]):
+                                    beam.append((hypotheses[i][0] + p, hypotheses[i][1] + [x]))
                             return beam
 
                         def beamsearch(fd):
@@ -241,9 +240,9 @@ def training_loop(sess, vocabulary, epochs, trainer,
                                  beam = new_beam[:10]
                             return beam[0][1]
 
-                        if use_beamsearch:
+                        if use_beamsearch and val_batch_n % 100 == 99:
                              decoded_val_sentences.append(beamsearch(val_batch_feed_dict))
-                             log("Sentence done.")
+                             log("Beamsearch: " + str(val_batch_n) + " sentences done.")
                         else:
                             computation = sess.run([decoder.loss_with_decoded_ins,
                                 decoder.loss_with_gt_ins, trainer.summary_val] \
