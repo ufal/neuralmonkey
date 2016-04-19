@@ -172,7 +172,8 @@ class Decoder:
                 copy_W = \
                     tf.Variable(tf.random_uniform([copy_features_size, rnn_size], -0.5, 0.5),
                             name="copy_W")
-                projected_inputs = [tf.matmul(c, copy_W) for c in copy_tensors]
+                projected_inputs = \
+                        tf.concat(1, [tf.expand_dims(tf.matmul(c, copy_W), 1) for c in copy_tensors])
                 batch_size = tf.shape(encoder_input_indices[0])[0]
 
                 # tensor of batch numbers for indexing in a sparse vector
@@ -189,6 +190,7 @@ class Decoder:
                                                    batch_time_vocabulary_shape,
                                                    ones)
                     vocabulary_shaped_list.append(vocabulary_shaped)
+                vocabulary_shaped_indices = tf.concat(1, [tf.expand_dims(v, 1) for v in vocabulary_shaped_list])
 
                 def log_sum_exp(matrices):
                     """
@@ -201,7 +203,9 @@ class Decoder:
 
                     """
                     maxima = tf.reduce_max(tf.concat(2, [tf.expand_dims(m, 2) for m in matrices]), [2])
-                    return maxima + tf.log(sum([tf.exp(m - maxima) for m in matrices]))
+                    result = maxima + tf.log(sum([tf.exp(m - maxima) for m in matrices]))
+                    #gresult = tf.Print(result, [tf.shape(maxima), tf.shape(result)])
+                    return result
 
                 def copy_net_logit_function(state):
                     if dropout_placeholder:
@@ -213,14 +217,18 @@ class Decoder:
                     # input are computed, here in a loop for each of the
                     # encoder words
                     all_vocabulary_logits = [generate_logits]
-                    for indication_matrix, proj_input in zip(vocabulary_shaped_list, projected_inputs):
-                        copy_logits_i = tf.reduce_sum(proj_input * state, [1])
-                        vocabulary_shaped = indication_matrix * tf.expand_dims(copy_logits_i, 1)
-                        all_vocabulary_logits.append(vocabulary_shaped)
 
-                    logits = log_sum_exp(all_vocabulary_logits)
+                    # Equation 8 in the paper ... in shape of source sentence
+                    copy_logits_in_time = tf.reduce_sum(projected_inputs * tf.expand_dims(state, 1), [2])
+                    #  ... in shape of vocabulary
+                    copy_logits_in_vocabulary = vocabulary_shaped_indices * tf.expand_dims(copy_logits_in_time, 2)
 
-                    return logits
+                    # Equation 6 without normalization
+                    copy_logits_exp = tf.reduce_sum(tf.exp(copy_logits_in_vocabulary), [1])
+
+                    logits_exp = copy_logits_exp + tf.exp(generate_logits)
+
+                    return tf.log(logits_exp)
 
                 logit_function = copy_net_logit_function
 
