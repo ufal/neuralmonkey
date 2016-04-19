@@ -9,6 +9,7 @@ from sentence_encoder import SentenceEncoder
 from decoder import Decoder
 from vocabulary import Vocabulary
 from learning_utils import log, training_loop, print_header, tokenize_char_seq, load_tokenized
+from language_utils import GermanPreprocessor, GermanPostprocessor
 from cross_entropy_trainer import CrossEntropyTrainer
 from language_utils import untruecase
 
@@ -40,6 +41,7 @@ if __name__ == "__main__":
     parser.add_argument("--l2-regularization", type=float, default=0.0)
     parser.add_argument("--character-based", type=bool, default=False)
     parser.add_argument("--epochs", type=int, default=10)
+    parser.add_argument("--target-german", type=bool, default=False)
     parser.add_argument("--use-copy-net", type=bool, default=False)
     parser.add_argument("--shared-embeddings", type=bool, default=False,
                         help="Share word embeddings between encoders of the same language")
@@ -50,6 +52,10 @@ if __name__ == "__main__":
     print_header("TRANSLATION + POSTEDITING", args)
 
     postedit = untruecase
+    preprocess = None
+    if args.target_german:
+        postedit = GermanPostprocessor()
+        preprocess = GermanPreprocessor()
 
     if args.character_based:
         raise Exception("Not implemented")
@@ -60,10 +66,10 @@ if __name__ == "__main__":
         tokenized_val_tgt_sentences = [tokenize_char_seq(chars) for chars in val_tgt_sentences]
         log("Loaded {} validation tgt_sentences.".format(len(val_tgt_sentences)))
     else:
-        train_tgt_sentences = load_tokenized(args.train_target_sentences)
+        train_tgt_sentences = load_tokenized(args.train_target_sentences, preprocess=preprocess)
         tokenized_train_tgt_sentences = train_tgt_sentences
         log("Loaded {} training tgt_sentences.".format(len(train_tgt_sentences)))
-        val_tgt_sentences = load_tokenized(args.val_target_sentences)
+        val_tgt_sentences = load_tokenized(args.val_target_sentences, preprocess=preprocess)
         tokenized_val_tgt_sentences = val_tgt_sentences
         log("Loaded {} validation tgt_sentences.".format(len(val_tgt_sentences)))
 
@@ -72,9 +78,9 @@ if __name__ == "__main__":
         val_src_sentences = load_tokenized(args.val_source_sentences)
         log("Loaded {} validation src_sentences.".format(len(val_src_sentences)))
 
-        train_trans_sentences = load_tokenized(args.train_translated_sentences)
+        train_trans_sentences = load_tokenized(args.train_translated_sentences, preprocess)
         log("Loaded {} training translated sentences.".format(len(train_trans_sentences)))
-        val_trans_sentences = load_tokenized(args.val_translated_sentences)
+        val_trans_sentences = load_tokenized(args.val_translated_sentences, preprocess)
         log("Loaded {} validation translated sentences.".format(len(val_trans_sentences)))
 
     listed_val_tgt_sentences = [[postedit(s)] for s in tokenized_val_tgt_sentences]
