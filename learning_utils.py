@@ -91,8 +91,11 @@ def corpus_bleu_deduplicated_unigrams(batch_sentences, decoded_sentences,
 def training_loop(sess, vocabulary, epochs, trainer,
                   decoder, train_feed_dicts, train_tgt_sentences,
                   val_feed_dicts, val_tgt_sentences,
-                  postprocess, tensorboard_log, char_based=False,
+                  postprocess, tensorboard_log,
+                  use_copynet, batched_train_copy_sentences, batched_val_copy_sentences,
+                  char_based=False,
                   use_beamsearch=False):
+
     """
 
     Performs the training loop for given graph and data.
@@ -148,21 +151,48 @@ def training_loop(sess, vocabulary, epochs, trainer,
     max_bleu_batch_no = 0
     val_tgt_sentences_flatten = [s for batch in val_tgt_sentences for s in batch]
 
+
+    def copynet_substitute(decoded_sentences, copy_sentences, computation):
+        
+        copylogits = computation[-(2*decoder.max_output_len)-2 : -decoder.max_output_len - 1]
+        assert len(copylogits) == decoder.max_output_len + 1 ## kdyby nahodou
+        #assert len(computation) -(2*decoder.max_output_len)-2 == 5 ## neplati pri validaci
+        assert len(decoded_sentences) == len(copy_sentences)
+        
+        for i, (s, copy_s) in enumerate(zip(decoded_sentences, copy_sentences)):
+            
+            for j, w in enumerate(s):
+                if w == '<unk>':
+                    selected = np.argmax(copylogits[j][i])
+
+                    ## Copynet can generate <pad> tokens from outside the sentence
+                    if selected < len(copy_s):
+                        decoded_sentences[i][j] = copy_s[selected]
+
+        return decoded_sentences
+
+    
     try:
         for i in range(epochs):
             print ""
             log("Epoch {} starts".format(i + 1), color='red')
 
-            for batch_n, (batch_feed_dict, batch_sentences) in \
-                    enumerate(zip(train_feed_dicts, train_tgt_sentences)):
+            for batch_n, (batch_feed_dict, batch_sentences, batch_copy_sentences) in \
+                    enumerate(zip(train_feed_dicts, train_tgt_sentences, batched_train_copy_sentences)):
+
                 step += 1
                 seen_instances += len(batch_sentences)
                 if step % 20 == 1:
 
                     computation = trainer.run(sess, batch_feed_dict, batch_sentences, verbose=True)
 
-                    decoded_sentences = [postprocess(s) for s in \
-                       vocabulary.vectors_to_sentences(computation[-decoder.max_output_len - 1:])]
+                    decoded_sentences = vocabulary.vectors_to_sentences(computation[-decoder.max_output_len - 1:]) ## todo az se vyresi copynet tak se zavola postproces
+
+                    if use_copynet:
+                        decoded_sentences = copynet_substitute(decoded_sentences, batch_copy_sentences, computation)                        
+
+                    decoded_sentences = [postprocess(s) for s in decoded_sentences]
+
 
                     if char_based:
                         decoded_sentences = \
@@ -201,10 +231,12 @@ def training_loop(sess, vocabulary, epochs, trainer,
                 if step % 500 == 499:
                     decoded_val_sentences = []
 
-                    for val_batch_n, (val_batch_feed_dict, val_batch_sentences) in \
-                        enumerate (zip(val_feed_dicts, val_tgt_sentences)):
+                    for val_batch_n, (val_batch_feed_dict, val_batch_sentences, val_copy_sentences) in \
+                        enumerate (zip(val_feed_dicts, val_tgt_sentences, batched_val_copy_sentences)):
+                        
+                        def expand(feed_dict, state, hypothesis):
+                            p, s = hypothesis
 
-                        def expand(feed_dict, state, hypotheses):
                             feed_dict[decoder.encoded] = state
                             lh = len(hypotheses[0][1])
                             nh = len(hypotheses)
@@ -247,15 +279,18 @@ def training_loop(sess, vocabulary, epochs, trainer,
                         else:
                             computation = sess.run([decoder.loss_with_decoded_ins,
                                 decoder.loss_with_gt_ins, trainer.summary_val] \
-                                    + decoder.decoded_seq, feed_dict=val_batch_feed_dict)
+                                    + decoder.copynet_logits + decoder.decoded_seq, feed_dict=val_batch_feed_dict)
+                            decoded_val_sentences_batch = vocabulary.vectors_to_sentences(computation[-decoder.max_output_len - 1:])
 
-                            decoded_val_sentences +=  [postprocess(s) for s in \
-                                vocabulary.vectors_to_sentences(computation[-decoder.max_output_len - 1:])]
+                            if use_copynet: # todo beamsearch nefunguje s copynetem
+                                decoded_val_sentences_batch = copynet_substitute(decoded_val_sentences_batch, val_copy_sentences, computation)
+                            
+                        decoded_val_sentences += [postprocess(s) for s in decoded_val_sentences_batch]
 
                     if char_based:
                         decoded_val_sentences = \
                                 [tokenize_char_seq(chars) for chars in decoded_val_sentences]
-
+                        
                     val_bleu_1 = \
                             100 * corpus_bleu(val_tgt_sentences_flatten, decoded_val_sentences, weights=[1., 0., 0., 0.0],
                                               smoothing_function=bleu_smoothing)

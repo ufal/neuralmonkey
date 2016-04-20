@@ -172,8 +172,7 @@ if __name__ == "__main__":
         feed_dicts = [feed_dict(src, trans, tgt, train=train) \
             for src, trans, tgt in zip(batched_src_sentences, batched_trans_sentences, batched_tgt_sentences)]
 
-        return feed_dicts, batched_listed_tgt_sentences
-
+        return feed_dicts, batched_listed_tgt_sentences, batched_trans_sentences
 
     trainer = CrossEntropyTrainer(decoder, args.l2_regularization)
 
@@ -182,15 +181,16 @@ if __name__ == "__main__":
                                             intra_op_parallelism_threads=4))
     sess.run(tf.initialize_all_variables())
 
-    val_feed_dicts, batched_listed_val_tgt_sentences = \
+    val_feed_dicts, batched_listed_val_tgt_sentences, batched_val_trans_sentences = \
             batch_feed_dict(val_src_sentences, val_trans_sentences, val_tgt_sentences,
                     args.batch_size, train=False)
-    train_feed_dicts, batched_listed_train_tgt_sentences = \
+    train_feed_dicts, batched_listed_train_tgt_sentences, batched_train_trans_sentences = \
             batch_feed_dict(train_src_sentences, train_trans_sentences, train_tgt_sentences,
                     args.batch_size, train=True)
 
 
     training_loop(sess, tgt_vocabulary, args.epochs, trainer, decoder,
                   train_feed_dicts, batched_listed_train_tgt_sentences,
-                  val_feed_dicts, batched_listed_val_tgt_sentences, postedit, "logs-postedit/"+str(int(time.time())))
-
+                  val_feed_dicts, batched_listed_val_tgt_sentences, postedit,
+                  "logs-postedit/"+str(int(time.time())),
+                  args.use_copy_net, batched_train_trans_sentences, batched_val_trans_sentences )

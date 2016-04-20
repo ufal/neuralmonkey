@@ -156,7 +156,7 @@ class Decoder:
             def standard_logits(state):
                 if dropout_placeholder is not None:
                     state = tf.nn.dropout(state, dropout_placeholder)
-                return tf.matmul(state, decoding_W) + decoding_B
+                return tf.matmul(state, decoding_W) + decoding_B, None
 
             logit_function = standard_logits
 
@@ -228,14 +228,14 @@ class Decoder:
 
                     logits_exp = copy_logits_exp + tf.exp(generate_logits)
 
-                    return tf.log(logits_exp)
+                    return tf.log(logits_exp), copy_logits_in_time
 
                 logit_function = copy_net_logit_function
 
             def loop(prev_state, _):
                 # it takes the previous hidden state, finds the word and formats it
                 # as input for the next time step ... used in the decoder in the "real decoding scenario"
-                out_activation = logit_function(prev_state)
+                out_activation, _ = logit_function(prev_state)
                 prev_word_index = tf.argmax(out_activation, 1)
                 next_step_embedding = \
                         tf.nn.embedding_lookup(decoding_EM, prev_word_index)
@@ -301,15 +301,21 @@ class Decoder:
         def loss_and_decoded(rnn_outputs, use_dropout):
             logits = []
             decoded = []
+            copynet_logits = []
+            
             for o in rnn_outputs:
-                out_activation = logit_function(o)
+                out_activation, logits_in_time = logit_function(o)
+
+                if copy_net:
+                    copynet_logits.append(logits_in_time)
+
                 logits.append(out_activation)
                 decoded.append(tf.argmax(out_activation, 1))
             loss = seq2seq.sequence_loss(logits, self.targets,
                                          self.weights_ins, len(vocabulary))
-            return loss, decoded, logits
+            return loss, decoded, logits, copynet_logits
 
-        self.loss_with_gt_ins, _, gt_logits = \
+        self.loss_with_gt_ins, _, gt_logits, _ = \
                 loss_and_decoded(rnn_outputs_gt_ins, True)
         
         if (tf.__version__ == "0.8.0rc0"):
@@ -321,7 +327,7 @@ class Decoder:
         #tf.scalar_summary('val_loss_with_gt_input', self.loss_with_gt_ins, collections=["summary_val"])
         #tf.scalar_summary('train_loss_with_gt_intpus', self.loss_with_gt_ins, collections=["summary_train"])
 
-        self.loss_with_decoded_ins, self.decoded_seq, self.decoded_logits = \
+        self.loss_with_decoded_ins, self.decoded_seq, self.decoded_logits, self.copynet_logits = \
                 loss_and_decoded(rnn_outputs_decoded_ins, False)
 
 
