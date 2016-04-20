@@ -6,6 +6,7 @@ import tensorflow as tf
 import regex as re
 
 from sentence_encoder import SentenceEncoder
+from deep_sentence_encoder import DeepSentenceEncoder
 from decoder import Decoder
 from vocabulary import Vocabulary
 from learning_utils import log, training_loop, print_header, tokenize_char_seq, load_tokenized
@@ -46,6 +47,7 @@ if __name__ == "__main__":
     parser.add_argument("--mixer", type=mixer_values, default=None)
     parser.add_argument("--target-german", type=bool, default=False)
     parser.add_argument("--beamsearch", type=bool, default=False)
+    parser.add_argument("--gru-bidi-depth", type=int, default=None)
     args = parser.parse_args()
 
     print_header("TRANSLATION ONLY", args)
@@ -82,9 +84,17 @@ if __name__ == "__main__":
     log("Buiding the TensorFlow computation graph.")
     dropout_placeholder = tf.placeholder(tf.float32, name="dropout_keep_prob")
     training_placeholder = tf.placeholder(tf.bool, name="is_training")
-    encoder = SentenceEncoder(args.maximum_output, src_vocabulary, args.embeddings_size,
-                              args.encoder_rnn_size, dropout_placeholder, training_placeholder,
-                              args.use_noisy_activations)
+
+    if args.gru_bidi_depth is None:
+        encoder = SentenceEncoder(args.maximum_output, src_vocabulary, args.embeddings_size,
+                                  args.encoder_rnn_size, dropout_placeholder, training_placeholder,
+                                  args.use_noisy_activations)
+    else:
+        encoder = DeepSentenceEncoder(args.maximum_output, src_vocabulary, args.embeddings_size,
+                                      args.encoder_rnn_size, args.gru_bidi_depth,
+                                      dropout_placeholder, training_placeholder,
+                                      args.use_noisy_activations)
+
     decoder = Decoder([encoder], tgt_vocabulary, args.decoder_rnn_size, training_placeholder,
             embedding_size=args.embeddings_size,
             use_attention=args.use_attention, max_out_len=args.maximum_output, use_peepholes=True,
