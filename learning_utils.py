@@ -140,7 +140,8 @@ def training_loop(sess, vocabulary, epochs, trainer,
     seen_instances = 0
     bleu_smoothing = SmoothingFunction(epsilon=0.01).method1
 
-    tb_writer = tf.train.SummaryWriter(tensorboard_log, sess.graph_def)
+    if tensorboard_log:
+        tb_writer = tf.train.SummaryWriter(tensorboard_log, sess.graph_def)
 
     max_bleu = 0.0
     max_bleu_epoch = 0
