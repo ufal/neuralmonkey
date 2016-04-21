@@ -245,9 +245,7 @@ def training_loop(sess, vocabulary, epochs, trainer,
                     for val_batch_n, (val_batch_feed_dict, val_batch_sentences, val_copy_sentences) in \
                         enumerate (zip(val_feed_dicts, val_tgt_sentences, batched_val_copy_sentences)):
 
-                        def expand(feed_dict, state, hypothesis):
-                            p, s = hypothesis
-
+                        def expand(feed_dict, state, hypotheses):
                             feed_dict[decoder.encoded] = state
                             lh = len(hypotheses[0][1])
                             nh = len(hypotheses)
