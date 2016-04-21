@@ -192,21 +192,6 @@ class Decoder:
                     vocabulary_shaped_list.append(vocabulary_shaped)
                 vocabulary_shaped_indices = tf.concat(1, [tf.expand_dims(v, 1) for v in vocabulary_shaped_list])
 
-                def log_sum_exp(matrices):
-                    """
-                    Performs the sum of matrices in exponential domain using a
-                    numerically stable formula. See Wikipedia
-                    (https://en.wikipedia.org/wiki/LogSumExp) for details.
-
-                    Args:
-                        matrices: Python list of matrices.
-
-                    """
-                    maxima = tf.reduce_max(tf.concat(2, [tf.expand_dims(m, 2) for m in matrices]), [2])
-                    result = maxima + tf.log(sum([tf.exp(m - maxima) for m in matrices]))
-                    #gresult = tf.Print(result, [tf.shape(maxima), tf.shape(result)])
-                    return result
-
                 def copy_net_logit_function(state):
                     if dropout_placeholder is not None:
                         state = tf.nn.dropout(state, dropout_placeholder)
@@ -302,7 +287,7 @@ class Decoder:
             logits = []
             decoded = []
             copynet_logits = []
-            
+
             for o in rnn_outputs:
                 out_activation, logits_in_time = logit_function(o)
 
@@ -317,7 +302,7 @@ class Decoder:
 
         self.loss_with_gt_ins, _, gt_logits, _ = \
                 loss_and_decoded(rnn_outputs_gt_ins, True)
-        
+
         if (tf.__version__ == "0.8.0rc0"):
             self.decoded_probs = [tf.nn.log_softmax(l) for l in gt_logits]
         else:
