@@ -151,6 +151,10 @@ def training_loop(sess, vocabulary, epochs, trainer,
     seen_instances = 0
     bleu_smoothing = SmoothingFunction(epsilon=0.01).method1
 
+    saver = tf.train.Saver()
+    tmp_save_file = 'variable-'+str(time.time())+'.tmp'
+    saver.save(sess, tmp_save_file)
+
     if tensorboard_log:
         tb_writer = tf.train.SummaryWriter(tensorboard_log, sess.graph_def)
 
@@ -316,6 +320,7 @@ def training_loop(sess, vocabulary, epochs, trainer,
                         max_bleu = val_bleu_4
                         max_bleu_epoch = i
                         max_bleu_batch_no = batch_n
+                        saver.save(sess, tmp_save_file)
 
                     print ""
                     log("Validation (epoch {}, batch number {}):".format(i, batch_n), color='cyan')
@@ -342,5 +347,7 @@ def training_loop(sess, vocabulary, epochs, trainer,
     except KeyboardInterrupt:
         log("Training interrupted by user.")
 
+    saver.restore(sess, tmp_save_file)
+    os.remove(tmp_save_file)
     log("Finished. Maximum BLEU-4 on validation data: {:.2f}, epoch {}".format(max_bleu, max_bleu_epoch))
 
