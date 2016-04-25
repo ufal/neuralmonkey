@@ -168,7 +168,7 @@ if __name__ == "__main__":
                             if trans_word == tgt_word and abs(j - i) < abs(copy_index - i):
                                copy_index = j
                                weights[n] = 1.0
-                               targets[n] = j
+                               targets[n] = j + 1
                 fd[target_plc] = targets
                 fd[weight_plc] = weights
 
