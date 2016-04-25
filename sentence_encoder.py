@@ -28,13 +28,13 @@ class SentenceEncoder(object):
             else:
                 forward_gru = rnn_cell.GRUCell(rnn_size, input_size=embedding_size)
                 backward_gru = rnn_cell.GRUCell(rnn_size, input_size=embedding_size)
-                
+
 
             bidi_layer = BidirectionalRNNLayer(forward_gru,
                                                backward_gru,
                                                dropped_embedded_inputs,
                                                self.sentence_lengths)
-            
+
             self.outputs_bidi = bidi_layer.outputs_bidi
             self.encoded = bidi_layer.encoded
 
@@ -44,7 +44,7 @@ class SentenceEncoder(object):
 
     def feed_dict(self, sentences, batch_size, dicts=None):
         if dicts == None:
-            dicts = [{} for _ in range(len(sentences) / batch_size + int(len(sentences) % batch_size))]
+            dicts = [{} for _ in range(len(sentences) / batch_size + int(len(sentences) % batch_size > 0))]
 
         for fd, start in zip(dicts, range(0, len(sentences, batch_size))):
             fd[self.sentence_lengths] = np.array([min(args.maximum_output, len(s)) + 2 for s in src_sentences])

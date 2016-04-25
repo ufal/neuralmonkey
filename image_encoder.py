@@ -1,5 +1,20 @@
 import tensorflow as tf
 
+class VectorImageEncoder(object):
+    def __init__(self, dimension, dropout_placeholder=None):
+        self.image_features = tf.placeholder(tf.float32, shape=[None, dimension])
+
+        self.encoded = self.image_features
+
+        self.attention_tensor = None
+
+    def feed_dict(self, images, batch_size, dicts=None):
+        if dicts == None:
+            dicts = [{} for _ in range(len(sentences) / batch_size + int(len(sentences) % batch_size))]
+
+        for fd, start in zip(dicts, range(0, len(images.shape[0], batch_size))):
+            fd[self.image_features] = images[start:start+batch_size]
+
 class ImageEncoder(object):
     def __init__(self, input_shape, output_shape, dropout_placeholder=None):
         assert(len(input_shape) == 3)
@@ -18,15 +33,10 @@ class ImageEncoder(object):
             self.attention_tensor = \
                 tf.reshape(self.image_features, [-1, input_shape[0] * input_shape[1], input_shape[2]], name="flatten_image")
 
-class VectorImageEncoder(object):
-    def __init__(self, dimension, output_shape, dropout_placeholder=None):
-        with tf.variable_scope("image_encoder"):
-            self.image_features = tf.placeholder(tf.float32, shape=[None, dimension])
+    def feed_dict(self, images, batch_size, dicts=None):
+        if dicts == None:
+            dicts = [{} for _ in range(len(sentences) / batch_size + int(len(sentences) % batch_size))]
 
-            self.flat = self.image_features
-            project_W = tf.Variable(tf.random_normal([dimension, output_shape]), name="img_init_proj_W")
-            project_b = tf.Variable(tf.zeros([output_shape]), name="img_init_b")
+        for fd, start in zip(dicts, range(0, len(images.shape[0], batch_size))):
+            fd[self.image_features] = images[start:start+batch_size]
 
-            self.encoded = tf.tanh(tf.matmul(self.flat, project_W) + project_b)
-
-            self.attention_tensor = None
