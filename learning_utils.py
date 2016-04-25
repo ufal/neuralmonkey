@@ -176,7 +176,7 @@ def training_loop(sess, vocabulary, epochs, trainer,
         for i, (s, copy_s) in enumerate(zip(decoded_sentences, copy_sentences)):
             for j, w in enumerate(s):
                 if w == '<unk>':
-                    selected = np.argmax(copylogits[j][i])
+                    selected = np.argmax(copy_logits[j][i])
 
                     ## Copynet can generate <pad> tokens from outside the sentence
                     if selected < len(copy_s) and selected != 0:
