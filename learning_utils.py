@@ -179,8 +179,8 @@ def training_loop(sess, vocabulary, epochs, trainer,
                     selected = np.argmax(copylogits[j][i])
 
                     ## Copynet can generate <pad> tokens from outside the sentence
-                    if selected < len(copy_s):
-                        decoded_sentences[i][j] = copy_s[selected]
+                    if selected < len(copy_s) and selected != 0:
+                        decoded_sentences[i][j] = copy_s[selected-1]
 
         return decoded_sentences
 
