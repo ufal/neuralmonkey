@@ -169,9 +169,8 @@ class Decoder:
                 copy_features_size = copy_states.get_shape()[2].value
 
                 # first we do the learned projection of the ecnoder outputs
-                copy_W = \
-                    tf.Variable(tf.random_uniform([copy_features_size, rnn_size], -0.5, 0.5),
-                            name="copy_W")
+                copy_W = tf.get_variable(name="copy_W", shape=[copy_features_size, rnn_size])
+
                 projected_inputs = \
                         tf.concat(1, [tf.expand_dims(tf.matmul(c, copy_W), 1) for c in copy_tensors])
                 batch_size = tf.shape(encoder_input_indices[0])[0]
