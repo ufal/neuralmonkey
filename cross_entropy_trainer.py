@@ -2,18 +2,17 @@ import tensorflow as tf
 
 
 class CrossEntropyTrainer(object):
-
     def __init__(self, decoder, l2_regularization):
         self.decoder = decoder
 
-        if l2_regularization > 0:
-            with tf.variable_scope("l2_regularization"):
-                l2_cost = l2_regularization * \
-                    sum([tf.reduce_sum(v ** 2) for v in tf.trainable_variables()])
-        else:
-            l2_cost = 0.0
+        with tf.variable_scope("l2_regularization"):
+            l2_value = sum([tf.reduce_sum(v ** 2) for v in tf.trainable_variables()])
+            if l2_regularization > 0:
+                    l2_cost = l2_regularization * l2_value
+            else:
+                l2_cost = 0.0
 
-        tf.scalar_summary('train_l2_cost', l2_cost, collections=["summary_train"])
+            tf.scalar_summary('train_l2_cost', l2_value, collections=["summary_train"])
 
         optimizer = tf.train.AdamOptimizer(1e-4)
         gradients = optimizer.compute_gradients(decoder.cost + l2_cost)
