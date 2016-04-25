@@ -11,6 +11,7 @@ from vocabulary import Vocabulary
 from learning_utils import log, training_loop, print_header, tokenize_char_seq, load_tokenized
 from language_utils import GermanPreprocessor, GermanPostprocessor
 from cross_entropy_trainer import CrossEntropyTrainer
+from copy_net_trainer import CopyNetTrainer
 from language_utils import untruecase
 
 def shape(string):
@@ -121,7 +122,10 @@ if __name__ == "__main__":
                       scheduled_sampling=args.scheduled_sampling, dropout_placeholder=dropout_placeholder,
                       copy_net=copy_net, reused_word_embeddings=reused_word_embeddings,
                       use_noisy_activations=args.use_noisy_activations)
-
+    if args.use_copy_net:
+        trainer = CopyNetTrainer(decoder, args.l2_regularization)
+    else:
+        trainer = CrossEntropyTrainer(decoder, args.l2_regularization)
 
     def feed_dict(src_sentences, trans_sentences, tgt_sentences, train=False):
         fd = {}
@@ -152,6 +156,22 @@ if __name__ == "__main__":
             fd[dropout_placeholder] = 1.0
         fd[training_placeholder] = train
 
+        if args.use_copy_net:
+            for i, (target_plc, weight_plc) in enumerate(zip(trainer.copy_target_plc, trainer.copy_w_plc)):
+                weights = np.zeros(len(tgt_sentences))
+                targets = np.zeros(len(tgt_sentences), dtype=np.int32)
+                for n, (tgt_sent, trans_sent) in enumerate(zip(tgt_sentences, trans_sentences)):
+                    if i < len(tgt_sent):
+                        tgt_word = tgt_sent[i]
+                        copy_index = -float('inf')
+                        for j, trans_word in enumerate(trans_sent):
+                            if trans_word == tgt_word and abs(j - i) < abs(copy_index - i):
+                               copy_index = j
+                               weights[n] = 1.0
+                               targets[n] = j
+                fd[target_plc] = targets
+                fd[weight_plc] = weights
+
         return fd
 
     def batch_feed_dict(src_sentences, trans_sentences, tgt_sentences, batch_size, train=False):
@@ -174,7 +194,6 @@ if __name__ == "__main__":
 
         return feed_dicts, batched_listed_tgt_sentences, batched_trans_sentences
 
-    trainer = CrossEntropyTrainer(decoder, args.l2_regularization)
 
     log("Initializing the TensorFlow session.")
     sess = tf.Session(config=tf.ConfigProto(inter_op_parallelism_threads=4,
