@@ -326,3 +326,24 @@ class Decoder:
 
         tf.scalar_summary('val_optimization_cost', self.cost, collections=["summary_val"])
         tf.scalar_summary('train_optimization_cost', self.cost, collections=["summary_train"])
+
+    def feed_dict(self, sentences, batch_size, dicts=None):
+        if dicts == None:
+            dicts = [{} for _ in range(len(sentences) / batch_size + int(len(sentences) % batch_size > 0))]
+        batched_sentences = []
+
+        for fd, start in zip(dicts, range(0, len(sentences), batch_size)):
+            batch_sentences = sentences[start:start + batch_size]
+            #import ipdb; ipdb.set_trace()
+            sentnces_tensors, weights_tensors = \
+                self.vocabulary.sentences_to_tensor(batch_sentences, self.max_output_len)
+
+            for weight_plc, weight_tensor in zip(self.weights_ins, weights_tensors):
+                fd[weight_plc] = weight_tensor
+
+            for words_plc, words_tensor in zip(self.gt_inputs, sentnces_tensors):
+                fd[words_plc] = words_tensor
+
+            batched_sentences.append([[s] for s in batch_sentences])
+
+        return dicts, batched_sentences

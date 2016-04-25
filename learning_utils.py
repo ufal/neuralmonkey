@@ -87,6 +87,15 @@ def corpus_bleu_deduplicated_unigrams(batch_sentences, decoded_sentences,
                        smoothing_function)
 
 
+def feed_dropout_and_train(dicts, dropout_placeholder, dropout_value,
+        training_placeholder, is_training):
+    for d in dicts:
+        d[training_placeholder] = is_training
+        if is_training:
+            d[dropout_placeholder] = dropout_value
+        else:
+            d[dropout_placeholder] = 1.0
+
 
 def training_loop(sess, vocabulary, epochs, trainer,
                   decoder, train_feed_dicts, train_tgt_sentences,

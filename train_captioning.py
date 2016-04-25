@@ -8,7 +8,7 @@ import regex as re
 from image_encoder import ImageEncoder, VectorImageEncoder
 from decoder import Decoder
 from vocabulary import Vocabulary
-from learning_utils import log, training_loop, print_header, tokenize_char_seq
+from learning_utils import log, training_loop, print_header, tokenize_char_seq, feed_dropout_and_train
 from cross_entropy_trainer import CrossEntropyTrainer
 from language_utils import untruecase
 
@@ -84,40 +84,13 @@ if __name__ == "__main__":
             scheduled_sampling=args.scheduled_sampling, dropout_placeholder=dropout_placeholder,
             use_noisy_activations=args.use_noisy_activations)
 
-    def feed_dict(images, sentences, train=False):
-        fd = {encoder.image_features: images}
-        sentnces_tensors, weights_tensors = \
-            vocabulary.sentences_to_tensor(sentences, args.maximum_output, train=train)
-        for weight_plc, weight_tensor in zip(decoder.weights_ins, weights_tensors):
-            fd[weight_plc] = weight_tensor
+    def get_feed_dicts(images, sentences, batch_size, train=False):
+        feed_dicts = encoder.feed_dict(images, batch_size)
+        _, batched_sentences = decoder.feed_dict(sentences, args.maximum_output, feed_dicts)
+        feed_dropout_and_train(feed_dicts, dropout_placeholder,
+                args.dropout_keep_prob, training_placeholder, train)
 
-        for words_plc, words_tensor in zip(decoder.gt_inputs, sentnces_tensors):
-            fd[words_plc] = words_tensor
-
-        if train:
-            fd[dropout_placeholder] = args.dropout_keep_prob
-        else:
-            fd[dropout_placeholder] = 1.0
-        fd[training_placeholder] = train
-
-        return fd
-
-    def batch_feed_dict(sentences, images, batch_size, train=False):
-        batched_sentenes = \
-            [sentences[start:start + batch_size] \
-             for start in range(0, len(sentences), batch_size)]
-
-        batched_listed_sentences = \
-            [[[postedit(sent)] for sent in batch] for batch in batched_sentenes]
-
-        batched_images = [images[start:start + batch_size]
-             for start in range(0, len(sentences), batch_size)]
-
-        feed_dicts = [feed_dict(imgs, sents, train=train) \
-            for imgs, sents in zip(batched_images, batched_sentenes)]
-
-        return feed_dicts, batched_listed_sentences
-
+        return feed_dicts, batched_sentences
 
     trainer = CrossEntropyTrainer(decoder, args.l2_regularization)
 
@@ -126,11 +99,10 @@ if __name__ == "__main__":
                                             intra_op_parallelism_threads=4))
     sess.run(tf.initialize_all_variables())
 
-
     train_feed_dicts, batched_listed_train_sentences = \
-            batch_feed_dict(train_sentences, train_images, args.batch_size, train=True)
+            get_feed_dicts(train_images, train_sentences, args.batch_size, train=True)
     val_feed_dicts, batched_listed_val_sentences = \
-            batch_feed_dict(val_sentences, val_images, args.batch_size, train=False)
+            get_feed_dicts(val_images, val_sentences, args.batch_size, train=False)
 
     training_loop(sess, vocabulary, args.epochs, trainer, decoder,
                   train_feed_dicts, batched_listed_train_sentences,

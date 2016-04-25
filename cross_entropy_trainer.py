@@ -1,6 +1,5 @@
 import tensorflow as tf
 
-
 class CrossEntropyTrainer(object):
     def __init__(self, decoder, l2_regularization):
         self.decoder = decoder
