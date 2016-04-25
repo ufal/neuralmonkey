@@ -140,4 +140,8 @@ if __name__ == "__main__":
 
     training_loop(sess, vocabulary, args.epochs, trainer, decoder,
                   train_feed_dicts, batched_listed_train_sentences,
-                  val_feed_dicts, batched_listed_val_sentences, postedit, "logs-captioning/"+str(int(time.time())))
+                  val_feed_dicts, batched_listed_val_sentences, postedit,
+                  "logs-captioning/"+str(int(time.time())),
+                  False,
+                  [[] for _ in batched_listed_train_sentences],
+                  [[] for _ in batched_listed_val_sentences])
