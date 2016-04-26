@@ -47,6 +47,7 @@ if __name__ == "__main__":
     parser.add_argument("--shared-embeddings", type=bool, default=False,
                         help="Share word embeddings between encoders of the same language")
     parser.add_argument("--use-noisy-activations", type=bool, default=False)
+    parser.add_argument("--beamsearch", type=bool, default=False)
 
     args = parser.parse_args()
 
@@ -212,4 +213,5 @@ if __name__ == "__main__":
                   train_feed_dicts, batched_listed_train_tgt_sentences,
                   val_feed_dicts, batched_listed_val_tgt_sentences, postedit,
                   "logs-postedit/"+str(int(time.time())),
-                  args.use_copy_net, batched_train_trans_sentences, batched_val_trans_sentences )
+                  args.use_copy_net, batched_train_trans_sentences, batched_val_trans_sentences,
+                  use_beamsearch=args.beamsearch)
