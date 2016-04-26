@@ -11,9 +11,6 @@ class ImageEncoder(object):
                                           name="average_image")
             self.attention_tensor = \
                 tf.reshape(self.image_features, [-1, shape[0] * shape[1], shape[2]], name="flatten_image")
-                #tf.transpose(tf.reshape(self.image_features,
-                #                        [-1, shape[0] * shape[1], shape[2]], name="flatten_image"), [0, 2, 1])
-                #tf.reshape(self.image_features, [-1, shape[0] * shape[1], shape[2]], name="flatten_image")
 
 class VectorImageEncoder(object):
     def __init__(self, dimension, dropout_placeholder=None):
