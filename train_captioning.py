@@ -105,7 +105,6 @@ if __name__ == "__main__":
             get_feed_dicts(train_images, train_sentences, args.batch_size, train=True)
     val_feed_dicts, batched_listed_val_sentences = \
             get_feed_dicts(val_images, val_sentences, args.batch_size, train=False)
-    import ipdb; ipdb.set_trace()
 
     training_loop(sess, vocabulary, args.epochs, trainer, decoder,
                   train_feed_dicts, batched_listed_train_sentences,
