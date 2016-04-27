@@ -12,3 +12,6 @@ logs-translation
 logs-captioning
 logs-captioing
 logs-postedit
+*.tmp
+*.tmp.meta
+checkpoint
