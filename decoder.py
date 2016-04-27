@@ -1,5 +1,6 @@
 import math
 import tensorflow as tf
+import numpy as np
 from tensorflow.models.rnn import seq2seq
 from tensorflow.models.rnn import rnn_cell
 from tensorflow.models.rnn import rnn
@@ -268,21 +269,26 @@ class Decoder:
 
             tf.get_variable_scope().reuse_variables()
 
+            self.go_symbols = tf.placeholder(tf.int64, [None], name="go_symbols_placeholder")
+            decoder_inputs = [tf.nn.embedding_lookup(decoding_EM, self.go_symbols)]
+            decoder_inputs += [None for _ in range(self.max_output_len)]
+            
             if use_attention:
                 rnn_outputs_decoded_ins, _ = \
-                    attention_decoder(embedded_gt_inputs, encoded,
+                    attention_decoder(decoder_inputs, encoded,
                                               cell=decoder_cell,
                                               attention_states=attention_tensors_dropped,
                                               loop_function=loop)
             else:
                 rnn_outputs_decoded_ins, _ = \
-                    seq2seq.rnn_decoder(embedded_gt_inputs, encoded,
+                    seq2seq.rnn_decoder(decoder_inputs, encoded,
                                         cell=decoder_cell,
                                         loop_function=loop)
 
             self.hidden_states = rnn_outputs_decoded_ins
 
-        def loss_and_decoded(rnn_outputs, use_dropout):
+
+        def get_decoded(rnn_outputs):
             logits = []
             decoded = []
             copynet_logits = []
@@ -295,25 +301,25 @@ class Decoder:
 
                 logits.append(out_activation)
                 decoded.append(tf.argmax(out_activation, 1))
-            loss = seq2seq.sequence_loss(logits, self.targets,
-                                         self.weights_ins, len(vocabulary))
-            return loss, decoded, logits, copynet_logits
 
-        self.loss_with_gt_ins, _, gt_logits, _ = \
-                loss_and_decoded(rnn_outputs_gt_ins, True)
+            return decoded, logits, copynet_logits
+            
 
+        _, gt_logits, _ = get_decoded(rnn_outputs_gt_ins)
+        self.loss_with_gt_ins = seq2seq.sequence_loss(gt_logits, self.targets, self.weights_ins, len(vocabulary))
+        
         if (tf.__version__ == "0.8.0rc0"):
             self.decoded_probs = [tf.nn.log_softmax(l) for l in gt_logits]
         else:
             self.decoded_probs = [tf.log(tf.nn.softmax(l)) for l in gt_logits]
         self.top10_probs = [tf.nn.top_k(p, 10) for p in self.decoded_probs]
 
-        #tf.scalar_summary('val_loss_with_gt_input', self.loss_with_gt_ins, collections=["summary_val"])
-        #tf.scalar_summary('train_loss_with_gt_intpus', self.loss_with_gt_ins, collections=["summary_train"])
+        tf.scalar_summary('val_loss_with_gt_input', self.loss_with_gt_ins, collections=["summary_val"])
+        tf.scalar_summary('train_loss_with_gt_intpus', self.loss_with_gt_ins, collections=["summary_train"])
 
-        self.loss_with_decoded_ins, self.decoded_seq, self.decoded_logits, self.copynet_logits = \
-                loss_and_decoded(rnn_outputs_decoded_ins, False)
 
+        self.decoded_seq, self.decoded_logits, self.copynet_logits = get_decoded(rnn_outputs_decoded_ins)
+        self.loss_with_decoded_ins = seq2seq.sequence_loss(self.decoded_logits, self.targets, self.weights_ins, len(vocabulary))
 
         tf.scalar_summary('val_loss_with_decoded_inputs', self.loss_with_decoded_ins, collections=["summary_val"])
         tf.scalar_summary('train_loss_with_decoded_inputs', self.loss_with_decoded_ins, collections=["summary_train"])
@@ -327,23 +333,34 @@ class Decoder:
         tf.scalar_summary('val_optimization_cost', self.cost, collections=["summary_val"])
         tf.scalar_summary('train_optimization_cost', self.cost, collections=["summary_train"])
 
-    def feed_dict(self, sentences, batch_size, dicts=None):
+    def feed_dict(self, sentences, data_size, batch_size, dicts=None):        
+        
         if dicts == None:
-            dicts = [{} for _ in range(len(sentences) / batch_size + int(len(sentences) % batch_size > 0))]
+            dicts = [{} for _ in range(data_size / batch_size + int(data_size % batch_size > 0))]
         batched_sentences = []
 
-        for fd, start in zip(dicts, range(0, len(sentences), batch_size)):
-            batch_sentences = sentences[start:start + batch_size]
-            #import ipdb; ipdb.set_trace()
-            sentnces_tensors, weights_tensors = \
-                self.vocabulary.sentences_to_tensor(batch_sentences, self.max_output_len)
+        for fd, start in zip(dicts, range(0, data_size, batch_size)):
 
-            for weight_plc, weight_tensor in zip(self.weights_ins, weights_tensors):
-                fd[weight_plc] = weight_tensor
+            batch_actual_size = min(start + batch_size, data_size) - start
 
-            for words_plc, words_tensor in zip(self.gt_inputs, sentnces_tensors):
-                fd[words_plc] = words_tensor
+            if sentences is not None:
+                batch_sentences = sentences[start:start + batch_size]
+                #import ipdb; ipdb.set_trace()
+                sentnces_tensors, weights_tensors = \
+                    self.vocabulary.sentences_to_tensor(batch_sentences, self.max_output_len)
 
-            batched_sentences.append([[s] for s in batch_sentences])
+                for weight_plc, weight_tensor in zip(self.weights_ins, weights_tensors):
+                    fd[weight_plc] = weight_tensor
 
-        return dicts, batched_sentences
+                for words_plc, words_tensor in zip(self.gt_inputs, sentnces_tensors):
+                    fd[words_plc] = words_tensor
+                    
+                batched_sentences.append([[s] for s in batch_sentences])
+
+            fd[self.go_symbols] = np.ones(batch_actual_size)
+                
+
+        if sentences is not None:
+            return dicts, batched_sentences
+        else:
+            return dicts, None

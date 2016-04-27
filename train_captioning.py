@@ -89,7 +89,7 @@ if __name__ == "__main__":
 
     def get_feed_dicts(images, sentences, batch_size, train=False):
         feed_dicts = encoder.feed_dict(images, batch_size)
-        _, batched_sentences = decoder.feed_dict(sentences, batch_size, feed_dicts)
+        _, batched_sentences = decoder.feed_dict(sentences, len(sentences), batch_size, feed_dicts)
         feed_dropout_and_train(feed_dicts, dropout_placeholder,
                 args.dropout_keep_prob, training_placeholder, train)
 

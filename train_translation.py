@@ -105,7 +105,7 @@ if __name__ == "__main__":
 
     def get_feed_dicts(src_sentences, tgt_sentences, batch_size, train=False):
         feed_dicts, batched_src_sentences = encoder.feed_dict(src_sentences, batch_size, train=train)
-        _, batched_tgt_sentences = decoder.feed_dict(tgt_sentences, batch_size, feed_dicts)
+        _, batched_tgt_sentences = decoder.feed_dict(tgt_sentences, len(src_sentences), batch_size, feed_dicts)
 
         feed_dropout_and_train(feed_dicts, dropout_placeholder,
                 args.dropout_keep_prob, training_placeholder, train)
