@@ -333,6 +333,8 @@ class Decoder:
         tf.scalar_summary('val_optimization_cost', self.cost, collections=["summary_val"])
         tf.scalar_summary('train_optimization_cost', self.cost, collections=["summary_train"])
 
+
+
     def feed_dict(self, sentences, data_size, batch_size, dicts=None):        
         
         if dicts == None:
@@ -364,3 +366,11 @@ class Decoder:
             return dicts, batched_sentences
         else:
             return dicts, None
+        
+        
+    def feed_dict_unknown_target(self, data_size, batch_size, dicts=None):
+        return self.feed_dict(None, data_size, batch_size, dicts)
+
+    def feed_dict_with_gt_target(self, sentences, batch_size, dicts=None):
+        return self.feed_dict(sentences, len(sentences), batch_size, dicts)
+        
