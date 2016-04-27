@@ -1,16 +1,21 @@
 import tensorflow as tf
 
 class VectorImageEncoder(object):
-    def __init__(self, dimension, dropout_placeholder=None):
+    def __init__(self, dimension, output_shape, dropout_placeholder=None):
         self.image_features = tf.placeholder(tf.float32, shape=[None, dimension])
 
-        self.encoded = self.image_features
+        self.flat = self.image_features
+
+        project_W = tf.get_variable(shape=[dimension, output_shape], name="img_init_proj_W")
+        project_b = tf.Variable(tf.zeros([output_shape]), name="img_init_b")
+
+        self.encoded = tf.tanh(tf.matmul(self.flat, project_W) + project_b)
 
         self.attention_tensor = None
 
     def feed_dict(self, images, batch_size, dicts=None):
         if dicts == None:
-            dicts = [{} for _ in range(images.shape[0] / batch_size + int(image.shape[0] % batch_size))]
+            dicts = [{} for _ in range(images.shape[0] / batch_size + int(images.shape[0] % batch_size))]
 
         for fd, start in zip(dicts, range(0, images.shape[0], batch_size)):
             fd[self.image_features] = images[start:start+batch_size]
