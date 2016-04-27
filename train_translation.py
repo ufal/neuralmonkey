@@ -9,7 +9,7 @@ from sentence_encoder import SentenceEncoder
 from deep_sentence_encoder import DeepSentenceEncoder
 from decoder import Decoder
 from vocabulary import Vocabulary
-from learning_utils import log, training_loop, print_header, tokenize_char_seq, load_tokenized
+from learning_utils import log, training_loop, print_header, tokenize_char_seq, load_tokenized, feed_dropout_and_train
 from mixer import Mixer
 from cross_entropy_trainer import CrossEntropyTrainer
 from language_utils import untruecase, GermanPreprocessor, GermanPostprocessor
@@ -101,47 +101,14 @@ if __name__ == "__main__":
             scheduled_sampling=args.scheduled_sampling, dropout_placeholder=dropout_placeholder,
             use_noisy_activations=args.use_noisy_activations)
 
-    def feed_dict(src_sentences, tgt_sentences, train=False):
-        fd = {}
+    def get_feed_dicts(src_sentences, tgt_sentences, batch_size, train=False):
+        feed_dicts, batched_src_sentences = encoder.feed_dict(src_sentences, batch_size, train=train)
+        _, batched_tgt_sentences = decoder.feed_dict(tgt_sentences, batch_size, feed_dicts)
 
-        fd[encoder.sentence_lengths] = np.array([min(args.maximum_output, len(s)) + 2 for s in src_sentences])
-        src_vectors, _ = \
-                src_vocabulary.sentences_to_tensor(src_sentences, args.maximum_output, train=train)
-        for words_plc, words_tensor in zip(encoder.inputs, src_vectors):
-            fd[words_plc] = words_tensor
+        feed_dropout_and_train(feed_dicts, dropout_placeholder,
+                args.dropout_keep_prob, training_placeholder, train)
 
-        tgt_vectors, weights_tensors = \
-            tgt_vocabulary.sentences_to_tensor(tgt_sentences, args.maximum_output, train=train)
-        for weight_plc, weight_tensor in zip(decoder.weights_ins, weights_tensors):
-            fd[weight_plc] = weight_tensor
-
-        for words_plc, words_tensor in zip(decoder.gt_inputs, tgt_vectors):
-            fd[words_plc] = words_tensor
-
-        if train:
-            fd[dropout_placeholder] = args.dropout_keep_prob
-        else:
-            fd[dropout_placeholder] = 1.0
-        fd[training_placeholder] = train
-
-        return fd
-
-
-    def batch_feed_dict(src_sentences, tgt_sentences, batch_size, train=False):
-        batched_tgt_sentences = \
-            [tgt_sentences[start:start + batch_size] \
-             for start in range(0, len(tgt_sentences), batch_size)]
-
-        batched_listed_tgt_sentences = \
-            [[[postedit(sent)] for sent in batch] for batch in batched_tgt_sentences]
-
-        batched_src_sentences = [src_sentences[start:start + batch_size]
-            for start in range(0, len(src_sentences), batch_size)]
-
-        feed_dicts = [feed_dict(src, tgt, train=train) \
-            for src, tgt in zip(batched_src_sentences, batched_tgt_sentences)]
-
-        return feed_dicts, batched_listed_tgt_sentences, batched_src_sentences
+        return feed_dicts, batched_src_sentences, batched_tgt_sentences
 
     if args.mixer:
         xent_calls, moving_calls = args.mixer
@@ -155,11 +122,11 @@ if __name__ == "__main__":
     sess.run(tf.initialize_all_variables())
 
 
-    val_feed_dicts, batched_listed_val_tgt_sentences, batched_val_src_sentences = \
-        batch_feed_dict(val_src_sentences, val_tgt_sentences,
+    val_feed_dicts, batched_val_src_sentences, batched_listed_val_tgt_sentences = \
+        get_feed_dicts(val_src_sentences, val_tgt_sentences,
                         1 if args.beamsearch else args.batch_size, train=False)
-    train_feed_dicts, batched_listed_train_tgt_sentences, batched_train_src_sentences = \
-        batch_feed_dict(train_src_sentences, train_tgt_sentences, args.batch_size, train=True)
+    train_feed_dicts, batched_train_src_sentences, batched_listed_train_tgt_sentences = \
+        get_feed_dicts(train_src_sentences, train_tgt_sentences, args.batch_size, train=True)
 
     training_loop(sess, tgt_vocabulary, args.epochs, trainer, decoder,
                   train_feed_dicts, batched_listed_train_tgt_sentences,

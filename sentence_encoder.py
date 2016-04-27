@@ -2,7 +2,7 @@ import tensorflow as tf
 from bidirectional_rnn_layer import BidirectionalRNNLayer
 from tensorflow.models.rnn import rnn_cell
 from noisy_gru_cell import NoisyGRUCell
-
+import numpy as np
 
 class SentenceEncoder(object):
     def __init__(self, max_input_len, vocabulary, embedding_size, rnn_size, dropout_placeholder,
@@ -40,17 +40,19 @@ class SentenceEncoder(object):
 
             self.attention_tensor = \
                     tf.concat(1, [tf.expand_dims(o, 1) for o in self.outputs_bidi])
-                    #tf.transpose(tf.concat(1, [tf.expand_dims(o, 1) for o in outputs_bidi]), [0, 2, 1])
 
-    def feed_dict(self, sentences, batch_size, dicts=None):
+    def feed_dict(self, sentences, batch_size, train=False, dicts=None):
         if dicts == None:
             dicts = [{} for _ in range(len(sentences) / batch_size + int(len(sentences) % batch_size > 0))]
 
-        for fd, start in zip(dicts, range(0, len(sentences, batch_size))):
-            fd[self.sentence_lengths] = np.array([min(args.maximum_output, len(s)) + 2 for s in src_sentences])
+        batched_sentences = []
+        for fd, start in zip(dicts, range(0, len(sentences), batch_size)):
+            this_sentences = sentences[start:start + batch_size]
+            fd[self.sentence_lengths] = np.array([min(self.max_input_len, len(s)) + 2 for s in this_sentences])
             vectors, _ = \
-                    self.vocabulary.sentences_to_tensor(sentences, self.max_input_len, train=train)
+                    self.vocabulary.sentences_to_tensor(this_sentences, self.max_input_len, train=train)
             for words_plc, words_tensor in zip(self.inputs, vectors):
                 fd[words_plc] = words_tensor
+            batched_sentences.append(this_sentences)
 
-        return dicts
+        return dicts, batched_sentences
