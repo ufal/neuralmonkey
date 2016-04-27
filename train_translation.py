@@ -12,8 +12,8 @@ from vocabulary import Vocabulary
 from learning_utils import log, training_loop, print_header, tokenize_char_seq, load_tokenized, feed_dropout_and_train
 from mixer import Mixer
 from cross_entropy_trainer import CrossEntropyTrainer
-from language_utils import untruecase, GermanPreprocessor, GermanPostprocessor
 import cli_options
+from language_utils import untruecase, GermanPreprocessor, GermanPostprocessor, bleu_1, bleu_4_dedup, bleu_4
 
 def shape(string):
     res_shape = [int(s) for s in string.split("x")]
@@ -46,8 +46,6 @@ if __name__ == "__main__":
     log("Loaded {} training src_sentences.".format(len(train_src_sentences)))
     val_src_sentences = load_tokenized(args.val_source_sentences)
     log("Loaded {} validation src_sentences.".format(len(val_src_sentences)))
-
-    listed_val_tgt_sentences = [[postedit(s)] for s in tokenized_val_tgt_sentences]
 
     tgt_vocabulary = \
         Vocabulary(tokenized_text=[w for s in train_tgt_sentences for w in s])
@@ -97,16 +95,17 @@ if __name__ == "__main__":
     sess.run(tf.initialize_all_variables())
 
 
-    val_feed_dicts, batched_val_src_sentences, batched_listed_val_tgt_sentences = \
+    val_feed_dicts, batched_val_src_sentences, batched_val_tgt_sentences = \
         get_feed_dicts(val_src_sentences, val_tgt_sentences,
                         1 if args.beamsearch else args.batch_size, train=False)
-    train_feed_dicts, batched_train_src_sentences, batched_listed_train_tgt_sentences = \
+    train_feed_dicts, batched_train_src_sentences, batched_train_tgt_sentences = \
         get_feed_dicts(train_src_sentences, train_tgt_sentences, args.batch_size, train=True)
 
     training_loop(sess, tgt_vocabulary, args.epochs, trainer, decoder,
-                  train_feed_dicts, batched_listed_train_tgt_sentences,
-                  val_feed_dicts, batched_listed_val_tgt_sentences, postedit,
+                  train_feed_dicts, batched_train_tgt_sentences,
+                  val_feed_dicts, batched_val_tgt_sentences, postedit,
                   "logs-translation/"+str(int(time.time())),
+                  [bleu_1, bleu_4_dedup, bleu_4],
                   False, batched_train_src_sentences, batched_val_src_sentences,
                   use_beamsearch=args.beamsearch,
                   initial_variables=args.initial_variables)

@@ -1,6 +1,5 @@
 import tensorflow as tf
 import numpy as np
-from nltk.translate.bleu_score import corpus_bleu, SmoothingFunction
 from nltk.tokenize import word_tokenize
 from termcolor import colored
 import regex as re
@@ -102,6 +101,7 @@ def training_loop(sess, vocabulary, epochs, trainer,
                   decoder, train_feed_dicts, train_tgt_sentences,
                   val_feed_dicts, val_tgt_sentences,
                   postprocess, tensorboard_log,
+                  evaluation_functions,
                   use_copynet,
                   batched_train_copy_sentences, batched_val_copy_sentences,
                   test_feed_dicts=None, batched_test_copy_sentences=None, test_output_file=None,
@@ -149,6 +149,10 @@ def training_loop(sess, vocabulary, epochs, trainer,
         tensorboard_log: Directory where the TensordBoard log will be generated.
             If None, nothing will be done.
 
+        evaluation_functions: List of evaluation functions. The last function
+            is used as the main. Each function accepts list of decoded sequences
+            and list of reference sequences and returns a float.
+
         use_copynet: Flag whether the copying mechanism is used.
 
         batched_train_copy_sentences: Batched training sentences from which we
@@ -162,10 +166,10 @@ def training_loop(sess, vocabulary, epochs, trainer,
 
     """
 
+    evaluation_labels = [f.__name__ for f in evaluation_functions]
     log("Starting training")
     step = 0
     seen_instances = 0
-    bleu_smoothing = SmoothingFunction(epsilon=0.01).method1
 
     saver = tf.train.Saver()
 
@@ -178,9 +182,9 @@ def training_loop(sess, vocabulary, epochs, trainer,
     if tensorboard_log:
         tb_writer = tf.train.SummaryWriter(tensorboard_log, sess.graph_def)
 
-    max_bleu = 0.0
-    max_bleu_epoch = 0
-    max_bleu_batch_no = 0
+    max_score = 0.0
+    max_score_epoch = 0
+    max_score_batch_no = 0
     val_tgt_sentences_flatten = [s for batch in val_tgt_sentences for s in batch]
 
     def copynet_substitute(decoded_sentences, copy_sentences, computation):
@@ -229,33 +233,25 @@ def training_loop(sess, vocabulary, epochs, trainer,
                         decoded_sentences = \
                                 [tokenize_char_seq(chars) for chars in decoded_sentences]
 
-                    bleu_1 = \
-                        100 * corpus_bleu(batch_sentences, decoded_sentences,
-                                          weights=[1., 0., 0., 0.],
-                                          smoothing_function=bleu_smoothing)
-                    bleu_4 = \
-                        100 * corpus_bleu(batch_sentences, decoded_sentences,
-                                          weights=[0.25, 0.25, 0.25, 0.25],
-                                          smoothing_function=bleu_smoothing)
+                    evaluation_result = \
+                            [f(decoded_sentences, batch_sentences) for f in evaluation_functions]
 
-                    bleu_4_dedup = \
-                        100 * corpus_bleu_deduplicated_unigrams(batch_sentences, decoded_sentences,
-                                                                weights=[0.25, 0.25, 0.25, 0.25],
-                                                                smoothing_function=bleu_smoothing)
+                    eval_string = "    ".join(["{}: {:.2f}".format(name, value) for name, value \
+                        in zip(evaluation_labels, evaluation_result)])
 
-                    log("opt. loss: {:.4f}    dec. loss: {:.4f}    BLEU-1: {:.2f}    BLEU-4: {:.2f}    BLEU-4-dedup: {:.2f}"\
-                            .format(computation[2], computation[1], bleu_1, bleu_4, bleu_4_dedup))
+                    log("opt. loss: {:.4f}    dec. loss: {:.4f}    ".format(computation[2], computation[1]) + eval_string)
 
                     if tensorboard_log:
                         summary_str = computation[3]
                         tb_writer.add_summary(summary_str, seen_instances)
                         #histograms_str = computation[4]
                         #tb_writer.add_summary(histograms_str, seen_instances)
-                        external_str = tf.Summary(value=[
-                            tf.Summary.Value(tag="train_bleu_1", simple_value=bleu_1),
-                            tf.Summary.Value(tag="train_bleu_4", simple_value=bleu_4),
-                        ])
-                        tb_writer.add_summary(external_str, seen_instances)
+                        # TODO deal with the logs
+                        #external_str = tf.Summary(value=[
+                        #    tf.Summary.Value(tag="train_bleu_1", simple_value=bleu_1),
+                        #    tf.Summary.Value(tag="train_bleu_4", simple_value=bleu_4),
+                        #])
+                        #tb_writer.add_summary(external_str, seen_instances)
                 else:
                     trainer.run(sess, batch_feed_dict, batch_sentences, verbose=False)
 
@@ -321,31 +317,26 @@ def training_loop(sess, vocabulary, epochs, trainer,
                         decoded_val_sentences = \
                                 [tokenize_char_seq(chars) for chars in decoded_val_sentences]
 
-                    val_bleu_1 = \
-                            100 * corpus_bleu(val_tgt_sentences_flatten, decoded_val_sentences, weights=[1., 0., 0., 0.0],
-                                              smoothing_function=bleu_smoothing)
-                    val_bleu_4 = \
-                        100 * corpus_bleu(val_tgt_sentences_flatten, decoded_val_sentences, weights=[0.25, 0.25, 0.25, 0.25],
-                                          smoothing_function=bleu_smoothing)
 
-                    val_bleu_4_dedup = \
-                        100 * corpus_bleu_deduplicated_unigrams(val_tgt_sentences_flatten,
-                                                                decoded_val_sentences,
-                                                                weights=[0.25, 0.25, 0.25, 0.25],
-                                                                smoothing_function=bleu_smoothing)
+                    evaluation_result = \
+                            [f(decoded_sentences, batch_sentences) for f in evaluation_functions]
 
-                    if val_bleu_4 > max_bleu:
-                        max_bleu = val_bleu_4
-                        max_bleu_epoch = i
-                        max_bleu_batch_no = batch_n
+                    eval_string = "    ".join(["{}: {:.2f}".format(name, value) for name, value \
+                        in zip(evaluation_labels, evaluation_result)])
+
+
+                    if evaluation_result[-1] > max_score:
+                        max_score = val_bleu_4
+                        max_score_epoch = i
+                        max_score_batch_no = batch_n
                         saver.save(sess, tmp_save_file)
 
                     print ""
                     log("Validation (epoch {}, batch number {}):".format(i, batch_n), color='cyan')
-                    log("opt. loss: {:.4f}    dec. loss: {:.4f}    BLEU-1: {:.2f}    BLEU-4: {:.2f}    BLEU-4-dedup: {:.2f}"\
-                            .format(computation[1], computation[0], val_bleu_1, val_bleu_4, val_bleu_4_dedup), color='cyan')
-                    log("max BLEU-4 on validation: {:.2f} (in epoch {}, after batch number {})".\
-                            format(max_bleu, max_bleu_epoch, max_bleu_batch_no), color='cyan')
+                    log("opt. loss: {:.4f}    dec. loss: {:.4f}    "\
+                            .format(computation[1], computation[0]) + eval_string, color='cyan')
+                    log("max {} on validation: {:.2f} (in epoch {}, after batch number {})".\
+                            format(evaluation_labels[-1], max_score, max_score_epoch, max_score_batch_no), color='cyan')
 
                     print ""
                     print "Examples:"
@@ -366,7 +357,7 @@ def training_loop(sess, vocabulary, epochs, trainer,
         log("Training interrupted by user.")
 
     saver.restore(sess, tmp_save_file)
-    log("Finished. Maximum BLEU-4 on validation data: {:.2f}, epoch {}".format(max_bleu, max_bleu_epoch))
+    log("Training finished. Maximum {} on validation data: {:.2f}, epoch {}".format(evaluation_labels[-1], max_score, max_score_epoch))
 
     if test_feed_dicts and batched_test_copy_sentences and test_output_file:
         log("Translating test data and writing to {}".format(test_output_file))
@@ -388,5 +379,6 @@ def training_loop(sess, vocabulary, epochs, trainer,
                     fout.write("{}\n".format(" ".join(sent)))
                 fout.close()
 
+    log("Finished.")
 
 

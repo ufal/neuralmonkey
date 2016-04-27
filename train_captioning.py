@@ -10,8 +10,8 @@ from decoder import Decoder
 from vocabulary import Vocabulary
 from learning_utils import log, training_loop, print_header, tokenize_char_seq, feed_dropout_and_train
 from cross_entropy_trainer import CrossEntropyTrainer
-from language_utils import untruecase
 import cli_options
+from language_utils import untruecase, bleu_1, bleu_4_dedup, bleu_4
 
 
 if __name__ == "__main__":
@@ -40,8 +40,6 @@ if __name__ == "__main__":
     val_sentences = [re.split(ur"[ @#-]", l.rstrip()) for l in args.tokenized_val_text][:len(val_images)]
     tokenized_val_sentences = val_sentences
     log("Loaded {} validation sentences.".format(len(val_sentences)))
-
-    listed_val_sentences = [[postedit(s)] for s in tokenized_val_sentences]
 
     vocabulary = \
         Vocabulary(tokenized_text=[w for s in train_sentences for w in s])
@@ -75,15 +73,16 @@ if __name__ == "__main__":
                                             intra_op_parallelism_threads=4))
     sess.run(tf.initialize_all_variables())
 
-    train_feed_dicts, batched_listed_train_sentences = \
+    train_feed_dicts, batched_train_sentences = \
             get_feed_dicts(train_images, train_sentences, args.batch_size, train=True)
-    val_feed_dicts, batched_listed_val_sentences = \
+    val_feed_dicts, batched_val_sentences = \
             get_feed_dicts(val_images, val_sentences, args.batch_size, train=False)
 
     training_loop(sess, vocabulary, args.epochs, trainer, decoder,
-                  train_feed_dicts, batched_listed_train_sentences,
-                  val_feed_dicts, batched_listed_val_sentences, postedit,
+                  train_feed_dicts, batched_train_sentences,
+                  val_feed_dicts, batched_val_sentences, postedit,
                   "logs-captioning/"+str(int(time.time())),
+                  [bleu_1, bleu_4_dedup, bleu_4],
                   False,
                   [[] for _ in batched_listed_train_sentences],
                   [[] for _ in batched_listed_val_sentences],

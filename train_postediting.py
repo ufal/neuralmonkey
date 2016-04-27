@@ -12,8 +12,8 @@ from learning_utils import log, training_loop, print_header, tokenize_char_seq, 
 from language_utils import GermanPreprocessor, GermanPostprocessor
 from cross_entropy_trainer import CrossEntropyTrainer
 from copy_net_trainer import CopyNetTrainer
-from language_utils import untruecase
 import cli_options
+from language_utils import untruecase, bleu_1, bleu_4_dedup, bleu_4
 
 def shape(string):
     res_shape = [int(s) for s in string.split("x")]
@@ -46,15 +46,6 @@ if __name__ == "__main__":
     log("Loaded {} training translated sentences.".format(len(train_trans_sentences)))
     val_trans_sentences = load_tokenized(args.val_translated_sentences, preprocess)
     log("Loaded {} validation translated sentences.".format(len(val_trans_sentences)))
-
-    if args.test_output_file:
-        if not args.test_source_sentences or not args.test_translated_sentences:
-            raise Exception("must supply src and trans sentences when want to translate test set")
-
-        test_src_sentences = load_tokenized(args.test_source_sentences)
-        log("Loaded {} test src_sentences.".format(len(test_src_sentences)))
-        test_trans_sentences = load_tokenized(args.test_translated_sentences)
-        log("Loaded {} test trans_sentences.".format(len(test_trans_sentences)))
 
     tgt_vocabulary = \
         Vocabulary(tokenized_text=[w for s in train_tgt_sentences for w in s])
@@ -97,14 +88,14 @@ if __name__ == "__main__":
     else:
         trainer = CrossEntropyTrainer(decoder, args.l2_regularization)
 
-    
+
     def get_feed_dicts(src_sentences, trans_sentences, tgt_sentences, batch_size, train=False):
         feed_dicts, _ = encoder_src.feed_dict(src_sentences, batch_size, train=train)
         feed_dicts, batched_trans_sentences = encoder_trans.feed_dict(trans_sentences, batch_size, train=train, dicts=feed_dicts)
 
         ## batched_tgt_sentences can be None, as well as tgt_sentences
         feed_dicts, batched_tgt_sentences = decoder.feed_dict(tgt_sentences, len(src_sentences), batch_size, feed_dicts)
-        
+
 
         if args.use_copy_net and tgt_sentences is not None:
             feed_dicts = trainer.feed_dict(trans_sentences, tgt_sentences, batch_size, feed_dicts)
@@ -120,10 +111,10 @@ if __name__ == "__main__":
                                             intra_op_parallelism_threads=4))
     sess.run(tf.initialize_all_variables())
 
-    val_feed_dicts, batched_listed_val_tgt_sentences, batched_val_trans_sentences = \
+    val_feed_dicts, batched_val_tgt_sentences, batched_val_trans_sentences = \
             get_feed_dicts(val_src_sentences, val_trans_sentences, val_tgt_sentences,
                     args.batch_size, train=False)
-    train_feed_dicts, batched_listed_train_tgt_sentences, batched_train_trans_sentences = \
+    train_feed_dicts, batched_train_tgt_sentences, batched_train_trans_sentences = \
             get_feed_dicts(train_src_sentences, train_trans_sentences, train_tgt_sentences,
                     args.batch_size, train=True)
 
@@ -131,11 +122,11 @@ if __name__ == "__main__":
         test_feed_dicts, _, batched_test_trans_sentences = \
                 get_feed_dicts(test_src_sentences, test_trans_sentences, None,
                     args.batch_size, train=False)
-
         training_loop(sess, tgt_vocabulary, args.epochs, trainer, decoder,
                       train_feed_dicts, batched_listed_train_tgt_sentences,
                       val_feed_dicts, batched_listed_val_tgt_sentences, postedit,
                       "logs-postedit/"+str(int(time.time())),
+                      [bleu_1, bleu_4_dedup, bleu_4],
                       args.use_copy_net, batched_train_trans_sentences, batched_val_trans_sentences,
                       test_feed_dicts, batched_test_trans_sentences, args.test_output_file,
                       use_beamsearch=args.beamsearch,
@@ -145,6 +136,7 @@ if __name__ == "__main__":
                       train_feed_dicts, batched_listed_train_tgt_sentences,
                       val_feed_dicts, batched_listed_val_tgt_sentences, postedit,
                       "logs-postedit/"+str(int(time.time())),
+                      [bleu_1, bleu_4_dedup, bleu_4],
                       args.use_copy_net, batched_train_trans_sentences, batched_val_trans_sentences,
                       use_beamsearch=args.beamsearch,
                       initial_variables=args.initial_variables)

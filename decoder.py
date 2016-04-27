@@ -272,7 +272,7 @@ class Decoder:
             self.go_symbols = tf.placeholder(tf.int64, [None], name="go_symbols_placeholder")
             decoder_inputs = [tf.nn.embedding_lookup(decoding_EM, self.go_symbols)]
             decoder_inputs += [None for _ in range(self.max_output_len)]
-            
+
             if use_attention:
                 rnn_outputs_decoded_ins, _ = \
                     attention_decoder(decoder_inputs, encoded,
@@ -303,11 +303,11 @@ class Decoder:
                 decoded.append(tf.argmax(out_activation, 1))
 
             return decoded, logits, copynet_logits
-            
+
 
         _, gt_logits, _ = get_decoded(rnn_outputs_gt_ins)
         self.loss_with_gt_ins = seq2seq.sequence_loss(gt_logits, self.targets, self.weights_ins, len(vocabulary))
-        
+
         if (tf.__version__ == "0.8.0rc0"):
             self.decoded_probs = [tf.nn.log_softmax(l) for l in gt_logits]
         else:
@@ -335,8 +335,8 @@ class Decoder:
 
 
 
-    def feed_dict(self, sentences, data_size, batch_size, dicts=None):        
-        
+    def feed_dict(self, sentences, data_size, batch_size, dicts=None):
+
         if dicts == None:
             dicts = [{} for _ in range(data_size / batch_size + int(data_size % batch_size > 0))]
         batched_sentences = []
@@ -353,24 +353,19 @@ class Decoder:
 
                 for weight_plc, weight_tensor in zip(self.weights_ins, weights_tensors):
                     fd[weight_plc] = weight_tensor
-
-                for words_plc, words_tensor in zip(self.gt_inputs, sentnces_tensors):
-                    fd[words_plc] = words_tensor
-                    
-                batched_sentences.append([[s] for s in batch_sentences])
+            batched_sentences.append(batch_sentences)
 
             fd[self.go_symbols] = np.ones(batch_actual_size)
-                
+
 
         if sentences is not None:
             return dicts, batched_sentences
         else:
             return dicts, None
-        
-        
+
     def feed_dict_unknown_target(self, data_size, batch_size, dicts=None):
         return self.feed_dict(None, data_size, batch_size, dicts)
 
     def feed_dict_with_gt_target(self, sentences, batch_size, dicts=None):
         return self.feed_dict(sentences, len(sentences), batch_size, dicts)
-        
+
