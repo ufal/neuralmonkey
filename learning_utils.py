@@ -103,7 +103,8 @@ def training_loop(sess, vocabulary, epochs, trainer,
                   postprocess, tensorboard_log,
                   use_copynet, batched_train_copy_sentences, batched_val_copy_sentences,
                   char_based=False,
-                  use_beamsearch=False):
+                  use_beamsearch=False,
+                  initial_variables=None):
 
     """
 
@@ -153,6 +154,9 @@ def training_loop(sess, vocabulary, epochs, trainer,
         batched_val_copy_sentences: Batched validation sentences from which we
             copy if copy mechanism is used.
 
+        initial_variables: Either None or file where the variables are stored.
+            Training then starts from the point the loaded values.
+
     """
 
     log("Starting training")
@@ -161,6 +165,10 @@ def training_loop(sess, vocabulary, epochs, trainer,
     bleu_smoothing = SmoothingFunction(epsilon=0.01).method1
 
     saver = tf.train.Saver()
+
+    if initial_variables:
+        saver.restor(initial_variables)
+
     tmp_save_file = 'variable-'+str(time.time())+'.tmp'
     saver.save(sess, tmp_save_file)
 

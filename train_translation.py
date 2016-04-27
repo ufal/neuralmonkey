@@ -48,6 +48,8 @@ if __name__ == "__main__":
     parser.add_argument("--target-german", type=bool, default=False)
     parser.add_argument("--beamsearch", type=bool, default=False)
     parser.add_argument("--gru-bidi-depth", type=int, default=None)
+    parser.add_argument("--initial-variables", type=str, default=None,
+            help="File with saved variables for initialization.")
     args = parser.parse_args()
 
     print_header("TRANSLATION ONLY", args)
@@ -133,4 +135,5 @@ if __name__ == "__main__":
                   val_feed_dicts, batched_listed_val_tgt_sentences, postedit,
                   "logs-translation/"+str(int(time.time())),
                   False, batched_train_src_sentences, batched_val_src_sentences,
-                  use_beamsearch=args.beamsearch)
+                  use_beamsearch=args.beamsearch,
+                  initial_variables=args.initial_variables)

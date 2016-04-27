@@ -37,6 +37,8 @@ if __name__ == "__main__":
     parser.add_argument("--img-features-shape", type=shape, default='14x14x256', required=True)
     parser.add_argument("--epochs", type=int, default=10)
     parser.add_argument("--use-noisy-activations", type=bool, default=False)
+    parser.add_argument("--initial-variables", type=str, default=None,
+            help="File with saved variables for initialization.")
     args = parser.parse_args()
 
     print_header("IMAGE CAPTIONING ONLY", args)
@@ -111,4 +113,5 @@ if __name__ == "__main__":
                   "logs-captioning/"+str(int(time.time())),
                   False,
                   [[] for _ in batched_listed_train_sentences],
-                  [[] for _ in batched_listed_val_sentences])
+                  [[] for _ in batched_listed_val_sentences],
+                  initial_variables=args.initial_variables)

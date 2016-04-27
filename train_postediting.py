@@ -48,6 +48,8 @@ if __name__ == "__main__":
                         help="Share word embeddings between encoders of the same language")
     parser.add_argument("--use-noisy-activations", type=bool, default=False)
     parser.add_argument("--beamsearch", type=bool, default=False)
+    parser.add_argument("--initial-variables", type=str, default=None,
+            help="File with saved variables for initialization.")
 
     args = parser.parse_args()
 
@@ -200,4 +202,5 @@ if __name__ == "__main__":
                   val_feed_dicts, batched_listed_val_tgt_sentences, postedit,
                   "logs-postedit/"+str(int(time.time())),
                   args.use_copy_net, batched_train_trans_sentences, batched_val_trans_sentences,
-                  use_beamsearch=args.beamsearch)
+                  use_beamsearch=args.beamsearch,
+                  initial_variables=args.initial_variables)
