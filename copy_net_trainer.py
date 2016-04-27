@@ -1,5 +1,7 @@
-import tensorflow as tf
+#!/usr/bin/env python
 
+import tensorflow as tf
+import numpy as np
 
 class CopyNetTrainer(object):
     """
@@ -56,12 +58,12 @@ class CopyNetTrainer(object):
             dicts = [{} for _ in range(len(sentences) / batch_size + int(len(sentences) % batch_size > 0))]
 
         for fd, start in zip(dicts, range(0, len(tgt_sentences), batch_size)):
-            this_trans_senteces = trans_sentences[start:start + batch_size]
-            this_tgt_senteces = tgt_sentences[start:start + batch_size]
+            this_trans_sentences = trans_sentences[start:start + batch_size]
+            this_tgt_sentences = tgt_sentences[start:start + batch_size]
 
             for i, (target_plc, weight_plc) in enumerate(zip(self.copy_target_plc, self.copy_w_plc)):
-                weights = np.zeros(len(this_tgt_sentences))
-                targets = np.zeros(len(this_tgt_sentences), dtype=np.int32)
+                weights = np.zeros(len(this_trans_sentences))
+                targets = np.zeros(len(this_trans_sentences), dtype=np.int32)
                 for n, (tgt_sent, trans_sent) in enumerate(zip(this_tgt_sentences, this_trans_sentences)):
                     if i < len(tgt_sent):
                         tgt_word = tgt_sent[i]
