@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import argparse, time
+import time
 import numpy as np
 import tensorflow as tf
 import regex as re
@@ -11,35 +11,14 @@ from vocabulary import Vocabulary
 from learning_utils import log, training_loop, print_header, tokenize_char_seq, feed_dropout_and_train
 from cross_entropy_trainer import CrossEntropyTrainer
 from language_utils import untruecase
+import cli_options
 
 def shape(string):
     res_shape = [int(s) for s in string.split("x")]
     return res_shape
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Trains the image captioning.')
-    parser.add_argument("--train-images", type=argparse.FileType('rb'),
-                        help="File with training images features", required=True)
-    parser.add_argument("--val-images", type=argparse.FileType('rb'),
-                        help="File with validation images features.", required=True)
-    parser.add_argument("--tokenized-train-text", type=argparse.FileType('r'),
-                        help="File with tokenized training target sentences.", required=True)
-    parser.add_argument("--tokenized-val-text", type=argparse.FileType('r'), required=True)
-    parser.add_argument("--batch-size", type=int, default=128)
-    parser.add_argument("--maximum-output", type=int, default=20)
-    parser.add_argument("--use-attention", type=bool, default=False)
-    parser.add_argument("--embeddings-size", type=int, default=256)
-    parser.add_argument("--scheduled-sampling", type=float, default=None)
-    parser.add_argument("--decoder-rnn-size", type=int, default=256)
-    parser.add_argument("--dropout-keep-prob", type=float, default=1.0)
-    parser.add_argument("--l2-regularization", type=float, default=0.0)
-    parser.add_argument("--character-based", type=bool, default=False)
-    parser.add_argument("--img-features-shape", type=shape, default='14x14x256', required=True)
-    parser.add_argument("--epochs", type=int, default=10)
-    parser.add_argument("--use-noisy-activations", type=bool, default=False)
-    parser.add_argument("--beamsearch", type=bool, default=False)
-    parser.add_argument("--initial-variables", type=str, default=None,
-            help="File with saved variables for initialization.")
+    parser = cli_options.get_captioning_parser()
     args = parser.parse_args()
 
     print_header("IMAGE CAPTIONING ONLY", args)

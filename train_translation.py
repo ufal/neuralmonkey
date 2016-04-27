@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import argparse, time
+import time
 import numpy as np
 import tensorflow as tf
 import regex as re
@@ -13,6 +13,7 @@ from learning_utils import log, training_loop, print_header, tokenize_char_seq, 
 from mixer import Mixer
 from cross_entropy_trainer import CrossEntropyTrainer
 from language_utils import untruecase, GermanPreprocessor, GermanPostprocessor
+import cli_options
 
 def shape(string):
     res_shape = [int(s) for s in string.split("x")]
@@ -24,32 +25,7 @@ def mixer_values(string):
     return values
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Trains the translation.')
-    parser.add_argument("--train-source-sentences", type=argparse.FileType('r'),
-                        help="File with training source sentences", required=True)
-    parser.add_argument("--val-source-sentences", type=argparse.FileType('r'),
-                        help="File with validation source sentences.", required=True)
-    parser.add_argument("--train-target-sentences", type=argparse.FileType('r'),
-                        help="File with tokenized training target sentences.", required=True)
-    parser.add_argument("--val-target-sentences", type=argparse.FileType('r'), required=True)
-    parser.add_argument("--batch-size", type=int, default=128)
-    parser.add_argument("--maximum-output", type=int, default=20)
-    parser.add_argument("--use-attention", type=bool, default=False)
-    parser.add_argument("--embeddings-size", type=int, default=256)
-    parser.add_argument("--encoder-rnn-size", type=int, default=256)
-    parser.add_argument("--decoder-rnn-size", type=int, default=512)
-    parser.add_argument("--scheduled-sampling", type=float, default=None)
-    parser.add_argument("--dropout-keep-prob", type=float, default=1.0)
-    parser.add_argument("--l2-regularization", type=float, default=0.0)
-    parser.add_argument("--use-noisy-activations", type=bool, default=False)
-    parser.add_argument("--character-based", type=bool, default=False)
-    parser.add_argument("--epochs", type=int, default=10)
-    parser.add_argument("--mixer", type=mixer_values, default=None)
-    parser.add_argument("--target-german", type=bool, default=False)
-    parser.add_argument("--beamsearch", type=bool, default=False)
-    parser.add_argument("--gru-bidi-depth", type=int, default=None)
-    parser.add_argument("--initial-variables", type=str, default=None,
-            help="File with saved variables for initialization.")
+    parser = cli_options.get_translation_parser()
     args = parser.parse_args()
 
     print_header("TRANSLATION ONLY", args)
@@ -60,19 +36,16 @@ if __name__ == "__main__":
         postedit = GermanPostprocessor()
         preprocess = GermanPreprocessor()
 
-    if args.character_based:
-        raise Exception("Not implemented")
-    else:
-        train_tgt_sentences = load_tokenized(args.train_target_sentences, preprocess=preprocess)
-        tokenized_train_tgt_sentences = train_tgt_sentences
-        log("Loaded {} training tgt_sentences.".format(len(train_tgt_sentences)))
-        val_tgt_sentences = load_tokenized(args.val_target_sentences, preprocess=preprocess)
-        tokenized_val_tgt_sentences = val_tgt_sentences
-        log("Loaded {} validation tgt_sentences.".format(len(val_tgt_sentences)))
-        train_src_sentences = load_tokenized(args.train_source_sentences)
-        log("Loaded {} training src_sentences.".format(len(train_src_sentences)))
-        val_src_sentences = load_tokenized(args.val_source_sentences)
-        log("Loaded {} validation src_sentences.".format(len(val_src_sentences)))
+    train_tgt_sentences = load_tokenized(args.train_target_sentences, preprocess=preprocess)
+    tokenized_train_tgt_sentences = train_tgt_sentences
+    log("Loaded {} training tgt_sentences.".format(len(train_tgt_sentences)))
+    val_tgt_sentences = load_tokenized(args.val_target_sentences, preprocess=preprocess)
+    tokenized_val_tgt_sentences = val_tgt_sentences
+    log("Loaded {} validation tgt_sentences.".format(len(val_tgt_sentences)))
+    train_src_sentences = load_tokenized(args.train_source_sentences)
+    log("Loaded {} training src_sentences.".format(len(train_src_sentences)))
+    val_src_sentences = load_tokenized(args.val_source_sentences)
+    log("Loaded {} validation src_sentences.".format(len(val_src_sentences)))
 
     listed_val_tgt_sentences = [[postedit(s)] for s in tokenized_val_tgt_sentences]
 
