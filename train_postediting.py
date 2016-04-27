@@ -61,12 +61,6 @@ if __name__ == "__main__":
 
     if args.character_based:
         raise Exception("Not implemented")
-        train_tgt_sentences = [list(re.sub(ur"[@#]", "", l.rstrip())) for l in args.tokenized_train_text]
-        tokenized_train_tgt_sentences = [tokenize_char_seq(chars) for chars in train_tgt_sentences]
-        log("Loaded {} training tgt_sentences.".format(len(train_tgt_sentences)))
-        val_tgt_sentences = [list(re.sub(ur"[@#]", "", l.rstrip())) for l in args.tokenized_val_text]
-        tokenized_val_tgt_sentences = [tokenize_char_seq(chars) for chars in val_tgt_sentences]
-        log("Loaded {} validation tgt_sentences.".format(len(val_tgt_sentences)))
     else:
         train_tgt_sentences = load_tokenized(args.train_target_sentences, preprocess=preprocess)
         tokenized_train_tgt_sentences = train_tgt_sentences
