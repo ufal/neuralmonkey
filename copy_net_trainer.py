@@ -2,6 +2,13 @@ import tensorflow as tf
 
 
 class CopyNetTrainer(object):
+    """
+    This is a specialized trainer for the CopyNet architecture. In addition to
+    standard cross-entropy it adds copy cross-entropy to the loss function in
+    such a way that whnenever the network can copy it should copy. Using this
+    trainer requires feeding additional information to the computation graph
+    (see feed_dict method).
+    """
     def __init__(self, decoder, l2_regularization):
         self.decoder = decoder
 
@@ -42,3 +49,28 @@ class CopyNetTrainer(object):
                             feed_dict=fd)
         else:
             return sess.run([self.optimize_op], feed_dict=fd)
+
+    def feed_dict(self, trans_sentences, tgt_sentences, batch_size, dicts=None):
+        if dicts == None:
+            dicts = [{} for _ in range(len(sentences) / batch_size + int(len(sentences) % batch_size > 0))]
+
+        for fd, start in zip(dicts, range(0, len(tgt_sentences), batch_size)):
+            this_trans_senteces = trans_sentences[start:start + batch_size]
+            this_tgt_senteces = tgt_sentences[start:start + batch_size]
+
+            for i, (target_plc, weight_plc) in enumerate(zip(trainer.copy_target_plc, trainer.copy_w_plc)):
+                weights = np.zeros(len(this_tgt_sentences))
+                targets = np.zeros(len(this_tgt_sentences), dtype=np.int32)
+                for n, (tgt_sent, trans_sent) in enumerate(zip(this_tgt_sentences, this_trans_sentences)):
+                    if i < len(tgt_sent):
+                        tgt_word = tgt_sent[i]
+                        copy_index = -float('inf')
+                        for j, trans_word in enumerate(trans_sent):
+                            if trans_word == tgt_word and abs(j - i) < abs(copy_index - i):
+                               copy_index = j
+                               weights[n] = 1.0
+                               targets[n] = j + 1
+                fd[target_plc] = targets
+                fd[weight_plc] = weights
+
+        return dicts

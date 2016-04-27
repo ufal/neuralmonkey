@@ -8,7 +8,7 @@ import regex as re
 from sentence_encoder import SentenceEncoder
 from decoder import Decoder
 from vocabulary import Vocabulary
-from learning_utils import log, training_loop, print_header, tokenize_char_seq, load_tokenized
+from learning_utils import log, training_loop, print_header, tokenize_char_seq, load_tokenized, feed_dropout_and_train
 from language_utils import GermanPreprocessor, GermanPostprocessor
 from cross_entropy_trainer import CrossEntropyTrainer
 from copy_net_trainer import CopyNetTrainer
@@ -169,26 +169,18 @@ if __name__ == "__main__":
 
         return fd
 
-    def batch_feed_dict(src_sentences, trans_sentences, tgt_sentences, batch_size, train=False):
+    def get_feed_dicts(src_sentences, trans_sentences, tgt_sentences, batch_size, train=False):
+        feed_dicts, _ = encoder.feed_dict(src_sentences, batch_size, train=train)
+        _, batched_trans_sentences = encoder.feed_dict(trans_sentences, batch_size, train=train)
+        _, batched_tgt_sentences = decoder.feed_dict(tgt_sentences, batch_size, feed_dicts)
 
-        batched_tgt_sentences = \
-            [tgt_sentences[start:start + batch_size] \
-             for start in range(0, len(tgt_sentences), batch_size)]
+        if args.use_copy_net:
+            trainer.feed_dict(trans_sentences, tgt_sentences, batch_size, feed_dicts)
 
-        batched_listed_tgt_sentences = \
-            [[[postedit(sent)] for sent in batch] for batch in batched_tgt_sentences]
+        feed_dropout_and_train(feed_dicts, dropout_placeholder,
+                args.dropout_keep_prob, training_placeholder, train)
 
-        batched_src_sentences = [src_sentences[start:start + batch_size]
-            for start in range(0, len(src_sentences), batch_size)]
-
-        batched_trans_sentences = [trans_sentences[start:start + batch_size]
-            for start in range(0, len(trans_sentences), batch_size)]
-
-        feed_dicts = [feed_dict(src, trans, tgt, train=train) \
-            for src, trans, tgt in zip(batched_src_sentences, batched_trans_sentences, batched_tgt_sentences)]
-
-        return feed_dicts, batched_listed_tgt_sentences, batched_trans_sentences
-
+        return feed_dicts, batched_tgt_sentences, batched_trans_sentences
 
     log("Initializing the TensorFlow session.")
     sess = tf.Session(config=tf.ConfigProto(inter_op_parallelism_threads=4,
@@ -196,10 +188,10 @@ if __name__ == "__main__":
     sess.run(tf.initialize_all_variables())
 
     val_feed_dicts, batched_listed_val_tgt_sentences, batched_val_trans_sentences = \
-            batch_feed_dict(val_src_sentences, val_trans_sentences, val_tgt_sentences,
+            get_feed_dicts(val_src_sentences, val_trans_sentences, val_tgt_sentences,
                     args.batch_size, train=False)
     train_feed_dicts, batched_listed_train_tgt_sentences, batched_train_trans_sentences = \
-            batch_feed_dict(train_src_sentences, train_trans_sentences, train_tgt_sentences,
+            get_feed_dicts(train_src_sentences, train_trans_sentences, train_tgt_sentences,
                     args.batch_size, train=True)
 
 
