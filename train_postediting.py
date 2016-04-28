@@ -47,6 +47,16 @@ if __name__ == "__main__":
     val_trans_sentences = load_tokenized(args.val_translated_sentences, preprocess)
     log("Loaded {} validation translated sentences.".format(len(val_trans_sentences)))
 
+    if args.test_output_file:
+        if not args.test_source_sentences or not args.test_translated_sentences:
+            raise Exception("must supply src and trans sentences when want to translate test set")
+
+        test_src_sentences = load_tokenized(args.test_source_sentences)
+        log("Loaded {} test src_sentences.".format(len(test_src_sentences)))
+        test_trans_sentences = load_tokenized(args.test_translated_sentences)
+        log("Loaded {} test trans_sentences.".format(len(test_trans_sentences)))
+
+
     tgt_vocabulary = \
         Vocabulary(tokenized_text=[w for s in train_tgt_sentences for w in s])
     tgt_vocabulary.add_tokenized_text([w for s in train_trans_sentences for w in s])
