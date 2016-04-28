@@ -64,7 +64,9 @@ if __name__ == "__main__":
         feed_dropout_and_train(feed_dicts, dropout_placeholder,
                 args.dropout_keep_prob, training_placeholder, train)
 
-        return feed_dicts, batched_sentences
+        postprocessed_tgt = [[postedit(s) for s in batch] for batch in batched_tgt_sentences]
+
+        return feed_dicts, postprocessed_tgt
 
     trainer = CrossEntropyTrainer(decoder, args.l2_regularization)
     if args.mixer:

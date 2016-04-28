@@ -317,7 +317,7 @@ def training_loop(sess, vocabulary, epochs, trainer,
 
 
                     evaluation_result = \
-                            [f(decoded_sentences, batch_sentences) for f in evaluation_functions]
+                            [f(decoded_val_sentences, val_tgt_sentences_flatten) for f in evaluation_functions]
 
                     eval_string = "    ".join(["{}: {:.2f}".format(name, value) for name, value \
                         in zip(evaluation_labels, evaluation_result)])
