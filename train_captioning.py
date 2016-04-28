@@ -13,9 +13,6 @@ from cross_entropy_trainer import CrossEntropyTrainer
 from language_utils import untruecase
 import cli_options
 
-def shape(string):
-    res_shape = [int(s) for s in string.split("x")]
-    return res_shape
 
 if __name__ == "__main__":
     parser = cli_options.get_captioning_parser()
