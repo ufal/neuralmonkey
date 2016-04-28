@@ -324,7 +324,7 @@ def training_loop(sess, vocabulary, epochs, trainer,
 
 
                     if evaluation_result[-1] > max_score:
-                        max_score = val_bleu_4
+                        max_score = evaluation_result[-1]
                         max_score_epoch = i
                         max_score_batch_no = batch_n
                         saver.save(sess, tmp_save_file)
