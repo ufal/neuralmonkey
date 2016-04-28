@@ -36,7 +36,7 @@ def attention_decoder(decoder_inputs, initial_state, attention_states, cell,
             attns = [a.attention(state) for a in att_objects]
 
             if attns:
-                with tf.Variable_scope("AttnOutputProjection"):
+                with tf.variable_scope("AttnOutputProjection"):
                     output = rnn_cell.linear([cell_output] + attns, output_size, True)
             else:
                 output = cell_output

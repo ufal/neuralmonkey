@@ -74,11 +74,10 @@ if __name__ == "__main__":
 
         return feed_dicts, batched_src_sentences, batched_tgt_sentences
 
+    trainer = CrossEntropyTrainer(decoder, args.l2_regularization)
     if args.mixer:
         xent_calls, moving_calls = args.mixer
-        trainer = Mixer(decoder, xent_calls, moving_calls)
-    else:
-        trainer = CrossEntropyTrainer(decoder, args.l2_regularization)
+        trainer = Mixer(decoder, trainer, xent_calls, moving_calls)
 
     log("Initializing the TensorFlow session.")
     sess = tf.Session(config=tf.ConfigProto(inter_op_parallelism_threads=4,

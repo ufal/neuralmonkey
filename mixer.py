@@ -14,7 +14,7 @@ class Mixer(object):
     starts to use the reinforce algorithm for the optimization.
 
     """
-    def __init__(self, decoder, xent_calls, moving_calls):
+    def __init__(self, decoder, initial_trainer, xent_calls, moving_calls):
         """
         Constructs the TensorFlow graph for the MIXER code - i.e. the regressor
         estimating BLEU from hidden states and the gradients from the REINFORCE
@@ -34,7 +34,7 @@ class Mixer(object):
         """
         # TODO L2 regularization
         # TODO plot gradients
-        self.xent_trainer = CrossEntropyTrainer(decoder, 0.0)
+        self.xent_trainer = initial_trainer
         self.decoder = decoder
         self.called = 0
         self.xent_calls = xent_calls
@@ -147,7 +147,6 @@ class Mixer(object):
         sentences = self.decoder.vocabulary.vectors_to_sentences(decoded_sequence)
         bleu_smoothing = SmoothingFunction(epsilon=0.01).method1
         bleus = [sentence_bleu(r, s, smoothing_function=bleu_smoothing) for r, s in zip(references, sentences)]
-        print bleus
 
         fd[self.bleu] = bleus
 

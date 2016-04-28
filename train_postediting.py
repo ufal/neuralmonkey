@@ -93,11 +93,15 @@ if __name__ == "__main__":
                       scheduled_sampling=args.scheduled_sampling, dropout_placeholder=dropout_placeholder,
                       copy_net=copy_net, reused_word_embeddings=reused_word_embeddings,
                       use_noisy_activations=args.use_noisy_activations)
+
     if args.use_copy_net:
         trainer = CopyNetTrainer(decoder, args.l2_regularization)
     else:
         trainer = CrossEntropyTrainer(decoder, args.l2_regularization)
 
+    if args.mixer:
+        xent_calls, moving_calls = args.mixer
+        trainer = Mixer(decoder, trainer, xent_calls, moving_calls)
 
     def get_feed_dicts(src_sentences, trans_sentences, tgt_sentences, batch_size, train=False):
         feed_dicts, _ = encoder_src.feed_dict(src_sentences, batch_size, train=train)
