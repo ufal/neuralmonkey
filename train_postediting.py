@@ -96,7 +96,6 @@ if __name__ == "__main__":
         ## batched_tgt_sentences can be None, as well as tgt_sentences
         feed_dicts, batched_tgt_sentences = decoder.feed_dict(tgt_sentences, len(src_sentences), batch_size, feed_dicts)
 
-
         if args.use_copy_net and tgt_sentences is not None:
             feed_dicts = trainer.feed_dict(trans_sentences, tgt_sentences, batch_size, feed_dicts)
 
@@ -123,8 +122,8 @@ if __name__ == "__main__":
                 get_feed_dicts(test_src_sentences, test_trans_sentences, None,
                     args.batch_size, train=False)
         training_loop(sess, tgt_vocabulary, args.epochs, trainer, decoder,
-                      train_feed_dicts, batched_listed_train_tgt_sentences,
-                      val_feed_dicts, batched_listed_val_tgt_sentences, postedit,
+                      train_feed_dicts, batched_train_tgt_sentences,
+                      val_feed_dicts, batched_val_tgt_sentences, postedit,
                       "logs-postedit/"+str(int(time.time())),
                       [bleu_1, bleu_4_dedup, bleu_4],
                       args.use_copy_net, batched_train_trans_sentences, batched_val_trans_sentences,
@@ -133,8 +132,8 @@ if __name__ == "__main__":
                       initial_variables=args.initial_variables)
     else:
         training_loop(sess, tgt_vocabulary, args.epochs, trainer, decoder,
-                      train_feed_dicts, batched_listed_train_tgt_sentences,
-                      val_feed_dicts, batched_listed_val_tgt_sentences, postedit,
+                      train_feed_dicts, batched_train_tgt_sentences,
+                      val_feed_dicts, batched_val_tgt_sentences, postedit,
                       "logs-postedit/"+str(int(time.time())),
                       [bleu_1, bleu_4_dedup, bleu_4],
                       args.use_copy_net, batched_train_trans_sentences, batched_val_trans_sentences,

@@ -246,12 +246,10 @@ def training_loop(sess, vocabulary, epochs, trainer,
                         tb_writer.add_summary(summary_str, seen_instances)
                         #histograms_str = computation[4]
                         #tb_writer.add_summary(histograms_str, seen_instances)
-                        # TODO deal with the logs
-                        #external_str = tf.Summary(value=[
-                        #    tf.Summary.Value(tag="train_bleu_1", simple_value=bleu_1),
-                        #    tf.Summary.Value(tag="train_bleu_4", simple_value=bleu_4),
-                        #])
-                        #tb_writer.add_summary(external_str, seen_instances)
+                        external_str = tf.Summary(value=[tf.Summary.Value(tag="train_"+name, simple_value=value) \
+                                for name, value in zip(evaluation_labels, evaluation_result)])
+
+                        tb_writer.add_summary(external_str, seen_instances)
                 else:
                     trainer.run(sess, batch_feed_dict, batch_sentences, verbose=False)
 
@@ -348,10 +346,10 @@ def training_loop(sess, vocabulary, epochs, trainer,
                     if tensorboard_log:
                         summary_str = computation[2]
                         tb_writer.add_summary(summary_str, seen_instances)
-                        external_str = tf.Summary(value=[
-                            tf.Summary.Value(tag="val_bleu_1", simple_value=val_bleu_1),
-                            tf.Summary.Value(tag="val_bleu_4", simple_value=val_bleu_4),
-                        ])
+                        tb_writer.add_summary(external_str, seen_instances)
+                        external_str = tf.Summary(value=[tf.Summary.Value(tag="val_"+name, simple_value=value) \
+                                for name, value in zip(evaluation_labels, evaluation_result)])
+
                         tb_writer.add_summary(external_str, seen_instances)
     except KeyboardInterrupt:
         log("Training interrupted by user.")
