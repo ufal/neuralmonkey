@@ -34,15 +34,12 @@ if __name__ == "__main__":
     args.val_images.close()
     log("Loaded validation images.")
 
-    if args.character_based:
-        raise Exception("Not implemented.")
-    else:
-        train_sentences = [re.split(ur"[ @#-]", l.rstrip()) for l in args.tokenized_train_text][:len(train_images)]
-        tokenized_train_senteces = train_sentences
-        log("Loaded {} training sentences.".format(len(train_sentences)))
-        val_sentences = [re.split(ur"[ @#-]", l.rstrip()) for l in args.tokenized_val_text][:len(val_images)]
-        tokenized_val_sentences = val_sentences
-        log("Loaded {} validation sentences.".format(len(val_sentences)))
+    train_sentences = [re.split(ur"[ @#-]", l.rstrip()) for l in args.tokenized_train_text][:len(train_images)]
+    tokenized_train_senteces = train_sentences
+    log("Loaded {} training sentences.".format(len(train_sentences)))
+    val_sentences = [re.split(ur"[ @#-]", l.rstrip()) for l in args.tokenized_val_text][:len(val_images)]
+    tokenized_val_sentences = val_sentences
+    log("Loaded {} validation sentences.".format(len(val_sentences)))
 
     listed_val_sentences = [[postedit(s)] for s in tokenized_val_sentences]
 
