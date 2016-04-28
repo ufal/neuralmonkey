@@ -3,7 +3,6 @@ import tensorflow as tf
 import numpy as np
 from tensorflow.models.rnn import seq2seq
 from tensorflow.models.rnn import rnn_cell
-from tensorflow.models.rnn import rnn
 
 from decoding_function import attention_decoder
 from learning_utils import log
@@ -253,19 +252,17 @@ class Decoder:
                 if dropout_placeholder is not None:
                     attention_tensors_dropped = \
                         [tf.nn.dropout(t, dropout_placeholder) for t in attention_tensors]
+            else:
+                attention_tensors_dropped = []
 
             if dropout_placeholder is not None:
                 encoded = tf.nn.dropout(encoded, dropout_placeholder)
 
-            if use_attention:
-                rnn_outputs_gt_ins, _ = attention_decoder(embedded_gt_inputs, encoded,
-                                                      attention_states=attention_tensors_dropped,
-                                                      cell=decoder_cell,
-                                                      loop_function=gt_loop_function)
-            else:
-                rnn_outputs_gt_ins, _ = seq2seq.rnn_decoder(embedded_gt_inputs, encoded,
-                                                cell=decoder_cell,
-                                                loop_function=gt_loop_function)
+            rnn_outputs_gt_ins, _ = attention_decoder(embedded_gt_inputs, encoded,
+                                                  attention_states=attention_tensors_dropped,
+                                                  cell=decoder_cell,
+                                                  loop_function=gt_loop_function)
+
 
             tf.get_variable_scope().reuse_variables()
 
@@ -273,17 +270,11 @@ class Decoder:
             decoder_inputs = [tf.nn.embedding_lookup(decoding_EM, self.go_symbols)]
             decoder_inputs += [None for _ in range(self.max_output_len)]
 
-            if use_attention:
-                rnn_outputs_decoded_ins, _ = \
-                    attention_decoder(decoder_inputs, encoded,
-                                              cell=decoder_cell,
-                                              attention_states=attention_tensors_dropped,
-                                              loop_function=loop)
-            else:
-                rnn_outputs_decoded_ins, _ = \
-                    seq2seq.rnn_decoder(decoder_inputs, encoded,
-                                        cell=decoder_cell,
-                                        loop_function=loop)
+            rnn_outputs_decoded_ins, _ = \
+                attention_decoder(decoder_inputs, encoded,
+                                          cell=decoder_cell,
+                                          attention_states=attention_tensors_dropped,
+                                          loop_function=loop)
 
             self.hidden_states = rnn_outputs_decoded_ins
 
@@ -324,15 +315,10 @@ class Decoder:
         tf.scalar_summary('val_loss_with_decoded_inputs', self.loss_with_decoded_ins, collections=["summary_val"])
         tf.scalar_summary('train_loss_with_decoded_inputs', self.loss_with_decoded_ins, collections=["summary_train"])
 
-        if scheduled_sampling:
-            self.cost = self.loss_with_gt_ins
-        else:
-            self.cost = self.loss_with_gt_ins
-            #self.cost = 0.5 * (self.loss_with_decoded_ins + self.loss_with_gt_ins)
+        self.cost = self.loss_with_gt_ins
 
         tf.scalar_summary('val_optimization_cost', self.cost, collections=["summary_val"])
         tf.scalar_summary('train_optimization_cost', self.cost, collections=["summary_train"])
-
 
 
     def feed_dict(self, sentences, data_size, batch_size, dicts=None):

@@ -35,8 +35,12 @@ def attention_decoder(decoder_inputs, initial_state, attention_states, cell,
             # Run the attention mechanism.
             attns = [a.attention(state) for a in att_objects]
 
-            with tf.variable_scope("AttnOutputProjection"):
-                output = rnn_cell.linear([cell_output] + attns, output_size, True)
+            if attns:
+                with tf.Variable_scope("AttnOutputProjection"):
+                    output = rnn_cell.linear([cell_output] + attns, output_size, True)
+            else:
+                output = cell_output
+
             if loop_function is not None:
                 prev = output
             outputs.append(output)
