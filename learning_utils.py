@@ -100,7 +100,7 @@ def feed_dropout_and_train(dicts, dropout_placeholder, dropout_value,
 
 def training_loop(sess, vocabulary, epochs, trainer,
                   decoder, train_feed_dicts, train_tgt_sentences,
-                  val_feed_dicts, val_tgt_sentences,                  
+                  val_feed_dicts, val_tgt_sentences,
                   postprocess, tensorboard_log,
                   use_copynet,
                   batched_train_copy_sentences, batched_val_copy_sentences,
@@ -170,7 +170,7 @@ def training_loop(sess, vocabulary, epochs, trainer,
     saver = tf.train.Saver()
 
     if initial_variables:
-        saver.restor(initial_variables)
+        saver.restore(sess, initial_variables)
 
     tmp_save_file = 'variable-'+str(time.time())+'.tmp'
     saver.save(sess, tmp_save_file)
@@ -366,11 +366,12 @@ def training_loop(sess, vocabulary, epochs, trainer,
         log("Training interrupted by user.")
 
     saver.restore(sess, tmp_save_file)
+    log("Finished. Maximum BLEU-4 on validation data: {:.2f}, epoch {}".format(max_bleu, max_bleu_epoch))
 
     if test_feed_dicts and batched_test_copy_sentences and test_output_file:
         log("Translating test data and writing to {}".format(test_output_file))
         decoded_test_sentences = []
-        
+
         for i, (test_feed_dict, test_copy_sentences) in enumerate(zip(test_feed_dicts, batched_test_copy_sentences)):
             computation = sess.run(decoder.copynet_logits + decoder.decoded_seq, feed_dict=test_feed_dict)
             decoded_test_sentences_batch = vocabulary.vectors_to_sentences(computation[-decoder.max_output_len - 1:])
@@ -387,6 +388,5 @@ def training_loop(sess, vocabulary, epochs, trainer,
                     fout.write("{}\n".format(" ".join(sent)))
                 fout.close()
 
-            
-    log("Finished. Maximum BLEU-4 on validation data: {:.2f}, epoch {}".format(max_bleu, max_bleu_epoch))
+
 
