@@ -65,6 +65,10 @@ def add_translation_arguments(parser):
     parser.add_argument("--val-target-sentences", type=argparse.FileType('r'),
                         help="File with validation target sentences.", required=True)
 
+    def mixer_values(string):
+        values = [int(s) for s in string.split(",")]
+        assert(len(values) == 2)
+        return values
 
     parser.add_argument("--mixer", type=mixer_values, default=None)
     parser.add_argument("--gru-bidi-depth", type=int, default=None)

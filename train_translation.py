@@ -15,15 +15,6 @@ from cross_entropy_trainer import CrossEntropyTrainer
 import cli_options
 from language_utils import untruecase, GermanPreprocessor, GermanPostprocessor, bleu_1, bleu_4_dedup, bleu_4
 
-def shape(string):
-    res_shape = [int(s) for s in string.split("x")]
-    return res_shape
-
-def mixer_values(string):
-    values = [int(s) for s in string.split(",")]
-    assert(len(values) == 2)
-    return values
-
 if __name__ == "__main__":
     parser = cli_options.get_translation_parser()
     args = parser.parse_args()
