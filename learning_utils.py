@@ -340,7 +340,7 @@ def training_loop(sess, vocabulary, epochs, trainer,
                     print "Examples:"
                     for sent, ref_sent in zip(decoded_val_sentences[:15], val_tgt_sentences_flatten):
                         print "    {}".format(" ".join(sent))
-                        print colored("      ref.: {}".format(" ".join(ref_sent[0])), color="magenta")
+                        print colored("      ref.: {}".format(" ".join(ref_sent)), color="magenta")
                     print ""
 
                     if tensorboard_log:
