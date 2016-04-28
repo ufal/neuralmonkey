@@ -342,21 +342,22 @@ class Decoder:
         batched_sentences = []
 
         for fd, start in zip(dicts, range(0, data_size, batch_size)):
-
             batch_actual_size = min(start + batch_size, data_size) - start
 
             if sentences is not None:
-                batch_sentences = sentences[start:start + batch_size]
-                #import ipdb; ipdb.set_trace()
+                this_batch_sentences = sentences[start:start + batch_size]
                 sentnces_tensors, weights_tensors = \
-                    self.vocabulary.sentences_to_tensor(batch_sentences, self.max_output_len)
+                    self.vocabulary.sentences_to_tensor(this_batch_sentences, self.max_output_len)
 
                 for weight_plc, weight_tensor in zip(self.weights_ins, weights_tensors):
                     fd[weight_plc] = weight_tensor
-            batched_sentences.append(batch_sentences)
+
+                for words_plc, words_tensor in zip(self.gt_inputs, sentnces_tensors):
+                    fd[words_plc] = words_tensor
+
+                batched_sentences.append(this_batch_sentences)
 
             fd[self.go_symbols] = np.ones(batch_actual_size)
-
 
         if sentences is not None:
             return dicts, batched_sentences
