@@ -84,7 +84,7 @@ if __name__ == "__main__":
                   "logs-captioning/"+str(int(time.time())),
                   [bleu_1, bleu_4_dedup, bleu_4],
                   False,
-                  [[] for _ in batched_listed_train_sentences],
-                  [[] for _ in batched_listed_val_sentences],
+                  [[] for _ in batched_train_sentences],
+                  [[] for _ in batched_val_sentences],
                   use_beamsearch=args.beamsearch,
                   initial_variables=args.initial_variables)
