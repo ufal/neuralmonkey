@@ -72,11 +72,11 @@ if __name__ == "__main__":
     encoder_src = SentenceEncoder(args.maximum_output, src_vocabulary,
                                   args.embeddings_size, args.encoder_rnn_size, dropout_placeholder,
                                   training_placeholder, use_noisy_activations=args.use_noisy_activations,
-                                  eval(args.use_attention), name="source_encoder")
+                                  attention_type=eval(args.use_attention), name="source_encoder")
     encoder_trans = SentenceEncoder(args.maximum_output, tgt_vocabulary,
                                     args.embeddings_size, args.encoder_rnn_size, dropout_placeholder,
                                     training_placeholder, use_noisy_activations=args.use_noisy_activations,
-                                    eval(args.use_attention), name="trans_encoder")
+                                    attention_type=eval(args.use_attention), name="trans_encoder")
 
     copy_net = None
     if args.use_copy_net:
