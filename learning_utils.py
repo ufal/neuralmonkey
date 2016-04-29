@@ -3,7 +3,7 @@ import numpy as np
 from nltk.tokenize import word_tokenize
 from termcolor import colored
 import regex as re
-import os, time
+import os, time, random
 
 def log(message, color='yellow'):
     print "{}: {}".format(colored(time.strftime("%Y-%m-%d %H:%M:%S"), color), message)
@@ -208,13 +208,18 @@ def training_loop(sess, vocabulary, epochs, trainer,
 
         return decoded_sentences
 
+    zipped_train_data = \
+            zip(train_feed_dicts, train_tgt_sentences, batched_train_copy_sentences)
+
     try:
         for i in range(epochs):
             print ""
             log("Epoch {} starts".format(i + 1), color='red')
 
+            random.shuffle(zipped_train_data)
+
             for batch_n, (batch_feed_dict, batch_sentences, batch_copy_sentences) in \
-                    enumerate(zip(train_feed_dicts, train_tgt_sentences, batched_train_copy_sentences)):
+                    enumerate(zipped_train_data):
 
                 step += 1
                 seen_instances += len(batch_sentences)
@@ -244,8 +249,8 @@ def training_loop(sess, vocabulary, epochs, trainer,
                     if tensorboard_log:
                         summary_str = computation[3]
                         tb_writer.add_summary(summary_str, seen_instances)
-                        #histograms_str = computation[4]
-                        #tb_writer.add_summary(histograms_str, seen_instances)
+                        histograms_str = computation[4]
+                        tb_writer.add_summary(histograms_str, seen_instances)
                         external_str = tf.Summary(value=[tf.Summary.Value(tag="train_"+name, simple_value=value) \
                                 for name, value in zip(evaluation_labels, evaluation_result)])
 
