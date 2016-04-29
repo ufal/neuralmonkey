@@ -9,7 +9,7 @@ from learning_utils import log
 from noisy_gru_cell import NoisyGRUCell
 
 class Decoder:
-    def __init__(self, encoders, vocabulary, rnn_size, is_training, embedding_size=128, use_attention=False,
+    def __init__(self, encoders, vocabulary, rnn_size, is_training, embedding_size=128, use_attention=None,
                  max_out_len=20, use_peepholes=False, scheduled_sampling=None,
                  dropout_placeholder=None, copy_net=None, reused_word_embeddings=None,
                  use_noisy_activations=False):
@@ -42,7 +42,8 @@ class Decoder:
             embedding_size (int): Dimensionality of the word
                 embeddings used during decoding.
 
-            use_attention (bool): Flag whether use attention in the decoder.
+            use_attention (str): The type of attention to use or None. (Refer to 
+                cli_options script for allowed types of attention]
 
             max_out_len (int): Maximum length of the decoder output.
 
@@ -246,22 +247,19 @@ class Decoder:
 
             gt_loop_function = sampling_loop if scheduled_sampling else None
 
+            encoded = tf.nn.dropout(encoded, dropout_placeholder)
+
             if use_attention:
-                attention_tensors = \
-                        [e.attention_tensor for e in encoders if e.attention_tensor is not None]
-                if dropout_placeholder is not None:
-                    attention_tensors_dropped = \
-                        [tf.nn.dropout(t, dropout_placeholder) for t in attention_tensors]
+                attention_objects = [e.attention_object for e in encoders if e.attention_object]
             else:
-                attention_tensors_dropped = []
+                attention_objects = []
 
-            if dropout_placeholder is not None:
-                encoded = tf.nn.dropout(encoded, dropout_placeholder)
-
-            rnn_outputs_gt_ins, _ = attention_decoder(embedded_gt_inputs, encoded,
-                                                  attention_states=attention_tensors_dropped,
-                                                  cell=decoder_cell,
-                                                  loop_function=gt_loop_function)
+                
+            rnn_outputs_gt_ins, _ = \
+                attention_decoder(embedded_gt_inputs, encoded,
+                                  attention_objects=attention_objects,
+                                  cell=decoder_cell,
+                                  loop_function=gt_loop_function)
 
 
             tf.get_variable_scope().reuse_variables()
@@ -272,9 +270,9 @@ class Decoder:
 
             rnn_outputs_decoded_ins, _ = \
                 attention_decoder(decoder_inputs, encoded,
-                                          cell=decoder_cell,
-                                          attention_states=attention_tensors_dropped,
-                                          loop_function=loop)
+                                  cell=decoder_cell,
+                                  attention_objects=attention_objects,
+                                  loop_function=loop)
 
             self.hidden_states = rnn_outputs_decoded_ins
 

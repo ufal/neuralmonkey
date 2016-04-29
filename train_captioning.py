@@ -12,7 +12,7 @@ from learning_utils import log, training_loop, print_header, tokenize_char_seq, 
 from cross_entropy_trainer import CrossEntropyTrainer
 import cli_options
 from language_utils import untruecase, bleu_1, bleu_4_dedup, bleu_4
-
+from decoding_function import Attention, CoverageAttention
 
 if __name__ == "__main__":
     parser = cli_options.get_captioning_parser()
@@ -52,7 +52,7 @@ if __name__ == "__main__":
     if len(args.img_features_shape) == 1:
         encoder = VectorImageEncoder(args.img_features_shape[0], args.decoder_rnn_size, dropout_placeholder=dropout_placeholder)
     else:
-        encoder = ImageEncoder(args.img_features_shape, args.decoder_rnn_size, dropout_placeholder=dropout_placeholder)
+        encoder = ImageEncoder(args.img_features_shape, args.decoder_rnn_size, dropout_placeholder=dropout_placeholder, eval(args.use_attention))
     decoder = Decoder([encoder], vocabulary, args.decoder_rnn_size, training_placeholder, embedding_size=args.embeddings_size,
             use_attention=args.use_attention, max_out_len=args.maximum_output, use_peepholes=True,
             scheduled_sampling=args.scheduled_sampling, dropout_placeholder=dropout_placeholder,

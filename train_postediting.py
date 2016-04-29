@@ -14,6 +14,7 @@ from cross_entropy_trainer import CrossEntropyTrainer
 from copy_net_trainer import CopyNetTrainer
 import cli_options
 from language_utils import untruecase, bleu_1, bleu_4_dedup, bleu_4
+from decoding_function import Attention, CoverageAttention
 
 def shape(string):
     res_shape = [int(s) for s in string.split("x")]
@@ -71,11 +72,11 @@ if __name__ == "__main__":
     encoder_src = SentenceEncoder(args.maximum_output, src_vocabulary,
                                   args.embeddings_size, args.encoder_rnn_size, dropout_placeholder,
                                   training_placeholder, use_noisy_activations=args.use_noisy_activations,
-                                  name="source_encoder")
+                                  eval(args.use_attention), name="source_encoder")
     encoder_trans = SentenceEncoder(args.maximum_output, tgt_vocabulary,
                                     args.embeddings_size, args.encoder_rnn_size, dropout_placeholder,
                                     training_placeholder, use_noisy_activations=args.use_noisy_activations,
-                                    name="trans_encoder")
+                                    eval(args.use_attention), name="trans_encoder")
 
     copy_net = None
     if args.use_copy_net:

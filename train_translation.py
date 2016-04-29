@@ -14,6 +14,7 @@ from mixer import Mixer
 from cross_entropy_trainer import CrossEntropyTrainer
 import cli_options
 from language_utils import untruecase, GermanPreprocessor, GermanPostprocessor, bleu_1, bleu_4_dedup, bleu_4
+from decoding_function import Attention, CoverageAttention
 
 if __name__ == "__main__":
     parser = cli_options.get_translation_parser()
@@ -52,12 +53,12 @@ if __name__ == "__main__":
     if args.gru_bidi_depth is None:
         encoder = SentenceEncoder(args.maximum_output, src_vocabulary, args.embeddings_size,
                                   args.encoder_rnn_size, dropout_placeholder, training_placeholder,
-                                  args.use_noisy_activations)
+                                  args.use_noisy_activations, eval(args.use_attention))
     else:
         encoder = DeepSentenceEncoder(args.maximum_output, src_vocabulary, args.embeddings_size,
                                       args.encoder_rnn_size, args.gru_bidi_depth,
                                       dropout_placeholder, training_placeholder,
-                                      args.use_noisy_activations)
+                                      args.use_noisy_activations, eval(args.use_attention))
 
     decoder = Decoder([encoder], tgt_vocabulary, args.decoder_rnn_size, training_placeholder,
             embedding_size=args.embeddings_size,

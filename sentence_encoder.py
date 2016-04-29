@@ -6,7 +6,7 @@ import numpy as np
 
 class SentenceEncoder(object):
     def __init__(self, max_input_len, vocabulary, embedding_size, rnn_size, dropout_placeholder,
-                 is_training, use_noisy_activations=False, name="sentence_encoder"):
+                 is_training, use_noisy_activations=False, attention_type=None, name="sentence_encoder"):
         self.vocabulary = vocabulary
         self.max_input_len = max_input_len
 
@@ -40,6 +40,9 @@ class SentenceEncoder(object):
 
             self.attention_tensor = \
                     tf.concat(1, [tf.expand_dims(o, 1) for o in self.outputs_bidi])
+
+            self.attention_object = attention_type(self.attention_tensor, scope="attention_{}".format(name), dropout_placeholder=dropout_placeholder) if attention_type else None
+
 
     def feed_dict(self, sentences, batch_size, train=False, dicts=None):
         if dicts == None:

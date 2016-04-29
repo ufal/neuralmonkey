@@ -3,10 +3,9 @@ from bidirectional_rnn_layer import BidirectionalRNNLayer
 from tensorflow.models.rnn import rnn_cell
 from noisy_gru_cell import NoisyGRUCell
 
-
 class DeepSentenceEncoder(object):
     def __init__(self, max_input_len, vocabulary, embedding_size, rnn_size, depth, dropout_placeholder,
-                 is_training, use_noisy_activations=False, name="deep_sentence_encoder"):
+                 is_training, use_noisy_activations=False, attention_type=None, name="deep_sentence_encoder"):
         assert (depth > 0), "Depth of Deep Sentence Encoder must be a positive non-zero number"
 
         with tf.variable_scope(name):
@@ -45,6 +44,9 @@ class DeepSentenceEncoder(object):
 
             self.attention_tensor = \
                     tf.concat(1, [tf.expand_dims(o, 1) for o in self.outputs_bidi])
+            
+            self.attention_object = attention_type(self.attention_tensor, scope="attention_{}".format(name), dropout_placeholder=dropout_placeholder) if attention_type else None
+
 
     def feed_dict(self, sentences, batch_size, train=False, dicts=None):
         if dicts == None:

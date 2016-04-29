@@ -3,6 +3,12 @@
 import argparse
 
 def add_common_cli_arguments(parser):
+    def attention(string):
+        if string == "Attention" or string == "CoverageAttention" or string == "None":
+            return string
+        else:
+            raise Exception("Wrong attention type.")
+    
     parser.add_argument("--batch-size", type=int, default=128)
     parser.add_argument("--epochs", type=int, default=10)
 
@@ -14,7 +20,7 @@ def add_common_cli_arguments(parser):
     parser.add_argument("--dropout-keep-prob", type=float, default=1.0)
     parser.add_argument("--l2-regularization", type=float, default=0.0)
 
-    parser.add_argument("--use-attention", type=bool, default=False)
+    parser.add_argument("--use-attention", type=attention, default="None")
     parser.add_argument("--scheduled-sampling", type=float, default=None)
     parser.add_argument("--use-noisy-activations", type=bool, default=False)
 

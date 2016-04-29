@@ -12,6 +12,7 @@ class VectorImageEncoder(object):
         self.encoded = tf.tanh(tf.matmul(self.flat, project_W) + project_b)
 
         self.attention_tensor = None
+        self.attention_object = None
 
     def feed_dict(self, images, batch_size, dicts=None):
         if dicts == None:
@@ -24,7 +25,7 @@ class VectorImageEncoder(object):
 
 
 class ImageEncoder(object):
-    def __init__(self, input_shape, output_shape, dropout_placeholder=None):
+    def __init__(self, input_shape, output_shape, dropout_placeholder, attention_type=None):
         assert(len(input_shape) == 3)
         with tf.variable_scope("image_encoder"):
             self.image_features = tf.placeholder(tf.float32,
@@ -40,6 +41,10 @@ class ImageEncoder(object):
 
             self.attention_tensor = \
                 tf.reshape(self.image_features, [-1, input_shape[0] * input_shape[1], input_shape[2]], name="flatten_image")
+
+            self.attention_object = attention_type(self.attention_tensor, scope="attention_{}".format(name), dropout_placeholder=dropout_placeholder) if attention_type else None
+
+            
 
     def feed_dict(self, images, batch_size, dicts=None):
         if dicts == None:
