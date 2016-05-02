@@ -15,11 +15,11 @@ class CrossEntropyTrainer(object):
 
         optimizer = tf.train.AdamOptimizer(1e-4)
         gradients = optimizer.compute_gradients(decoder.cost + l2_cost)
-        for (g, v) in gradients:
-            if g is not None:
-                tf.histogram_summary('gr_' + v.name, g, collections=["summary_gradients"])
+        #for (g, v) in gradients:
+        #    if g is not None:
+        #        tf.histogram_summary('gr_' + v.name, g, collections=["summary_gradients"])
         self.optimize_op = optimizer.apply_gradients(gradients, global_step=decoder.learning_step)
-        self.summary_gradients = tf.merge_summary(tf.get_collection("summary_gradients"))
+        #self.summary_gradients = tf.merge_summary(tf.get_collection("summary_gradients"))
         self.summary_train = summary_train = tf.merge_summary(tf.get_collection("summary_train"))
         self.summary_val = summary_train = tf.merge_summary(tf.get_collection("summary_val"))
 
@@ -27,7 +27,8 @@ class CrossEntropyTrainer(object):
         if verbose:
             return sess.run([self.optimize_op, self.decoder.loss_with_decoded_ins,
                              self.decoder.loss_with_gt_ins,
-                             self.summary_train, self.summary_gradients] + self.decoder.copynet_logits + self.decoder.decoded_seq,
+                             self.summary_train] + self.decoder.copynet_logits + self.decoder.decoded_seq,
+                            #self.summary_train, self.summary_gradients] + self.decoder.copynet_logits + self.decoder.decoded_seq,
                             feed_dict=fd)
         else:
             return sess.run([self.optimize_op], feed_dict=fd)
