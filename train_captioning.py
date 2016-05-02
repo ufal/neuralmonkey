@@ -22,7 +22,7 @@ if __name__ == "__main__":
 
     postedit = untruecase
 
-    if len(args.img_features_shape) == 1 and args.use_attention:
+    if len(args.img_features_shape) == 1 and args.use_attention != 'None':
         log("Attention can be used only with 3D image features.")
         exit()
 
@@ -52,7 +52,9 @@ if __name__ == "__main__":
     if len(args.img_features_shape) == 1:
         encoder = VectorImageEncoder(args.img_features_shape[0], args.decoder_rnn_size, dropout_placeholder=dropout_placeholder)
     else:
-        encoder = ImageEncoder(args.img_features_shape, args.decoder_rnn_size, dropout_placeholder=dropout_placeholder, eval(args.use_attention))
+        encoder = ImageEncoder(args.img_features_shape, args.decoder_rnn_size,
+                               dropout_placeholder=dropout_placeholder,
+                               attention_type=eval(args.use_attention))
     decoder = Decoder([encoder], vocabulary, args.decoder_rnn_size, training_placeholder, embedding_size=args.embeddings_size,
             use_attention=args.use_attention, max_out_len=args.maximum_output, use_peepholes=True,
             scheduled_sampling=args.scheduled_sampling, dropout_placeholder=dropout_placeholder,

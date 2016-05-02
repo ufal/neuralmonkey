@@ -75,8 +75,9 @@ class Mixer(object):
                 # this is implementation of equation (11) in the paper
                 derivatives = \
                     [tf.reduce_sum(tf.expand_dims(self.bleu - r, 1) *  \
-                        (tf.nn.softmax(l) - i), 0, keep_dims=True) \
-                        for r, l, i in zip(expected_rewards, decoder.decoded_logits, indicator)]
+                        (tf.nn.softmax(l) - i) * w, 0, keep_dims=True) \
+                        for r, l, i, w in zip(expected_rewards, decoder.decoded_logits,
+                                indicator, decoder.weights_ins)]
                 ## ^^^ list of  [1 x vocabulary] tensors
 
                 # this derivatives are constant for us now, we don't really
