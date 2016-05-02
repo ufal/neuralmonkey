@@ -69,14 +69,15 @@ if __name__ == "__main__":
     log("Buiding the TensorFlow computation graph.")
     dropout_placeholder = tf.placeholder(tf.float32, name="dropout_keep_prob")
     training_placeholder = tf.placeholder(tf.bool, name="is_training")
+
     encoder_src = SentenceEncoder(args.maximum_output, src_vocabulary,
                                   args.embeddings_size, args.encoder_rnn_size, dropout_placeholder,
                                   training_placeholder, use_noisy_activations=args.use_noisy_activations,
-                                  attention_type=eval(args.use_attention), name="source_encoder")
+                                  attention_type=eval(args.use_attention), attention_fertility=3, name="source_encoder")
     encoder_trans = SentenceEncoder(args.maximum_output, tgt_vocabulary,
                                     args.embeddings_size, args.encoder_rnn_size, dropout_placeholder,
                                     training_placeholder, use_noisy_activations=args.use_noisy_activations,
-                                    attention_type=eval(args.use_attention), name="trans_encoder")
+                                    attention_type=eval(args.use_attention), attention_fertility=1, name="trans_encoder")
 
     copy_net = None
     if args.use_copy_net:
