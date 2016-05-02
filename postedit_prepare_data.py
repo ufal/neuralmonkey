@@ -1,5 +1,20 @@
 #!/usr/bin/env python
 
+"""
+This is a script preparing data for the post-editing task. It encodes the
+sentences to be post-edited as  a sequence of delete, keep and insert
+operations from the target sentence.
+
+Example:
+    source:   Good afternoon , John ! !
+    target:   Good evening , John !
+
+    result:   <keep> <delete> evening <keep> <keep> <delete>
+
+The inverse to this script is 'postedit_reconstruct_data.py'.
+"""
+
+
 import numpy as np
 from language_utils import GermanPreprocessor, GermanPostprocessor
 from learning_utils import log, load_tokenized
@@ -8,11 +23,10 @@ from learning_utils import log, load_tokenized
 def convert_to_edits(source, target):
     keep = '<keep>'
     delete = '<delete>'
-    
 
     lev = np.zeros([len(source)+1, len(target)+1])
     edits = [ [ [] for _ in range(len(target)+1)] for _ in range(len(source)+1)]
-    
+
     for i in range(len(source)+1):
         lev[i, 0] = i
         edits[i][0] = [delete for _ in range(i)]
@@ -55,19 +69,16 @@ if __name__ == '__main__':
     parser.add_argument("--translated-sentences", type=argparse.FileType('r'), required=True)
     parser.add_argument("--target-sentences", type=argparse.FileType('r'), required=True)
     parser.add_argument("--target-german", type=bool, default=False)
-    
+
     args = parser.parse_args()
 
     preprocess=None
     if args.target_german:
         preprocess = GermanPreprocessor()
-    
+
     trans_sentences = load_tokenized(args.translated_sentences, preprocess=preprocess)
     tgt_sentences = load_tokenized(args.target_sentences, preprocess=preprocess)
-    
+
     for trans, tgt in zip(trans_sentences, tgt_sentences):
         edits = convert_to_edits(trans, tgt)
         print " ".join(edits)
-    
-    
-    
