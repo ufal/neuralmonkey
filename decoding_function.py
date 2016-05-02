@@ -47,7 +47,7 @@ def attention_decoder(decoder_inputs, initial_state, attention_objects,
     return outputs, states
 
 class Attention(object):
-    def __init__(self, attention_states, scope, dropout_placeholder):
+    def __init__(self, attention_states, scope, dropout_placeholder, max_fertility=None):
         self.scope = scope
         self.attentions_in_time = []
         self.attention_states = tf.nn.dropout(attention_states, dropout_placeholder)
