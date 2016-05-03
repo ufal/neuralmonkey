@@ -58,7 +58,7 @@ if __name__ == "__main__":
     decoder = Decoder([encoder], vocabulary, args.decoder_rnn_size, training_placeholder, embedding_size=args.embeddings_size,
             use_attention=args.use_attention, max_out_len=args.maximum_output, use_peepholes=True,
             scheduled_sampling=args.scheduled_sampling, dropout_placeholder=dropout_placeholder,
-            use_noisy_activations=args.use_noisy_activations)
+            use_noisy_activations=args.use_noisy_activations, depth=args.decoder_depth)
 
     def get_feed_dicts(images, sentences, batch_size, train=False):
         feed_dicts = encoder.feed_dict(images, batch_size)

@@ -6,6 +6,7 @@ import tensorflow as tf
 import regex as re
 
 from sentence_encoder import SentenceEncoder
+from image_encoder import ImageEncoder, VectorImageEncoder
 from decoder import Decoder
 from vocabulary import Vocabulary
 from learning_utils import log, training_loop, print_header, tokenize_char_seq, load_tokenized, feed_dropout_and_train
@@ -21,10 +22,10 @@ def shape(string):
     return res_shape
 
 if __name__ == "__main__":
-    parser = cli_options.get_postediting_parser()
+    parser = cli_options.get_mmmt_parser()
     args = parser.parse_args()
 
-    print_header("TRANSLATION + POSTEDITING", args)
+    print_header("MULTIMODAL TRANSLATION", args)
 
     postedit = untruecase
     preprocess = None
@@ -48,6 +49,13 @@ if __name__ == "__main__":
     val_trans_sentences = load_tokenized(args.val_translated_sentences, preprocess)
     log("Loaded {} validation translated sentences.".format(len(val_trans_sentences)))
 
+    train_images = np.load(args.train_images)
+    args.train_images.close()
+    log("Loaded training images.")
+    val_images = np.load(args.val_images)
+    args.val_images.close()
+    log("Loaded validation images.")
+
     if args.test_output_file:
         if not args.test_source_sentences or not args.test_translated_sentences:
             raise Exception("must supply src and trans sentences when want to translate test set")
@@ -56,6 +64,9 @@ if __name__ == "__main__":
         log("Loaded {} test src_sentences.".format(len(test_src_sentences)))
         test_trans_sentences = load_tokenized(args.test_translated_sentences)
         log("Loaded {} test trans_sentences.".format(len(test_trans_sentences)))
+        test_images = np.load(args.test_images)
+        args.test_images.close()
+        log("Loaded test images.")
 
 
     tgt_vocabulary = \
@@ -78,6 +89,14 @@ if __name__ == "__main__":
                                     args.embeddings_size, args.encoder_rnn_size, dropout_placeholder,
                                     training_placeholder, use_noisy_activations=args.use_noisy_activations,
                                     attention_type=eval(args.use_attention), attention_fertility=1, name="trans_encoder")
+    if len(args.img_features_shape) == 1:
+        encoder_img = VectorImageEncoder(args.img_features_shape[0],
+                                         args.decoder_rnn_size,
+                                         dropout_placeholder=dropout_placeholder)
+    else:
+        encoder_img = ImageEncoder(args.img_features_shape, args.decoder_rnn_size,
+                                   dropout_placeholder=dropout_placeholder,
+                                   attention_type=Attention)
 
     copy_net = None
     if args.use_copy_net:
@@ -88,7 +107,7 @@ if __name__ == "__main__":
     else:
         reused_word_embeddings = None
 
-    decoder = Decoder([encoder_src, encoder_trans], tgt_vocabulary, args.decoder_rnn_size,
+    decoder = Decoder([encoder_src, encoder_trans, encoder_img], tgt_vocabulary, args.decoder_rnn_size,
                       training_placeholder,
                       embedding_size=args.embeddings_size, use_attention=args.use_attention,
                       max_out_len=args.maximum_output, use_peepholes=True,
@@ -105,12 +124,14 @@ if __name__ == "__main__":
         xent_calls, moving_calls = args.mixer
         trainer = Mixer(decoder, trainer, xent_calls, moving_calls)
 
-    def get_feed_dicts(src_sentences, trans_sentences, tgt_sentences, batch_size, train=False):
+    def get_feed_dicts(src_sentences, trans_sentences, tgt_sentences, images, batch_size, train=False):
         feed_dicts, _ = encoder_src.feed_dict(src_sentences, batch_size, train=train)
         feed_dicts, batched_trans_sentences = encoder_trans.feed_dict(trans_sentences, batch_size, train=train, dicts=feed_dicts)
+        feed_dicts = encoder_img.feed_dict(images, batch_size, dicts=feed_dicts)
 
         ## batched_tgt_sentences can be None, as well as tgt_sentences
-        feed_dicts, batched_tgt_sentences = decoder.feed_dict(tgt_sentences, len(src_sentences), batch_size, feed_dicts)
+        feed_dicts, batched_tgt_sentences = \
+            decoder.feed_dict(tgt_sentences, len(src_sentences), batch_size, feed_dicts)
 
         if args.use_copy_net and tgt_sentences is not None:
             feed_dicts = trainer.feed_dict(trans_sentences, tgt_sentences, batch_size, feed_dicts)
@@ -132,15 +153,16 @@ if __name__ == "__main__":
 
     val_feed_dicts, batched_val_tgt_sentences, batched_val_trans_sentences = \
             get_feed_dicts(val_src_sentences, val_trans_sentences, val_tgt_sentences,
+                    val_images,
                     args.batch_size, train=False)
     train_feed_dicts, batched_train_tgt_sentences, batched_train_trans_sentences = \
             get_feed_dicts(train_src_sentences, train_trans_sentences, train_tgt_sentences,
-                    args.batch_size, train=True)
+                    train_images, args.batch_size, train=True)
 
     if args.test_output_file:
         test_feed_dicts, _, batched_test_trans_sentences = \
                 get_feed_dicts(test_src_sentences, test_trans_sentences, None,
-                    args.batch_size, train=False)
+                    test_images, args.batch_size, train=False)
         training_loop(sess, tgt_vocabulary, args.epochs, trainer, decoder,
                       train_feed_dicts, batched_train_tgt_sentences,
                       val_feed_dicts, batched_val_tgt_sentences, postedit,

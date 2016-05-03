@@ -8,13 +8,14 @@ def add_common_cli_arguments(parser):
             return string
         else:
             raise Exception("Wrong attention type.")
-    
+
     parser.add_argument("--batch-size", type=int, default=128)
     parser.add_argument("--epochs", type=int, default=10)
 
     parser.add_argument("--embeddings-size", type=int, default=256)
     parser.add_argument("--encoder-rnn-size", type=int, default=256)
     parser.add_argument("--decoder-rnn-size", type=int, default=256)
+    parser.add_argument("--decoder-depth", type=int, default=1)
 
     parser.add_argument("--maximum-output", type=int, default=20)
     parser.add_argument("--dropout-keep-prob", type=float, default=1.0)
@@ -42,7 +43,6 @@ def add_common_cli_arguments(parser):
     # TODO
 
     return parser
-
 
 
 def add_captioning_arguments(parser):
@@ -118,11 +118,11 @@ def add_postediting_arguments(parser):
     return parser
 
 
-
 def get_postediting_parser():
     parser = get_parser('Trains the postediting')
     add_postediting_arguments(parser)
     return parser
+
 
 def get_translation_parser():
     parser = get_parser('Trains the translation')

@@ -64,7 +64,7 @@ if __name__ == "__main__":
             embedding_size=args.embeddings_size,
             use_attention=args.use_attention, max_out_len=args.maximum_output, use_peepholes=True,
             scheduled_sampling=args.scheduled_sampling, dropout_placeholder=dropout_placeholder,
-            use_noisy_activations=args.use_noisy_activations)
+            use_noisy_activations=args.use_noisy_activations, depth=args.decoder_depth)
 
     def get_feed_dicts(src_sentences, tgt_sentences, batch_size, train=False):
         feed_dicts, batched_src_sentences = encoder.feed_dict(src_sentences, batch_size, train=train)

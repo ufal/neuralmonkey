@@ -12,7 +12,7 @@ class Decoder:
     def __init__(self, encoders, vocabulary, rnn_size, is_training, embedding_size=128, use_attention=None,
                  max_out_len=20, use_peepholes=False, scheduled_sampling=None,
                  dropout_placeholder=None, copy_net=None, reused_word_embeddings=None,
-                 use_noisy_activations=False):
+                 use_noisy_activations=False, depth=1):
 
         """
 
@@ -42,7 +42,7 @@ class Decoder:
             embedding_size (int): Dimensionality of the word
                 embeddings used during decoding.
 
-            use_attention (str): The type of attention to use or None. (Refer to 
+            use_attention (str): The type of attention to use or None. (Refer to
                 cli_options script for allowed types of attention]
 
             max_out_len (int): Maximum length of the decoder output.
@@ -105,15 +105,14 @@ class Decoder:
             with tf.variable_scope("encoders_projection"):
                 encoded_concat = tf.concat(1, [e.encoded for e in encoders])
                 concat_size = encoded_concat.get_shape()[1].value
-                proj = tf.get_variable(name="project_encoders", shape=[concat_size, rnn_size])
+                proj = tf.get_variable(name="project_encoders", shape=[concat_size, depth * rnn_size])
                 encoded_concat_dropped = tf.nn.dropout(encoded_concat, dropout_placeholder)
-                proj_bias = tf.Variable(tf.zeros([rnn_size]))
+                proj_bias = tf.Variable(tf.zeros([depth * rnn_size]))
                 encoded = tf.matmul(encoded_concat_dropped, proj) + proj_bias
         elif len(encoders) == 0: # if we want to train just LM
             encoded = tf.zeros(rnn_size)
             log("No encoder - language model only.")
         self.encoded = encoded
-
 
         self.learning_step = tf.Variable(0, name="learning_step", trainable=False)
         self.gt_inputs = []
@@ -240,10 +239,18 @@ class Decoder:
                 condition = tf.less_equal(tf.random_uniform(tf.shape(embedded_gt_inputs[0])), threshold)
                 return tf.select(condition, embedded_gt_inputs[i], loop(prev_state, i))
 
-            if use_noisy_activations:
-                decoder_cell = NoisyGRUCell(rnn_size, training=is_training, input_size=embedding_size)
-            else:
-                decoder_cell = rnn_cell.GRUCell(rnn_size, embedding_size)
+            def get_rnn_cell(input_size=rnn_size):
+                if use_noisy_activations:
+                    return NoisyGRUCell(rnn_size, training=is_training, input_size=input_size)
+                else:
+                    return rnn_cell.GRUCell(rnn_size, input_size=input_size)
+
+            decoder_cells = [get_rnn_cell(input_size=embedding_size)]
+            for _ in range(1, depth):
+                decoder_cells[-1] = rnn_cell.DropoutWrapper(decoder_cells[-1], output_keep_prob=dropout_placeholder)
+                decoder_cells.append(get_rnn_cell())
+
+            decoder_cell = rnn_cell.MultiRNNCell(decoder_cells)
 
             gt_loop_function = sampling_loop if scheduled_sampling else None
 
@@ -254,7 +261,7 @@ class Decoder:
             else:
                 attention_objects = []
 
-                
+
             rnn_outputs_gt_ins, _ = \
                 attention_decoder(embedded_gt_inputs, encoded,
                                   attention_objects=attention_objects,
