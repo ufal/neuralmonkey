@@ -31,6 +31,14 @@ def add_common_cli_arguments(parser):
     parser.add_argument("--initial-variables", type=str, default=None,
             help="File with saved variables for initialization.")
 
+    parser.add_argument("--train-target-sentences", type=argparse.FileType('r'),
+                        help="File with training target sentences.", required=True)
+    parser.add_argument("--val-target-sentences", type=argparse.FileType('r'),
+                        help="File with validation target sentences.", required=True)
+
+    parser.add_argument("--test-output-file", type=argparse.FileType('w'),
+                        help="Output file for translated test set")
+
     def mixer_values(string):
         print string
         values = [int(s) for s in string.split(",")]
@@ -54,35 +62,23 @@ def add_captioning_arguments(parser):
                         help="File with training images features", required=True)
     parser.add_argument("--val-images", type=argparse.FileType('rb'),
                         help="File with validation images features.", required=True)
-
-
-    parser.add_argument("--tokenized-train-text", type=argparse.FileType('r'),
-                        help="File with tokenized training target sentences.", required=True)
-    parser.add_argument("--tokenized-val-text", type=argparse.FileType('r'), required=True)
-
+    parser.add_argument("--test-images", type=argparse.FileType('rb'),
+                        help="File with test images features.")
 
     parser.add_argument("--img-features-shape", type=shape, default='14x14x256', required=True)
 
     return parser
 
 
-
 def add_translation_arguments(parser):
     parser.add_argument("--train-source-sentences", type=argparse.FileType('r'),
                         help="File with training source sentences", required=True)
-    parser.add_argument("--train-target-sentences", type=argparse.FileType('r'),
-                        help="File with training target sentences.", required=True)
-
-
     parser.add_argument("--val-source-sentences", type=argparse.FileType('r'),
                         help="File with validation source sentences.", required=True)
-    parser.add_argument("--val-target-sentences", type=argparse.FileType('r'),
-                        help="File with validation target sentences.", required=True)
 
     parser.add_argument("--gru-bidi-depth", type=int, default=None)
 
     return parser
-
 
 
 def add_postediting_arguments(parser):
@@ -90,24 +86,16 @@ def add_postediting_arguments(parser):
                         help="File with training source sentences", required=True)
     parser.add_argument("--train-translated-sentences", type=argparse.FileType('r'),
                         help="File with training source sentences", required=True)
-    parser.add_argument("--train-target-sentences", type=argparse.FileType('r'),
-                        help="File with training target sentences.", required=True)
-
 
     parser.add_argument("--val-source-sentences", type=argparse.FileType('r'),
                         help="File with validation source sentences.", required=True)
     parser.add_argument("--val-translated-sentences", type=argparse.FileType('r'),
                         help="File with validation source sentences.", required=True)
-    parser.add_argument("--val-target-sentences", type=argparse.FileType('r'),
-                        help="File with validation target sentences.", required=True)
-
 
     parser.add_argument("--test-source-sentences", type=argparse.FileType('r'),
                         help="File with tokenized test source sentences.")
     parser.add_argument("--test-translated-sentences", type=argparse.FileType('r'),
                         help="File with tokenized test translated sentences.")
-    parser.add_argument("--test-output-file", type=argparse.FileType('w'),
-                        help="Output file for translated test set")
 
 
     parser.add_argument("--use-copy-net", type=bool, default=False)
@@ -135,6 +123,12 @@ def get_captioning_parser():
     add_captioning_arguments(parser)
     return parser
 
+
+def get_mmmt_parser():
+    parser = get_parser('Trains the multimodal translation')
+    add_captioning_arguments(parser)
+    add_postediting_arguments(parser)
+    return parser
 
 
 def get_parser(description=None):

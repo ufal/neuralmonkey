@@ -42,9 +42,10 @@ class ImageEncoder(object):
             self.attention_tensor = \
                 tf.reshape(self.image_features, [-1, input_shape[0] * input_shape[1], input_shape[2]], name="flatten_image")
 
-            self.attention_object = attention_type(self.attention_tensor, scope="attention_{}".format(name), dropout_placeholder=dropout_placeholder) if attention_type else None
-
-            
+            self.attention_object = \
+                attention_type(self.attention_tensor,
+                        scope="attention_img",
+                        dropout_placeholder=dropout_placeholder) if attention_type else None
 
     def feed_dict(self, images, batch_size, dicts=None):
         if dicts == None:
