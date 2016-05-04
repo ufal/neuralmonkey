@@ -166,7 +166,7 @@ if __name__ == "__main__":
         training_loop(sess, tgt_vocabulary, args.epochs, trainer, decoder,
                       train_feed_dicts, batched_train_tgt_sentences,
                       val_feed_dicts, batched_val_tgt_sentences, postedit,
-                      "logs-postedit/"+str(int(time.time())),
+                      "logs-mmmt/"+str(int(time.time())),
                       [bleu_1, bleu_4_dedup, bleu_4],
                       args.use_copy_net, batched_train_trans_sentences, batched_val_trans_sentences,
                       test_feed_dicts, batched_test_trans_sentences, args.test_output_file,
