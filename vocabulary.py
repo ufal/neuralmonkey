@@ -1,5 +1,6 @@
 import random
 import numpy as np
+import regex as re
 
 class Vocabulary(object):
     def __init__(self, tokenized_text=None):
@@ -43,6 +44,34 @@ class Vocabulary(object):
 
     def __contains__(self, word):
         return word in self.word_to_index
+
+    def trunkate(self, size):
+        """
+        Trunkates the Vocabulary to requested size by keep only the most
+        frequent tokens.
+        """
+
+        current_count = len(self)
+
+        # sort by frequency
+        words_by_freq = \
+            sorted(self.word_count.keys(), key=lambda w: self.word_count[w])
+
+        # keep the least frequent words which are not special symbols
+        words_to_delete = \
+            [w for w in words_by_freq[:-size] if not re.match(ur"^<.*>$", w)]
+        # sort by index ... bigger indices needs to be removed first
+        # to keep the lists propertly shaped
+        delete_words_by_index = \
+            sorted([(w, self.word_to_index[w]) for w in words_to_delete], key=lambda p: -p[1])
+
+        for word, index in delete_words_by_index:
+            del self.word_count[word]
+            del self.index_to_word[index]
+
+        self.word_to_index = {}
+        for index, word in enumerate(self.index_to_word):
+            self.word_to_index[word] = index
 
     def sentences_to_tensor(self, sentences, max_len, train=False):
         """

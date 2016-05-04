@@ -69,8 +69,8 @@ if __name__ == "__main__":
     log("Loaded validation images.")
 
     if args.test_output_file:
-        if not args.test_source_sentences or not args.test_translated_sentences:
-            raise Exception("must supply src and trans sentences when want to translate test set")
+        #if not args.test_source_sentences or not args.test_translated_sentences:
+        #    raise Exception("must supply src and trans sentences when want to translate test set")
 
         test_src_sentences_1 = load_tokenized(args.test_source_1)
         log("Loaded {} testing src sentences #1.".format(len(test_src_sentences_1)))
@@ -90,13 +90,16 @@ if __name__ == "__main__":
 
     tgt_vocabulary = \
         Vocabulary(tokenized_text=[w for s in train_tgt_sentences for w in s])
+    tgt_vocabulary.trunkate(20000)
     src_vocabulary = \
         Vocabulary(tokenized_text=[w for s in train_src_sentences_1 for w in s])
     src_vocabulary.add_tokenized_text([w for s in train_src_sentences_2 for w in s])
     src_vocabulary.add_tokenized_text([w for s in train_src_sentences_3 for w in s])
     src_vocabulary.add_tokenized_text([w for s in train_src_sentences_4 for w in s])
     src_vocabulary.add_tokenized_text([w for s in train_src_sentences_5 for w in s])
+    src_vocabulary.trunkate(20000)
 
+    log("Training src_vocabulary has {} words".format(len(src_vocabulary)))
     log("Training tgt_vocabulary has {} words".format(len(tgt_vocabulary)))
 
     log("Buiding the TensorFlow computation graph.")
