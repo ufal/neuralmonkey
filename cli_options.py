@@ -106,6 +106,28 @@ def add_postediting_arguments(parser):
     return parser
 
 
+def add_five_encoder_parser(parser):
+    parser.add_argument("--train-source-1", type=argparse.FileType('r'), required=True)
+    parser.add_argument("--train-source-2", type=argparse.FileType('r'), required=True)
+    parser.add_argument("--train-source-3", type=argparse.FileType('r'), required=True)
+    parser.add_argument("--train-source-4", type=argparse.FileType('r'), required=True)
+    parser.add_argument("--train-source-5", type=argparse.FileType('r'), required=True)
+
+    parser.add_argument("--val-source-1", type=argparse.FileType('r'), required=True)
+    parser.add_argument("--val-source-2", type=argparse.FileType('r'), required=True)
+    parser.add_argument("--val-source-3", type=argparse.FileType('r'), required=True)
+    parser.add_argument("--val-source-4", type=argparse.FileType('r'), required=True)
+    parser.add_argument("--val-source-5", type=argparse.FileType('r'), required=True)
+
+    parser.add_argument("--test-source-1", type=argparse.FileType('r'))
+    parser.add_argument("--test-source-2", type=argparse.FileType('r'))
+    parser.add_argument("--test-source-3", type=argparse.FileType('r'))
+    parser.add_argument("--test-source-4", type=argparse.FileType('r'))
+    parser.add_argument("--test-source-5", type=argparse.FileType('r'))
+
+    return parser
+
+
 def get_postediting_parser():
     parser = get_parser('Trains the postediting')
     add_postediting_arguments(parser)
@@ -128,6 +150,13 @@ def get_mmmt_parser():
     parser = get_parser('Trains the multimodal translation')
     add_captioning_arguments(parser)
     add_postediting_arguments(parser)
+    return parser
+
+
+def get_mmmt_task2_parser():
+    parser = get_parser('Trains multilingual captioning')
+    add_captioning_arguments(parser)
+    add_five_encoder_parser(parser)
     return parser
 
 
