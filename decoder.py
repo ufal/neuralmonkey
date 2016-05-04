@@ -180,6 +180,7 @@ class Decoder:
                 batch_time_vocabulary_shape = \
                         tf.concat(0, [tf.expand_dims(batch_size, 0), tf.constant(len(vocabulary), shape=[1])])
                 ones = tf.ones(tf.expand_dims(batch_size, 0))
+
                 vocabulary_shaped_list = []
                 for slice_indices in encoder_input_indices:
                     complete_indices = \
@@ -202,9 +203,10 @@ class Decoder:
                     # encoder words
                     all_vocabulary_logits = [generate_logits]
 
-                    # Equation 8 in the paper ... in shape of source sentence
+                    # Equation 8 in the paper ... in shape of source sentence (batch x time)
                     copy_logits_in_time = tf.reduce_sum(projected_inputs * tf.expand_dims(state, 1), [2])
-                    #  ... in shape of vocabulary
+
+                    #  ... in shape of vocabulary (batch x time x vocabulary)
                     copy_logits_in_vocabulary = vocabulary_shaped_indices * tf.expand_dims(copy_logits_in_time, 2)
 
                     # Equation 6 without normalization
@@ -296,7 +298,7 @@ class Decoder:
                     copynet_logits.append(logits_in_time)
 
                 logits.append(out_activation)
-                decoded.append(tf.argmax(out_activation, 1))
+                decoded.append(tf.argmax(out_activation[:,1:], 1) + 1)
 
             return decoded, logits, copynet_logits
 
