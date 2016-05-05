@@ -167,7 +167,7 @@ if __name__ == "__main__":
 
         ## batched_tgt_sentences can be None, as well as tgt_sentences
         feed_dicts, batched_tgt_sentences = \
-            decoder.feed_dict(tgt_sentences, len(tgt_sentences), batch_size, feed_dicts)
+            decoder.feed_dict(tgt_sentences, len(src_sentences_1), batch_size, feed_dicts)
 
         feed_dropout_and_train(feed_dicts, dropout_placeholder,
                 args.dropout_keep_prob, training_placeholder, train)
@@ -197,7 +197,7 @@ if __name__ == "__main__":
     if args.test_output_file:
         test_feed_dicts, _ = \
             get_feed_dicts(test_src_sentences_1, test_src_sentences_2, test_src_sentences_3,
-                           test_src_sentences_4, test_src_sentences_5, test_tgt_sentences,
+                           test_src_sentences_4, test_src_sentences_5, None,
                            test_images, args.batch_size, train=True)
         training_loop(sess, tgt_vocabulary, args.epochs, trainer, decoder,
                       train_feed_dicts, batched_train_tgt_sentences,

@@ -34,10 +34,10 @@ if __name__ == "__main__":
     args.val_images.close()
     log("Loaded validation images.")
 
-    train_sentences = [re.split(ur"[ @#-]", l.rstrip()) for l in args.tokenized_train_text][:len(train_images)]
+    train_sentences = [re.split(ur"[ @#-]", l.rstrip()) for l in args.train_target_sentences][:len(train_images)]
     tokenized_train_senteces = train_sentences
     log("Loaded {} training sentences.".format(len(train_sentences)))
-    val_sentences = [re.split(ur"[ @#-]", l.rstrip()) for l in args.tokenized_val_text][:len(val_images)]
+    val_sentences = [re.split(ur"[ @#-]", l.rstrip()) for l in args.val_target_sentences][:len(val_images)]
     tokenized_val_sentences = val_sentences
     log("Loaded {} validation sentences.".format(len(val_sentences)))
 
