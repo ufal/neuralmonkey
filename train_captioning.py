@@ -34,6 +34,11 @@ if __name__ == "__main__":
     args.val_images.close()
     log("Loaded validation images.")
 
+    if args.test_output_file:
+        test_images = np.load(args.test_images)
+        args.test_images.close()
+        log("Loaded test images.")
+
     train_sentences = [re.split(ur"[ @#-]", l.rstrip()) for l in args.train_target_sentences][:len(train_images)]
     tokenized_train_senteces = train_sentences
     log("Loaded {} training sentences.".format(len(train_sentences)))
@@ -62,11 +67,13 @@ if __name__ == "__main__":
 
     def get_feed_dicts(images, sentences, batch_size, train=False):
         feed_dicts = encoder.feed_dict(images, batch_size)
-        _, batched_sentences = decoder.feed_dict(sentences, len(sentences), batch_size, feed_dicts)
+        _, batched_sentences = decoder.feed_dict(sentences, images.shape[0], batch_size, feed_dicts)
         feed_dropout_and_train(feed_dicts, dropout_placeholder,
                 args.dropout_keep_prob, training_placeholder, train)
 
-        postprocessed_tgt = [[postedit(s) for s in batch] for batch in batched_sentences]
+        postprocessed_tgt = None
+        if sentences:
+            postprocessed_tgt = [[postedit(s) for s in batch] for batch in batched_sentences]
 
         return feed_dicts, postprocessed_tgt
 
@@ -85,13 +92,28 @@ if __name__ == "__main__":
     val_feed_dicts, batched_val_sentences = \
             get_feed_dicts(val_images, val_sentences, args.batch_size, train=False)
 
-    training_loop(sess, vocabulary, args.epochs, trainer, decoder,
-                  train_feed_dicts, batched_train_sentences,
-                  val_feed_dicts, batched_val_sentences, postedit,
-                  "logs-captioning/"+str(int(time.time())),
-                  [bleu_1, bleu_4_dedup, bleu_4],
-                  False,
-                  [[] for _ in batched_train_sentences],
-                  [[] for _ in batched_val_sentences],
-                  use_beamsearch=args.beamsearch,
-                  initial_variables=args.initial_variables)
+    if args.test_output_file:
+        test_feed_dicts, _ = \
+                get_feed_dicts(test_images, None, args.batch_size, train=False)
+        training_loop(sess, vocabulary, args.epochs, trainer, decoder,
+                      train_feed_dicts, batched_train_sentences,
+                      val_feed_dicts, batched_val_sentences, postedit,
+                      "logs-mmmt/"+str(int(time.time())),
+                      [bleu_1, bleu_4_dedup, bleu_4],
+                      False,
+                      [[] for _ in batched_train_sentences],
+                      [[] for _ in batched_val_sentences],
+                      test_feed_dicts, [[] for _ in test_feed_dicts], args.test_output_file,
+                      use_beamsearch=args.beamsearch,
+                      initial_variables=args.initial_variables)
+    else:
+        training_loop(sess, vocabulary, args.epochs, trainer, decoder,
+                      train_feed_dicts, batched_train_sentences,
+                      val_feed_dicts, batched_val_sentences, postedit,
+                      "logs-captioning/"+str(int(time.time())),
+                      [bleu_1, bleu_4_dedup, bleu_4],
+                      False,
+                      [[] for _ in batched_train_sentences],
+                      [[] for _ in batched_val_sentences],
+                      use_beamsearch=args.beamsearch,
+                      initial_variables=args.initial_variables)
