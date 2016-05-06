@@ -102,30 +102,19 @@ class Attention(object):
 
 
 class CoverageAttention(Attention):
-
-    def __init__(self, attention_states, scope, dropout_placeholder, max_fertility=5):        
-        super(CoverageAttention, self).__init__(attention_states, scope, dropout_placeholder)
+    def __init__(self, attention_states, scope, dropout_placeholder, input_weights=None, max_fertility=5):
+        super(CoverageAttention, self).__init__(attention_states, scope, dropout_placeholder,
+                input_weights=input_weights, max_fertility=max_fertility)
         self.coverage_weights = tf.get_variable("coverage_matrix", [1, 1, 1, self.attn_size])
         self.fertility_weights = tf.get_variable("fertility_matrix", [1, 1, self.attn_size])
         self.max_fertility = max_fertility
 
         self.fertility = self.max_fertility * tf.sigmoid(tf.reduce_sum(self.fertility_weights * self.attention_states, [2]))
-        
+
 
     def get_logits(self, y):
-        coverage = sum(self.attentions_in_time) / self.fertility
+        coverage = sum(self.attentions_in_time) / self.fertility * self.input_weights
 
-        #(?, 22, 1, 512)
-        #print(self.hidden_features.get_shape())
-        
-        #(?, 1, 1, 512)
-        #print(y.get_shape())
-
-        #(1, 1, 512)
-        #print(self.coverage_weights.get_shape())
-
-        #(?, 22)
-        #print(coverage.get_shape())
-        
-        logits = tf.reduce_sum(self.v * tf.tanh(self.hidden_features + y + self.coverage_weights * tf.reshape(coverage, [-1, self.attn_length, 1, 1])), [2, 3])
+        logits = tf.reduce_sum(self.v * tf.tanh(self.hidden_features + y + \
+                self.coverage_weights * tf.reshape(coverage, [-1, self.attn_length, 1, 1])), [2, 3])
         return logits
