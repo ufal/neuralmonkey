@@ -47,15 +47,17 @@ def attention_decoder(decoder_inputs, initial_state, attention_objects,
     return outputs, states
 
 class Attention(object):
-    def __init__(self, attention_states, scope, dropout_placeholder, max_fertility=None):
+    def __init__(self, attention_states, scope, dropout_placeholder,
+                 input_weights=None ,max_fertility=None):
         self.scope = scope
         self.attentions_in_time = []
         self.attention_states = tf.nn.dropout(attention_states, dropout_placeholder)
-        
+        self.input_weights = input_weights
+
         with tf.variable_scope(scope):
             self.attn_length = attention_states.get_shape()[1].value
             self.attn_size = attention_states.get_shape()[2].value
-            
+
             # To calculate W1 * h_t we use a 1-by-1 convolution, need to reshape before.
             self.att_states_reshaped = tf.reshape(
                     self.attention_states, [-1, self.attn_length, 1, self.attn_size])
@@ -70,24 +72,27 @@ class Attention(object):
             y = rnn_cell.linear(query_state, self.attention_vec_size, True)
             y = tf.reshape(y, [-1, 1, 1, self.attention_vec_size])
 
-            # Attention mask is a softmax of v^T * tanh(...).
             s = self.get_logits(y)
-            
-            a = tf.nn.softmax(s)
+
+            if not self.input_weights:
+                a = tf.nn.softmax(s)
+            else:
+                a_all = tf.nn.softmax(s)
+                norm = tf.reduce_sum(a_all, 1, keep_dims=True)
+                a = a_all / norm
+
             self.attentions_in_time.append(a)
-            
+
             # Now calculate the attention-weighted vector d.
             d = tf.reduce_sum(
                     tf.reshape(a, [-1, self.attn_length, 1, 1]) * self.att_states_reshaped,
                     [1, 2])
             return tf.reshape(d, [-1, self.attn_size])
 
-        
     def get_logits(self, y):
-        return tf.reduce_sum(self.v * tf.tanh(self.hidden_features + y), [2, 3])       
-        
+        # Attention mask is a softmax of v^T * tanh(...).
+        return tf.reduce_sum(self.v * tf.tanh(self.hidden_features + y), [2, 3])
 
-        
     def initialize(self, batch_size, dtype):
         batch_attn_size = tf.pack([batch_size, self.attn_size])
         initial = tf.zeros(batch_attn_size, dtype=dtype)

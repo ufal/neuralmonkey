@@ -7,14 +7,16 @@ import numpy as np
 class SentenceEncoder(object):
     def __init__(self, max_input_len, vocabulary, embedding_size, rnn_size, dropout_placeholder,
                  is_training, use_noisy_activations=False, attention_type=None,
-                 attention_fertility=None, name="sentence_encoder", parent_encoder=None):
+                 attention_fertility=3, name="sentence_encoder", parent_encoder=None):
         self.vocabulary = vocabulary
         self.max_input_len = max_input_len
 
         with tf.variable_scope(name):
             self.inputs = \
                     [tf.placeholder(tf.int32, shape=[None], name="input_{}".format(i)) for i in range(max_input_len + 2)]
-            self.sentence_lengths = tf.placeholder(tf.int64, shape=[None], name="sequence_lengths")
+            self.weight_ins = \
+                    [tf.placeholder(tf.float32, shape=[None], name="input_{}".format(i)) for i in range(max_input_len + 2)]
+            self.sentence_lengths = tf.to_int64(sum(self.weight_ins))
 
             if parent_encoder:
                 self.word_embeddings = parent_encoder.word_embeddings
@@ -49,6 +51,7 @@ class SentenceEncoder(object):
             self.attention_object = attention_type(self.attention_tensor,
                                                    scope="attention_{}".format(name),
                                                    dropout_placeholder=dropout_placeholder,
+                                                   input_weights=tf.concat(1, [tf.expand_dims(w, 1) for w in self.weight_ins]),
                                                    max_fertility=attention_fertility) if attention_type else None
 
 
@@ -60,10 +63,14 @@ class SentenceEncoder(object):
         for fd, start in zip(dicts, range(0, len(sentences), batch_size)):
             this_sentences = sentences[start:start + batch_size]
             fd[self.sentence_lengths] = np.array([min(self.max_input_len, len(s)) + 2 for s in this_sentences])
-            vectors, _ = \
+            vectors, weights = \
                     self.vocabulary.sentences_to_tensor(this_sentences, self.max_input_len, train=train)
             for words_plc, words_tensor in zip(self.inputs, vectors):
                 fd[words_plc] = words_tensor
+            fd[self.weight_ins[0]] = np.ones(len(this_sentences))
+            for weights_plc, weight_vector in zip(self.weight_ins[1:], weights):
+                fd[weights_plc] = weight_vector
+
             batched_sentences.append(this_sentences)
 
         return dicts, batched_sentences
