@@ -16,7 +16,7 @@ class VectorImageEncoder(object):
 
     def feed_dict(self, images, batch_size, dicts=None):
         if dicts == None:
-            dicts = [{} for _ in range(images.shape[0] / batch_size + int(images.shape[0] % batch_size))]
+            dicts = [{} for _ in range(images.shape[0] / batch_size + int(images.shape[0] % batch_size > 0))]
 
         for fd, start in zip(dicts, range(0, images.shape[0], batch_size)):
             fd[self.image_features] = images[start:start+batch_size]
@@ -49,7 +49,7 @@ class ImageEncoder(object):
 
     def feed_dict(self, images, batch_size, dicts=None):
         if dicts == None:
-            dicts = [{} for _ in range(images.shape[0] / batch_size + int(images.shape[0] % batch_size))]
+            dicts = [{} for _ in range(images.shape[0] / batch_size + int(images.shape[0] % batch_size > 0))]
 
         for fd, start in zip(dicts, range(0, images.shape[0], batch_size)):
             fd[self.image_features] = images[start:start+batch_size]
