@@ -39,6 +39,9 @@ if __name__ == "__main__":
     val_src_sentences = load_tokenized(args.val_source_sentences)
     log("Loaded {} validation src_sentences.".format(len(val_src_sentences)))
 
+    if args.test_output_file:
+        test_src_sentences = load_tokenized(args.test_source_sentences)
+
     tgt_vocabulary = \
         Vocabulary(tokenized_text=[w for s in train_tgt_sentences for w in s])
     src_vocabulary = \
@@ -73,7 +76,10 @@ if __name__ == "__main__":
         feed_dropout_and_train(feed_dicts, dropout_placeholder,
                 args.dropout_keep_prob, training_placeholder, train)
 
-        postprocessed_tgt = [[postedit(s) for s in batch] for batch in batched_tgt_sentences]
+        if tgt_sentences:
+            postprocessed_tgt = [[postedit(s) for s in batch] for batch in batched_tgt_sentences]
+        else:
+            postprocessed_tgt = None
 
         return feed_dicts, batched_src_sentences, postprocessed_tgt
 
@@ -94,11 +100,25 @@ if __name__ == "__main__":
     train_feed_dicts, batched_train_src_sentences, batched_train_tgt_sentences = \
         get_feed_dicts(train_src_sentences, train_tgt_sentences, args.batch_size, train=True)
 
-    training_loop(sess, tgt_vocabulary, args.epochs, trainer, decoder,
-                  train_feed_dicts, batched_train_tgt_sentences,
-                  val_feed_dicts, batched_val_tgt_sentences, postedit,
-                  "logs-translation/"+str(int(time.time())),
-                  [bleu_1, bleu_4_dedup, bleu_4],
-                  False, batched_train_src_sentences, batched_val_src_sentences,
-                  use_beamsearch=args.beamsearch,
-                  initial_variables=args.initial_variables)
+    if args.test_output_file:
+        test_feed_dicts, batched_test_src_sentences, _ = \
+                get_feed_dicts(test_src_sentences, None,
+                    args.batch_size, train=False)
+        training_loop(sess, tgt_vocabulary, args.epochs, trainer, decoder,
+                      train_feed_dicts, batched_train_tgt_sentences,
+                      val_feed_dicts, batched_val_tgt_sentences, postedit,
+                      "logs-translation/"+str(int(time.time())),
+                      [bleu_1, bleu_4_dedup, bleu_4],
+                      False, batched_train_src_sentences, batched_val_src_sentences,
+                      test_feed_dicts, batched_test_src_sentences, args.test_output_file,
+                      use_beamsearch=args.beamsearch,
+                      initial_variables=args.initial_variables)
+    else:
+        training_loop(sess, tgt_vocabulary, args.epochs, trainer, decoder,
+                      train_feed_dicts, batched_train_tgt_sentences,
+                      val_feed_dicts, batched_val_tgt_sentences, postedit,
+                      "logs-translation/"+str(int(time.time())),
+                      [bleu_1, bleu_4_dedup, bleu_4],
+                      False, batched_train_src_sentences, batched_val_src_sentences,
+                      use_beamsearch=args.beamsearch,
+                      initial_variables=args.initial_variables)

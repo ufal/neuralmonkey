@@ -75,6 +75,8 @@ def add_translation_arguments(parser):
                         help="File with training source sentences", required=True)
     parser.add_argument("--val-source-sentences", type=argparse.FileType('r'),
                         help="File with validation source sentences.", required=True)
+    parser.add_argument("--test-source-sentences", type=argparse.FileType('r'),
+                        help="File with source test data.")
 
     parser.add_argument("--gru-bidi-depth", type=int, default=None)
 
