@@ -5,7 +5,7 @@ from tensorflow.python.ops import array_ops
 class BidirectionalRNNLayer(object):
     """
     Bidirectional RNN Layer class - forward and backward RNN layers in one.
-   
+
     """
 
 
@@ -19,7 +19,7 @@ class BidirectionalRNNLayer(object):
         sentence_lengths_placeholder - lengths of the sequences in inputs
 
         """
-        
+
 
         with tf.variable_scope('forward'):
             outputs, last_state = rnn.rnn(
@@ -38,8 +38,7 @@ class BidirectionalRNNLayer(object):
 
             outputs_rev=self._reverse_seq(outputs_rev_rev, sentence_lengths_placeholder)
 
-                
-        self.outputs_bidi = [tf.concat(1, [o1, o2]) for o1, o2 in zip(outputs, reversed(outputs_rev))]
+        self.outputs_bidi = [tf.concat(1, [o1, o2]) for o1, o2 in zip(outputs, outputs_rev)]
         self.encoded = tf.concat(1, [last_state, last_state_rev])
 
 
