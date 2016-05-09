@@ -78,7 +78,7 @@ class Attention(object):
                 a = tf.nn.softmax(s)
             else:
                 a_all = tf.nn.softmax(s) * self.input_weights
-                norm = tf.reduce_sum(a_all, 1, keep_dims=True)
+                norm = tf.reduce_sum(a_all, 1, keep_dims=True) + 1e-8
                 a = a_all / norm
 
             self.attentions_in_time.append(a)
@@ -109,7 +109,8 @@ class CoverageAttention(Attention):
         self.fertility_weights = tf.get_variable("fertility_matrix", [1, 1, self.attn_size])
         self.max_fertility = max_fertility
 
-        self.fertility = self.max_fertility * tf.sigmoid(tf.reduce_sum(self.fertility_weights * self.attention_states, [2]))
+        self.fertility = \
+                self.max_fertility * tf.sigmoid(tf.reduce_sum(self.fertility_weights * self.attention_states, [2])) + 1e-8
 
 
     def get_logits(self, y):
