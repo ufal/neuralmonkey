@@ -187,6 +187,47 @@ def training_loop(sess, vocabulary, epochs, trainer,
     max_score_batch_no = 0
     val_tgt_sentences_flatten = [s for batch in val_tgt_sentences for s in batch]
 
+    def expand(feed_dict, state, hypotheses):
+        feed_dict[decoder.encoded] = state
+        hyp_len = len(hypotheses[0][1])
+        hyp_count = len(hypotheses)
+        if hyp_len == 2:
+            for key in feed_dict:
+                shape = key.get_shape()
+                if not shape == tf.TensorShape(None):
+                    if len(shape) == 1:
+                        feed_dict[key] = np.repeat(feed_dict[key], hyp_count)
+                    elif len(shape) == 2:
+                        feed_dict[key] = np.repeat(np.array(feed_dict[key]), hyp_count, axis=0)
+                    else:
+                        log("ERROR in expanding beamsearch \
+                            hypothesis")
+        elif hyp_len >= 3: # we still need to expand the state
+            feed_dict[decoder.encoded] = np.repeat(np.array(state), hyp_count, axis=0)
+
+        for decoder_in, i in zip(decoder.gt_inputs, range(hyp_len)):
+            if decoder_in not in feed_dict:
+                feed_dict[decoder_in] = np.zeros(feed_dict[decoder.go_symbols].shape)
+            for k in range(hyp_count):
+                feed_dict[decoder_in][k] = hypotheses[k][1][i]
+        probs, prob_i = sess.run([decoder.top10_probs[hyp_len - 1][0],
+                         decoder.top10_probs[hyp_len - 1][1]],
+                         feed_dict=feed_dict)
+        beam = []
+        for i in range(hyp_count):
+            for p, x in zip(probs[i], prob_i[i]):
+                beam.append((hypotheses[i][0] + p, hypotheses[i][1] + [x]))
+        return beam
+
+    def beamsearch(fd):
+        beam = [(1.0, [1])]
+        state = sess.run(decoder.encoded, fd)
+        for _ in range(len(decoder.decoded_probs)):
+             new_beam = expand(fd, state, beam)
+             new_beam.sort(reverse=True)
+             beam = new_beam[:10]
+        return beam[0][1]
+
     def copynet_substitute(decoded_sentences, copy_sentences, computation):
         """
         Substitutes the <unk> tokens with the tokens from the source encoder we are
@@ -264,42 +305,6 @@ def training_loop(sess, vocabulary, epochs, trainer,
                     for val_batch_n, (val_batch_feed_dict, val_batch_sentences, val_copy_sentences) in \
                         enumerate (zip(val_feed_dicts, val_tgt_sentences, batched_val_copy_sentences)):
 
-                        def expand(feed_dict, state, hypotheses):
-                            feed_dict[decoder.encoded] = state
-                            lh = len(hypotheses[0][1])
-                            nh = len(hypotheses)
-                            if lh == 2:
-                                for k in feed_dict:
-                                    sh = k.get_shape()
-                                    if not sh == tf.TensorShape(None):
-                                        if len(sh) == 1:
-                                            feed_dict[k] = np.repeat(feed_dict[k], nh)
-                                        elif len(sh) == 2:
-                                            feed_dict[k] = np.repeat(np.array(feed_dict[k]), nh, axis=0)
-                                        else:
-                                            log("ERROR in expanding beamsearch \
-                                                hypothesis")
-
-                            for i, n in zip(decoder.gt_inputs, range(lh)):
-                                for k in range(nh):
-                                    feed_dict[i][k] = hypotheses[k][1][n]
-                            probs, prob_i = sess.run([decoder.top10_probs[lh - 1][0],
-                                             decoder.top10_probs[lh - 1][1]],
-                                             feed_dict=feed_dict)
-                            beam = []
-                            for i in range(nh):
-                                for p, x in zip(probs[i], prob_i[i]):
-                                    beam.append((hypotheses[i][0] + p, hypotheses[i][1] + [x]))
-                            return beam
-
-                        def beamsearch(fd):
-                            beam = [(1.0, [1])]
-                            state = sess.run(decoder.encoded, fd)
-                            for _ in range(len(decoder.decoded_probs)):
-                                 new_beam = expand(fd, state, beam)
-                                 new_beam.sort(reverse=True)
-                                 beam = new_beam[:10]
-                            return beam[0][1]
 
                         if use_beamsearch and val_batch_n % 100 == 99:
                              decoded_val_sentences.append(beamsearch(val_batch_feed_dict))
@@ -367,12 +372,18 @@ def training_loop(sess, vocabulary, epochs, trainer,
         decoded_test_sentences = []
 
         for i, (test_feed_dict, test_copy_sentences) in enumerate(zip(test_feed_dicts, batched_test_copy_sentences)):
-            computation = sess.run(decoder.copynet_logits + decoder.decoded_seq, feed_dict=test_feed_dict)
-            decoded_test_sentences_batch = vocabulary.vectors_to_sentences(computation[-decoder.max_output_len - 1:])
+            if use_beamsearch:
+                 decoded_test_sentence_indices = beamsearch(test_feed_dict)
+                 decoded_test_sentences_batch = [[decoder.vocabulary.index_to_word[i] \
+                         for i in decoded_test_sentence_indices][1:]]
+                 log(decoded_test_sentences_batch)
+            else:
+                computation = sess.run(decoder.copynet_logits + decoder.decoded_seq, feed_dict=test_feed_dict)
+                decoded_test_sentences_batch = vocabulary.vectors_to_sentences(computation[-decoder.max_output_len - 1:])
 
-            if use_copynet: # TODO beamsearch (porad) nefunguje s copynetem
-                decoded_test_sentences_batch = \
-                    copynet_substitute(decoded_test_sentences_batch, test_copy_sentences, computation)
+                if use_copynet: # TODO beamsearch (porad) nefunguje s copynetem
+                    decoded_test_sentences_batch = \
+                        copynet_substitute(decoded_test_sentences_batch, test_copy_sentences, computation)
 
             decoded_test_sentences += [postprocess(s) for s in decoded_test_sentences_batch]
 

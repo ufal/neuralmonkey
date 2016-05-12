@@ -65,6 +65,8 @@ if __name__ == "__main__":
             scheduled_sampling=args.scheduled_sampling, dropout_placeholder=dropout_placeholder,
             use_noisy_activations=args.use_noisy_activations, depth=args.decoder_depth)
 
+    run_batch_size = 1 if args.beamsearch else args.batch_size
+
     def get_feed_dicts(images, sentences, batch_size, train=False):
         feed_dicts = encoder.feed_dict(images, batch_size)
         _, batched_sentences = decoder.feed_dict(sentences, images.shape[0], batch_size, feed_dicts)
@@ -90,11 +92,11 @@ if __name__ == "__main__":
     train_feed_dicts, batched_train_sentences = \
             get_feed_dicts(train_images, train_sentences, args.batch_size, train=True)
     val_feed_dicts, batched_val_sentences = \
-            get_feed_dicts(val_images, val_sentences, args.batch_size, train=False)
+            get_feed_dicts(val_images, val_sentences, run_batch_size, train=False)
 
     if args.test_output_file:
         test_feed_dicts, _ = \
-                get_feed_dicts(test_images, None, args.batch_size, train=False)
+                get_feed_dicts(test_images, None, run_batch_size, train=False)
         training_loop(sess, vocabulary, args.epochs, trainer, decoder,
                       train_feed_dicts, batched_train_sentences,
                       val_feed_dicts, batched_val_sentences, postedit,

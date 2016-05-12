@@ -124,6 +124,8 @@ if __name__ == "__main__":
         xent_calls, moving_calls = args.mixer
         trainer = Mixer(decoder, trainer, xent_calls, moving_calls)
 
+    run_batch_size = 1 if args.beamsearch else args.batch_size
+
     def get_feed_dicts(src_sentences, trans_sentences, tgt_sentences, images, batch_size, train=False):
         feed_dicts, _ = encoder_src.feed_dict(src_sentences, batch_size, train=train)
         feed_dicts, batched_trans_sentences = encoder_trans.feed_dict(trans_sentences, batch_size, train=train, dicts=feed_dicts)
@@ -154,7 +156,7 @@ if __name__ == "__main__":
     val_feed_dicts, batched_val_tgt_sentences, batched_val_trans_sentences = \
             get_feed_dicts(val_src_sentences, val_trans_sentences, val_tgt_sentences,
                     val_images,
-                    args.batch_size, train=False)
+                    run_batch_size, train=False)
     train_feed_dicts, batched_train_tgt_sentences, batched_train_trans_sentences = \
             get_feed_dicts(train_src_sentences, train_trans_sentences, train_tgt_sentences,
                     train_images, args.batch_size, train=True)
@@ -162,7 +164,7 @@ if __name__ == "__main__":
     if args.test_output_file:
         test_feed_dicts, _, batched_test_trans_sentences = \
                 get_feed_dicts(test_src_sentences, test_trans_sentences, None,
-                    test_images, args.batch_size, train=False)
+                    test_images, run_batch_size, train=False)
         training_loop(sess, tgt_vocabulary, args.epochs, trainer, decoder,
                       train_feed_dicts, batched_train_tgt_sentences,
                       val_feed_dicts, batched_val_tgt_sentences, postedit,
