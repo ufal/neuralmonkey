@@ -207,7 +207,7 @@ class Decoder:
                     # Equation 8 in the paper ... in shape of source sentence (batch x time)
                     copy_logits_in_time = tf.reduce_sum(projected_inputs * tf.expand_dims(state, 1), [2])
                     # mask out the padding in exponential domain
-                    copy_logits_in_time_exp_masked = tf.exp(copy_logits_in_time) * copy_mask
+                    copy_logits_in_time_exp_masked = tf.exp(tf.minimum([[87.0]], copy_logits_in_time)) * copy_mask
 
                     #  ... in shape of vocabulary (batch x time x vocabulary)
                     copy_logits_in_vocabulary = \
@@ -218,7 +218,7 @@ class Decoder:
 
                     logits_exp = copy_logits_exp + tf.exp(generate_logits)
 
-                    return tf.log(logits_exp), copy_logits_in_time
+                    return tf.log(tf.maximum([[1e-45]], logits_exp)), copy_logits_in_time
 
                 logit_function = copy_net_logit_function
 
