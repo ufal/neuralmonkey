@@ -16,6 +16,7 @@ class SentenceEncoder(object):
                     [tf.placeholder(tf.int32, shape=[None], name="input_{}".format(i)) for i in range(max_input_len + 2)]
             self.weight_ins = \
                     [tf.placeholder(tf.float32, shape=[None], name="input_{}".format(i)) for i in range(max_input_len + 2)]
+            self.weight_tensor = tf.concat(1, [tf.expand_dims(w, 1) for w in self.weight_ins])
             self.sentence_lengths = tf.to_int64(sum(self.weight_ins))
 
             if parent_encoder:
@@ -51,7 +52,7 @@ class SentenceEncoder(object):
             self.attention_object = attention_type(self.attention_tensor,
                                                    scope="attention_{}".format(name),
                                                    dropout_placeholder=dropout_placeholder,
-                                                   input_weights=tf.concat(1, [tf.expand_dims(w, 1) for w in self.weight_ins]),
+                                                   input_weights=self.weight_tensor,
                                                    max_fertility=attention_fertility) if attention_type else None
 
 

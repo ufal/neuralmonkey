@@ -100,7 +100,7 @@ if __name__ == "__main__":
 
     copy_net = None
     if args.use_copy_net:
-        copy_net = (encoder_trans.inputs, encoder_trans.attention_tensor)
+        copy_net = (encoder_trans.inputs, encoder_trans.attention_tensor, encoder_trans.weight_tensor)
 
     if args.shared_embeddings:
         reused_word_embeddings = encoder_trans.word_embeddings

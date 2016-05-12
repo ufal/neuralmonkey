@@ -57,9 +57,10 @@ class Decoder:
             dropoout_placeholder: If not None, dropout with this placeholder's
                 keep probablity will be applied on the logits
 
-            copy_net: Pair of (i) list of indices to the target vocabulary
+            copy_net: Tuple of (i) list of indices to the target vocabulary
                 (most likely input placeholders of a different encoder) and (ii) he
-                tensor over which the copying will be done
+                tensor over which the copying will be done, and (iii) mask telling
+                which words part of the input
 
             reused_word_embeddings: The decoder can be given the matrix of word
                 embeddings from outside (if the vocabulary indexing is the same).
@@ -163,7 +164,7 @@ class Decoder:
 
             if copy_net:
                 # This is implementation of Copy-net (http://arxiv.org/pdf/1603.06393v2.pdf)
-                encoder_input_indices, copy_states = copy_net
+                encoder_input_indices, copy_states, copy_mask = copy_net
                 copy_tensor_dropped = tf.nn.dropout(copy_states, dropout_placeholder)
                 copy_tensors = [tf.squeeze(t, [1]) for t in tf.split(1, max_out_len + 2, copy_tensor_dropped)]
                 copy_features_size = copy_states.get_shape()[2].value
@@ -205,12 +206,15 @@ class Decoder:
 
                     # Equation 8 in the paper ... in shape of source sentence (batch x time)
                     copy_logits_in_time = tf.reduce_sum(projected_inputs * tf.expand_dims(state, 1), [2])
+                    # mask out the padding in exponential domain
+                    copy_logits_in_time_exp_masked = tf.exp(copy_logits_in_time) * copy_mask
 
                     #  ... in shape of vocabulary (batch x time x vocabulary)
-                    copy_logits_in_vocabulary = vocabulary_shaped_indices * tf.expand_dims(copy_logits_in_time, 2)
+                    copy_logits_in_vocabulary = \
+                        vocabulary_shaped_indices * tf.expand_dims(copy_logits_in_time_exp_masked, 2)
 
                     # Equation 6 without normalization
-                    copy_logits_exp = tf.reduce_sum(tf.exp(copy_logits_in_vocabulary), [1])
+                    copy_logits_exp = tf.reduce_sum(copy_logits_in_vocabulary, [1])
 
                     logits_exp = copy_logits_exp + tf.exp(generate_logits)
 
