@@ -74,7 +74,7 @@ class Attention(object):
 
             s = self.get_logits(y)
 
-            if not self.input_weights:
+            if self.input_weights is None:
                 a = tf.nn.softmax(s)
             else:
                 a_all = tf.nn.softmax(s) * self.input_weights
