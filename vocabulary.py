@@ -89,7 +89,7 @@ class Vocabulary(object):
         word_indices = [np.zeros([len(sentences)], dtype=np.int) for _ in range(max_len + 2)]
         weights = [np.zeros([len(sentences)]) for _ in range(max_len + 1)]
 
-        word_indices[0] += self.get_word_index("<s>")
+        word_indices[0] = self.get_word_index("<s>")
 
         for i in range(max_len + 1):
             for j, sent in enumerate(sentences):
