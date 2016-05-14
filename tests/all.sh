@@ -1,5 +1,5 @@
 #!/bin/bash
 
 ./tests/translation.sh
-./tests/translation.sh --beamsearch
+./tests/translation.sh --beamsearch=True
 
