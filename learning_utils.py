@@ -52,7 +52,8 @@ def training_loop(sess, epochs, trainer, all_coders, decoder, batch_size,
                   use_copynet=False,
                   test_dataset=None,
                   use_beamsearch=False,
-                  initial_variables=None):
+                  initial_variables=None,
+                  test_run=False):
 
     """
 
@@ -226,7 +227,7 @@ def training_loop(sess, epochs, trainer, all_coders, decoder, batch_size,
                 else:
                     trainer.run(sess, batch_feed_dict, batch_sentences, verbose=False)
 
-                if step % 500 == 499:
+                if step % 500 == (61 if test_run else 499):
                     decoded_val_sentences = []
 
                     for val_batch_n, (val_batch_feed_dict) in enumerate(val_feed_dicts):
