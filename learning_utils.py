@@ -271,7 +271,7 @@ def training_loop(sess, epochs, trainer, all_coders, decoder, batch_size,
                     for val_batch_n, (val_batch_feed_dict) in enumerate(val_feed_dicts):   
                         if use_beamsearch:
                              decoded_s = beamsearch(sess, decoder, val_batch_feed_dict)
-                             decoded_val_sentences_batch = [[vocabulary.index_to_word[i] for i in decoded_s]]
+                             decoded_val_sentences_batch = [[vocabulary.index_to_word[i] for i in decoded_s[1:]]]
                              if val_batch_n % 100 == 99:
                                  log("Beamsearch: " + str(val_batch_n + 1) + " sentences done.")
                         else:
