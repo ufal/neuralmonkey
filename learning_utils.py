@@ -268,10 +268,12 @@ def training_loop(sess, epochs, trainer, all_coders, decoder, batch_size,
                 if step % 500 == (61 if test_run else 499):
                     decoded_val_sentences = []
 
-                    for val_batch_n, (val_batch_feed_dict) in enumerate(val_feed_dicts):
-                        if use_beamsearch and val_batch_n % 100 == 99:
-                             decoded_val_sentences.append(beamsearch(val_batch_feed_dict))
-                             log("Beamsearch: " + str(val_batch_n) + " sentences done.")
+                    for val_batch_n, (val_batch_feed_dict) in enumerate(val_feed_dicts):   
+                        if use_beamsearch:
+                             decoded_s = beamsearch(sess, decoder, val_batch_feed_dict)
+                             decoded_val_sentences_batch = [[vocabulary.index_to_word[i] for i in decoded_s]]
+                             if val_batch_n % 100 == 99:
+                                 log("Beamsearch: " + str(val_batch_n + 1) + " sentences done.")
                         else:
                             computation = sess.run([decoder.loss_with_decoded_ins,
                                                     decoder.loss_with_gt_ins, trainer.summary_val] \
@@ -301,8 +303,11 @@ def training_loop(sess, epochs, trainer, all_coders, decoder, batch_size,
 
                     print ""
                     log("Validation (epoch {}, batch number {}):".format(i + 1, batch_n), color='cyan')
-                    log("opt. loss: {:.4f}    dec. loss: {:.4f}    "\
-                            .format(computation[1], computation[0]) + eval_string, color='cyan')
+                    if not use_beamsearch:
+                        log("opt. loss: {:.4f}    dec. loss: {:.4f}    "\
+                                .format(computation[1], computation[0]) + eval_string, color='cyan')
+                    else:
+                        log(eval_string, color='cyan')
                     log("max {} on validation: {:.2f} (in epoch {}, after batch number {})".\
                             format(evaluation_labels[-1], max_score,
                                    max_score_epoch, max_score_batch_no), color='cyan')
@@ -315,9 +320,10 @@ def training_loop(sess, epochs, trainer, all_coders, decoder, batch_size,
                     print ""
 
                     if log_directory:
-                        summary_str = computation[2]
-                        tb_writer.add_summary(summary_str, seen_instances)
-                        tb_writer.add_summary(external_str, seen_instances)
+                        if not use_beamsearch:
+                            summary_str = computation[2]
+                            tb_writer.add_summary(summary_str, seen_instances)
+                            tb_writer.add_summary(external_str, seen_instances)
                         external_str = \
                             tf.Summary(value=[tf.Summary.Value(tag="val_"+name, simple_value=value)\
                                               for name, value in zip(evaluation_labels,
