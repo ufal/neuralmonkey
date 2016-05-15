@@ -9,7 +9,8 @@ except:
     pass
 
 class Vocabulary(object):
-    def __init__(self, tokenized_text=None): # type: List[str] -> Vocabulary
+    def __init__(self, tokenized_text=None, random_seed=None):
+        # type: (List[str], int) -> None
         self.word_to_index = {}
         self.index_to_word = []
         self.word_count = {}
@@ -18,6 +19,7 @@ class Vocabulary(object):
 
         if tokenized_text:
             self.add_tokenized_text(tokenized_text)
+        random.seed(random_seed)
 
     def add_word(self, word): # type: str -> None
         if word not in self.word_to_index:
