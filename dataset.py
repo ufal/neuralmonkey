@@ -64,11 +64,16 @@ class Dataset(object):
 
         self.series = {name: create_serie(name, args[name]) for name in series_names}
 
+        assert len(set([len(v) for v in self.series.values()])) == 1
+
         self.series_languages = {}
         for name, serie in self.series.iteritems():
             if isinstance(serie, list) and name+"_lng" in args:
                 language = args[name+"_lng"]
                 self.series_languages[name] = language
+
+    def __len__(self):
+        return len(self.series.values()[0])
 
     def create_vocabularies(self, max_vocabulary_size=None):
         """
@@ -96,3 +101,9 @@ class Dataset(object):
     def shuffle(self):
         """ Shuffles the dataset randomly """
         pass
+
+    def batch_serie(self, serie_name, batch_size):
+        """ Splits a data serie into batches """
+        serie = self.series[serie_name]
+        for start in range(0, len(self.series), batch_size):
+            yield serie[start:start+batch_size]

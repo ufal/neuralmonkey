@@ -9,9 +9,9 @@ from learning_utils import log
 from noisy_gru_cell import NoisyGRUCell
 
 class Decoder:
-    def __init__(self, encoders, vocabulary, rnn_size, is_training, embedding_size=128, use_attention=None,
-                 max_out_len=20, use_peepholes=False, scheduled_sampling=None,
-                 dropout_placeholder=None, copy_net=None, reused_word_embeddings=None,
+    def __init__(self, encoders, vocabulary, data_id, rnn_size, embedding_size=128, use_attention=None,
+                 max_out_len=20, scheduled_sampling=None,
+                 dropout_keep_p=0.5, copy_net=None, reused_word_embeddings=None,
                  use_noisy_activations=False, depth=1):
 
         """
@@ -34,10 +34,9 @@ class Decoder:
 
             vocabulary: Vocabulary used for decoding
 
-            rnn_size: Size of the RNN state.
+            data_id:
 
-            is_training: Placeholder for boolean telling whether we are in the
-                training or testing stage.
+            rnn_size: Size of the RNN state.
 
             embedding_size (int): Dimensionality of the word
                 embeddings used during decoding.
@@ -54,8 +53,7 @@ class Decoder:
                 scheduled sampling. If set to None, linear combination of the
                 decoded and supervised loss is used as a cost function.
 
-            dropoout_placeholder: If not None, dropout with this placeholder's
-                keep probablity will be applied on the logits
+            dropoout_keep_p:
 
             copy_net: Tuple of (i) list of indices to the target vocabulary
                 (most likely input placeholders of a different encoder) and (ii) he
@@ -95,9 +93,13 @@ class Decoder:
 
         """
 
+        self.data_id = data_id
+        self.dropout_keep_p = dropout_keep_p
         self.vocabulary = vocabulary
         self.rnn_size = rnn_size
         self.max_output_len = max_out_len
+        self.dropout_placeholder = tf.placeholder(tf.float32, name="decoder_dropout_plc")
+        self.is_training = tf.placeholder(tf.bool, name="decoder_is_training")
 
         if len(encoders) == 1 and rnn_size == encoders[0].encoded.get_shape()[1].value:
             encoded = encoders[0].encoded
@@ -106,8 +108,9 @@ class Decoder:
             with tf.variable_scope("encoders_projection"):
                 encoded_concat = tf.concat(1, [e.encoded for e in encoders])
                 concat_size = encoded_concat.get_shape()[1].value
-                proj = tf.get_variable(name="project_encoders", shape=[concat_size, depth * rnn_size])
-                encoded_concat_dropped = tf.nn.dropout(encoded_concat, dropout_placeholder)
+                proj = tf.get_variable(name="project_encoders",
+                                       shape=[concat_size, depth * rnn_size])
+                encoded_concat_dropped = tf.nn.dropout(encoded_concat, self.dropout_placeholder)
                 proj_bias = tf.Variable(tf.zeros([depth * rnn_size]))
                 encoded = tf.matmul(encoded_concat_dropped, proj) + proj_bias
         elif len(encoders) == 0: # if we want to train just LM
@@ -150,13 +153,11 @@ class Decoder:
             embedded_gt_inputs = \
                     [tf.nn.embedding_lookup(decoding_EM, o) for o in self.gt_inputs[:-1]]
 
-            if dropout_placeholder is not None:
-                embedded_gt_inputs = \
-                    [tf.nn.dropout(i, dropout_placeholder) for i in embedded_gt_inputs]
+            embedded_gt_inputs = \
+                [tf.nn.dropout(i, self.dropout_placeholder) for i in embedded_gt_inputs]
 
             def standard_logits(state):
-                if dropout_placeholder is not None:
-                    state = tf.nn.dropout(state, dropout_placeholder)
+                state = tf.nn.dropout(state, self.dropout_placeholder)
                 return tf.matmul(state, decoding_W) + decoding_B, None
 
             logit_function = standard_logits
@@ -165,7 +166,7 @@ class Decoder:
             if copy_net:
                 # This is implementation of Copy-net (http://arxiv.org/pdf/1603.06393v2.pdf)
                 encoder_input_indices, copy_states, copy_mask = copy_net
-                copy_tensor_dropped = tf.nn.dropout(copy_states, dropout_placeholder)
+                copy_tensor_dropped = tf.nn.dropout(copy_states, self.dropout_placeholder)
                 copy_tensors = [tf.squeeze(t, [1]) for t in tf.split(1, max_out_len + 2, copy_tensor_dropped)]
                 copy_features_size = copy_states.get_shape()[2].value
 
@@ -194,8 +195,7 @@ class Decoder:
                 vocabulary_shaped_indices = tf.concat(1, [tf.expand_dims(v, 1) for v in vocabulary_shaped_list])
 
                 def copy_net_logit_function(state):
-                    if dropout_placeholder is not None:
-                        state = tf.nn.dropout(state, dropout_placeholder)
+                    state = tf.nn.dropout(state, self.dropout_placeholder)
                     # the logits for generating the next word are computed in the standard way
                     generate_logits = tf.matmul(state, decoding_W) + decoding_B
 
@@ -229,10 +229,7 @@ class Decoder:
                 prev_word_index = tf.argmax(out_activation, 1)
                 next_step_embedding = \
                         tf.nn.embedding_lookup(decoding_EM, prev_word_index)
-                if dropout_placeholder is not None:
-                    return tf.nn.dropout(next_step_embedding, dropout_placeholder)
-                else:
-                    return next_step_embedding
+                return tf.nn.dropout(next_step_embedding, self.dropout_placeholder)
 
             def sampling_loop(prev_state, i):
                 """
@@ -247,20 +244,20 @@ class Decoder:
 
             def get_rnn_cell(input_size=rnn_size):
                 if use_noisy_activations:
-                    return NoisyGRUCell(rnn_size, training=is_training, input_size=input_size)
+                    return NoisyGRUCell(rnn_size, training=self.is_training, input_size=input_size)
                 else:
                     return rnn_cell.GRUCell(rnn_size, input_size=input_size)
 
             decoder_cells = [get_rnn_cell(input_size=embedding_size)]
             for _ in range(1, depth):
-                decoder_cells[-1] = rnn_cell.DropoutWrapper(decoder_cells[-1], output_keep_prob=dropout_placeholder)
+                decoder_cells[-1] = rnn_cell.DropoutWrapper(decoder_cells[-1], output_keep_prob=self.dropout_placeholder)
                 decoder_cells.append(get_rnn_cell())
 
             decoder_cell = rnn_cell.MultiRNNCell(decoder_cells)
 
             gt_loop_function = sampling_loop if scheduled_sampling else None
 
-            encoded = tf.nn.dropout(encoded, dropout_placeholder)
+            encoded = tf.nn.dropout(encoded, self.dropout_placeholder)
 
             if use_attention:
                 attention_objects = [e.attention_object for e in encoders if e.attention_object]
@@ -288,7 +285,6 @@ class Decoder:
                                   loop_function=loop)
 
             self.hidden_states = rnn_outputs_decoded_ins
-
 
         def get_decoded(rnn_outputs):
             logits = []
@@ -331,8 +327,9 @@ class Decoder:
         tf.scalar_summary('val_optimization_cost', self.cost, collections=["summary_val"])
         tf.scalar_summary('train_optimization_cost', self.cost, collections=["summary_train"])
 
-
-    def feed_dict(self, sentences, data_size, batch_size, dicts=None):
+    def feed_dict(self, dataset, batch_size, train=False, dicts=None):
+        data_size = len(dataset)
+        sentences = dataset.series.get(self.data_id)
 
         if dicts == None:
             dicts = [{} for _ in range(data_size / batch_size + int(data_size % batch_size > 0))]
@@ -356,14 +353,13 @@ class Decoder:
 
             fd[self.go_symbols] = np.ones(batch_actual_size)
 
+            if train:
+                fd[self.dropout_placeholder] = self.dropout_keep_p
+            else:
+                fd[self.dropout_placeholder] = 1.0
+
         if sentences is not None:
             return dicts, batched_sentences
         else:
             return dicts, None
-
-    def feed_dict_unknown_target(self, data_size, batch_size, dicts=None):
-        return self.feed_dict(None, data_size, batch_size, dicts)
-
-    def feed_dict_with_gt_target(self, sentences, batch_size, dicts=None):
-        return self.feed_dict(sentences, len(sentences), batch_size, dicts)
 

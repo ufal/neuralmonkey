@@ -1,9 +1,10 @@
-import tensorflow as tf
+import os
+import time
 import numpy as np
+import tensorflow as tf
 from nltk.tokenize import word_tokenize
 from termcolor import colored
 import regex as re
-import os, time, random
 
 def log(message, color='yellow'):
     print "{}: {}".format(colored(time.strftime("%Y-%m-%d %H:%M:%S"), color), message)
@@ -21,7 +22,7 @@ def print_header(title, args):
     print ""
     for arg in vars(args):
         value = getattr(args, arg)
-        if type(value) == file:
+        if isinstance(value, file):
             value_str = value.name
         else:
             value_str = str(value)
@@ -53,59 +54,31 @@ def load_tokenized(text_file, preprocess=None):
     return [preprocess(re.split(ur"[ ]", l.rstrip())) for l in text_file]
 
 
-
-def load_char_based(test_file):
-    """
-    Loads a tokenized text for character-based decoding.
-    """
-    pass
-
-
 def tokenize_char_seq(chars):
     return word_tokenize("".join(chars))
 
 
-def corpus_bleu_deduplicated_unigrams(batch_sentences, decoded_sentences,
-                                      weights, smoothing_function):
+def feed_dicts(dataset, batch_size, coders, train=False):
+    """
 
-    deduplicated_sentences = []
+    This function ensures all encoder and decoder objects feed their the data
+    they need from the dataset.
+    """
+    dicts = [{} for _ in range(len(dataset) / batch_size + int(len(dataset) % batch_size > 0))]
 
-    for sentence in decoded_sentences:
+    for coder in coders:
+        coder.feed_dict(dataset, batch_size, dicts=dicts, train=train)
 
-        last_w = None
-        dedup_snt = []
+    return dicts
 
-        for word in sentence:
-            if word != last_w:
-                dedup_snt.append(word)
-                last_w = word
+# TODO postprocess, copynet, beamsearch will be hidden in runner
 
-        deduplicated_sentences.append(dedup_snt)
-
-    return corpus_bleu(batch_sentences, deduplicated_sentences, weights,
-                       smoothing_function)
-
-
-def feed_dropout_and_train(dicts, dropout_placeholder, dropout_value,
-        training_placeholder, is_training):
-    for d in dicts:
-        d[training_placeholder] = is_training
-        if is_training:
-            d[dropout_placeholder] = dropout_value
-        else:
-            d[dropout_placeholder] = 1.0
-
-
-
-def training_loop(sess, vocabulary, epochs, trainer,
-                  decoder, train_feed_dicts, train_tgt_sentences,
-                  val_feed_dicts, val_tgt_sentences,
+def training_loop(sess, epochs, trainer, all_coders, decoder, batch_size,
+                  train_dataset, val_dataset,
                   postprocess, tensorboard_log,
                   evaluation_functions,
                   use_copynet,
-                  batched_train_copy_sentences, batched_val_copy_sentences,
-                  test_feed_dicts=None, batched_test_copy_sentences=None, test_output_file=None,
-                  char_based=False,
+                  test_dataset=None,
                   use_beamsearch=False,
                   initial_variables=None):
 
@@ -117,8 +90,6 @@ def training_loop(sess, vocabulary, epochs, trainer,
 
         sess: TF Session.
 
-        vocabulary: Vocabulary used on the decoder side.
-
         epochs: Number of epochs for which the algoritm will learn.
 
         trainer: The trainer object containg the TensorFlow code for computing
@@ -126,22 +97,9 @@ def training_loop(sess, vocabulary, epochs, trainer,
 
         decoder: The decoder object.
 
-        train_feed_dicts: List of feed dictionaires for training batches.
+        train_dataset:
 
-        train_tgt_sentences: List of batches of target training sentences for
-            BLEU computation. Each sentence must be clsoed in one additional list
-            (potentially more reference sentences for BLEU computation). Even if
-            the character based decoding is done, these must be tokenized
-            sentences.
-
-        val_feed_dict: List of feed dictionaries for validation data batches.
-
-        val_tgt_sentences: List of batches (=lists) of validation target
-            sentences for BLEU computation.  Lists of lists (there may be multiple
-            references for a sentece) of list of words. Each sentence must be
-            clsoed in one additional list (potentially more reference sentences for
-            BLEU computation). Even if the character based decoding is done, these
-            must be tokenized sentences.
+        val_dataset:
 
         postprocess: Function that takes the output sentence as produced by the
             decoder and transforms into tokenized sentence.
@@ -155,11 +113,7 @@ def training_loop(sess, vocabulary, epochs, trainer,
 
         use_copynet: Flag whether the copying mechanism is used.
 
-        batched_train_copy_sentences: Batched training sentences from which we
-            copy tokens if copy mechanism is used.
-
-        batched_val_copy_sentences: Batched validation sentences from which we
-            copy if copy mechanism is used.
+        use_beamsearch:
 
         initial_variables: Either None or file where the variables are stored.
             Training then starts from the point the loaded values.
@@ -185,7 +139,6 @@ def training_loop(sess, vocabulary, epochs, trainer,
     max_score = 0.0
     max_score_epoch = 0
     max_score_batch_no = 0
-    val_tgt_sentences_flatten = [s for batch in val_tgt_sentences for s in batch]
 
     def expand(feed_dict, state, hypotheses):
         feed_dict[decoder.encoded] = state
@@ -211,8 +164,8 @@ def training_loop(sess, vocabulary, epochs, trainer,
             for k in range(hyp_count):
                 feed_dict[decoder_in][k] = hypotheses[k][1][i]
         probs, prob_i = sess.run([decoder.top10_probs[hyp_len - 1][0],
-                         decoder.top10_probs[hyp_len - 1][1]],
-                         feed_dict=feed_dict)
+                                  decoder.top10_probs[hyp_len - 1][1]],
+                                 feed_dict=feed_dict)
         beam = []
         for i in range(hyp_count):
             for p, x in zip(probs[i], prob_i[i]):
@@ -223,9 +176,9 @@ def training_loop(sess, vocabulary, epochs, trainer,
         beam = [(1.0, [1])]
         state = sess.run(decoder.encoded, fd)
         for _ in range(len(decoder.decoded_probs)):
-             new_beam = expand(fd, state, beam)
-             new_beam.sort(reverse=True)
-             beam = new_beam[:10]
+            new_beam = expand(fd, state, beam)
+            new_beam.sort(reverse=True)
+            beam = new_beam[:10]
         return beam[0][1]
 
     def copynet_substitute(decoded_sentences, copy_sentences, computation):
@@ -249,18 +202,20 @@ def training_loop(sess, vocabulary, epochs, trainer,
 
         return decoded_sentences
 
-    zipped_train_data = \
-            zip(train_feed_dicts, train_tgt_sentences, batched_train_copy_sentences)
+    val_feed_dicts = feed_dicts(val_dataset, batch_size, all_coders, train=False)
+    val_tgt_sentences = val_dataset.series[decoder.data_id]
 
     try:
         for i in range(epochs):
             print ""
             log("Epoch {} starts".format(i + 1), color='red')
 
-            random.shuffle(zipped_train_data)
+            train_dataset.shuffle()
+            train_feed_dicts = feed_dicts(train_dataset, batch_size, all_coders, train=True)
+            batched_targets = train_dataset.batch_serie(decoder.data_id, batch_size)
 
-            for batch_n, (batch_feed_dict, batch_sentences, batch_copy_sentences) in \
-                    enumerate(zipped_train_data):
+            for batch_n, (batch_feed_dict, batch_sentences) in \
+                    enumerate(train_feed_dicts, batched_targets):
 
                 step += 1
                 seen_instances += len(batch_sentences)
@@ -268,16 +223,11 @@ def training_loop(sess, vocabulary, epochs, trainer,
 
                     computation = trainer.run(sess, batch_feed_dict, batch_sentences, verbose=True)
 
-                    decoded_sentences = vocabulary.vectors_to_sentences(computation[-decoder.max_output_len - 1:])
-                    if use_copynet:
-                        decoded_sentences = copynet_substitute(decoded_sentences, batch_copy_sentences, computation)
+                    decoded_sentences = \
+                            decoder.vocabulary.vectors_to_sentences(\
+                            computation[-decoder.max_output_len - 1:])
 
                     decoded_sentences = [postprocess(s) for s in decoded_sentences]
-
-
-                    if char_based:
-                        decoded_sentences = \
-                                [tokenize_char_seq(chars) for chars in decoded_sentences]
 
                     evaluation_result = \
                             [f(decoded_sentences, batch_sentences) for f in evaluation_functions]
@@ -285,14 +235,17 @@ def training_loop(sess, vocabulary, epochs, trainer,
                     eval_string = "    ".join(["{}: {:.2f}".format(name, value) for name, value \
                         in zip(evaluation_labels, evaluation_result)])
 
-                    log("opt. loss: {:.4f}    dec. loss: {:.4f}    ".format(computation[2], computation[1]) + eval_string)
+                    log("opt. loss: {:.4f}    dec. loss: {:.4f}    ".\
+                            format(computation[2], computation[1]) + eval_string)
 
                     if tensorboard_log:
                         summary_str = computation[3]
                         tb_writer.add_summary(summary_str, seen_instances)
                         #histograms_str = computation[4]
                         #tb_writer.add_summary(histograms_str, seen_instances)
-                        external_str = tf.Summary(value=[tf.Summary.Value(tag="train_"+name, simple_value=value) \
+                        external_str = \
+                                tf.Summary(value=[tf.Summary.Value(tag="train_"+name,
+                                                                   simple_value=value) \
                                 for name, value in zip(evaluation_labels, evaluation_result)])
 
                         tb_writer.add_summary(external_str, seen_instances)
@@ -302,32 +255,26 @@ def training_loop(sess, vocabulary, epochs, trainer,
                 if step % 500 == 499:
                     decoded_val_sentences = []
 
-                    for val_batch_n, (val_batch_feed_dict, val_batch_sentences, val_copy_sentences) in \
-                        enumerate (zip(val_feed_dicts, val_tgt_sentences, batched_val_copy_sentences)):
-
-
+                    for val_batch_n, (val_batch_feed_dict) in enumerate(val_feed_dicts):
                         if use_beamsearch and val_batch_n % 100 == 99:
                              decoded_val_sentences.append(beamsearch(val_batch_feed_dict))
                              log("Beamsearch: " + str(val_batch_n) + " sentences done.")
                         else:
                             computation = sess.run([decoder.loss_with_decoded_ins,
-                                decoder.loss_with_gt_ins, trainer.summary_val] \
-                                    + decoder.copynet_logits + decoder.decoded_seq, feed_dict=val_batch_feed_dict)
-                            decoded_val_sentences_batch = vocabulary.vectors_to_sentences(computation[-decoder.max_output_len - 1:])
+                                                    decoder.loss_with_gt_ins, trainer.summary_val] \
+                                                     + decoder.copynet_logits + decoder.decoded_seq,
+                                                   feed_dict=val_batch_feed_dict)
+                            decoded_val_sentences_batch = decoder.vocabulary.vectors_to_sentences(computation[-decoder.max_output_len - 1:])
 
-                            if use_copynet: # TODO beamsearch nefunguje s copynetem
-                                decoded_val_sentences_batch = \
-                                        copynet_substitute(decoded_val_sentences_batch, val_copy_sentences, computation)
+                            #if use_copynet: # TODO beamsearch nefunguje s copynetem
+                            #    decoded_val_sentences_batch = \
+                            #            copynet_substitute(decoded_val_sentences_batch, val_copy_sentences, computation)
 
-                        decoded_val_sentences += [postprocess(s) for s in decoded_val_sentences_batch]
+                        decoded_val_sentences += decoded_val_sentences_batch
 
-                    if char_based:
-                        decoded_val_sentences = \
-                                [tokenize_char_seq(chars) for chars in decoded_val_sentences]
-
-
+                    decoded_val_sentences = [postprocess(s) for s in decoded_val_sentences]
                     evaluation_result = \
-                            [f(decoded_val_sentences, val_tgt_sentences_flatten) for f in evaluation_functions]
+                            [f(decoded_val_sentences, val_tgt_sentences) for f in evaluation_functions]
 
                     eval_string = "    ".join(["{}: {:.2f}".format(name, value) for name, value \
                         in zip(evaluation_labels, evaluation_result)])
@@ -344,11 +291,12 @@ def training_loop(sess, vocabulary, epochs, trainer,
                     log("opt. loss: {:.4f}    dec. loss: {:.4f}    "\
                             .format(computation[1], computation[0]) + eval_string, color='cyan')
                     log("max {} on validation: {:.2f} (in epoch {}, after batch number {})".\
-                            format(evaluation_labels[-1], max_score, max_score_epoch, max_score_batch_no), color='cyan')
+                            format(evaluation_labels[-1], max_score,
+                                   max_score_epoch, max_score_batch_no), color='cyan')
 
                     print ""
                     print "Examples:"
-                    for sent, ref_sent in zip(decoded_val_sentences[:15], val_tgt_sentences_flatten):
+                    for sent, ref_sent in zip(decoded_val_sentences[:15], val_tgt_sentences):
                         print "    {}".format(" ".join(sent))
                         print colored("      ref.: {}".format(" ".join(ref_sent)), color="magenta")
                     print ""
@@ -357,8 +305,10 @@ def training_loop(sess, vocabulary, epochs, trainer,
                         summary_str = computation[2]
                         tb_writer.add_summary(summary_str, seen_instances)
                         tb_writer.add_summary(external_str, seen_instances)
-                        external_str = tf.Summary(value=[tf.Summary.Value(tag="val_"+name, simple_value=value) \
-                                for name, value in zip(evaluation_labels, evaluation_result)])
+                        external_str = \
+                            tf.Summary(value=[tf.Summary.Value(tag="val_"+name, simple_value=value)\
+                                              for name, value in zip(evaluation_labels,
+                                                                     evaluation_result)])
 
                         tb_writer.add_summary(external_str, seen_instances)
     except KeyboardInterrupt:
@@ -367,31 +317,31 @@ def training_loop(sess, vocabulary, epochs, trainer,
     saver.restore(sess, tmp_save_file)
     log("Training finished. Maximum {} on validation data: {:.2f}, epoch {}".format(evaluation_labels[-1], max_score, max_score_epoch))
 
-    if test_feed_dicts and batched_test_copy_sentences and test_output_file:
-        log("Translating test data and writing to {}".format(test_output_file))
-        decoded_test_sentences = []
-
-        for i, (test_feed_dict, test_copy_sentences) in enumerate(zip(test_feed_dicts, batched_test_copy_sentences)):
-            if use_beamsearch:
-                 decoded_test_sentence_indices = beamsearch(test_feed_dict)
-                 decoded_test_sentences_batch = [[decoder.vocabulary.index_to_word[i] \
-                         for i in decoded_test_sentence_indices][1:]]
-                 log(decoded_test_sentences_batch)
-            else:
-                computation = sess.run(decoder.copynet_logits + decoder.decoded_seq, feed_dict=test_feed_dict)
-                decoded_test_sentences_batch = vocabulary.vectors_to_sentences(computation[-decoder.max_output_len - 1:])
-
-                if use_copynet: # TODO beamsearch (porad) nefunguje s copynetem
-                    decoded_test_sentences_batch = \
-                        copynet_substitute(decoded_test_sentences_batch, test_copy_sentences, computation)
-
-            decoded_test_sentences += [postprocess(s) for s in decoded_test_sentences_batch]
-
-            with open(test_output_file.name, test_output_file.mode) as fout:
-
-                for sent in decoded_test_sentences:
-                    fout.write("{}\n".format(" ".join(sent)))
-                fout.close()
+#    if test_feed_dicts and batched_test_copy_sentences and test_output_file:
+#        log("Translating test data and writing to {}".format(test_output_file))
+#        decoded_test_sentences = []
+#
+#        for i, (test_feed_dict, test_copy_sentences) in enumerate(zip(test_feed_dicts, batched_test_copy_sentences)):
+#            if use_beamsearch:
+#                 decoded_test_sentence_indices = beamsearch(test_feed_dict)
+#                 decoded_test_sentences_batch = [[decoder.decoder.vocabulary.index_to_word[i] \
+#                         for i in decoded_test_sentence_indices][1:]]
+#                 log(decoded_test_sentences_batch)
+#            else:
+#                computation = sess.run(decoder.copynet_logits + decoder.decoded_seq, feed_dict=test_feed_dict)
+#                decoded_test_sentences_batch = decoder.vocabulary.vectors_to_sentences(computation[-decoder.max_output_len - 1:])
+#
+#                #if use_copynet: # TODO beamsearch (porad) nefunguje s copynetem
+#                #    decoded_test_sentences_batch = \
+#                #        copynet_substitute(decoded_test_sentences_batch, test_copy_sentences, computation)
+#
+#            decoded_test_sentences += [postprocess(s) for s in decoded_test_sentences_batch]
+#
+#            with open(test_output_file.name, test_output_file.mode) as fout:
+#
+#                for sent in decoded_test_sentences:
+#                    fout.write("{}\n".format(" ".join(sent)))
+#                fout.close()
 
     log("Finished.")
 
