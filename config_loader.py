@@ -4,8 +4,8 @@ This module is responsible for loading training configuration.
 
 import sys
 import codecs
-import regex as re
 import collections
+import regex as re
 
 
 OBJECT_NAME = re.compile(r"^\[([a-zA-Z][a-zA-Z0-9_]*)\]$")
@@ -49,12 +49,12 @@ def format_value(string):
         return string
 
 
-def get_config_dicts(f_config):
+def get_config_dicts(config_file):
     """ Parses the INI file into a dictionary """
     config_dicts = dict()
 
     current_name = None
-    for i, line in enumerate(f_config):
+    for i, line in enumerate(config_file):
         line = line.strip()
         if not line:
             pass
@@ -79,9 +79,28 @@ def get_config_dicts(f_config):
     return config_dicts
 
 
+def get_object(value, all_dicts, existing_objects, depth, vocabularies=None):
+    """
+    Constructs an object from dict with its arguments. It works recursively.
 
-def get_object(value, all_dicts, existing_objects, depth):
-    """ Constructs an object from dict with its arguments """
+    Args:
+
+        value: A value that should be resolved (either a singular value or
+            object name)
+
+        all_dicts: Raw configuration dictionaries. It is used to find configuration
+            of unconstructed objects.
+
+        existing_objects: A dictionary for keeping already constructed objects.
+
+        depth: Current depth of recursion. Used to prevent an infinite recursion.
+
+        vocabularies: Dictionary of already constructed vocabularies. If an object
+            that is being create has 'vocabulary' among its arguments its value is
+            a string, the vocabulary is looked up in this dictionary and used as an
+            argument for the constructor.
+
+    """
     if not isinstance(value, basestring) and isinstance(value, collections.Iterable):
         return [get_object(val, all_dicts, existing_objects, depth + 1) for val in value]
     if value in existing_objects:
@@ -99,11 +118,14 @@ def get_object(value, all_dicts, existing_objects, depth):
 
     clazz = this_dict['class']
 
-    def process_arg(arg):
+    def process_arg(key, arg):
         """ Resolves potential references to other objects """
-        return get_object(arg, all_dicts, existing_objects, depth + 1)
+        if key == "vocabulary" and vocabularies and isinstance(arg, basestring):
+            return vocabularies[arg]
+        else:
+            return get_object(arg, all_dicts, existing_objects, depth + 1)
 
-    args = {k: process_arg(arg) for k, arg in this_dict.iteritems() if k != 'class'}
+    args = {k: process_arg(k, arg) for k, arg in this_dict.iteritems() if k != 'class'}
     print clazz
     print args
 
@@ -112,23 +134,36 @@ def get_object(value, all_dicts, existing_objects, depth):
     return result
 
 
-def load_config_file(path):
+def load_config_file(config_file):
     """
     Loads the complete configuration of an experiment.
     """
-    config_dicts = get_config_dicts(f_config)
+    config_dicts = get_config_dicts(config_file)
 
     # first load the configuration into a dictionary
 
     if "main" not in config_dicts:
         raise Exception("Configuration does not contain the main block.")
 
-    # TODO construct datasets
+    if "vocabularies_source" not in config_dicts['main']:
+        raise Exception("Vocabularies source must be specified in the configuration.")
+
+    existing_objects = dict()
+
+    main_config = config_dicts['main']
+    vocabularies_source = \
+            get_object(main_config['vocabularies_source'], config_dicts, existing_objects, 0)
+    max_vocabulary_size = None
+    if 'max_vocabiulary_size' in main_config:
+        max_vocabulary_size = get_object(main_config['max_vocabulary_size'],
+                                         config_dicts, existing_objects, 0)
+    vocabularies = vocabularies_source.create_vocabularies(max_vocabulary_size)
 
     configuration = dict()
-    existing_objects = dict()
-    for key, value in config_dicts['main'].iteritems():
-        configuration[key] = get_object(value, config_dicts, existing_objects, 0)
+    for key, value in main_config.iteritems():
+        configuration[key] = get_object(value, config_dicts,
+                                        existing_objects, 0,
+                                        vocabularies=vocabularies)
 
     return configuration
 
