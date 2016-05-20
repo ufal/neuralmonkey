@@ -4,6 +4,7 @@ import codecs
 import magic
 import numpy as np
 
+from utils import log
 from vocabulary import Vocabulary
 
 class Dataset(object):
@@ -46,9 +47,11 @@ class Dataset(object):
         """
 
         series_names = [k for k in args.keys() if k.find('_') == -1]
+        log("Initializing dataset with: {}".format(", ".join(series_names)))
 
         def create_serie(name, path):
             """ Loads a data serie from a file """
+            log("Loading {}".format(path))
             file_type = magic.from_file(path, mime=True)
             if file_type == 'text/plain':
                 if name+"_preprocess" in args:
@@ -57,7 +60,7 @@ class Dataset(object):
                     preprocess = lambda s: s.split(" ")
 
                 with codecs.open(path, 'r', 'utf-8') as f_data:
-                    return [preprocess(line.rstrip()) for line in f_data]
+                    return list([preprocess(line.rstrip()) for line in f_data])
             elif file_type == 'application/octet-stream':
                 return np.load(path)
 
@@ -71,6 +74,8 @@ class Dataset(object):
             if isinstance(serie, list) and name+"_lng" in args:
                 language = args[name+"_lng"]
                 self.series_languages[name] = language
+
+        log("Dataset loaded, {} examples.".format(len(self)))
 
     def __len__(self):
         return len(self.series.values()[0])
@@ -105,5 +110,5 @@ class Dataset(object):
     def batch_serie(self, serie_name, batch_size):
         """ Splits a data serie into batches """
         serie = self.series[serie_name]
-        for start in range(0, len(self.series), batch_size):
+        for start in range(0, len(serie), batch_size):
             yield serie[start:start+batch_size]

@@ -1,3 +1,4 @@
 regex
 nltk==3.2.0
 termcolor
+python-magic

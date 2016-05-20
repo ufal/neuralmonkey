@@ -4,6 +4,7 @@ import numpy as np
 from tensorflow.models.rnn import seq2seq
 from tensorflow.models.rnn import rnn_cell
 
+from utils import log
 from decoding_function import attention_decoder
 from learning_utils import log
 from noisy_gru_cell import NoisyGRUCell
@@ -12,7 +13,7 @@ class Decoder:
     def __init__(self, encoders, vocabulary, data_id, rnn_size, embedding_size=128, use_attention=None,
                  max_out_len=20, scheduled_sampling=None,
                  dropout_keep_p=0.5, copy_net=None, reused_word_embeddings=None,
-                 use_noisy_activations=False, depth=1):
+                 use_noisy_activations=False, depth=1, name="decoder"):
 
         """
 
@@ -93,6 +94,7 @@ class Decoder:
 
         """
 
+        log("Initializing decoder, name: \"{}\"".format(name))
         self.data_id = data_id
         self.dropout_keep_p = dropout_keep_p
         self.vocabulary = vocabulary
@@ -326,6 +328,8 @@ class Decoder:
 
         tf.scalar_summary('val_optimization_cost', self.cost, collections=["summary_val"])
         tf.scalar_summary('train_optimization_cost', self.cost, collections=["summary_train"])
+
+        log("Decoder initalized.")
 
     def feed_dict(self, dataset, batch_size, train=False, dicts=None):
         data_size = len(dataset)

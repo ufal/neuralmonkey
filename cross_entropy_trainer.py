@@ -1,7 +1,10 @@
 import tensorflow as tf
 
+from utils import log
+
 class CrossEntropyTrainer(object):
     def __init__(self, decoder, l2_regularization):
+        log("Initializing Cross-entropy trainer.")
         self.decoder = decoder
 
         with tf.variable_scope("l2_regularization"):
@@ -32,4 +35,5 @@ class CrossEntropyTrainer(object):
                             feed_dict=fd)
         else:
             return sess.run([self.optimize_op], feed_dict=fd)
+        log("Trainer initialized.")
 

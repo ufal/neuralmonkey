@@ -1,38 +1,10 @@
-import os
-import time
 import numpy as np
 import tensorflow as tf
 from nltk.tokenize import word_tokenize
 from termcolor import colored
 import regex as re
 
-def log(message, color='yellow'):
-    print "{}: {}".format(colored(time.strftime("%Y-%m-%d %H:%M:%S"), color), message)
-
-
-def print_header(title, args):
-    """
-    Prints the title of the experiment and the set of arguments it uses.
-    """
-    print colored("".join("=" for _ in range(80)), 'green')
-    print colored(title.upper(), 'green')
-    print colored("".join("=" for _ in range(80)), 'green')
-    print "Launched at {}".format(time.strftime("%Y-%m-%d %H:%M:%S"))
-
-    print ""
-    for arg in vars(args):
-        value = getattr(args, arg)
-        if isinstance(value, file):
-            value_str = value.name
-        else:
-            value_str = str(value)
-        dots_count = 78 - len(arg) - len(value_str)
-        print "{} {} {}".format(arg, "".join(['.' for _ in range(dots_count)]), value_str)
-    print ""
-
-    os.system("echo last commit: `git log -1 --format=%H`")
-    os.system("git --no-pager diff --color=always")
-    print ""
+from utils import log
 
 
 def load_tokenized(text_file, preprocess=None):
@@ -75,9 +47,9 @@ def feed_dicts(dataset, batch_size, coders, train=False):
 
 def training_loop(sess, epochs, trainer, all_coders, decoder, batch_size,
                   train_dataset, val_dataset,
-                  postprocess, tensorboard_log,
+                  postprocess, log_directory,
                   evaluation_functions,
-                  use_copynet,
+                  use_copynet=False,
                   test_dataset=None,
                   use_beamsearch=False,
                   initial_variables=None):
@@ -104,7 +76,7 @@ def training_loop(sess, epochs, trainer, all_coders, decoder, batch_size,
         postprocess: Function that takes the output sentence as produced by the
             decoder and transforms into tokenized sentence.
 
-        tensorboard_log: Directory where the TensordBoard log will be generated.
+        log_directory: Directory where the TensordBoard log will be generated.
             If None, nothing will be done.
 
         evaluation_functions: List of evaluation functions. The last function
@@ -121,6 +93,8 @@ def training_loop(sess, epochs, trainer, all_coders, decoder, batch_size,
     """
 
     evaluation_labels = [f.__name__ for f in evaluation_functions]
+    if postprocess is None:
+        postprocess = lambda s: s
     log("Starting training")
     step = 0
     seen_instances = 0
@@ -130,11 +104,11 @@ def training_loop(sess, epochs, trainer, all_coders, decoder, batch_size,
     if initial_variables:
         saver.restore(sess, initial_variables)
 
-    tmp_save_file = 'variable-'+str(time.time())+'.tmp'
-    saver.save(sess, tmp_save_file)
+    variables_file = log_directory+'/variables.data'
+    saver.save(sess, variables_file)
 
-    if tensorboard_log:
-        tb_writer = tf.train.SummaryWriter(tensorboard_log, sess.graph_def)
+    if log_directory:
+        tb_writer = tf.train.SummaryWriter(log_directory, sess.graph_def)
 
     max_score = 0.0
     max_score_epoch = 0
@@ -215,7 +189,7 @@ def training_loop(sess, epochs, trainer, all_coders, decoder, batch_size,
             batched_targets = train_dataset.batch_serie(decoder.data_id, batch_size)
 
             for batch_n, (batch_feed_dict, batch_sentences) in \
-                    enumerate(train_feed_dicts, batched_targets):
+                    enumerate(zip(train_feed_dicts, batched_targets)):
 
                 step += 1
                 seen_instances += len(batch_sentences)
@@ -238,7 +212,7 @@ def training_loop(sess, epochs, trainer, all_coders, decoder, batch_size,
                     log("opt. loss: {:.4f}    dec. loss: {:.4f}    ".\
                             format(computation[2], computation[1]) + eval_string)
 
-                    if tensorboard_log:
+                    if log_directory:
                         summary_str = computation[3]
                         tb_writer.add_summary(summary_str, seen_instances)
                         #histograms_str = computation[4]
@@ -284,10 +258,10 @@ def training_loop(sess, epochs, trainer, all_coders, decoder, batch_size,
                         max_score = evaluation_result[-1]
                         max_score_epoch = i
                         max_score_batch_no = batch_n
-                        saver.save(sess, tmp_save_file)
+                        saver.save(sess, variables_file)
 
                     print ""
-                    log("Validation (epoch {}, batch number {}):".format(i, batch_n), color='cyan')
+                    log("Validation (epoch {}, batch number {}):".format(i + 1, batch_n), color='cyan')
                     log("opt. loss: {:.4f}    dec. loss: {:.4f}    "\
                             .format(computation[1], computation[0]) + eval_string, color='cyan')
                     log("max {} on validation: {:.2f} (in epoch {}, after batch number {})".\
@@ -297,11 +271,11 @@ def training_loop(sess, epochs, trainer, all_coders, decoder, batch_size,
                     print ""
                     print "Examples:"
                     for sent, ref_sent in zip(decoded_val_sentences[:15], val_tgt_sentences):
-                        print "    {}".format(" ".join(sent))
-                        print colored("      ref.: {}".format(" ".join(ref_sent)), color="magenta")
+                        print u"    {}".format(u" ".join(sent))
+                        print colored(u"      ref.: {}".format(u" ".join(ref_sent)), color="magenta")
                     print ""
 
-                    if tensorboard_log:
+                    if log_directory:
                         summary_str = computation[2]
                         tb_writer.add_summary(summary_str, seen_instances)
                         tb_writer.add_summary(external_str, seen_instances)
@@ -314,7 +288,7 @@ def training_loop(sess, epochs, trainer, all_coders, decoder, batch_size,
     except KeyboardInterrupt:
         log("Training interrupted by user.")
 
-    saver.restore(sess, tmp_save_file)
+    saver.restore(sess, variables_file)
     log("Training finished. Maximum {} on validation data: {:.2f}, epoch {}".format(evaluation_labels[-1], max_score, max_score_epoch))
 
 #    if test_feed_dicts and batched_test_copy_sentences and test_output_file:

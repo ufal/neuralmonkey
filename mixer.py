@@ -1,7 +1,7 @@
 import tensorflow as tf
 import numpy as np
 from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
-from learning_utils import log
+from utils import log
 from cross_entropy_trainer import CrossEntropyTrainer
 
 class Mixer(object):

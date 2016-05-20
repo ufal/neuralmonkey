@@ -75,7 +75,7 @@ def get_config_dicts(config_file):
         else:
             raise Exception("Syntax error on line {}: {}".format(i + 1, line))
 
-    f_config.close()
+    config_file.close()
     return config_dicts
 
 
@@ -102,7 +102,7 @@ def get_object(value, all_dicts, existing_objects, depth, vocabularies=None):
 
     """
     if not isinstance(value, basestring) and isinstance(value, collections.Iterable):
-        return [get_object(val, all_dicts, existing_objects, depth + 1) for val in value]
+        return [get_object(val, all_dicts, existing_objects, depth + 1, vocabularies) for val in value]
     if value in existing_objects:
         return existing_objects[value]
     if not isinstance(value, basestring) or not value.startswith("object:"):
@@ -123,11 +123,9 @@ def get_object(value, all_dicts, existing_objects, depth, vocabularies=None):
         if key == "vocabulary" and vocabularies and isinstance(arg, basestring):
             return vocabularies[arg]
         else:
-            return get_object(arg, all_dicts, existing_objects, depth + 1)
+            return get_object(arg, all_dicts, existing_objects, depth + 1, vocabularies)
 
     args = {k: process_arg(k, arg) for k, arg in this_dict.iteritems() if k != 'class'}
-    print clazz
-    print args
 
     result = clazz(**args)
     existing_objects[value] = result
@@ -166,10 +164,4 @@ def load_config_file(config_file):
                                         vocabularies=vocabularies)
 
     return configuration
-
-
-if __name__ == "__main__":
-    f_config = codecs.open(sys.argv[1], mode='r', encoding='utf-8')
-    #print get_config_dicts(f_config)
-    print load_config_file(f_config)
 

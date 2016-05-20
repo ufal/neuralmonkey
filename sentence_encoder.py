@@ -1,8 +1,11 @@
 import tensorflow as tf
+import numpy as np
+
+from utils import log
 from bidirectional_rnn_layer import BidirectionalRNNLayer
 from tensorflow.models.rnn import rnn_cell
 from noisy_gru_cell import NoisyGRUCell
-import numpy as np
+
 
 class SentenceEncoder(object):
     def __init__(self, max_input_len, vocabulary, data_id,
@@ -15,6 +18,7 @@ class SentenceEncoder(object):
         self.dropout_keep_p = dropout_keep_p
         self.data_id = data_id
 
+        log("Initializing sentence encoder, name: \"{}\"".format(name))
         with tf.variable_scope(name):
             self.dropout_placeholder = tf.placeholder(tf.float32, name="dropout")
             self.is_training = tf.placeholder(tf.bool, name="is_training")
@@ -38,8 +42,8 @@ class SentenceEncoder(object):
                 self.backward_gru = parent_encoder.backward_gru
             else:
                 if use_noisy_activations:
-                    self.forward_gru = NoisyGRUCell(rnn_size, is_training, input_size=embedding_size)
-                    self.backward_gru = NoisyGRUCell(rnn_size, is_training, input_size=embedding_size)
+                    self.forward_gru = NoisyGRUCell(rnn_size, self.is_training, input_size=embedding_size)
+                    self.backward_gru = NoisyGRUCell(rnn_size, self.is_training, input_size=embedding_size)
                 else:
                     self.forward_gru = rnn_cell.GRUCell(rnn_size, input_size=embedding_size)
                     self.backward_gru = rnn_cell.GRUCell(rnn_size, input_size=embedding_size)
@@ -60,6 +64,8 @@ class SentenceEncoder(object):
                                                    dropout_placeholder=self.dropout_placeholder,
                                                    input_weights=self.weight_tensor,
                                                    max_fertility=attention_fertility) if attention_type else None
+
+            log("Sentence encoder initialized")
 
 
     def feed_dict(self, dataset, batch_size, train=False, dicts=None):
