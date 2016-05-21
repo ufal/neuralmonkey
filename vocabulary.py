@@ -51,8 +51,6 @@ class Vocabulary(object):
         frequent tokens.
         """
 
-        current_count = len(self)
-
         # sort by frequency
         words_by_freq = \
             sorted(self.word_count.keys(), key=lambda w: self.word_count[w])
@@ -82,7 +80,7 @@ class Vocabulary(object):
             sentences: List of sentences as lists of tokens.
             max_len: Maximum lengh of a sentence toward which they will be
               padded to.
-            train: Flag whehter this is for training purposes.
+            train: Flag whether this is for training purposes.
 
         """
 

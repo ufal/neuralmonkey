@@ -2,8 +2,6 @@
 This module is responsible for loading training configuration.
 """
 
-import sys
-import codecs
 import collections
 import regex as re
 
@@ -18,6 +16,7 @@ CLASS_NAME = re.compile(r"^_*[a-zA-Z][a-zA-Z0-9_]*(\._*[a-zA-Z][a-zA-Z0-9_]*)+$"
 
 
 def format_value(string):
+    #pylint: disable=too-many-return-statements
     """ Parses value from the INI file: int/float/string/object """
     if string == 'False':
         return False
@@ -102,7 +101,8 @@ def get_object(value, all_dicts, existing_objects, depth, vocabularies=None):
 
     """
     if not isinstance(value, basestring) and isinstance(value, collections.Iterable):
-        return [get_object(val, all_dicts, existing_objects, depth + 1, vocabularies) for val in value]
+        return [get_object(val, all_dicts, existing_objects, depth + 1, vocabularies)
+                for val in value]
     if value in existing_objects:
         return existing_objects[value]
     if not isinstance(value, basestring) or not value.startswith("object:"):
