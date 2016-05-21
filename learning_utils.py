@@ -6,6 +6,14 @@ import regex as re
 
 from utils import log
 
+try:
+    #pylint: disable=unused-import,bare-except
+    from typing import Dict, List, Union, Tuple
+    from decoder import Decoder
+    Hypothesis = Tuple[float, List[int]]
+    Feed_dict = Dict[tf.Tensor, np.Array]
+except:
+    pass
 
 def load_tokenized(text_file, preprocess=None):
     """
@@ -46,6 +54,7 @@ def feed_dicts(dataset, batch_size, coders, train=False):
 # TODO postprocess, copynet, beamsearch will be hidden in runner
   
 def expand(session, decoder, feed_dict, state, hypotheses):
+    # type: (tf.Session, Decoder, Feed_dict, np.Array, List[Hypothesis]) -> List[Hypothesis]
     feed_dict[decoder.encoded] = state
     hyp_length = len(hypotheses[0][1])
     hyp_count = len(hypotheses)
@@ -75,6 +84,7 @@ def expand(session, decoder, feed_dict, state, hypotheses):
     return beam
 
 def beamsearch(session, decoder, feed_dict):
+    # type: (tf.Session, Decoder, Feed_dict) -> List[int]
     beam = [(1.0, [1])]
     state = session.run(decoder.encoded, feed_dict)
     for _ in range(len(decoder.decoded_probs)):
@@ -152,47 +162,6 @@ def training_loop(sess, epochs, trainer, all_coders, decoder, batch_size,
     max_score = 0.0
     max_score_epoch = 0
     max_score_batch_no = 0
-
-    def expand(feed_dict, state, hypotheses):
-        feed_dict[decoder.encoded] = state
-        hyp_len = len(hypotheses[0][1])
-        hyp_count = len(hypotheses)
-        if hyp_len == 2:
-            for key in feed_dict:
-                shape = key.get_shape()
-                if not shape == tf.TensorShape(None):
-                    if len(shape) == 1:
-                        feed_dict[key] = np.repeat(feed_dict[key], hyp_count)
-                    elif len(shape) == 2:
-                        feed_dict[key] = np.repeat(np.array(feed_dict[key]), hyp_count, axis=0)
-                    else:
-                        log("ERROR in expanding beamsearch \
-                            hypothesis")
-        elif hyp_len >= 3: # we still need to expand the state
-            feed_dict[decoder.encoded] = np.repeat(np.array(state), hyp_count, axis=0)
-
-        for decoder_in, i in zip(decoder.gt_inputs, range(hyp_len)):
-            if decoder_in not in feed_dict:
-                feed_dict[decoder_in] = np.zeros(feed_dict[decoder.go_symbols].shape)
-            for k in range(hyp_count):
-                feed_dict[decoder_in][k] = hypotheses[k][1][i]
-        probs, prob_i = sess.run([decoder.top10_probs[hyp_len - 1][0],
-                                  decoder.top10_probs[hyp_len - 1][1]],
-                                 feed_dict=feed_dict)
-        beam = []
-        for i in range(hyp_count):
-            for p, x in zip(probs[i], prob_i[i]):
-                beam.append((hypotheses[i][0] + p, hypotheses[i][1] + [x]))
-        return beam
-
-    def beamsearch(fd):
-        beam = [(1.0, [1])]
-        state = sess.run(decoder.encoded, fd)
-        for _ in range(len(decoder.decoded_probs)):
-            new_beam = expand(fd, state, beam)
-            new_beam.sort(reverse=True)
-            beam = new_beam[:10]
-        return beam[0][1]
 
     def copynet_substitute(decoded_sentences, copy_sentences, computation):
         """
