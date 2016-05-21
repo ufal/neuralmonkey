@@ -75,6 +75,11 @@ class Dataset(object):
                 language = args[name+"_lng"]
                 self.series_languages[name] = language
 
+        if 'random_seed' in args:
+            self.random_seed = args['random_seed']
+        else:
+            self.random_seed = None
+
         log("Dataset loaded, {} examples.".format(len(self)))
 
     def __len__(self):
@@ -93,7 +98,7 @@ class Dataset(object):
                 if language in vocabularies:
                     vocabulary = vocabularies[language]
                 else:
-                    vocabulary = Vocabulary()
+                    vocabulary = Vocabulary(random_seed=self.random_seed)
                     vocabularies[language] = vocabulary
                 vocabulary.add_tokenized_text([token for sent in serie for token in sent])
 

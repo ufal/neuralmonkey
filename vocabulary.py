@@ -9,8 +9,8 @@ except:
     pass
 
 class Vocabulary(object):
-    def __init__(self, tokenized_text=None):
-        # type: (List[str]) -> None
+    def __init__(self, tokenized_text=None, random_seed=None):
+        # type: (List[str], int) -> None
         self.word_to_index = {} # type: Dict[str, int]
         self.index_to_word = [] # type: List[str]
         self.word_count = {} # type: Dict[str, int]

@@ -49,6 +49,12 @@ if __name__ == "__main__":
     print ""
     print_header(name)
 
+    try: #TODO facultative arguments
+        random_seed = get_from_configuration(configuration, 'random_seed', int)
+    except:
+        random_seed = None
+    if random_seed is not None:
+        tf.set_random_seed(random_seed)
     output = get_from_configuration(configuration, 'output', basestring)
     epochs = get_from_configuration(configuration, 'epochs', int, lambda x: x >= 0)
     trainer = get_from_configuration(configuration, 'trainer')
@@ -59,6 +65,10 @@ if __name__ == "__main__":
     val_dataset = get_from_configuration(configuration, 'val_dataset', Dataset)
     postprocess = get_from_configuration(configuration, 'postprocess')
     evaluation = get_from_configuration(configuration, 'evaluation', list)
+    try: #TODO facultative arguments
+        use_beamsearch = get_from_configuration(configuration, 'use_beamsearch')
+    except:
+        use_beamsearch = None
 
     os.mkdir(output)
     copyfile(ini_file, output+"/experiment.ini")
@@ -71,4 +81,4 @@ if __name__ == "__main__":
     sess.run(tf.initialize_all_variables())
     training_loop(sess, epochs, trainer, encoders + [decoder], decoder,
                   batch_size, train_dataset, val_dataset, postprocess,
-                  output, evaluation)
+                  output, evaluation, use_beamsearch=use_beamsearch)
