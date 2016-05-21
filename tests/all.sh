@@ -1,5 +1,4 @@
 #!/bin/bash
 
-./tests/translation.sh
-./tests/translation.sh --beamsearch=True
-
+./train.py ./tests/small.ini && rm -rf test_configuration
+./train.py ./tests/small-beam.ini && rm -rf test_configuration
