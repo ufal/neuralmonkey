@@ -21,18 +21,21 @@ class Vocabulary(object):
             self.add_tokenized_text(tokenized_text)
         random.seed(random_seed)
 
-    def add_word(self, word): # type: str -> None
+    def add_word(self, word):
+        # type: (str) -> None
         if word not in self.word_to_index:
             self.word_to_index[word] = len(self.index_to_word)
             self.index_to_word.append(word)
             self.word_count[word] = 0
         self.word_count[word] += 1
 
-    def add_tokenized_text(self, tokenized_text): # type: List[str] -> None
+    def add_tokenized_text(self, tokenized_text):
+        # type: (List[str]) -> None
         for word in tokenized_text:
             self.add_word(word)
 
-    def get_train_word_index(self, word): # type: str -> int
+    def get_train_word_index(self, word):
+        # type: (str) -> int
         if word not in self.word_count or self.word_count[word] <= 1:
             if random.random > 0.5:
                 return self.word_to_index["<unk>"]
@@ -41,19 +44,23 @@ class Vocabulary(object):
         else:
             return self.word_to_index[word]
 
-    def get_word_index(self, word): # type: str -> int
+    def get_word_index(self, word):
+        # type: (str) -> int
         if word not in self.word_count:
             return self.word_to_index["<unk>"]
         else:
             return self.word_to_index[word]
 
-    def __len__(self): # type: int
+    def __len__(self):
+        # type: () -> int
         return len(self.index_to_word)
 
-    def __contains__(self, word): # type: bool
+    def __contains__(self, word):
+        # type: (str) -> bool
         return word in self.word_to_index
 
-    def trunkate(self, size): # type: int -> None
+    def trunkate(self, size):
+        # type: (int) -> None
         """
         Trunkates the Vocabulary to requested size by keep only the most
         frequent tokens.
