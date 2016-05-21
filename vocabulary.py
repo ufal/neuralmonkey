@@ -4,16 +4,16 @@ import regex as re
 
 try:
     #pylint: disable=unused-import,bare-except
-    from typing import List, Tuple
+    from typing import List, Tuple, Dict
 except:
     pass
 
 class Vocabulary(object):
-    def __init__(self, tokenized_text=None, random_seed=None):
-        # type: (List[str], int) -> None
-        self.word_to_index = {}
-        self.index_to_word = []
-        self.word_count = {}
+    def __init__(self, tokenized_text=None):
+        # type: (List[str]) -> None
+        self.word_to_index = {} # type: Dict[str, int]
+        self.index_to_word = [] # type: List[str]
+        self.word_count = {} # type: Dict[str, int]
 
         self.add_tokenized_text(["<pad>", "<s>", "</s>", "<unk>"])
 
