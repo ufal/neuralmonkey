@@ -184,7 +184,7 @@ def training_loop(sess, epochs, trainer, all_coders, decoder, batch_size,
 
         return decoded_sentences
 
-    val_feed_dicts = feed_dicts(val_dataset, batch_size, all_coders, train=False)
+    val_feed_dicts = feed_dicts(val_dataset, 1 if use_beamsearch else batch_size, all_coders, train=False)
     val_tgt_sentences = val_dataset.series[decoder.data_id]
 
     try:
@@ -237,10 +237,10 @@ def training_loop(sess, epochs, trainer, all_coders, decoder, batch_size,
                 if step % 500 == (61 if test_run else 499):
                     decoded_val_sentences = []
 
-                    for val_batch_n, (val_batch_feed_dict) in enumerate(val_feed_dicts):   
+                    for val_batch_n, (val_batch_feed_dict) in enumerate(val_feed_dicts):
                         if use_beamsearch:
                              decoded_s = beamsearch(sess, decoder, val_batch_feed_dict)
-                             decoded_val_sentences_batch = [[vocabulary.index_to_word[i] for i in decoded_s[1:]]]
+                             decoded_val_sentences_batch = [[decoder.vocabulary.index_to_word[i] for i in decoded_s[1:]]]
                              if val_batch_n % 100 == 99:
                                  log("Beamsearch: " + str(val_batch_n + 1) + " sentences done.")
                         else:
