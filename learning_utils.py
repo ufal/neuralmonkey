@@ -7,7 +7,7 @@ import regex as re
 from utils import log
 
 try:
-    #pylint: disable=unused-import,bare-except
+    #pylint: disable=unused-import,bare-except,invalid-name
     from typing import Dict, List, Union, Tuple
     from decoder import Decoder
     Hypothesis = Tuple[float, List[int]]
@@ -52,7 +52,7 @@ def feed_dicts(dataset, batch_size, coders, train=False):
     return dicts
 
 # TODO postprocess, copynet, beamsearch will be hidden in runner
-  
+
 def expand(session, decoder, feed_dict, state, hypotheses):
     # type: (tf.Session, Decoder, Feed_dict, np.Array, List[Hypothesis]) -> List[Hypothesis]
     feed_dict[decoder.encoded] = state
@@ -60,23 +60,23 @@ def expand(session, decoder, feed_dict, state, hypotheses):
     hyp_count = len(hypotheses)
     if hyp_length == 2:
         for k in feed_dict:
-            sh = k.get_shape()
-            if not sh == tf.TensorShape(None):
-                if len(sh) == 1:
+            shape = k.get_shape()
+            if shape != tf.TensorShape(None):
+                if len(shape) == 1:
                     feed_dict[k] = np.repeat(feed_dict[k], hyp_count)
-                elif len(sh) == 2:
+                elif len(shape) == 2:
                     feed_dict[k] = np.repeat(np.array(feed_dict[k]), hyp_count, axis=0)
                 else:
                     log("ERROR in expanding beamsearch hypothesis")
     elif hyp_length > 2:
         feed_dict[decoder.encoded] = np.repeat(state, hyp_count, axis=0)
-    
+
     for i, n in zip(decoder.gt_inputs, range(hyp_length)):
         for k in range(hyp_count):
             feed_dict[i][k] = hypotheses[k][1][n]
     probs, prob_i = session.run([decoder.top10_probs[hyp_length - 1][0],
-                     decoder.top10_probs[hyp_length - 1][1]],
-                     feed_dict=feed_dict)
+                                 decoder.top10_probs[hyp_length - 1][1]],
+                                feed_dict=feed_dict)
     beam = []
     for i in range(hyp_count):
         for p, x in zip(probs[i], prob_i[i]):
@@ -88,9 +88,9 @@ def beamsearch(session, decoder, feed_dict):
     beam = [(1.0, [1])]
     state = session.run(decoder.encoded, feed_dict)
     for _ in range(len(decoder.decoded_probs)):
-         new_beam = expand(session, decoder, feed_dict, state, beam)
-         new_beam.sort(reverse=True)
-         beam = new_beam[:10]
+        new_beam = expand(session, decoder, feed_dict, state, beam)
+        new_beam.sort(reverse=True)
+        beam = new_beam[:10]
     return beam[0][1]
 
 def training_loop(sess, epochs, trainer, all_coders, decoder, batch_size,
@@ -174,8 +174,8 @@ def training_loop(sess, epochs, trainer, all_coders, decoder, batch_size,
         assert len(decoded_sentences) == len(copy_sentences)
 
         for i, (s, copy_s) in enumerate(zip(decoded_sentences, copy_sentences)):
-            for j, w in enumerate(s):
-                if w == '<unk>':
+            for j, wrd in enumerate(s):
+                if wrd == '<unk>':
                     selected = np.argmax(copy_logits[j][i])
 
                     ## Copynet can generate <pad> tokens from outside the sentence
@@ -285,7 +285,8 @@ def training_loop(sess, epochs, trainer, all_coders, decoder, batch_size,
                     print "Examples:"
                     for sent, ref_sent in zip(decoded_val_sentences[:15], val_tgt_sentences):
                         print u"    {}".format(u" ".join(sent))
-                        print colored(u"      ref.: {}".format(u" ".join(ref_sent)), color="magenta")
+                        print colored(u"      ref.: {}".format(u" ".join(ref_sent)),
+                                      color="magenta")
                     print ""
 
                     if log_directory:
