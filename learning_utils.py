@@ -56,11 +56,10 @@ def feed_dicts(dataset, batch_size, coders, train=False):
 
 def training_loop(sess, epochs, trainer, all_coders, decoder, batch_size,
                   train_dataset, val_dataset,
-                  postprocess, log_directory,
+                  log_directory,
                   evaluation_functions,
-                  use_copynet=False,
+                  runner,
                   test_dataset=None,
-                  use_beamsearch=False,
                   initial_variables=None,
                   test_run=False):
 
@@ -103,8 +102,6 @@ def training_loop(sess, epochs, trainer, all_coders, decoder, batch_size,
     """
 
     evaluation_labels = [f.__name__ for f in evaluation_functions]
-    if postprocess is None:
-        postprocess = lambda s: s
     log("Starting training")
     step = 0
     seen_instances = 0
@@ -124,28 +121,6 @@ def training_loop(sess, epochs, trainer, all_coders, decoder, batch_size,
     max_score_epoch = 0
     max_score_batch_no = 0
 
-    def copynet_substitute(decoded_sentences, copy_sentences, computation):
-        """
-        Substitutes the <unk> tokens with the tokens from the source encoder we are
-        copying from.
-        """
-        copy_logits = computation[-(2*decoder.max_output_len)-2 : -decoder.max_output_len - 1]
-        assert len(copy_logits) == decoder.max_output_len + 1 ## kdyby nahodou
-        #assert len(computation) -(2*decoder.max_output_len)-2 == 5 ## neplati pri validaci
-        assert len(decoded_sentences) == len(copy_sentences)
-
-        for i, (s, copy_s) in enumerate(zip(decoded_sentences, copy_sentences)):
-            for j, wrd in enumerate(s):
-                if wrd == '<unk>':
-                    selected = np.argmax(copy_logits[j][i])
-
-                    ## Copynet can generate <pad> tokens from outside the sentence
-                    if selected < len(copy_s) and selected != 0:
-                        decoded_sentences[i][j] = copy_s[selected-1]
-
-        return decoded_sentences
-
-    val_feed_dicts = feed_dicts(val_dataset, 1 if use_beamsearch else batch_size, all_coders, train=False)
     val_tgt_sentences = val_dataset.series[decoder.data_id]
 
     try:
@@ -170,7 +145,7 @@ def training_loop(sess, epochs, trainer, all_coders, decoder, batch_size,
                             decoder.vocabulary.vectors_to_sentences(\
                             computation[-decoder.max_output_len - 1:])
 
-                    decoded_sentences = [postprocess(s) for s in decoded_sentences]
+                    #decoded_sentences = [postprocess(s) for s in decoded_sentences]
 
                     evaluation_result = \
                             [f(decoded_sentences, batch_sentences) for f in evaluation_functions]
@@ -195,30 +170,8 @@ def training_loop(sess, epochs, trainer, all_coders, decoder, batch_size,
                 else:
                     trainer.run(sess, batch_feed_dict, batch_sentences, verbose=False)
 
-                if step % 500 == (61 if test_run else 499):
-                    decoded_val_sentences = []
-
-                    for val_batch_n, (val_batch_feed_dict) in enumerate(val_feed_dicts):
-                        if use_beamsearch:
-                             decoded_s = beamsearch(sess, decoder, val_batch_feed_dict)
-                             decoded_val_sentences_batch = [[decoder.vocabulary.index_to_word[i] for i in decoded_s[1:]]]
-                             if val_batch_n % 100 == 99:
-                                 log("Beamsearch: " + str(val_batch_n + 1) + " sentences done.")
-                        else:
-                            computation = sess.run([decoder.loss_with_decoded_ins,
-                                                    decoder.loss_with_gt_ins, trainer.summary_val] \
-                                                     + decoder.copynet_logits + decoder.decoded_seq,
-                                                   feed_dict=val_batch_feed_dict)
-                            decoded_val_sentences_batch = \
-                                    decoder.vocabulary.vectors_to_sentences(computation[-decoder.max_output_len - 1:])
-
-                            #if use_copynet: # TODO beamsearch nefunguje s copynetem
-                            #    decoded_val_sentences_batch = \
-                            #            copynet_substitute(decoded_val_sentences_batch, val_copy_sentences, computation)
-
-                        decoded_val_sentences += decoded_val_sentences_batch
-
-                    decoded_val_sentences = [postprocess(s) for s in decoded_val_sentences]
+                if step % 500 == 1:# (61 if test_run else 499):
+                    decoded_val_sentences, opt_loss, dec_loss = runner(sess, val_dataset, all_coders, decoder)
                     evaluation_result = \
                             [f(decoded_val_sentences, val_tgt_sentences) for f in evaluation_functions]
 
@@ -234,11 +187,8 @@ def training_loop(sess, epochs, trainer, all_coders, decoder, batch_size,
 
                     print ""
                     log("Validation (epoch {}, batch number {}):".format(i + 1, batch_n), color='cyan')
-                    if not use_beamsearch:
-                        log("opt. loss: {:.4f}    dec. loss: {:.4f}    "\
-                                .format(computation[1], computation[0]) + eval_string, color='cyan')
-                    else:
-                        log(eval_string, color='cyan')
+                    log("opt. loss: {:.4f}    dec. loss: {:.4f}    "\
+                            .format(opt_loss, dec_loss) + eval_string, color='cyan')
                     log("max {} on validation: {:.2f} (in epoch {}, after batch number {})".\
                             format(evaluation_labels[-1], max_score,
                                    max_score_epoch, max_score_batch_no), color='cyan')
@@ -252,10 +202,7 @@ def training_loop(sess, epochs, trainer, all_coders, decoder, batch_size,
                     print ""
 
                     if log_directory:
-                        if not use_beamsearch:
-                            summary_str = computation[2]
-                            tb_writer.add_summary(summary_str, seen_instances)
-                            tb_writer.add_summary(external_str, seen_instances)
+                        # TODO include validation loss
                         external_str = \
                             tf.Summary(value=[tf.Summary.Value(tag="val_"+name, simple_value=value)\
                                               for name, value in zip(evaluation_labels,

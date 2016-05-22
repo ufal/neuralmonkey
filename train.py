@@ -65,12 +65,14 @@ if __name__ == "__main__":
     val_dataset = get_from_configuration(configuration, 'val_dataset', Dataset)
     postprocess = get_from_configuration(configuration, 'postprocess')
     evaluation = get_from_configuration(configuration, 'evaluation', list)
-    try: #TODO facultative arguments
-        use_beamsearch = get_from_configuration(configuration, 'use_beamsearch')
-    except:
-        use_beamsearch = None
+    runner = get_from_configuration(configuration, 'runner')
 
-    os.mkdir(output)
+    try:
+        os.mkdir(output)
+    except:
+        log("Experiment directory \"{}\" already exists".format(output))
+        exit(1)
+
     copyfile(ini_file, output+"/experiment.ini")
     os.system("git --no-pager diff --color=always > {}/git_diff".format(output))
     # TODO generate git diff file to output
@@ -80,5 +82,5 @@ if __name__ == "__main__":
                                             intra_op_parallelism_threads=4))
     sess.run(tf.initialize_all_variables())
     training_loop(sess, epochs, trainer, encoders + [decoder], decoder,
-                  batch_size, train_dataset, val_dataset, postprocess,
-                  output, evaluation, use_beamsearch=use_beamsearch)
+                  batch_size, train_dataset, val_dataset,
+                  output, evaluation, runner)

@@ -12,7 +12,9 @@ def expand(session, decoder, feed_dict, state, hypotheses):
     if hyp_length == 2:
         for k in feed_dict:
             shape = k.get_shape()
-            if shape != tf.TensorShape(None):
+            #print shape
+            #import ipdb; ipdb.set_trace()
+            if not shape == tf.TensorShape(None):
                 if len(shape) == 1:
                     feed_dict[k] = np.repeat(feed_dict[k], hyp_count)
                 elif len(shape) == 2:
@@ -46,7 +48,7 @@ def beamsearch(session, decoder, feed_dict):
     return beam[0][1]
 
 
-def beamsearch_runner(beam_size, postprocess=None):
+def beam_search_runner(beam_size, postprocess=None):
 
     # TODO move top10 here from decoder
 
@@ -58,7 +60,7 @@ def beamsearch_runner(beam_size, postprocess=None):
         for sent_dict in singleton_dicts:
             decoded_s = beamsearch(sess, decoder, sent_dict)
             decoded_sentences_batch = \
-                    [[decoder.vocabulary.index_to_word[i] for i in decoded_s[1:]]]
+                    decoder.vocabulary.vectors_to_sentences([np.array([i]) for i in decoded_s[1:]])
             decoded_sentences += decoded_sentences_batch
 
         if postprocess is not None:

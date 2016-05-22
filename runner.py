@@ -2,6 +2,8 @@ import tensorflow as tf
 
 from learning_utils import feed_dicts
 
+# TODO add copynet to the greedy runner
+
 def greedy_runner(batch_size, postprocess=None):
     def run(sess, dataset, coders, decoder):
         dicts = feed_dicts(dataset, batch_size, coders, train=False)
@@ -10,7 +12,7 @@ def greedy_runner(batch_size, postprocess=None):
         loss_with_gt_ins = 0.0
         loss_with_decoded_ins = 0.0
         for batch_feed_dict in dicts:
-            if decoder.data_id in dataset:
+            if decoder.data_id in dataset.series:
                 losses = [decoder.loss_with_gt_ins,
                           decoder.loss_with_decoded_ins]
             else:
@@ -28,6 +30,6 @@ def greedy_runner(batch_size, postprocess=None):
             decoded_sentences = postprocess(decoded_sentences, dataset)
 
         return decoded_sentences, \
-               loss_with_gt_ins / len(feed_dicts), \
-               loss_with_decoded_ins / len(feed_dicts)
+               loss_with_gt_ins / len(dicts), \
+               loss_with_decoded_ins / len(dicts)
     return run
