@@ -53,45 +53,6 @@ def feed_dicts(dataset, batch_size, coders, train=False):
 
 # TODO postprocess, copynet, beamsearch will be hidden in runner
 
-def expand(session, decoder, feed_dict, state, hypotheses):
-    # type: (tf.Session, Decoder, Feed_dict, np.Array, List[Hypothesis]) -> List[Hypothesis]
-    feed_dict[decoder.encoded] = state
-    hyp_length = len(hypotheses[0][1])
-    hyp_count = len(hypotheses)
-    if hyp_length == 2:
-        for k in feed_dict:
-            shape = k.get_shape()
-            if shape != tf.TensorShape(None):
-                if len(shape) == 1:
-                    feed_dict[k] = np.repeat(feed_dict[k], hyp_count)
-                elif len(shape) == 2:
-                    feed_dict[k] = np.repeat(np.array(feed_dict[k]), hyp_count, axis=0)
-                else:
-                    log("ERROR in expanding beamsearch hypothesis")
-    elif hyp_length > 2:
-        feed_dict[decoder.encoded] = np.repeat(state, hyp_count, axis=0)
-
-    for i, n in zip(decoder.gt_inputs, range(hyp_length)):
-        for k in range(hyp_count):
-            feed_dict[i][k] = hypotheses[k][1][n]
-    probs, prob_i = session.run([decoder.top10_probs[hyp_length - 1][0],
-                                 decoder.top10_probs[hyp_length - 1][1]],
-                                feed_dict=feed_dict)
-    beam = []
-    for i in range(hyp_count):
-        for p, x in zip(probs[i], prob_i[i]):
-            beam.append((hypotheses[i][0] + p, hypotheses[i][1] + [x]))
-    return beam
-
-def beamsearch(session, decoder, feed_dict):
-    # type: (tf.Session, Decoder, Feed_dict) -> List[int]
-    beam = [(1.0, [1])]
-    state = session.run(decoder.encoded, feed_dict)
-    for _ in range(len(decoder.decoded_probs)):
-        new_beam = expand(session, decoder, feed_dict, state, beam)
-        new_beam.sort(reverse=True)
-        beam = new_beam[:10]
-    return beam[0][1]
 
 def training_loop(sess, epochs, trainer, all_coders, decoder, batch_size,
                   train_dataset, val_dataset,
@@ -248,7 +209,8 @@ def training_loop(sess, epochs, trainer, all_coders, decoder, batch_size,
                                                     decoder.loss_with_gt_ins, trainer.summary_val] \
                                                      + decoder.copynet_logits + decoder.decoded_seq,
                                                    feed_dict=val_batch_feed_dict)
-                            decoded_val_sentences_batch = decoder.vocabulary.vectors_to_sentences(computation[-decoder.max_output_len - 1:])
+                            decoded_val_sentences_batch = \
+                                    decoder.vocabulary.vectors_to_sentences(computation[-decoder.max_output_len - 1:])
 
                             #if use_copynet: # TODO beamsearch nefunguje s copynetem
                             #    decoded_val_sentences_batch = \
