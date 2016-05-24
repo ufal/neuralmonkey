@@ -74,8 +74,8 @@ if __name__ == "__main__":
         exit(1)
 
     copyfile(ini_file, output+"/experiment.ini")
+    os.system("git log -1 --format=%H > {}/git_commit".format(output))
     os.system("git --no-pager diff --color=always > {}/git_diff".format(output))
-    # TODO generate git diff file to output
 
     log("Initializing the TensorFlow session.")
     sess = tf.Session(config=tf.ConfigProto(inter_op_parallelism_threads=4,
