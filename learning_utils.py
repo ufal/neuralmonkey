@@ -86,7 +86,8 @@ def training_loop(sess, saver,
                   runner,
                   test_datasets=[],
                   initial_variables=None,
-                  test_run=False):
+                  test_run=False,
+                  validation_period=500):
 
     """
     Performs the training loop for given graph and data.
@@ -198,14 +199,8 @@ def training_loop(sess, saver,
                 else:
                     trainer.run(sess, batch_feed_dict, batch_sentences, verbose=False)
 
-                if step % 500 == 1:#(61 if test_run else 499):
-                    decoded_val_sentences, opt_loss, dec_loss = \
-                            runner(sess, val_dataset, all_coders)
-                    evaluation_result = \
-                            [f(decoded_val_sentences, val_tgt_sentences)
-                             for f in evaluation_functions]
-
-                    decoded_sentences, val_evaluation = \
+                if step % validation_period == validation_period -1:
+                    decoded_val_sentences, val_evaluation = \
                             run_on_dataset(sess, runner, all_coders, decoder, val_dataset,
                                            evaluation_functions, write_out=False)
 

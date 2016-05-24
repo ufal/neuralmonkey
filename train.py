@@ -44,6 +44,7 @@ if __name__ == "__main__":
     config.add_argument('runner')
     config.add_argument('test_datasets', list, required=False, default=[])
     config.add_argument('initial_variables', str, required=False, default=[])
+    config.add_argument('validation_period', int, required=False, default=500)
 
     try:
         ini_file = sys.argv[1]
