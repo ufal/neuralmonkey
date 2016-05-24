@@ -171,9 +171,11 @@ def training_loop(sess, epochs, trainer, all_coders, decoder, batch_size,
                     trainer.run(sess, batch_feed_dict, batch_sentences, verbose=False)
 
                 if step % 500 == 1:# (61 if test_run else 499):
-                    decoded_val_sentences, opt_loss, dec_loss = runner(sess, val_dataset, all_coders, decoder)
+                    decoded_val_sentences, opt_loss, dec_loss = \
+                            runner(sess, val_dataset, all_coders)
                     evaluation_result = \
-                            [f(decoded_val_sentences, val_tgt_sentences) for f in evaluation_functions]
+                            [f(decoded_val_sentences, val_tgt_sentences)
+                             for f in evaluation_functions]
 
                     eval_string = "    ".join(["{}: {:.2f}".format(name, value) for name, value \
                         in zip(evaluation_labels, evaluation_result)])
@@ -186,7 +188,8 @@ def training_loop(sess, epochs, trainer, all_coders, decoder, batch_size,
                         saver.save(sess, variables_file)
 
                     print ""
-                    log("Validation (epoch {}, batch number {}):".format(i + 1, batch_n), color='cyan')
+                    log("Validation (epoch {}, batch number {}):"\
+                            .format(i + 1, batch_n), color='cyan')
                     log("opt. loss: {:.4f}    dec. loss: {:.4f}    "\
                             .format(opt_loss, dec_loss) + eval_string, color='cyan')
                     log("max {} on validation: {:.2f} (in epoch {}, after batch number {})".\

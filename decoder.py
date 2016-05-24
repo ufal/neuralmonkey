@@ -305,14 +305,8 @@ class Decoder:
             return decoded, logits, copynet_logits
 
 
-        _, gt_logits, _ = get_decoded(rnn_outputs_gt_ins)
-        self.loss_with_gt_ins = seq2seq.sequence_loss(gt_logits, self.targets, self.weights_ins, len(vocabulary))
-
-        if (tf.__version__ == "0.8.0rc0"):
-            self.decoded_probs = [tf.nn.log_softmax(l) for l in gt_logits]
-        else:
-            self.decoded_probs = [tf.log(tf.nn.softmax(l)) for l in gt_logits]
-        self.top10_probs = [tf.nn.top_k(p, 10) for p in self.decoded_probs]
+        _, self.gt_logits, _ = get_decoded(rnn_outputs_gt_ins)
+        self.loss_with_gt_ins = seq2seq.sequence_loss(self.gt_logits, self.targets, self.weights_ins, len(vocabulary))
 
         tf.scalar_summary('val_loss_with_gt_input', self.loss_with_gt_ins, collections=["summary_val"])
         tf.scalar_summary('train_loss_with_gt_intpus', self.loss_with_gt_ins, collections=["summary_train"])

@@ -4,8 +4,8 @@ from learning_utils import feed_dicts
 
 # TODO add copynet to the greedy runner
 
-def greedy_runner(batch_size, postprocess=None):
-    def run(sess, dataset, coders, decoder):
+def greedy_runner(decoder, batch_size, postprocess=None):
+    def run(sess, dataset, coders):
         dicts = feed_dicts(dataset, batch_size, coders, train=False)
         decoded_sentences = []
 
