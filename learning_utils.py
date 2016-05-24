@@ -303,10 +303,26 @@ def run_on_dataset(sess, runner, all_coders, decoder, dataset,
     evaluation = {}
     if decoder.data_id in dataset.series:
         test_targets = dataset.series[decoder.data_id]
-        eval_id = dataset.name + "_" + decoder.name
         evaluation["opt_loss"] = opt_loss
         evaluation["dec_loss"] = dec_loss
-        for f in evaluation_functions:
-            evaluation[f] = f(result, test_targets)
+        for func in evaluation_functions:
+            evaluation[func] = func(result, test_targets)
 
     return result, evaluation
+
+
+def print_dataset_evaluation(name, evaluation):
+    line_len = 22
+    log("Evaluating model on \"{}\"".format(name))
+
+    log("    optimization loss:      {:.4f}".format(evaluation['opt_loss']))
+    log("    runtime loss:           {:.4f}".format(evaluation['opt_loss']))
+
+    for func in evaluation:
+        if hasattr(func, '__call__'):
+            name = func.__name__
+            space = "".join([" " for _ in range(line_len - len(name))])
+            log("    {}:{} {:.4f}".format(name, space, evaluation[func]))
+
+    print ""
+

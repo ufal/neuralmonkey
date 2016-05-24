@@ -7,7 +7,7 @@ import tensorflow as tf
 
 from utils import print_header, log
 from configuration import Configuration
-from learning_utils import initialize_tf, run_on_dataset
+from learning_utils import initialize_tf, run_on_dataset, print_dataset_evaluation
 from dataset import Dataset
 
 if __name__ == "__main__":
@@ -42,3 +42,6 @@ if __name__ == "__main__":
         _, evaluation = run_on_dataset(sess, args.runner, args.encoders + [args.decoder],
                                        args.decoder, dataset,
                                        args.evaluation, write_out=True)
+        if evaluation:
+            print_dataset_evaluation(dataset.name, evaluation)
+
