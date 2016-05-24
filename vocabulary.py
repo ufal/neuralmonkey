@@ -130,4 +130,15 @@ class Vocabulary(object):
         return [s[:-1] for s in sentences]
 
 
+def from_datasets(datasets, series_ids, max_size, random_seed=None):
+    # type: (List[Dataset], List[str], int, int) -> Vocabulary
+    vocabulary = Vocabulary(random_seed=random_seed)
+
+    for dataset in datasets:
+        for series_id in series_ids:
+            serie = dataset.series.get(series_id, [])
+            vocabulary.add_tokenized_text([token for sent in serie for token in sent])
+
+    vocabulary.trunkate(max_size)
+    return vocabulary
 

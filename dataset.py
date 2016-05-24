@@ -82,12 +82,6 @@ class Dataset(object):
         self.series_outputs = \
                 {key[:-4]: value for key, value in args.iteritems() if key.endswith('_out')}
 
-        self.series_languages = {}
-        for name, serie in self.series.iteritems():
-            if isinstance(serie, list) and name+"_lng" in args:
-                language = args[name+"_lng"]
-                self.series_languages[name] = language
-
         if 'random_seed' in args:
             self.random_seed = args['random_seed']
         else:
@@ -98,31 +92,10 @@ class Dataset(object):
     def __len__(self):
         return len(self.series.values()[0])
 
-    def create_vocabularies(self, max_vocabulary_size=None):
-        """
-        Gets dictionary of vocabularies created for each language in the dataset.
-        """
-
-        vocabularies = dict()
-
-        for name, serie in self.series.iteritems():
-            if isinstance(serie, list) and name in self.series_languages:
-                language = self.series_languages[name]
-                if language in vocabularies:
-                    vocabulary = vocabularies[language]
-                else:
-                    vocabulary = Vocabulary(random_seed=self.random_seed)
-                    vocabularies[language] = vocabulary
-                vocabulary.add_tokenized_text([token for sent in serie for token in sent])
-
-        if max_vocabulary_size is not None:
-            for voc in vocabularies.values():
-                voc.trunkate(max_vocabulary_size)
-
-        return vocabularies
-
     def shuffle(self):
+        # type: None -> None
         """ Shuffles the dataset randomly """
+        # TODO shuffle dataset
         pass
 
     def batch_serie(self, serie_name, batch_size):
