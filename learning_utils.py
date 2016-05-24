@@ -89,7 +89,6 @@ def training_loop(sess, saver,
                   test_run=False):
 
     """
-
     Performs the training loop for given graph and data.
 
     Args:
@@ -199,7 +198,7 @@ def training_loop(sess, saver,
                 else:
                     trainer.run(sess, batch_feed_dict, batch_sentences, verbose=False)
 
-                if step % 500 == (61 if test_run else 499):
+                if step % 500 == 1:#(61 if test_run else 499):
                     decoded_val_sentences, opt_loss, dec_loss = \
                             runner(sess, val_dataset, all_coders)
                     evaluation_result = \
@@ -239,8 +238,14 @@ def training_loop(sess, saver,
                     print ""
 
                     if log_directory:
+                        def format_name(name):
+                            if hasattr(name, '__call__'):
+                                return name.__name__
+                            else:
+                                return str(name)
                         external_str = \
-                            tf.Summary(value=[tf.Summary.Value(tag="val_"+name, simple_value=value)\
+                            tf.Summary(value=[tf.Summary.Value(tag="val_"+format_name(name),
+                                                               simple_value=value)\
                                               for name, value in val_evaluation.iteritems()])
 
                         tb_writer.add_summary(external_str, seen_instances)
