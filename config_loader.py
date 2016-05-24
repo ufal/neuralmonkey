@@ -133,9 +133,7 @@ def get_object(value, all_dicts, existing_objects, depth, vocabularies=None):
 
 
 def load_config_file(config_file):
-    """
-    Loads the complete configuration of an experiment.
-    """
+    """ Loads the complete configuration of an experiment. """
     config_dicts = get_config_dicts(config_file)
 
     # first load the configuration into a dictionary

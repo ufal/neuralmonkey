@@ -18,10 +18,14 @@ from config_loader import load_config_file
 from learning_utils import training_loop
 from dataset import Dataset
 
-def get_from_configuration(configuration, name, expected_type=None, cond=None):
+def get_from_configuration(configuration, name, expected_type=None, cond=None,
+                           required=True, default=None):
     """ Checks whether a filed is in the configuration and returns it. """
     if name not in configuration:
-        raise Exception("Field {} is missing in the configuration.".format(name))
+        if required:
+            raise Exception("Field \"{}\" is missing in the configuration.".format(name))
+        else:
+            return default
 
     value = configuration[name]
     if expected_type is not None and not isinstance(value, expected_type):
@@ -49,23 +53,26 @@ if __name__ == "__main__":
     print ""
     print_header(name)
 
-    try: #TODO facultative arguments
-        random_seed = get_from_configuration(configuration, 'random_seed', int)
-    except:
-        random_seed = None
-    if random_seed is not None:
-        tf.set_random_seed(random_seed)
-    output = get_from_configuration(configuration, 'output', basestring)
-    epochs = get_from_configuration(configuration, 'epochs', int, lambda x: x >= 0)
-    trainer = get_from_configuration(configuration, 'trainer')
-    encoders = get_from_configuration(configuration, 'encoders', list, lambda l: len(l) > 0)
-    decoder = get_from_configuration(configuration, 'decoder')
-    batch_size = get_from_configuration(configuration, 'batch_size', int, lambda x: x > 0)
-    train_dataset = get_from_configuration(configuration, 'train_dataset', Dataset)
-    val_dataset = get_from_configuration(configuration, 'val_dataset', Dataset)
-    postprocess = get_from_configuration(configuration, 'postprocess')
-    evaluation = get_from_configuration(configuration, 'evaluation', list)
-    runner = get_from_configuration(configuration, 'runner')
+    try:
+        random_seed = get_from_configuration(configuration, 'random_seed', int, required=False)
+        if random_seed is not None:
+            tf.set_random_seed(random_seed)
+        output = get_from_configuration(configuration, 'output', basestring)
+        epochs = get_from_configuration(configuration, 'epochs', int, lambda x: x >= 0)
+        trainer = get_from_configuration(configuration, 'trainer')
+        encoders = get_from_configuration(configuration, 'encoders', list, lambda l: len(l) > 0)
+        decoder = get_from_configuration(configuration, 'decoder')
+        batch_size = get_from_configuration(configuration, 'batch_size', int, lambda x: x > 0)
+        train_dataset = get_from_configuration(configuration, 'train_dataset', Dataset)
+        val_dataset = get_from_configuration(configuration, 'val_dataset', Dataset)
+        postprocess = get_from_configuration(configuration, 'postprocess')
+        evaluation = get_from_configuration(configuration, 'evaluation', list)
+        runner = get_from_configuration(configuration, 'runner')
+        test_datasets = get_from_configuration(configuration, 'test_datasets', list,
+                                               required=False, default=[])
+    except Exception as e:
+        log(e.message, color='red')
+        exit(1)
 
     try:
         os.mkdir(output)
@@ -83,4 +90,4 @@ if __name__ == "__main__":
     sess.run(tf.initialize_all_variables())
     training_loop(sess, epochs, trainer, encoders + [decoder], decoder,
                   batch_size, train_dataset, val_dataset,
-                  output, evaluation, runner)
+                  output, evaluation, runner, test_datasets=test_datasets)

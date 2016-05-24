@@ -3,6 +3,7 @@ import tensorflow as tf
 from nltk.tokenize import word_tokenize
 from termcolor import colored
 import regex as re
+import codecs
 
 from utils import log
 
@@ -51,15 +52,13 @@ def feed_dicts(dataset, batch_size, coders, train=False):
 
     return dicts
 
-# TODO postprocess, copynet, beamsearch will be hidden in runner
-
 
 def training_loop(sess, epochs, trainer, all_coders, decoder, batch_size,
                   train_dataset, val_dataset,
                   log_directory,
                   evaluation_functions,
                   runner,
-                  test_dataset=None,
+                  test_datasets=[],
                   initial_variables=None,
                   test_run=False):
 
@@ -216,34 +215,21 @@ def training_loop(sess, epochs, trainer, all_coders, decoder, batch_size,
         log("Training interrupted by user.")
 
     saver.restore(sess, variables_file)
-    log("Training finished. Maximum {} on validation data: {:.2f}, epoch {}".format(evaluation_labels[-1], max_score, max_score_epoch))
+    log("Training finished. Maximum {} on validation data: {:.2f}, epoch {}"\
+            .format(evaluation_labels[-1], max_score, max_score_epoch))
 
-#    if test_feed_dicts and batched_test_copy_sentences and test_output_file:
-#        log("Translating test data and writing to {}".format(test_output_file))
-#        decoded_test_sentences = []
-#
-#        for i, (test_feed_dict, test_copy_sentences) in enumerate(zip(test_feed_dicts, batched_test_copy_sentences)):
-#            if use_beamsearch:
-#                 decoded_test_sentence_indices = beamsearch(test_feed_dict)
-#                 decoded_test_sentences_batch = [[decoder.decoder.vocabulary.index_to_word[i] \
-#                         for i in decoded_test_sentence_indices][1:]]
-#                 log(decoded_test_sentences_batch)
-#            else:
-#                computation = sess.run(decoder.copynet_logits + decoder.decoded_seq, feed_dict=test_feed_dict)
-#                decoded_test_sentences_batch = decoder.vocabulary.vectors_to_sentences(computation[-decoder.max_output_len - 1:])
-#
-#                #if use_copynet: # TODO beamsearch (porad) nefunguje s copynetem
-#                #    decoded_test_sentences_batch = \
-#                #        copynet_substitute(decoded_test_sentences_batch, test_copy_sentences, computation)
-#
-#            decoded_test_sentences += [postprocess(s) for s in decoded_test_sentences_batch]
-#
-#            with open(test_output_file.name, test_output_file.mode) as fout:
-#
-#                for sent in decoded_test_sentences:
-#                    fout.write("{}\n".format(" ".join(sent)))
-#                fout.close()
+    for dataset in test_datasets:
+        log("Applying model on dataset \"{}\"".format(dataset.name))
+        result, _, _ = runner(sess, dataset, all_coders)
+        if decoder.data_id in dataset.series_outputs:
+            path = dataset.series_outputs[decoder.data_id]
+            if isinstance(result, np.ndarray):
+                np.save(path, result)
+                log("Numpy array saved to \"{}\"".format(path))
+            else:
+                with codecs.open(path, 'w', 'utf-8') as f:
+                    f.writelines([u" ".join(sent)+"\n" for sent in result])
+        else:
+            log("There is no output file for dataset: {}".format(dataset.name), color='red')
 
     log("Finished.")
-
-

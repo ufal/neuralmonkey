@@ -46,6 +46,11 @@ class Dataset(object):
 
         """
 
+        if 'name' in args:
+            self.name = args['name']
+        else:
+            self.name = "dataset"
+
         series_names = [k for k in args.keys() if k.find('_') == -1]
         log("Initializing dataset with: {}".format(", ".join(series_names)))
 
@@ -53,6 +58,11 @@ class Dataset(object):
             """ Loads a data serie from a file """
             log("Loading {}".format(path))
             file_type = magic.from_file(path, mime=True)
+
+            # if the dataset has no name, generate it from files
+            if 'name' not in args:
+                self.name += "-"+path
+
             if file_type == 'text/plain':
                 if name+"_preprocess" in args:
                     preprocess = args[name+"_preprocess"]
@@ -68,6 +78,9 @@ class Dataset(object):
         self.series = {name: create_serie(name, args[name]) for name in series_names}
 
         assert len(set([len(v) for v in self.series.values()])) == 1
+
+        self.series_outputs = \
+                {key[:-4]: value for key, value in args.iteritems() if key.endswith('_out')}
 
         self.series_languages = {}
         for name, serie in self.series.iteritems():
