@@ -1,9 +1,9 @@
+import codecs
 import numpy as np
 import tensorflow as tf
 from nltk.tokenize import word_tokenize
 from termcolor import colored
 import regex as re
-import codecs
 
 from utils import log
 
@@ -169,7 +169,7 @@ def training_loop(sess, epochs, trainer, all_coders, decoder, batch_size,
                 else:
                     trainer.run(sess, batch_feed_dict, batch_sentences, verbose=False)
 
-                if step % 500 == 1:# (61 if test_run else 499):
+                if step % 500 == (61 if test_run else 499):
                     decoded_val_sentences, opt_loss, dec_loss = \
                             runner(sess, val_dataset, all_coders)
                     evaluation_result = \

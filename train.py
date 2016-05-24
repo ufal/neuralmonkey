@@ -14,80 +14,62 @@ from shutil import copyfile
 import tensorflow as tf
 
 from utils import print_header, log
-from config_loader import load_config_file
+from configuration import Configuration
 from learning_utils import training_loop
 from dataset import Dataset
-
-def get_from_configuration(configuration, name, expected_type=None, cond=None,
-                           required=True, default=None):
-    """ Checks whether a filed is in the configuration and returns it. """
-    if name not in configuration:
-        if required:
-            raise Exception("Field \"{}\" is missing in the configuration.".format(name))
-        else:
-            return default
-
-    value = configuration[name]
-    if expected_type is not None and not isinstance(value, expected_type):
-        raise Exception("Value of {} should be {}, but is {}.".format(name, expected_type,
-                                                                      type(value)))
-    if cond is not None and not cond(value):
-        raise Exception("Value of {} does not satisfy conditions.".format(name))
-
-    return value
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
         print "Usage: train.py <ini_file>"
         exit(1)
 
-    ini_file = sys.argv[1]
-    log("Loading ini file: \"{}\"".format(ini_file), color='red')
-    config_f = codecs.open(ini_file, 'r', 'utf-8')
-    configuration = load_config_file(config_f)
-    log("ini file loded.", color='red')
-
-
-    name = get_from_configuration(configuration, 'name', basestring)
-
-    print ""
-    print_header(name)
+    config = Configuration()
+    config.add_argument('name', str)
+    config.add_argument('random_seed', int, required=False)
+    config.add_argument('output', basestring)
+    config.add_argument('epochs', int, cond=lambda x: x >= 0)
+    config.add_argument('trainer')
+    config.add_argument('encoders', list, cond=lambda l: len(l) > 0)
+    config.add_argument('decoder')
+    config.add_argument('batch_size', int, cond=lambda x: x > 0)
+    config.add_argument('train_dataset', Dataset)
+    config.add_argument('val_dataset', Dataset)
+    config.add_argument('postprocess')
+    config.add_argument('evaluation', cond=list)
+    config.add_argument('runner')
+    config.add_argument('test_datasets', list, required=False, default=[])
 
     try:
-        random_seed = get_from_configuration(configuration, 'random_seed', int, required=False)
-        if random_seed is not None:
-            tf.set_random_seed(random_seed)
-        output = get_from_configuration(configuration, 'output', basestring)
-        epochs = get_from_configuration(configuration, 'epochs', int, lambda x: x >= 0)
-        trainer = get_from_configuration(configuration, 'trainer')
-        encoders = get_from_configuration(configuration, 'encoders', list, lambda l: len(l) > 0)
-        decoder = get_from_configuration(configuration, 'decoder')
-        batch_size = get_from_configuration(configuration, 'batch_size', int, lambda x: x > 0)
-        train_dataset = get_from_configuration(configuration, 'train_dataset', Dataset)
-        val_dataset = get_from_configuration(configuration, 'val_dataset', Dataset)
-        postprocess = get_from_configuration(configuration, 'postprocess')
-        evaluation = get_from_configuration(configuration, 'evaluation', list)
-        runner = get_from_configuration(configuration, 'runner')
-        test_datasets = get_from_configuration(configuration, 'test_datasets', list,
-                                               required=False, default=[])
+        ini_file = sys.argv[1]
+        log("Loading ini file: \"{}\"".format(ini_file), color='cyan')
+        config_f = codecs.open(ini_file, 'r', 'utf-8')
+        args = config.load_file(config_f)
+        log("ini file loded.", color='cyan')
     except Exception as e:
         log(e.message, color='red')
         exit(1)
 
+
+    print ""
+    print_header(args.name)
+
+    if args.random_seed is not None:
+        tf.set_random_seed(args.random_seed)
+
     try:
-        os.mkdir(output)
+        os.mkdir(args.output)
     except:
-        log("Experiment directory \"{}\" already exists".format(output))
+        log("Experiment directory \"{}\" already exists".format(args.output), color='red')
         exit(1)
 
-    copyfile(ini_file, output+"/experiment.ini")
-    os.system("git log -1 --format=%H > {}/git_commit".format(output))
-    os.system("git --no-pager diff --color=always > {}/git_diff".format(output))
+    copyfile(ini_file, args.output+"/experiment.ini")
+    os.system("git log -1 --format=%H > {}/git_commit".format(args.output))
+    os.system("git --no-pager diff --color=always > {}/git_diff".format(args.output))
 
     log("Initializing the TensorFlow session.")
     sess = tf.Session(config=tf.ConfigProto(inter_op_parallelism_threads=4,
                                             intra_op_parallelism_threads=4))
     sess.run(tf.initialize_all_variables())
-    training_loop(sess, epochs, trainer, encoders + [decoder], decoder,
-                  batch_size, train_dataset, val_dataset,
-                  output, evaluation, runner, test_datasets=test_datasets)
+    training_loop(sess, args.epochs, args.trainer, args.encoders + [args.decoder], args.decoder,
+                  args.batch_size, args.train_dataset, args.val_dataset,
+                  args.output, args.evaluation, args.runner, test_datasets=args.test_datasets)

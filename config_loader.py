@@ -161,5 +161,6 @@ def load_config_file(config_file):
                                         existing_objects, 0,
                                         vocabularies=vocabularies)
 
+    del configuration['vocabularies_source']
     return configuration
 
