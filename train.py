@@ -57,6 +57,8 @@ if __name__ == "__main__":
         exit(1)
 
 
+    print args.validation_period
+
     print ""
     print_header(args.name)
 
@@ -76,4 +78,5 @@ if __name__ == "__main__":
     sess, saver = initialize_tf(args.initial_variables)
     training_loop(sess, saver, args.epochs, args.trainer, args.encoders + [args.decoder], args.decoder,
                   args.batch_size, args.train_dataset, args.val_dataset,
-                  args.output, args.evaluation, args.runner, test_datasets=args.test_datasets)
+                  args.output, args.evaluation, args.runner,
+                  test_datasets=args.test_datasets, validation_period=args.validation_period)

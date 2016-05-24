@@ -86,7 +86,6 @@ def training_loop(sess, saver,
                   runner,
                   test_datasets=[],
                   initial_variables=None,
-                  test_run=False,
                   validation_period=500):
 
     """
@@ -166,7 +165,7 @@ def training_loop(sess, saver,
 
                 step += 1
                 seen_instances += len(batch_sentences)
-                if step % 20 == 1:
+                if step % 20 == 19:
 
                     computation = trainer.run(sess, batch_feed_dict, batch_sentences, verbose=True)
 
@@ -198,14 +197,17 @@ def training_loop(sess, saver,
                         tb_writer.add_summary(external_str, seen_instances)
                 else:
                     trainer.run(sess, batch_feed_dict, batch_sentences, verbose=False)
-
-                if step % validation_period == validation_period -1:
+                
+                print validation_period
+                exit()
+                if step % validation_period == validation_period - 1:
                     decoded_val_sentences, val_evaluation = \
                             run_on_dataset(sess, runner, all_coders, decoder, val_dataset,
                                            evaluation_functions, write_out=False)
 
-                    eval_string = "    ".join(["{}: {:.2f}".format("val_"+f.__name__, val_evaluation[f])
-                                               for f in evaluation_functions])
+                    eval_string = \
+                        "    ".join(["{}: {:.2f}".format("val_"+f.__name__, val_evaluation[f])
+                                     for f in evaluation_functions])
                     # TODO make the last one bold
 
                     if val_evaluation[evaluation_functions[-1]] > max_score:
@@ -254,12 +256,14 @@ def training_loop(sess, saver,
     for dataset in test_datasets:
         _, evaluation = run_on_dataset(sess, runner, all_coders, decoder,
                                        dataset, evaluation_functions, write_out=True)
-        # TODO if there is evaluation, print it out
+        if evaluation:
+            print_dataset_evaluation(dataset.name, evaluation)
 
     log("Finished.")
 
+
 def run_on_dataset(sess, runner, all_coders, decoder, dataset,
-        evaluation_functions, write_out=False):
+                   evaluation_functions, write_out=False):
     """
     Applies the model on a dataset and eventualy writes outpus into a file.
 
@@ -274,6 +278,9 @@ def run_on_dataset(sess, runner, all_coders, decoder, dataset,
         decoder: The decoder used to generate outputs.
 
         dataset: The dataset on which the model will be executed.
+
+        evaluation_functions: List of functions that are used for the model
+            evaluation if the target data are provided.
 
         write_out: Flag whether the outputs should be printed to a file defined
             in the dataset object.
@@ -291,11 +298,11 @@ def run_on_dataset(sess, runner, all_coders, decoder, dataset,
             path = dataset.series_outputs[decoder.data_id]
             if isinstance(result, np.ndarray):
                 np.save(path, result)
-                log("Numpy array saved to \"{}\"".format(path))
+                log("Result saved as numpy array to \"{}\"".format(path))
             else:
                 with codecs.open(path, 'w', 'utf-8') as f_out:
                     f_out.writelines([u" ".join(sent)+"\n" for sent in result])
-                log("Plain text saved to \"{}\"".format(path))
+                log("Reselt saved as plain text \"{}\"".format(path))
         else:
             log("There is no output file for dataset: {}"\
                     .format(dataset.name), color='red')
