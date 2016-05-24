@@ -17,3 +17,5 @@ def print_header(title):
     print "Launched at {}".format(time.strftime("%Y-%m-%d %H:%M:%S"))
 
     print ""
+
+    # TODO print the complete configuration (unroll objects to the first level)

@@ -6,6 +6,11 @@ This is a traiing script for sequence to sequence learning.
 
 """
 
+# TODO train and validation output frequency
+# TODO logovani do souboru
+# TODO pripravit ini soubor pro spusteni modelu
+# TODO better handling parsing INI errors
+
 import sys
 import os
 import codecs
@@ -15,7 +20,7 @@ import tensorflow as tf
 
 from utils import print_header, log
 from configuration import Configuration
-from learning_utils import training_loop
+from learning_utils import training_loop, initialize_tf
 from dataset import Dataset
 
 if __name__ == "__main__":
@@ -38,6 +43,7 @@ if __name__ == "__main__":
     config.add_argument('evaluation', cond=list)
     config.add_argument('runner')
     config.add_argument('test_datasets', list, required=False, default=[])
+    config.add_argument('initial_variables', str, required=False, default=[])
 
     try:
         ini_file = sys.argv[1]
@@ -45,8 +51,8 @@ if __name__ == "__main__":
         config_f = codecs.open(ini_file, 'r', 'utf-8')
         args = config.load_file(config_f)
         log("ini file loded.", color='cyan')
-    except Exception as e:
-        log(e.message, color='red')
+    except Exception as exc:
+        log(exc.message, color='red')
         exit(1)
 
 
@@ -66,10 +72,7 @@ if __name__ == "__main__":
     os.system("git log -1 --format=%H > {}/git_commit".format(args.output))
     os.system("git --no-pager diff --color=always > {}/git_diff".format(args.output))
 
-    log("Initializing the TensorFlow session.")
-    sess = tf.Session(config=tf.ConfigProto(inter_op_parallelism_threads=4,
-                                            intra_op_parallelism_threads=4))
-    sess.run(tf.initialize_all_variables())
-    training_loop(sess, args.epochs, args.trainer, args.encoders + [args.decoder], args.decoder,
+    sess, saver = initialize_tf(args.initial_variables)
+    training_loop(sess, saver, args.epochs, args.trainer, args.encoders + [args.decoder], args.decoder,
                   args.batch_size, args.train_dataset, args.val_dataset,
                   args.output, args.evaluation, args.runner, test_datasets=args.test_datasets)

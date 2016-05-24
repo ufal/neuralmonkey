@@ -41,7 +41,6 @@ def tokenize_char_seq(chars):
 
 def feed_dicts(dataset, batch_size, coders, train=False):
     """
-
     This function ensures all encoder and decoder objects feed their the data
     they need from the dataset.
     """
@@ -52,8 +51,35 @@ def feed_dicts(dataset, batch_size, coders, train=False):
 
     return dicts
 
+def initialize_tf(initial_variables):
+    """
+    Initializes the TensorFlow session after the graph is built.
 
-def training_loop(sess, epochs, trainer, all_coders, decoder, batch_size,
+    Args:
+
+        initial_variables: File with the saved TF variables.
+
+    Returns:
+
+        A tuple of the TF session and the the TF saver object.
+
+    """
+    log("Initializing the TensorFlow session.")
+    sess = tf.Session(config=tf.ConfigProto(inter_op_parallelism_threads=4,
+                                            intra_op_parallelism_threads=4))
+    sess.run(tf.initialize_all_variables())
+
+    saver = tf.train.Saver()
+    if initial_variables:
+        log("Loading variables from {}".format(initial_variables))
+        saver.restore(sess, initial_variables)
+
+    log("Session initialization done.")
+
+    return sess, saver
+
+def training_loop(sess, saver,
+                  epochs, trainer, all_coders, decoder, batch_size,
                   train_dataset, val_dataset,
                   log_directory,
                   evaluation_functions,
@@ -69,6 +95,8 @@ def training_loop(sess, epochs, trainer, all_coders, decoder, batch_size,
     Args:
 
         sess: TF Session.
+
+        saver: TF saver object.
 
         epochs: Number of epochs for which the algoritm will learn.
 
@@ -101,7 +129,6 @@ def training_loop(sess, epochs, trainer, all_coders, decoder, batch_size,
     """
 
     evaluation_labels = [f.__name__ for f in evaluation_functions]
-    log("Starting training")
     step = 0
     seen_instances = 0
 
@@ -114,7 +141,9 @@ def training_loop(sess, epochs, trainer, all_coders, decoder, batch_size,
     saver.save(sess, variables_file)
 
     if log_directory:
+        log("Initializing TensorBoard summary writer.")
         tb_writer = tf.train.SummaryWriter(log_directory, sess.graph_def)
+        log("TesorBoard writer initialized.")
 
     max_score = 0.0
     max_score_epoch = 0
@@ -122,6 +151,7 @@ def training_loop(sess, epochs, trainer, all_coders, decoder, batch_size,
 
     val_tgt_sentences = val_dataset.series[decoder.data_id]
 
+    log("Starting training")
     try:
         for i in range(epochs):
             print ""
@@ -176,11 +206,15 @@ def training_loop(sess, epochs, trainer, all_coders, decoder, batch_size,
                             [f(decoded_val_sentences, val_tgt_sentences)
                              for f in evaluation_functions]
 
-                    eval_string = "    ".join(["{}: {:.2f}".format(name, value) for name, value \
-                        in zip(evaluation_labels, evaluation_result)])
+                    decoded_sentences, val_evaluation = \
+                            run_on_dataset(sess, runner, all_coders, decoder, val_dataset,
+                                           evaluation_functions, write_out=False)
 
+                    eval_string = "    ".join(["{}: {:.2f}".format("val_"+f.__name__, val_evaluation[f])
+                                               for f in evaluation_functions])
+                    # TODO make the last one bold
 
-                    if evaluation_result[-1] > max_score:
+                    if val_evaluation[evaluation_functions[-1]] > max_score:
                         max_score = evaluation_result[-1]
                         max_score_epoch = i
                         max_score_batch_no = batch_n
@@ -190,7 +224,8 @@ def training_loop(sess, epochs, trainer, all_coders, decoder, batch_size,
                     log("Validation (epoch {}, batch number {}):"\
                             .format(i + 1, batch_n), color='cyan')
                     log("opt. loss: {:.4f}    dec. loss: {:.4f}    "\
-                            .format(opt_loss, dec_loss) + eval_string, color='cyan')
+                            .format(val_evaluation['opt_loss'], val_evaluation['dec_loss']) \
+                        + eval_string, color='cyan')
                     log("max {} on validation: {:.2f} (in epoch {}, after batch number {})".\
                             format(evaluation_labels[-1], max_score,
                                    max_score_epoch, max_score_batch_no), color='cyan')
@@ -204,11 +239,9 @@ def training_loop(sess, epochs, trainer, all_coders, decoder, batch_size,
                     print ""
 
                     if log_directory:
-                        # TODO include validation loss
                         external_str = \
                             tf.Summary(value=[tf.Summary.Value(tag="val_"+name, simple_value=value)\
-                                              for name, value in zip(evaluation_labels,
-                                                                     evaluation_result)])
+                                              for name, value in val_evaluation.iteritems()])
 
                         tb_writer.add_summary(external_str, seen_instances)
     except KeyboardInterrupt:
@@ -219,17 +252,61 @@ def training_loop(sess, epochs, trainer, all_coders, decoder, batch_size,
             .format(evaluation_labels[-1], max_score, max_score_epoch))
 
     for dataset in test_datasets:
-        log("Applying model on dataset \"{}\"".format(dataset.name))
-        result, _, _ = runner(sess, dataset, all_coders)
+        _, evaluation = run_on_dataset(sess, runner, all_coders, decoder,
+                                       dataset, evaluation_functions, write_out=True)
+        # TODO if there is evaluation, print it out
+
+    log("Finished.")
+
+def run_on_dataset(sess, runner, all_coders, decoder, dataset,
+        evaluation_functions, write_out=False):
+    """
+    Applies the model on a dataset and eventualy writes outpus into a file.
+
+    Args:
+
+        session: TF session the model parameters are in.
+
+        runner: A function that runs the code
+
+        all_coders: List of all encoders and decoders in the model.
+
+        decoder: The decoder used to generate outputs.
+
+        dataset: The dataset on which the model will be executed.
+
+        write_out: Flag whether the outputs should be printed to a file defined
+            in the dataset object.
+
+    Returns:
+
+        Tuple of resulting sentences/numpy arrays, and evaluation results if
+            they are available.
+
+    """
+    log("Applying model on dataset \"{}\"".format(dataset.name))
+    result, opt_loss, dec_loss = runner(sess, dataset, all_coders)
+    if write_out:
         if decoder.data_id in dataset.series_outputs:
             path = dataset.series_outputs[decoder.data_id]
             if isinstance(result, np.ndarray):
                 np.save(path, result)
                 log("Numpy array saved to \"{}\"".format(path))
             else:
-                with codecs.open(path, 'w', 'utf-8') as f:
-                    f.writelines([u" ".join(sent)+"\n" for sent in result])
+                with codecs.open(path, 'w', 'utf-8') as f_out:
+                    f_out.writelines([u" ".join(sent)+"\n" for sent in result])
+                log("Plain text saved to \"{}\"".format(path))
         else:
-            log("There is no output file for dataset: {}".format(dataset.name), color='red')
+            log("There is no output file for dataset: {}"\
+                    .format(dataset.name), color='red')
 
-    log("Finished.")
+    evaluation = {}
+    if decoder.data_id in dataset.series:
+        test_targets = dataset.series[decoder.data_id]
+        eval_id = dataset.name + "_" + decoder.name
+        evaluation["opt_loss"] = opt_loss
+        evaluation["dec_loss"] = dec_loss
+        for f in evaluation_functions:
+            evaluation[f] = f(result, test_targets)
+
+    return result, evaluation
