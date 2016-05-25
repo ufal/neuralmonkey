@@ -11,7 +11,7 @@ from noisy_gru_cell import NoisyGRUCell
 
 class Decoder:
     def __init__(self, encoders, vocabulary, data_id, rnn_size, embedding_size=128, use_attention=None,
-                 max_out_len=20, scheduled_sampling=None,
+                 max_output_len=20, scheduled_sampling=None,
                  dropout_keep_p=0.5, copy_net=None, reused_word_embeddings=None,
                  use_noisy_activations=False, depth=1, name="decoder"):
 
@@ -45,7 +45,7 @@ class Decoder:
             use_attention (str): The type of attention to use or None. (Refer to
                 cli_options script for allowed types of attention]
 
-            max_out_len (int): Maximum length of the decoder output.
+            max_output_len (int): Maximum length of the decoder output.
 
             use_peepholes (bool): Flag whether peephole connections should be
                 used in the GRU decoder.
@@ -95,11 +95,21 @@ class Decoder:
         """
 
         log("Initializing decoder, name: \"{}\"".format(name))
-        self.data_id = data_id
-        self.dropout_keep_p = dropout_keep_p
+        self.encoders = encoders
         self.vocabulary = vocabulary
+        self.data_id = data_id
         self.rnn_size = rnn_size
-        self.max_output_len = max_out_len
+        self.embedding_size = embedding_size
+        self.use_attention = use_attention
+        self.max_output_len = max_output_len
+        self.scheduled_sampling = scheduled_sampling
+        self.dropout_keep_p = dropout_keep_p
+        self.copy_net = copy_net
+        self.reused_word_embeddings = reused_word_embeddings
+        self.use_noisy_activations = use_noisy_activations
+        self.depth = depth
+        self.name = name
+
         self.dropout_placeholder = tf.placeholder(tf.float32, name="decoder_dropout_plc")
         self.is_training = tf.placeholder(tf.bool, name="decoder_is_training")
 
@@ -124,7 +134,7 @@ class Decoder:
         self.gt_inputs = []
 
         with tf.variable_scope("decoder_inputs"):
-            for i in range(max_out_len + 2):
+            for i in range(max_output_len + 2):
                 dec = tf.placeholder(tf.int64, [None],
                                      name='decoder{0}'.format(i))
                 tf.add_to_collection('dec_encoder_ins', dec)
@@ -169,7 +179,7 @@ class Decoder:
                 # This is implementation of Copy-net (http://arxiv.org/pdf/1603.06393v2.pdf)
                 encoder_input_indices, copy_states, copy_mask = copy_net
                 copy_tensor_dropped = tf.nn.dropout(copy_states, self.dropout_placeholder)
-                copy_tensors = [tf.squeeze(t, [1]) for t in tf.split(1, max_out_len + 2, copy_tensor_dropped)]
+                copy_tensors = [tf.squeeze(t, [1]) for t in tf.split(1, max_output_len + 2, copy_tensor_dropped)]
                 copy_features_size = copy_states.get_shape()[2].value
 
                 # first we do the learned projection of the ecnoder outputs

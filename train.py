@@ -22,6 +22,7 @@ from utils import print_header, log
 from configuration import Configuration
 from learning_utils import training_loop, initialize_tf
 from dataset import Dataset
+from config_generator import save_configuration
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
@@ -71,6 +72,17 @@ if __name__ == "__main__":
     copyfile(ini_file, args.output+"/experiment.ini")
     os.system("git log -1 --format=%H > {}/git_commit".format(args.output))
     os.system("git --no-pager diff --color=always > {}/git_diff".format(args.output))
+
+    run_configuration = {
+        'encoders': args.encoders,
+        'decoder': args.decoder,
+        'test_datasets': args.test_datasets,
+        'runner': args.runner,
+        'evaluation': args.evaluation,
+        'initial_variables': args.output+"/variables.data"
+    }
+    save_configuration(run_configuration)
+
 
     sess, saver = initialize_tf(args.initial_variables)
     training_loop(sess, saver, args.epochs, args.trainer, args.encoders + [args.decoder], args.decoder,

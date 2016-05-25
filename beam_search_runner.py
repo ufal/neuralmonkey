@@ -7,6 +7,7 @@ from utils import log
 class BeamSearchRunner(object):
     def __init__(self, decoder, beam_size, postprocess=None):
         self.decoder = decoder
+        self.beam_size = beam_size
         self.postprocess = postprocess
         self.vocabulary = decoder.vocabulary
 

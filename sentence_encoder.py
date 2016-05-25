@@ -13,10 +13,18 @@ class SentenceEncoder(object):
                  dropout_keep_p=0.5,
                  use_noisy_activations=False, attention_type=None,
                  attention_fertility=3, name="sentence_encoder", parent_encoder=None):
+        self.name = name
+        self.max_input_len = max_input_len
         self.vocabulary = vocabulary
+        self.data_id = data_id
+        self.embedding_size = embedding_size
+        self.rnn_size = rnn_size
         self.max_input_len = max_input_len
         self.dropout_keep_p = dropout_keep_p
-        self.data_id = data_id
+        self.use_noisy_activations = use_noisy_activations
+        self.attention_type = attention_type
+        self.attention_fertility = attention_fertility
+        self.parent_encoder = parent_encoder
 
         log("Initializing sentence encoder, name: \"{}\"".format(name))
         with tf.variable_scope(name):
