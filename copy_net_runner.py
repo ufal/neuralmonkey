@@ -3,6 +3,8 @@ import numpy as np
 
 from learning_utils import feed_dicts
 
+# TODO inherit from greedy runner
+
 def copynet_substitute(decoded_sentences, copy_logits, copy_sentences):
     """
     Substitutes the <unk> tokens with the tokens from the source encoder we are

@@ -56,9 +56,6 @@ if __name__ == "__main__":
         log(exc.message, color='red')
         exit(1)
 
-
-    print args.validation_period
-
     print ""
     print_header(args.name)
 

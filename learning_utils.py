@@ -197,9 +197,7 @@ def training_loop(sess, saver,
                         tb_writer.add_summary(external_str, seen_instances)
                 else:
                     trainer.run(sess, batch_feed_dict, batch_sentences, verbose=False)
-                
-                print validation_period
-                exit()
+
                 if step % validation_period == validation_period - 1:
                     decoded_val_sentences, val_evaluation = \
                             run_on_dataset(sess, runner, all_coders, decoder, val_dataset,
