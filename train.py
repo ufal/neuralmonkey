@@ -46,7 +46,7 @@ if __name__ == "__main__":
     config.add_argument('initial_variables', str, required=False, default=[])
     config.add_argument('validation_period', int, required=False, default=500)
 
-    args = config.load_file(config_f)
+    args = config.load_file(sys.argv[1])
 
     print ""
     print_header(args.name)
