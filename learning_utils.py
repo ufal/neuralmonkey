@@ -300,7 +300,7 @@ def run_on_dataset(sess, runner, all_coders, decoder, dataset,
             else:
                 with codecs.open(path, 'w', 'utf-8') as f_out:
                     f_out.writelines([u" ".join(sent)+"\n" for sent in result])
-                log("Reselt saved as plain text \"{}\"".format(path))
+                log("Result saved as plain text \"{}\"".format(path))
         else:
             log("There is no output file for dataset: {}"\
                     .format(dataset.name), color='red')

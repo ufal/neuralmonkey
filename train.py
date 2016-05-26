@@ -49,10 +49,10 @@ if __name__ == "__main__":
 
     try:
         ini_file = sys.argv[1]
-        log("Loading ini file: \"{}\"".format(ini_file), color='cyan')
+        log("Loading ini file: \"{}\"".format(ini_file), color='blue')
         config_f = codecs.open(ini_file, 'r', 'utf-8')
         args = config.load_file(config_f)
-        log("ini file loded.", color='cyan')
+        log("ini file loded.", color='blue')
     except Exception as exc:
         log(exc.message, color='red')
         exit(1)
@@ -76,12 +76,11 @@ if __name__ == "__main__":
     run_configuration = {
         'encoders': args.encoders,
         'decoder': args.decoder,
-        'test_datasets': args.test_datasets,
         'runner': args.runner,
         'evaluation': args.evaluation,
         'initial_variables': args.output+"/variables.data"
     }
-    save_configuration(run_configuration)
+    save_configuration(run_configuration, args.output)
 
 
     sess, saver = initialize_tf(args.initial_variables)

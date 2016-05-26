@@ -2,9 +2,11 @@
 running model, if it is provided a coniguration to train a model. """
 
 import codecs
-import vocabulary
+import os
 from inspect import isfunction
 
+import dataset
+import vocabulary
 from utils import log
 
 def final_dict_to_ini(path, dictionary):
@@ -17,8 +19,7 @@ def final_dict_to_ini(path, dictionary):
     f_ini.close()
 
 
-def object_to_dict(obj, final_dict, depth):
-    print obj
+def object_to_dict(obj, final_dict, name_dict, depth, out_dir):
     if obj is None:
         return 'None'
     elif isinstance(obj, basestring):
@@ -28,14 +29,33 @@ def object_to_dict(obj, final_dict, depth):
     elif isinstance(obj, type):
         return obj.__module__ + "." + obj.__name__
     elif isinstance(obj, list):
-        return [object_to_dict(item, final_dict, depth + 1) for item in obj]
+        string_list = \
+            [object_to_dict(item, final_dict, name_dict, depth + 1, out_dir) for item in obj]
+        return "[{}]".format(",".join(string_list))
     elif isfunction(obj):
         return "{}.{}".format(obj.__module__, obj.__name__)
-    elif obj in final_dict:
-        return final_dict[obj]
+    elif obj in name_dict:
+        return "<{}>".format(name_dict[obj])
+    elif isinstance(obj, dataset.Dataset):
+        name = "dataset_{}".format(obj.__hash__())
+        name_dict[obj] = name
+        obj_dict = {'class': 'dataset.Dataset'}
+        obj_dict.update(obj.series)
+        obj_dict.update({key+'_out': val for key, val in obj.series_outputs.iteritems()})
+        final_dict[name] = obj_dict
+        return "<{}>".format(name)
     elif isinstance(obj, vocabulary.Vocabulary):
-        # TODO pickle to file and save path
-        return "unimplemented_vocabulary"
+        voc_name = "vocabulary_{}".format(obj.__hash__())
+        file_name = "{}/{}.pickle".format(out_dir, voc_name)
+        if not os.path.isfile(file_name):
+            obj.save_to_file(file_name)
+        vocabulary_obj = {
+            'class': 'vocabulary.from_pickled',
+            'path': file_name
+        }
+        final_dict[voc_name] = vocabulary_obj
+        name_dict[obj] = voc_name
+        return "<{}>".format(voc_name)
     else:
         clazz = obj.__class__
         init_f = clazz.__init__.func_code
@@ -55,19 +75,23 @@ def object_to_dict(obj, final_dict, depth):
         obj_dict = {'class' : clazz.__module__ + "." + clazz.__name__}
         for arg in argument_names:
             try:
-                obj_dict[arg] = object_to_dict(obj.__dict__[arg], final_dict, depth + 1)
+                obj_dict[arg] = \
+                    object_to_dict(obj.__dict__[arg], final_dict, name_dict, depth + 1, out_dir)
             except KeyError:
                 log('Class "{}" in module "{}" is missing attribute "{}"'.\
                         format(clazz.__name__, clazz.__module__, arg), 'red')
                 exit(1)
+        final_dict[name] = obj_dict
+        name_dict[obj] = name
         return "<{}>".format(name)
 
 
-def save_configuration(configuration):
+def save_configuration(configuration, out_dir):
     final_dict = {}
+    name_dict = {}
     main_dict = {}
     for key, value in configuration.iteritems():
-        main_dict[key] = object_to_dict(value, final_dict, 0)
+        main_dict[key] = object_to_dict(value, final_dict, name_dict, 0, out_dir)
 
     final_dict['main'] = main_dict
-    return final_dict
+    final_dict_to_ini(out_dir+"/run.ini", final_dict)

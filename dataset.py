@@ -5,7 +5,6 @@ import magic
 import numpy as np
 
 from utils import log
-from vocabulary import Vocabulary
 
 class Dataset(object):
     """

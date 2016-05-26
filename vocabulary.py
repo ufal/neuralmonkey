@@ -1,6 +1,7 @@
 import random
-import numpy as np
+import cPickle as pickle
 import regex as re
+import numpy as np
 
 try:
     #pylint: disable=unused-import,bare-except
@@ -129,6 +130,10 @@ class Vocabulary(object):
 
         return [s[:-1] for s in sentences]
 
+    def save_to_file(self, path):
+        with open(path, 'wb') as f_pickle:
+            pickle.dump(self, f_pickle)
+
 
 def from_datasets(datasets, series_ids, max_size, random_seed=None):
     # type: (List[Dataset], List[str], int, int) -> Vocabulary
@@ -142,3 +147,10 @@ def from_datasets(datasets, series_ids, max_size, random_seed=None):
     vocabulary.trunkate(max_size)
     return vocabulary
 
+
+def from_pickled(path):
+    # type: str -> Vocabulary
+    with open(path, 'rb') as f_pickle:
+        vocabulary = pickle.load(f_pickle)
+    assert isinstance(vocabulary, Vocabulary)
+    return vocabulary
