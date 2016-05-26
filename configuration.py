@@ -1,5 +1,7 @@
+import codecs
 from argparse import Namespace
 
+from utils import log
 from config_loader import load_config_file
 
 class Configuration(object):
@@ -23,27 +25,38 @@ class Configuration(object):
             self.conditions[name] = cond
 
     def load_file(self, path):
-        arguments = Namespace()#type('', (object,), {})()
+        log("Loading ini file: \"{}\"".format(path), color='blue')
 
-        config_dict = load_config_file(path)
+        try:
+            config_f = codecs.open(path, 'r', 'utf-8')
+            arguments = Namespace()
 
-        self._check_loaded_conf(config_dict)
+            config_dict = load_config_file(config_f)
 
-        for name, value in config_dict.iteritems():
-            if name in self.conditions and not self.conditions[name](value):
-                cond_code = self.conditions[name].func_code
-                cond_filename = cond_code.co_filename
-                cond_line_number = cond_code.co_firstlineno
-                raise Exception(
-                    "Value of field \"{}\" does not satisfy condition defined at {}:{}."\
-                        .format(name, cond_filename, cond_line_number))
+            self._check_loaded_conf(config_dict)
 
-            setattr(arguments, name, value)
-            #arguments.__dict__[name] = value
+            for name, value in config_dict.iteritems():
+                if name in self.conditions and not self.conditions[name](value):
+                    cond_code = self.conditions[name].func_code
+                    cond_filename = cond_code.co_filename
+                    cond_line_number = cond_code.co_firstlineno
+                    raise Exception(
+                        "Value of field \"{}\" does not satisfy condition defined at {}:{}."\
+                            .format(name, cond_filename, cond_line_number))
 
-        for name, value in self.defaults.iteritems():
-            if name not in arguments.__dict__:
-                arguments.__dict__[name] = value
+                setattr(arguments, name, value)
+                #arguments.__dict__[name] = value
+
+            for name, value in self.defaults.iteritems():
+                if name not in arguments.__dict__:
+                    arguments.__dict__[name] = value
+            log("ini file loded.", color='blue')
+        except Exception as exc:
+            # TODO print more information
+            log(exc.message, color='red')
+            exit(1)
+        finally:
+            config_f.close()
 
         return arguments
 
@@ -64,6 +77,4 @@ class Configuration(object):
                 unexpected.append(name)
         if unexpected:
             raise Exception("Unexpected fields: {}".format(", ".join(unexpected)))
-
-
 

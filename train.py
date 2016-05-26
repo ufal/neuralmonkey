@@ -2,13 +2,12 @@
 
 """
 
-This is a traiing script for sequence to sequence learning.
+This is a training script for sequence to sequence learning.
 
 """
 
 # TODO train and validation output frequency
 # TODO logovani do souboru
-# TODO pripravit ini soubor pro spusteni modelu
 # TODO better handling parsing INI errors
 
 import sys
@@ -47,15 +46,7 @@ if __name__ == "__main__":
     config.add_argument('initial_variables', str, required=False, default=[])
     config.add_argument('validation_period', int, required=False, default=500)
 
-    try:
-        ini_file = sys.argv[1]
-        log("Loading ini file: \"{}\"".format(ini_file), color='blue')
-        config_f = codecs.open(ini_file, 'r', 'utf-8')
-        args = config.load_file(config_f)
-        log("ini file loded.", color='blue')
-    except Exception as exc:
-        log(exc.message, color='red')
-        exit(1)
+    args = config.load_file(config_f)
 
     print ""
     print_header(args.name)
