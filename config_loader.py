@@ -4,6 +4,7 @@ This module is responsible for loading training configuration.
 
 import collections
 import regex as re
+from utils import log
 
 
 OBJECT_NAME = re.compile(r"^\[([a-zA-Z][a-zA-Z0-9_]*)\]$")
@@ -12,7 +13,33 @@ KEY_VALUE_PAIR = re.compile(r"^([a-zA-Z][a-zA-Z0-9_]*) *= *(.+)$")
 INTEGER = re.compile(r"^[0-9]+$")
 FLOAT = re.compile(r"^[0-9]*\.[0-9]*(e[+-]?[0-9]+)?$")
 LIST = re.compile(r"\[([^]]+)\]")
+TUPLE = re.compile(r"\(([^]]+)\)")
 CLASS_NAME = re.compile(r"^_*[a-zA-Z][a-zA-Z0-9_]*(\._*[a-zA-Z][a-zA-Z0-9_]*)+$")
+
+def split_on_commas(string):
+    """
+    This is a clever splitter a bracketed string on commas.
+    """
+    items = []
+    char_buffer = []
+    openings = []
+    for i, c in enumerate(string):
+        if c == ',' and len(openings) == 0:
+            items.append("".join(char_buffer))
+            char_buffer = []
+            continue
+        elif c == '(' or c == '[':
+            openings.append(c)
+        elif c == ')':
+            if openings.pop() != '(':
+                raise Exception('Invalid bracket end ")", col {}.'.format(i))
+        elif c == ']':
+            if openings.pop() != '[':
+                raise Exception('Invalid bracket end "]", col {}.'.format(i))
+        char_buffer.append(c)
+    items.append("".join(char_buffer))
+    return items
+
 
 
 def format_value(string):
@@ -38,12 +65,18 @@ def format_value(string):
     elif OBJECT_REF.match(string):
         return "object:"+OBJECT_REF.match(string)[1]
     elif LIST.match(string):
-        items = LIST.match(string)[1].split(",")
+        items = split_on_commas(LIST.match(string)[1])
         values = [format_value(val) for val in items]
         types = [type(val) for val in values]
+        #log(values)
         if len(set(types)) > 1:
             raise Exception("List must of a same type, is: {}".format(types))
         return values
+    elif TUPLE.match(string):
+        #log("Here is tuple: {}".format(string))
+        items = split_on_commas(TUPLE.match(string)[1])
+        values = [format_value(val) for val in items]
+        return tuple(values)
     else:
         return string
 
@@ -127,6 +160,7 @@ def get_object(value, all_dicts, existing_objects, depth):
 def load_config_file(config_file):
     """ Loads the complete configuration of an experiment. """
     config_dicts = get_config_dicts(config_file)
+    log("INI file is parsed.")
 
     # first load the configuration into a dictionary
 
