@@ -1,49 +1,4 @@
 import regex as re
-from nltk.translate.bleu_score import corpus_bleu, SmoothingFunction
-
-bleu_smoothing = SmoothingFunction(epsilon=0.01).method1
-
-def bleu_4(decoded, references):
-    listed_references = [[s] for s in references]
-
-    bleu_4 = \
-        100 * corpus_bleu(listed_references, decoded,
-                      weights=[0.25, 0.25, 0.25, 0.25],
-                      smoothing_function=bleu_smoothing)
-    return bleu_4
-
-
-def bleu_1(decoded, references):
-    listed_references = [[s] for s in references]
-
-    bleu_1 = \
-        100 * corpus_bleu(listed_references, decoded,
-                      weights=[1.0, 0, 0, 0],
-                      smoothing_function=bleu_smoothing)
-    return bleu_1
-
-
-def bleu_4_dedup(decoded, references):
-    listed_references = [[s] for s in references]
-    deduplicated_sentences = []
-
-    for sentence in decoded:
-        last_w = None
-        dedup_snt = []
-
-        for word in sentence:
-            if word != last_w:
-                dedup_snt.append(word)
-                last_w = word
-
-        deduplicated_sentences.append(dedup_snt)
-
-    bleu_4 = \
-        100 * corpus_bleu(listed_references, deduplicated_sentences,
-                      weights=[0.25, 0.25, 0.25, 0.25],
-                      smoothing_function=bleu_smoothing)
-    return bleu_4
-
 
 def untruecase(sentence):
     if sentence:
