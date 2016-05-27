@@ -50,5 +50,5 @@ def accuracy(decoded, references):
     return np.mean([dec == ref for dec, ref in zip(decoded, references)])
 
 def edit_distance(decoded, references):
-    return np.mean([ratio(" ".join(ref), ratio(" ".join(dec))) \
-                    for dec, ref in zip(decoded, references)])
+    return 1 - np.mean([ratio(u" ".join(ref), u" ".join(dec)) \
+                        for dec, ref in zip(decoded, references)])
