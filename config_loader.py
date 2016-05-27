@@ -87,25 +87,29 @@ def get_config_dicts(config_file):
 
     current_name = None
     for i, line in enumerate(config_file):
-        line = line.strip()
-        if not line:
-            pass
-        elif line.startswith(";"):
-            pass
-        elif OBJECT_NAME.match(line):
-            current_name = OBJECT_NAME.match(line)[1]
-            if current_name in config_dicts:
-                raise Exception("Duplicit object key: '{}', line {}.".format(current_name, i))
-            config_dicts[current_name] = dict()
-        elif KEY_VALUE_PAIR.match(line):
-            matched = KEY_VALUE_PAIR.match(line)
-            key = matched[1]
-            value_string = matched[2]
-            if key in config_dicts[current_name]:
-                raise Exception("Duplicit key in '{}' object, line {}.".format(key, i))
-            config_dicts[current_name][key] = format_value(value_string)
-        else:
-            raise Exception("Syntax error on line {}: {}".format(i + 1, line))
+        try:
+            line = line.strip()
+            if not line:
+                pass
+            elif line.startswith(";"):
+                pass
+            elif OBJECT_NAME.match(line):
+                current_name = OBJECT_NAME.match(line)[1]
+                if current_name in config_dicts:
+                    raise Exception("Duplicit object key: '{}', line {}.".format(current_name, i))
+                config_dicts[current_name] = dict()
+            elif KEY_VALUE_PAIR.match(line):
+                matched = KEY_VALUE_PAIR.match(line)
+                key = matched[1]
+                value_string = matched[2]
+                if key in config_dicts[current_name]:
+                    raise Exception("Duplicit key in '{}' object, line {}.".format(key, i))
+                config_dicts[current_name][key] = format_value(value_string)
+            else:
+                raise Exception("Unknown string: \"{}\"".format(line))
+        except Exception as exc:
+            log("Syntax error on line {}: {}".format(i, exc.message), color='red')
+            exit(1)
 
     config_file.close()
     return config_dicts
