@@ -78,6 +78,7 @@ def object_to_dict(obj, final_dict, name_dict, depth, out_dir):
                 obj_dict[arg] = \
                     object_to_dict(obj.__dict__[arg], final_dict, name_dict, depth + 1, out_dir)
             except KeyError:
+                log("Error while generation the run-time configuration.")
                 log('Class "{}" in module "{}" is missing attribute "{}"'.\
                         format(clazz.__name__, clazz.__module__, arg), 'red')
                 exit(1)

@@ -62,7 +62,7 @@ class Dataset(object):
             if 'name' not in args:
                 self.name += "-"+path
 
-            if file_type == 'text/plain':
+            if file_type.startswith('text/'):
                 if name+"_preprocess" in args:
                     preprocess = args[name+"_preprocess"]
                 else:
@@ -72,11 +72,16 @@ class Dataset(object):
                     return list([preprocess(line.rstrip()) for line in f_data])
             elif file_type == 'application/octet-stream':
                 return np.load(path)
+            else:
+                raise Exception("\"{}\" has Unsopported data type: {}".format(path, file_type))
 
 
         self.series = {name: create_serie(name, args[name]) for name in series_names}
 
-        assert len(set([len(v) for v in self.series.values()])) == 1
+        if len(set([len(v) for v in self.series.values()])) != 1:
+            lengths = ["{} ({}): {}".format(s, args[s], len(self.series[s])) for s in self.series]
+            raise Exception("All data series should have the same legth, have: {}"\
+                    .format(", ".join(lengths)))
 
         self.series_outputs = \
                 {key[:-4]: value for key, value in args.iteritems() if key.endswith('_out')}

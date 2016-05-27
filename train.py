@@ -56,8 +56,8 @@ if __name__ == "__main__":
 
     try:
         os.mkdir(args.output)
-    except:
-        log("Experiment directory \"{}\" already exists".format(args.output), color='red')
+    except Exception as exc:
+        log("Failed to create experiment dictionary: {}".format(exc.message), color='red')
         exit(1)
 
     copyfile(sys.argv[1], args.output+"/experiment.ini")

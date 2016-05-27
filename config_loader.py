@@ -2,6 +2,7 @@
 This module is responsible for loading training configuration.
 """
 
+import traceback
 import collections
 import regex as re
 from utils import log
@@ -12,7 +13,7 @@ OBJECT_REF = re.compile(r"^<([a-zA-Z][a-zA-Z0-9_]*)>$")
 KEY_VALUE_PAIR = re.compile(r"^([a-zA-Z][a-zA-Z0-9_]*) *= *(.+)$")
 INTEGER = re.compile(r"^[0-9]+$")
 FLOAT = re.compile(r"^[0-9]*\.[0-9]*(e[+-]?[0-9]+)?$")
-LIST = re.compile(r"\[([^]]+)\]")
+LIST = re.compile(r"\[([^]]*)\]")
 TUPLE = re.compile(r"\(([^]]+)\)")
 CLASS_NAME = re.compile(r"^_*[a-zA-Z][a-zA-Z0-9_]*(\._*[a-zA-Z][a-zA-Z0-9_]*)+$")
 
@@ -141,6 +142,8 @@ def get_object(value, all_dicts, existing_objects, depth):
         return value
 
     name = value[7:]
+    if name not in all_dicts:
+        raise Exception("Object \"{}\" was not defined in the configuration.".format(name))
     this_dict = all_dicts[name]
 
     if depth > 20:
@@ -156,7 +159,13 @@ def get_object(value, all_dicts, existing_objects, depth):
 
     args = {k: process_arg(arg) for k, arg in this_dict.iteritems() if k != 'class'}
 
-    result = clazz(**args)
+    try:
+        result = clazz(**args)
+    except Exception as exc:
+        log("Failed to create object \"{}\" of class \"{}.{}\": {}"\
+                .format(name, clazz.__module__, clazz.__name__, exc.message), color='red')
+        traceback.print_exc()
+        exit(1)
     existing_objects[value] = result
     return result
 
@@ -177,7 +186,12 @@ def load_config_file(config_file):
 
     configuration = dict()
     for key, value in main_config.iteritems():
-        configuration[key] = get_object(value, config_dicts,
-                                        existing_objects, 0)
+        try:
+            configuration[key] = get_object(value, config_dicts,
+                                            existing_objects, 0)
+        except Exception as exc:
+            log("Error while loading {}: {}".format(key, exc.message), color='red')
+            traceback.print_exc()
+            exit(1)
 
     return configuration
