@@ -54,6 +54,10 @@ if __name__ == "__main__":
     if args.random_seed is not None:
         tf.set_random_seed(args.random_seed)
 
+    if os.path.isdir(args.output):
+        log("Directory \"{}\" exists.".format(args.output), color='red')
+        exit(1)
+
     try:
         os.mkdir(args.output)
     except Exception as exc:

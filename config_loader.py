@@ -24,20 +24,22 @@ def split_on_commas(string):
     items = []
     char_buffer = []
     openings = []
-    for i, c in enumerate(string):
-        if c == ',' and len(openings) == 0:
+    for i, char in enumerate(string):
+        if char == ',' and len(openings) == 0:
             items.append("".join(char_buffer))
             char_buffer = []
             continue
-        elif c == '(' or c == '[':
-            openings.append(c)
-        elif c == ')':
+        elif char == ' ' and len(char_buffer) == 0:
+            continue
+        elif char == '(' or char == '[':
+            openings.append(char)
+        elif char == ')':
             if openings.pop() != '(':
                 raise Exception('Invalid bracket end ")", col {}.'.format(i))
-        elif c == ']':
+        elif char == ']':
             if openings.pop() != '[':
                 raise Exception('Invalid bracket end "]", col {}.'.format(i))
-        char_buffer.append(c)
+        char_buffer.append(char)
     items.append("".join(char_buffer))
     return items
 
