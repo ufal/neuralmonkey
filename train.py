@@ -60,7 +60,7 @@ if __name__ == "__main__":
         log("Experiment directory \"{}\" already exists".format(args.output), color='red')
         exit(1)
 
-    copyfile(ini_file, args.output+"/experiment.ini")
+    copyfile(sys.argv[1], args.output+"/experiment.ini")
     os.system("git log -1 --format=%H > {}/git_commit".format(args.output))
     os.system("git --no-pager diff --color=always > {}/git_diff".format(args.output))
 
