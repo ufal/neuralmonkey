@@ -37,13 +37,13 @@ class Vocabulary(object):
 
     def get_train_word_index(self, word):
         # type: (str) -> int
-        if word not in self.word_count or self.word_count[word] <= 1:
-            if random.random() > 0.5:
-                return self.word_to_index["<unk>"]
-            else:
-                return self.word_to_index[word]
-        else:
-            return self.word_to_index[word]
+        if word not in self.word_count:
+            return self.word_to_index["<unk>"]
+
+        if self.word_count[word] <= 1 and random.random() < 0.5:
+            return self.word_to_index["<unk>"]
+
+        return self.word_to_index[word]
 
     def get_word_index(self, word):
         # type: (str) -> int
