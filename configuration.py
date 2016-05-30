@@ -50,7 +50,7 @@ class Configuration(object):
             for name, value in self.defaults.iteritems():
                 if name not in arguments.__dict__:
                     arguments.__dict__[name] = value
-            log("ini file loded.", color='blue')
+            log("ini file loaded.", color='blue')
         except Exception as exc:
             # TODO print more information
             log(exc.message, color='red')
