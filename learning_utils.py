@@ -163,6 +163,7 @@ def training_loop(sess, saver,
             log("Epoch {} starts".format(i + 1), color='red')
 
             train_dataset.shuffle()
+            log("Training dataset shuffled.")
             train_feed_dicts = feed_dicts(train_dataset, batch_size, all_coders, train=True)
             batched_targets = train_dataset.batch_serie(decoder.data_id, batch_size)
 

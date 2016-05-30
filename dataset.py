@@ -1,6 +1,7 @@
 """ Iplementation of the dataset class. """
 
 import codecs
+import random
 import magic
 import numpy as np
 
@@ -99,8 +100,13 @@ class Dataset(object):
     def shuffle(self):
         # type: None -> None
         """ Shuffles the dataset randomly """
-        # TODO shuffle dataset
-        pass
+
+        keys = self.series.keys()
+        zipped = zip(*[self.series[k] for k in keys])
+        random.shuffle(zipped)
+        for key, serie in zip(keys, zip(*zipped)):
+            self.series[key] = serie
+
 
     def batch_serie(self, serie_name, batch_size):
         """ Splits a data serie into batches """
