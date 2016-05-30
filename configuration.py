@@ -1,4 +1,5 @@
 import codecs
+import traceback
 from argparse import Namespace
 
 from utils import log
@@ -50,10 +51,10 @@ class Configuration(object):
             for name, value in self.defaults.iteritems():
                 if name not in arguments.__dict__:
                     arguments.__dict__[name] = value
-            log("ini file loaded.", color='blue')
+            log("INI file loaded.", color='blue')
         except Exception as exc:
-            # TODO print more information
-            log(exc.message, color='red')
+            log("Failed to load INI file: "+exc.message, color='red')
+            traceback.print_exc()
             exit(1)
         finally:
             config_f.close()
