@@ -87,7 +87,7 @@ def training_loop(sess, saver,
                   test_datasets=[],
                   initial_variables=None,
                   validation_period=500,
-                  postprocess=lambda x: x):
+                  postprocess=None):
 
     """
     Performs the training loop for given graph and data.
@@ -127,6 +127,10 @@ def training_loop(sess, saver,
             Training then starts from the point the loaded values.
 
     """
+
+    if not postprocess:
+        postprocess = lambda x, _: x
+
 
     evaluation_labels = [f.__name__ for f in evaluation_functions]
     step = 0
