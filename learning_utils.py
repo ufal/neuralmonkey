@@ -160,7 +160,7 @@ def training_loop(sess, saver,
 
     if log_directory:
         log("Initializing TensorBoard summary writer.")
-        tb_writer = tf.train.SummaryWriter(log_directory, sess.graph_def)
+        tb_writer = tf.train.SummaryWriter(log_directory, sess.graph)
         log("TesorBoard writer initialized.")
 
     max_score = 0.0
