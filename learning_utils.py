@@ -51,6 +51,20 @@ def feed_dicts(dataset, batch_size, coders, train=False):
 
     return dicts
 
+
+def get_eval_string(evaluation_functions, evaluation_res):
+    """ Formats the external evaluation metric for the console output. """
+    eval_string = \
+        "    ".join(["{}: {:.2f}".format(f.__name__, evaluation_res[f])
+                     for f in evaluation_functions[:-1]])
+    if evaluation_functions:
+        eval_string += colored(
+            "    {}: {:.2f}".format(evaluation_functions[-1].__name__,
+                                    evaluation_res[evaluation_functions[-1]]),
+            attrs=['bold'])
+    return eval_string
+
+
 def initialize_tf(initial_variables):
     """
     Initializes the TensorFlow session after the graph is built.
@@ -131,7 +145,6 @@ def training_loop(sess, saver,
     if not postprocess:
         postprocess = lambda x, _: x
 
-
     evaluation_labels = [f.__name__ for f in evaluation_functions]
     step = 0
     seen_instances = 0
@@ -183,10 +196,9 @@ def training_loop(sess, saver,
                     decoded_sentences = postprocess(decoded_sentences, train_dataset)
 
                     evaluation_result = \
-                            [f(decoded_sentences, batch_sentences) for f in evaluation_functions]
+                            {f: f(decoded_sentences, batch_sentences) for f in evaluation_functions}
 
-                    eval_string = "    ".join(["{}: {:.2f}".format(name, value) for name, value \
-                        in zip(evaluation_labels, evaluation_result)])
+                    eval_string = get_eval_string(evaluation_functions, evaluation_result)
 
                     log("opt. loss: {:.4f}    dec. loss: {:.4f}    ".\
                             format(computation[2], computation[1]) + eval_string)
@@ -197,9 +209,9 @@ def training_loop(sess, saver,
                         #histograms_str = computation[4]
                         #tb_writer.add_summary(histograms_str, seen_instances)
                         external_str = \
-                                tf.Summary(value=[tf.Summary.Value(tag="train_"+name,
+                                tf.Summary(value=[tf.Summary.Value(tag="train_"+func.__name__,
                                                                    simple_value=value) \
-                                for name, value in zip(evaluation_labels, evaluation_result)])
+                                for func, value in evaluation_result.iteritems()])
 
                         tb_writer.add_summary(external_str, seen_instances)
                 else:
@@ -210,13 +222,11 @@ def training_loop(sess, saver,
                             run_on_dataset(sess, runner, all_coders, decoder, val_dataset,
                                            evaluation_functions, write_out=False)
 
-                    eval_string = \
-                        "    ".join(["{}: {:.2f}".format("val_"+f.__name__, val_evaluation[f])
-                                     for f in evaluation_functions])
-                    # TODO make the last one bold
+                    eval_string = get_eval_string(evaluation_functions, val_evaluation)
 
-                    if val_evaluation[evaluation_functions[-1]] > max_score:
-                        max_score = evaluation_result[-1]
+                    this_score = val_evaluation[evaluation_functions[-1]]
+                    if this_score > max_score:
+                        max_score = this_score
                         max_score_epoch = i
                         max_score_batch_no = batch_n
                         saver.save(sess, variables_file)
@@ -293,7 +303,7 @@ def run_on_dataset(sess, runner, all_coders, decoder, dataset,
     Returns:
 
         Tuple of resulting sentences/numpy arrays, and evaluation results if
-            they are available.
+            they are available which are dictionary function -> value.
 
     """
     log("Applying model on dataset \"{}\"".format(dataset.name))
