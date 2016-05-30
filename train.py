@@ -82,4 +82,5 @@ if __name__ == "__main__":
     training_loop(sess, saver, args.epochs, args.trainer, args.encoders + [args.decoder], args.decoder,
                   args.batch_size, args.train_dataset, args.val_dataset,
                   args.output, args.evaluation, args.runner,
-                  test_datasets=args.test_datasets, validation_period=args.validation_period)
+                  test_datasets=args.test_datasets, validation_period=args.validation_period,
+                  postprocess=args.postprocess)

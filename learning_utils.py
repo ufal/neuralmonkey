@@ -86,7 +86,8 @@ def training_loop(sess, saver,
                   runner,
                   test_datasets=[],
                   initial_variables=None,
-                  validation_period=500):
+                  validation_period=500,
+                  postprocess=lambda x: x):
 
     """
     Performs the training loop for given graph and data.
@@ -148,7 +149,8 @@ def training_loop(sess, saver,
     max_score_epoch = 0
     max_score_batch_no = 0
 
-    val_tgt_sentences = val_dataset.series[decoder.data_id]
+    val_tgt_sentences = \
+        postprocess(val_dataset.series[decoder.data_id], val_dataset)
 
     log("Starting training")
     try:
@@ -173,7 +175,7 @@ def training_loop(sess, saver,
                             decoder.vocabulary.vectors_to_sentences(\
                             computation[-decoder.max_output_len - 1:])
 
-                    #decoded_sentences = [postprocess(s) for s in decoded_sentences]
+                    decoded_sentences = postprocess(decoded_sentences, train_dataset)
 
                     evaluation_result = \
                             [f(decoded_sentences, batch_sentences) for f in evaluation_functions]

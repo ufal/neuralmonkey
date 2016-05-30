@@ -1,29 +1,36 @@
 import regex as re
 
+def preprocess_char_based(sequence):
+    return list(sequence)
+
+
+def postprocess_char_based(sequences, _):
+    return [["".join(sqc)] for sqc in sequences]
+
+
 def untruecase(sentence):
     if sentence:
         return [sentence[0].capitalize()] + sentence[1:]
     else:
         return []
 
-
 ## Now starts the language specific code for geman
 
-contractions = ["am", "ans", "beim", "im", "ins", "vom", "zum", "zur"]
-contractions_set = set(contractions)
-uncontracted_forms = [["an", "dem"], ["an", "das"], ["bei", "dem"], ["in", "dem"],
-                ["in", "das"], ["von", "dem"], ["zu", "dem"], ["zu", "der"]]
-uncontract = {c: un for c, un in zip(contractions, uncontracted_forms)}
+CONTRACTIONS = ["am", "ans", "beim", "im", "ins", "vom", "zum", "zur"]
+CONTRACTIONS_SET = set(CONTRACTIONS)
+UNCONTRACTED_FORMS = [["an", "dem"], ["an", "das"], ["bei", "dem"], ["in", "dem"],
+                      ["in", "das"], ["von", "dem"], ["zu", "dem"], ["zu", "der"]]
+UNCONTRACT = {c: un for c, un in zip(CONTRACTIONS, UNCONTRACTED_FORMS)}
 
-contract = {}
-for cont, (prep, article) in zip(contractions, uncontracted_forms):
-    if not article in contract:
-        contract[article] = {}
-    contract[article][prep] = cont
+CONTRACT = {}
+for cont, (prep, article) in zip(CONTRACTIONS, UNCONTRACTED_FORMS):
+    if not article in CONTRACT:
+        CONTRACT[article] = {}
+    CONTRACT[article][prep] = cont
 
 
-ein_type_pronouns = re.compile("^(ein|[mdsk]ein|ihr|unser|euer|Ihr)(e|es|er|em|en)$")
-der_type_pronouns = re.compile("^(dies|welch|jed|all)(e|es|er|em|en)$")
+EIN_TYPE_PRONOUNS = re.compile("^(ein|[mdsk]ein|ihr|unser|euer|Ihr)(e|es|er|em|en)$")
+DER_TYPE_PRONOUNS = re.compile("^(dies|welch|jed|all)(e|es|er|em|en)$")
 
 class GermanPreprocessor(object):
     def __init__(self, compounding=True, contracting=True, pronouns=True):
@@ -36,11 +43,11 @@ class GermanPreprocessor(object):
 
         for word in sentence:
             if self.pronouns:
-                ein_match = ein_type_pronouns.match(word)
-                der_match = der_type_pronouns.match(word)
+                ein_match = EIN_TYPE_PRONOUNS.match(word)
+                der_match = DER_TYPE_PRONOUNS.match(word)
 
-            if self.contracting and word in contractions_set:
-                result.extend(uncontract[word])
+            if self.contracting and word in CONTRACTIONS_SET:
+                result.extend(UNCONTRACT[word])
             elif self.pronouns and ein_match:
                 result.append(ein_match[1])
                 result.append("<<"+ein_match[2])
@@ -50,9 +57,9 @@ class GermanPreprocessor(object):
             elif self.compounding and word.find(">><<") > -1:
                 compound_parts = word.split(">><<")
                 result.append(compound_parts[0])
-                for w in compound_parts[1:]:
+                for wrd in compound_parts[1:]:
                     result.append(">><<")
-                    result.append(w.capitalize())
+                    result.append(wrd.capitalize())
             else:
                 result.append(word)
 
@@ -70,9 +77,9 @@ class GermanPostprocessor(object):
 
         compound = False
         for word in sentence:
-            if self.contracting and word in contract \
-                    and result and result[-1] in contract[word]:
-                result[-1] = contract[word][result[-1]]
+            if self.contracting and word in CONTRACT \
+                    and result and result[-1] in CONTRACT[word]:
+                result[-1] = CONTRACT[word][result[-1]]
             elif self.pronouns and word.startswith("<<"):
                 if result:
                     result[-1] += word[2:]
