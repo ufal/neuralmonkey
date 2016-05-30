@@ -4,6 +4,7 @@ This module is responsible for loading training configuration.
 
 import traceback
 import collections
+from inspect import isfunction, isclass, getargspec
 import regex as re
 from utils import log
 
@@ -155,11 +156,41 @@ def get_object(value, all_dicts, existing_objects, depth):
 
     clazz = this_dict['class']
 
+    if not isclass(clazz) and not isfunction(clazz):
+        raise Exception(("The \"class\" field with value \"{}\" in object \"{}\""+
+            " should be a type or function, was").format(clazz, name, type(clazz)))
+
     def process_arg(arg):
         """ Resolves potential references to other objects """
         return get_object(arg, all_dicts, existing_objects, depth + 1)
 
     args = {k: process_arg(arg) for k, arg in this_dict.iteritems() if k != 'class'}
+
+    func_to_call = clazz.__init__ if isclass(clazz) else clazz
+    arg_spec = getargspec(func_to_call)
+
+    # if tha parameters are not passed via a keywords, check whether they match
+    if not arg_spec.keywords:
+        defaults = arg_spec.defaults if arg_spec.defaults else ()
+        if arg_spec.args[0] == 'self':
+            required_args = set(arg_spec.args[1:-len(defaults)])
+        else:
+            required_args = set(arg_spec.args[:-len(defaults)])
+        all_args = set(arg_spec.args)
+        additional_args = set()
+
+        for key in args.keys():
+            if key in required_args:
+                required_args.remove(key)
+            if key not in all_args:
+                additional_args.add(key)
+
+        if required_args:
+            raise Exception("Object \"{}\" is missing required args: {}".\
+                    format(name, ", ".join(required_args)))
+        if additional_args:
+            raise Exception("Object \"{}\" got unexpected argument: {}".\
+                    format(name, ", ".join(additional_args)))
 
     try:
         result = clazz(**args)
