@@ -2,6 +2,7 @@
 This module is responsible for loading training configuration.
 """
 
+import time
 import traceback
 import collections
 from inspect import isfunction, isclass, getargspec
@@ -45,7 +46,6 @@ def split_on_commas(string):
     return items
 
 
-
 def format_value(string):
     #pylint: disable=too-many-return-statements
     """ Parses value from the INI file: int/float/string/object """
@@ -72,12 +72,10 @@ def format_value(string):
         items = split_on_commas(LIST.match(string)[1])
         values = [format_value(val) for val in items]
         types = [type(val) for val in values]
-        #log(values)
         if len(set(types)) > 1:
             raise Exception("List must of a same type, is: {}".format(types))
         return values
     elif TUPLE.match(string):
-        #log("Here is tuple: {}".format(string))
         items = split_on_commas(TUPLE.match(string)[1])
         values = [format_value(val) for val in items]
         return tuple(values)
@@ -88,11 +86,14 @@ def format_value(string):
 def get_config_dicts(config_file):
     """ Parses the INI file into a dictionary """
     config_dicts = dict()
+    time_stamp = time.strftime("%Y-%m-%d-%H-%M-%S")
 
     current_name = None
     for i, line in enumerate(config_file):
         try:
             line = line.strip()
+            line = re.sub(r"#.*", "", line)
+            line = re.sub(r"\$TIME", time_stamp, line)
             if not line:
                 pass
             elif line.startswith(";"):

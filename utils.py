@@ -23,7 +23,7 @@ def log(message, color='yellow'):
     log_print("{}: {}".format(colored(time.strftime("%Y-%m-%d %H:%M:%S"), color), message))
 
 
-def print_header(title, configuration):
+def print_header(title):
     """
     Prints the title of the experiment and the set of arguments it uses.
     """
@@ -34,4 +34,3 @@ def print_header(title, configuration):
 
     log_print("")
 
-    # TODO print the complete configuration (unroll objects to the first level)

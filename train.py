@@ -61,7 +61,7 @@ if __name__ == "__main__":
 
     copyfile(sys.argv[1], args.output+"/experiment.ini")
     set_log_file(args.output+"/experiment.log")
-    print_header(args.name, args)
+    print_header(args.name)
 
     os.system("git log -1 --format=%H > {}/git_commit".format(args.output))
     os.system("git --no-pager diff --color=always > {}/git_diff".format(args.output))
