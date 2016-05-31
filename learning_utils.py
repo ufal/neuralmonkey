@@ -5,7 +5,7 @@ from nltk.tokenize import word_tokenize
 from termcolor import colored
 import regex as re
 
-from utils import log
+from utils import log, log_print
 
 try:
     #pylint: disable=unused-import,bare-except,invalid-name
@@ -173,7 +173,7 @@ def training_loop(sess, saver,
     log("Starting training")
     try:
         for i in range(epochs):
-            print ""
+            log_print("")
             log("Epoch {} starts".format(i + 1), color='red')
 
             train_dataset.shuffle()
@@ -231,23 +231,23 @@ def training_loop(sess, saver,
                         max_score_batch_no = batch_n
                         saver.save(sess, variables_file)
 
-                    print ""
+                    log_print("")
                     log("Validation (epoch {}, batch number {}):"\
-                            .format(i + 1, batch_n), color='cyan')
+                            .format(i + 1, batch_n), color='blue')
                     log("opt. loss: {:.4f}    dec. loss: {:.4f}    "\
                             .format(val_evaluation['opt_loss'], val_evaluation['dec_loss']) \
-                        + eval_string, color='cyan')
+                        + eval_string, color='blue')
                     log("max {} on validation: {:.2f} (in epoch {}, after batch number {})".\
                             format(evaluation_labels[-1], max_score,
-                                   max_score_epoch, max_score_batch_no), color='cyan')
+                                   max_score_epoch, max_score_batch_no), color='blue')
 
-                    print ""
-                    print "Examples:"
+                    log_print("")
+                    log_print("Examples:")
                     for sent, ref_sent in zip(decoded_val_sentences[:15], val_tgt_sentences):
-                        print u"    {}".format(u" ".join(sent))
-                        print colored(u"      ref.: {}".format(u" ".join(ref_sent)),
-                                      color="magenta")
-                    print ""
+                        log_print(u"    {}".format(u" ".join(sent)))
+                        log_print(colored(u"      ref.: {}".format(u" ".join(ref_sent)),
+                                      color="magenta"))
+                    log_print("")
 
                     if log_directory:
                         def format_name(name):
@@ -346,5 +346,5 @@ def print_dataset_evaluation(name, evaluation):
             space = "".join([" " for _ in range(line_len - len(name))])
             log("    {}:{} {:.4f}".format(name, space, evaluation[func]))
 
-    print ""
+    log_print("")
 

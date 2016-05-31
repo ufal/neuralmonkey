@@ -6,17 +6,13 @@ This is a training script for sequence to sequence learning.
 
 """
 
-# TODO train and validation output frequency
-# TODO logovani do souboru
-
-
 import sys
 import os
 from shutil import copyfile
 
 import tensorflow as tf
 
-from utils import print_header, log
+from utils import print_header, log, set_log_file
 from configuration import Configuration
 from learning_utils import training_loop, initialize_tf
 from dataset import Dataset
@@ -49,7 +45,6 @@ if __name__ == "__main__":
     args = config.load_file(sys.argv[1])
 
     print ""
-    print_header(args.name)
 
     if args.random_seed is not None:
         tf.set_random_seed(args.random_seed)
@@ -65,6 +60,9 @@ if __name__ == "__main__":
         exit(1)
 
     copyfile(sys.argv[1], args.output+"/experiment.ini")
+    set_log_file(args.output+"/experiment.log")
+    print_header(args.name, args)
+
     os.system("git log -1 --format=%H > {}/git_commit".format(args.output))
     os.system("git --no-pager diff --color=always > {}/git_diff".format(args.output))
 
