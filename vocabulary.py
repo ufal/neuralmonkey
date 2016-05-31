@@ -24,7 +24,7 @@ class Vocabulary(object):
 
     def add_word(self, word):
         # type: (str) -> None
-        if word not in self.word_to_index:
+        if word not in self:
             self.word_to_index[word] = len(self.index_to_word)
             self.index_to_word.append(word)
             self.word_count[word] = 0
@@ -37,7 +37,7 @@ class Vocabulary(object):
 
     def get_train_word_index(self, word):
         # type: (str) -> int
-        if word not in self.word_count:
+        if word not in self:
             return self.word_to_index["<unk>"]
 
         if self.word_count[word] <= 1 and random.random() < 0.5:
@@ -47,7 +47,7 @@ class Vocabulary(object):
 
     def get_word_index(self, word):
         # type: (str) -> int
-        if word not in self.word_count:
+        if word not in self:
             return self.word_to_index["<unk>"]
         else:
             return self.word_to_index[word]
