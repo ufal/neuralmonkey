@@ -40,11 +40,11 @@ class Dataset(object):
                 are specified here. Series identifiers should not contain
                 underscore. You can scecify a language fo the serie by adding
 
-                <identifier>_lng="language"
-
-                and a preprocess method you want to
+                a preprocess method you want to
                 apply on the textual data by naming the function as
-                <identifier>_preprocess=function.
+                <identifier>_preprocess=function
+
+                output file path <identifier>_out
 
         """
 
@@ -53,36 +53,16 @@ class Dataset(object):
         else:
             self.name = "dataset"
 
+        self.original_args = args
         series_names = [k for k in args.keys() if k.find('_') == -1]
         if args:
             log("Initializing dataset with: {}".format(", ".join(series_names)))
 
-        def create_serie(name, path):
-            """ Loads a data serie from a file """
-            log("Loading {}".format(path))
-            file_type = magic.from_file(path, mime=True)
 
-            # if the dataset has no name, generate it from files
-            if 'name' not in args:
-                self.name += "-"+path
+        self.series = {name: self.create_serie(name, args) for name in series_names}
 
-            if file_type.startswith('text/'):
-                if name+"_preprocess" in args:
-                    preprocess = args[name+"_preprocess"]
-                else:
-                    preprocess = lambda s: s.split(" ")
-
-                with codecs.open(path, 'r', 'utf-8') as f_data:
-                    return list([preprocess(line.rstrip()) for line in f_data])
-            elif file_type == 'application/octet-stream':
-                return np.load(path)
-            else:
-                raise Exception("\"{}\" has Unsopported data type: {}".format(path, file_type))
-
-
-        self.series = {name: create_serie(name, args[name]) for name in series_names}
-
-        if len(set([len(v) for v in self.series.values()])) > 1:
+        if len(set([len(v) for v in self.series.values()
+                    if isinstance(v, list) or isinstance(v, np.ndarray)])) > 1:
             lengths = ["{} ({}): {}".format(s, args[s], len(self.series[s])) for s in self.series]
             raise Exception("All data series should have the same length, have: {}"\
                     .format(", ".join(lengths)))
@@ -95,8 +75,34 @@ class Dataset(object):
         else:
             self.random_seed = None
 
-        if args:
-            log("Dataset loaded, {} examples.".format(len(self)))
+        try:
+            if args:
+                log("Dataset loaded, {} examples.".format(len(self)))
+        except:
+            pass
+
+    def create_serie(self, name, args):
+        """ Loads a data serie from a file """
+        path = args[name]
+        log("Loading {}".format(path))
+        file_type = magic.from_file(path, mime=True)
+
+        # if the dataset has no name, generate it from files
+        if 'name' not in args:
+            self.name += "-"+path
+
+        if file_type.startswith('text/'):
+            if name+"_preprocess" in args:
+                preprocess = args[name+"_preprocess"]
+            else:
+                preprocess = lambda s: s.split(" ")
+
+            with codecs.open(path, 'r', 'utf-8') as f_data:
+                return list([preprocess(line.rstrip()) for line in f_data])
+        elif file_type == 'application/octet-stream':
+            return np.load(path)
+        else:
+            raise Exception("\"{}\" has Unsopported data type: {}".format(path, file_type))
 
     def __len__(self):
         if not self.series.values():
@@ -114,12 +120,16 @@ class Dataset(object):
         for key, serie in zip(keys, zip(*zipped)):
             self.series[key] = serie
 
-
     def batch_serie(self, serie_name, batch_size):
         """ Splits a data serie into batches """
         serie = self.series[serie_name]
-        for start in range(0, len(serie), batch_size):
-            yield serie[start:start+batch_size]
+        buf = []
+        for item in self.series[serie_name]:
+            buf.append(item)
+            if len(buf) >= batch_size:
+                yield buf
+                buf = []
+        yield buf
 
     def batch_dataset(self, batch_size):
         """ Splits the dataset into a list of batched datasets. """
