@@ -40,8 +40,10 @@ if __name__ == "__main__":
                 rest = args.max_width - img.shape[1]
                 padding = np.zeros((args.height, rest, 3))
                 img = np.concatenate((img, padding), axis=1)
+                images.append(img)
                 paddings.append(float(rest))
-                args.output_log.write("{}\n".format(img_path))
+
+            args.output_log.write("{}\n".format(img_path))
 
             if i % 1000 == 999:
                 log("Processed {} images".format(i + 1))
