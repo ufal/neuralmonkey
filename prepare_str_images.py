@@ -2,10 +2,12 @@
 
 import argparse
 import os
+import gzip
+import cPickle as pickle
 import numpy as np
-from scipy.misc import imread, imresize
 
 from utils import log
+from image_utils import STRPreprocessor
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Prepares the STR data.")
@@ -15,47 +17,36 @@ if __name__ == "__main__":
                         help="Directory with images.")
     parser.add_argument("--height", type=int, default=32)
     parser.add_argument("--max-width", type=int, default=320)
-    parser.add_argument("--output-file", type=argparse.FileType('wb'), required=True)
+    parser.add_argument("--output-file", type=str, required=True)
     parser.add_argument("--output-log", type=argparse.FileType('w'), required=True)
     args = parser.parse_args()
 
-    images = []
-    paddings = []
-    shrinkages = []
+    preprocessor = STRPreprocessor(args.height, args.max_width)
+
+    f_out = gzip.open(args.output_file, mode='wb')
+    processed = 0
     for i, line in enumerate(args.list):
         img_path = os.path.join(args.img_root, line.rstrip())
 
         try:
-            img = imread(img_path) / 255.0
-
-            if img.shape[0] != args.height:
-                ratio = float(args.height) / img.shape[0]
-                width = int(ratio * img.shape[1])
-                img = imresize(img, (args.height, width))
-
-            if img.shape[1] >= args.max_width:
-                images.append(img[:, :args.max_width])
-                shrinkages.append(float(img.shape[1] - args.max_width))
-            else:
-                rest = args.max_width - img.shape[1]
-                padding = np.zeros((args.height, rest, 3))
-                img = np.concatenate((img, padding), axis=1)
-                images.append(img)
-                paddings.append(float(rest))
+            img = preprocessor(img_path)
+            pickle.dump(img, f_out)
 
             args.output_log.write("{}\n".format(img_path))
-
+            processed += 1
             if i % 1000 == 999:
                 log("Processed {} images".format(i + 1))
         except Exception as exc:
             log("Skipped {} (no. {}), expeption {}".format(img_path, i, exc), color='red')
 
-    log("Done, saving {} images to {}".format(len(images), args.output_file))
+    log("Done, saved {} images to {}".format(processed, args.output_file))
 
-    np.save(args.output_file, np.asarray(images))
+    f_out.close()
 
     log("Padded {} times, on averaged {:.0f} pixels".\
-            format(len(paddings), np.mean(paddings) if paddings else 0.0))
+            format(len(preprocessor.paddings),
+                   np.mean(preprocessor.paddings) if preprocessor.paddings else 0.0))
     log("Shrinked {} times, on averaged {:.0f} pixels".\
-            format(len(shrinkages), np.mean(shrinkages) if shrinkages else 0.0))
+            format(len(preprocessor.shrinkages),
+                   np.mean(preprocessor.shrinkages) if preprocessor.shrinkages else 0.0))
 
