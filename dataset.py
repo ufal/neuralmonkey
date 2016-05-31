@@ -19,7 +19,9 @@ class Dataset(object):
 
         series: Dictionary from the series name to the actual data.
 
-        series_languages: Dictionary from the series name to their language.
+        series_outputs: Output files for target series.
+
+        random_seed: Random seed used for shuffling.
 
     """
 
@@ -52,7 +54,8 @@ class Dataset(object):
             self.name = "dataset"
 
         series_names = [k for k in args.keys() if k.find('_') == -1]
-        log("Initializing dataset with: {}".format(", ".join(series_names)))
+        if args:
+            log("Initializing dataset with: {}".format(", ".join(series_names)))
 
         def create_serie(name, path):
             """ Loads a data serie from a file """
@@ -79,9 +82,9 @@ class Dataset(object):
 
         self.series = {name: create_serie(name, args[name]) for name in series_names}
 
-        if len(set([len(v) for v in self.series.values()])) != 1:
+        if len(set([len(v) for v in self.series.values()])) > 1:
             lengths = ["{} ({}): {}".format(s, args[s], len(self.series[s])) for s in self.series]
-            raise Exception("All data series should have the same legth, have: {}"\
+            raise Exception("All data series should have the same length, have: {}"\
                     .format(", ".join(lengths)))
 
         self.series_outputs = \
@@ -92,10 +95,14 @@ class Dataset(object):
         else:
             self.random_seed = None
 
-        log("Dataset loaded, {} examples.".format(len(self)))
+        if args:
+            log("Dataset loaded, {} examples.".format(len(self)))
 
     def __len__(self):
-        return len(self.series.values()[0])
+        if not self.series.values():
+            return 0
+        else:
+            return len(self.series.values()[0])
 
     def shuffle(self):
         # type: None -> None
@@ -113,3 +120,15 @@ class Dataset(object):
         serie = self.series[serie_name]
         for start in range(0, len(serie), batch_size):
             yield serie[start:start+batch_size]
+
+    def batch_dataset(self, batch_size):
+        """ Splits the dataset into a list of batched datasets. """
+        keys = self.series.keys()
+        batch_series = zip(*[self.batch_serie(key, batch_size) for key in keys])
+        for batch in batch_series:
+            batch_series = {key:data for key, data in zip(keys, batch)}
+            dataset = Dataset(**{})
+            dataset.series = batch_series
+            yield dataset
+
+

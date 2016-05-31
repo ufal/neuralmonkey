@@ -179,12 +179,13 @@ def training_loop(sess, saver,
             train_dataset.shuffle()
             log("Training dataset shuffled.")
             train_feed_dicts = feed_dicts(train_dataset, batch_size, all_coders, train=True)
-            batched_targets = train_dataset.batch_serie(decoder.data_id, batch_size)
+            train_batched_datasets = train_dataset.batch_dataset(batch_size)
 
-            for batch_n, (batch_feed_dict, batch_sentences) in \
-                    enumerate(zip(train_feed_dicts, batched_targets)):
+            for batch_n, (batch_feed_dict, batch_dataset) in \
+                    enumerate(zip(train_feed_dicts, train_batched_datasets)):
 
                 step += 1
+                batch_sentences = batch_dataset.series[decoder.data_id]
                 seen_instances += len(batch_sentences)
                 if step % logging_period == logging_period - 1:
                     computation = trainer.run(sess, batch_feed_dict, batch_sentences, verbose=True)
