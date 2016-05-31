@@ -10,7 +10,8 @@ class GreedyRunner(object):
         self.vocabulary = decoder.vocabulary
 
     def __call__(self, sess, dataset, coders):
-        dicts = feed_dicts(dataset, self.batch_size, coders, train=False)
+        batched_dataset = dataset.batch_dataset(self.batch_size)
+        dicts = [feed_dicts(batch, coders, train=False) for batch in batched_dataset]
         decoded_sentences = []
 
         loss_with_gt_ins = 0.0

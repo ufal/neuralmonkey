@@ -11,7 +11,7 @@ class BeamSearchRunner(object):
         self.postprocess = postprocess
         self.vocabulary = decoder.vocabulary
 
-        if (tf.__version__ == "0.8.0rc0"):
+        if tf.__version__ == "0.8.0rc0":
             self.decoded_probs = [tf.nn.log_softmax(l) for l in decoder.gt_logits]
         else:
             self.decoded_probs = [tf.log(tf.nn.softmax(l)) for l in decoder.gt_logits]
@@ -58,7 +58,8 @@ class BeamSearchRunner(object):
         return beam[0][1]
 
     def __call__(self, sess, dataset, coders):
-        singleton_dicts = feed_dicts(dataset, 1, coders)
+        singletons = dataset.batch_dataset(1)
+        singleton_dicts = [feed_dicts(sing, coders, train=False) for sing in singletons]
 
         # call beamsearch for each sentence
         decoded_sentences = []

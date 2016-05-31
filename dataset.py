@@ -130,5 +130,3 @@ class Dataset(object):
             dataset = Dataset(**{})
             dataset.series = batch_series
             yield dataset
-
-

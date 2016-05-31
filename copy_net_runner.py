@@ -26,7 +26,8 @@ def copynet_substitute(decoded_sentences, copy_logits, copy_sentences):
 
 def copynet_runner(batch_size, postprocess=None):
     def run(sess, dataset, coders, decoder):
-        dicts = feed_dicts(dataset, batch_size, coders)
+        batched_dataset = dataset.batch_dataset(self.batch_size)
+        dicts = [feed_dicts(batch, coders, train=False) for batch in batched_dataset]
         decoded_sentences = []
 
         loss_with_gt_ins = 0.0

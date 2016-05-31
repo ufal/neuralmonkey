@@ -15,16 +15,8 @@ class VectorEncoder(object):
         self.attention_tensor = None
         self.attention_object = None
 
-    def feed_dict(self, dataset, batch_size, dicts=None):
-        images = dataset.series[self.data_id]
-        if dicts is None:
-            dicts = [{} for _ in range(images.shape[0] / batch_size +
-                                       int(images.shape[0] % batch_size > 0))]
-
-        for fd, start in zip(dicts, range(0, images.shape[0], batch_size)):
-            fd[self.image_features] = images[start:start+batch_size]
-
-        return dicts
+    def feed_dict(self, dataset, train=False):
+        return {self.image_features: dataset.series[self.data_id]}
 
 
 class PostCNNImageEncoder(object):
@@ -32,7 +24,11 @@ class PostCNNImageEncoder(object):
                  dropout_keep_p=1.0, attention_type=None):
         assert len(input_shape) == 3
 
+        self.input_shape = input_shape
+        self.output_shape = output_shape
         self.data_id = data_id
+        self.dropout_keep_p = dropout_keep_p
+        self.attention_type = attention_type
 
 
         with tf.variable_scope("image_encoder"):
@@ -61,13 +57,13 @@ class PostCNNImageEncoder(object):
                                dropout_placeholder=self.dropout_placeholder) \
                 if attention_type else None
 
-    def feed_dict(self, dataset, batch_size, dicts=None):
-        images = dataset.series[self.data_id]
-        if dicts is None:
-            dicts = [{} for _ in range(images.shape[0] / batch_size + int(images.shape[0] % batch_size > 0))]
+    def feed_dict(self, dataset, train=False):
+        res = {self.image_features: dataset.series[self.data_id]}
 
-        for fd, start in zip(dicts, range(0, images.shape[0], batch_size)):
-            fd[self.image_features] = images[start:start+batch_size]
+        if train:
+            res[self.dropout_placeholder] = self.dropout_keep_p
+        else:
+            res[self.dropout_placeholder] = 1.0
 
-        return dicts
+        return res
 

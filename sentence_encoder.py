@@ -71,34 +71,31 @@ class SentenceEncoder(object):
                                                    scope="attention_{}".format(name),
                                                    dropout_placeholder=self.dropout_placeholder,
                                                    input_weights=self.weight_tensor,
-                                                   max_fertility=attention_fertility) if attention_type else None
+                                                   max_fertility=attention_fertility) \
+                                    if attention_type else None
 
             log("Sentence encoder initialized")
 
 
-    def feed_dict(self, dataset, batch_size, train=False, dicts=None):
+    def feed_dict(self, dataset, train=False):
         sentences = dataset.series[self.data_id]
-        if dicts is None:
-            dicts = [{} for _ in range(len(sentences) / batch_size +
-                                       int(len(sentences) % batch_size > 0))]
 
-        for fd, start in zip(dicts, range(0, len(sentences), batch_size)):
-            this_sentences = sentences[start:start + batch_size]
-            fd[self.sentence_lengths] = np.array([min(self.max_input_len,
-                                                      len(s)) + 2 for s in this_sentences])
-            vectors, weights = \
-                    self.vocabulary.sentences_to_tensor(this_sentences,
-                                                        self.max_input_len, train=train)
-            for words_plc, words_tensor in zip(self.inputs, vectors):
-                fd[words_plc] = words_tensor
-            fd[self.weight_ins[0]] = np.ones(len(this_sentences))
-            for weights_plc, weight_vector in zip(self.weight_ins[1:], weights):
-                fd[weights_plc] = weight_vector
+        res = {}
+        res[self.sentence_lengths] = np.array([min(self.max_input_len,
+                                                   len(s)) + 2 for s in sentences])
+        vectors, weights = \
+                self.vocabulary.sentences_to_tensor(sentences,
+                                                    self.max_input_len, train=train)
+        for words_plc, words_tensor in zip(self.inputs, vectors):
+            res[words_plc] = words_tensor
+        res[self.weight_ins[0]] = np.ones(len(sentences))
+        for weights_plc, weight_vector in zip(self.weight_ins[1:], weights):
+            res[weights_plc] = weight_vector
 
-            if train:
-                fd[self.dropout_placeholder] = self.dropout_keep_p
-            else:
-                fd[self.dropout_placeholder] = 1.0
-            fd[self.is_training] = train
+        if train:
+            res[self.dropout_placeholder] = self.dropout_keep_p
+        else:
+            res[self.dropout_placeholder] = 1.0
+        res[self.is_training] = train
 
-        return dicts
+        return res

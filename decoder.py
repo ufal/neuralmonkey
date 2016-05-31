@@ -335,39 +335,26 @@ class Decoder:
 
         log("Decoder initalized.")
 
-    def feed_dict(self, dataset, batch_size, train=False, dicts=None):
-        data_size = len(dataset)
+    def feed_dict(self, dataset, train=False):
         sentences = dataset.series.get(self.data_id)
-
-        if dicts == None:
-            dicts = [{} for _ in range(data_size / batch_size + int(data_size % batch_size > 0))]
-        batched_sentences = []
-
-        for fd, start in zip(dicts, range(0, data_size, batch_size)):
-            batch_actual_size = min(start + batch_size, data_size) - start
-
-            if sentences is not None:
-                this_batch_sentences = sentences[start:start + batch_size]
-                sentnces_tensors, weights_tensors = \
-                    self.vocabulary.sentences_to_tensor(this_batch_sentences, self.max_output_len)
-
-                for weight_plc, weight_tensor in zip(self.weights_ins, weights_tensors):
-                    fd[weight_plc] = weight_tensor
-
-                for words_plc, words_tensor in zip(self.gt_inputs, sentnces_tensors):
-                    fd[words_plc] = words_tensor
-
-                batched_sentences.append(this_batch_sentences)
-
-            fd[self.go_symbols] = np.ones(batch_actual_size)
-
-            if train:
-                fd[self.dropout_placeholder] = self.dropout_keep_p
-            else:
-                fd[self.dropout_placeholder] = 1.0
+        res = {}
 
         if sentences is not None:
-            return dicts, batched_sentences
+            sentnces_tensors, weights_tensors = \
+                self.vocabulary.sentences_to_tensor(sentences, self.max_output_len)
+
+            for weight_plc, weight_tensor in zip(self.weights_ins, weights_tensors):
+                res[weight_plc] = weight_tensor
+
+            for words_plc, words_tensor in zip(self.gt_inputs, sentnces_tensors):
+                res[words_plc] = words_tensor
+
+        res[self.go_symbols] = np.ones(len(dataset))
+
+        if train:
+            res[self.dropout_placeholder] = self.dropout_keep_p
         else:
-            return dicts, None
+            res[self.dropout_placeholder] = 1.0
+
+        return res
 

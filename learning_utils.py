@@ -39,17 +39,17 @@ def tokenize_char_seq(chars):
     return word_tokenize("".join(chars))
 
 
-def feed_dicts(dataset, batch_size, coders, train=False):
+def feed_dicts(dataset, coders, train=False):
     """
     This function ensures all encoder and decoder objects feed their the data
     they need from the dataset.
     """
-    dicts = [{} for _ in range(len(dataset) / batch_size + int(len(dataset) % batch_size > 0))]
+    res = {}
 
     for coder in coders:
-        coder.feed_dict(dataset, batch_size, dicts=dicts, train=train)
+        res.update(coder.feed_dict(dataset, train=train))
 
-    return dicts
+    return res
 
 
 def get_eval_string(evaluation_functions, evaluation_res):
@@ -178,11 +178,12 @@ def training_loop(sess, saver,
 
             train_dataset.shuffle()
             log("Training dataset shuffled.")
-            train_feed_dicts = feed_dicts(train_dataset, batch_size, all_coders, train=True)
             train_batched_datasets = train_dataset.batch_dataset(batch_size)
+            # we must keep the batch because train_batched_dataset is iterable once only
+            train_feed_dicts = [(feed_dicts(batch, all_coders, train=True), batch)
+                                for batch in train_batched_datasets]
 
-            for batch_n, (batch_feed_dict, batch_dataset) in \
-                    enumerate(zip(train_feed_dicts, train_batched_datasets)):
+            for batch_n, (batch_feed_dict, batch_dataset) in enumerate(train_feed_dicts):
 
                 step += 1
                 batch_sentences = batch_dataset.series[decoder.data_id]
@@ -247,7 +248,7 @@ def training_loop(sess, saver,
                     for sent, ref_sent in zip(decoded_val_sentences[:15], val_tgt_sentences):
                         log_print(u"    {}".format(u" ".join(sent)))
                         log_print(colored(u"      ref.: {}".format(u" ".join(ref_sent)),
-                                      color="magenta"))
+                                          color="magenta"))
                     log_print("")
 
                     if log_directory:
