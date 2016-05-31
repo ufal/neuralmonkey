@@ -1,0 +1,21 @@
+body {
+    background: #67688A;
+    font-family: 'Open Sans',Arial,Helvetica;
+}
+
+#header {
+    font-size: 32pt
+}
+
+#experiments {
+    width: 20%;
+}
+
+#main_panel {
+    width: 80%;
+    float: right;
+}
+
+#content {
+    background: #40404A;
+}
