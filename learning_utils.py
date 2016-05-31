@@ -100,6 +100,7 @@ def training_loop(sess, saver,
                   runner,
                   test_datasets=[],
                   initial_variables=None,
+                  logging_period=20,
                   validation_period=500,
                   postprocess=None):
 
@@ -185,8 +186,7 @@ def training_loop(sess, saver,
 
                 step += 1
                 seen_instances += len(batch_sentences)
-                if step % 20 == 19:
-
+                if step % logging_period == logging_period - 1:
                     computation = trainer.run(sess, batch_feed_dict, batch_sentences, verbose=True)
 
                     decoded_sentences = \

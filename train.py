@@ -8,11 +8,10 @@ This is a training script for sequence to sequence learning.
 
 # TODO train and validation output frequency
 # TODO logovani do souboru
-# TODO better handling parsing INI errors
+
 
 import sys
 import os
-import codecs
 from shutil import copyfile
 
 import tensorflow as tf
@@ -45,6 +44,7 @@ if __name__ == "__main__":
     config.add_argument('test_datasets', list, required=False, default=[])
     config.add_argument('initial_variables', str, required=False, default=[])
     config.add_argument('validation_period', int, required=False, default=500)
+    config.add_argument('logging_period', int, required=False, default=20)
 
     args = config.load_file(sys.argv[1])
 
@@ -79,8 +79,11 @@ if __name__ == "__main__":
 
 
     sess, saver = initialize_tf(args.initial_variables)
-    training_loop(sess, saver, args.epochs, args.trainer, args.encoders + [args.decoder], args.decoder,
+    training_loop(sess, saver, args.epochs, args.trainer, 
+                  args.encoders + [args.decoder], args.decoder,
                   args.batch_size, args.train_dataset, args.val_dataset,
                   args.output, args.evaluation, args.runner,
-                  test_datasets=args.test_datasets, validation_period=args.validation_period,
+                  test_datasets=args.test_datasets,
+                  logging_period=args.logging_period,
+                  validation_period=args.validation_period,
                   postprocess=args.postprocess)
