@@ -19,29 +19,36 @@ fi
 EOF
 
 source tf/bin/activate
-pip install --upgrade https://storage.googleapis.com/tensorflow/linux/cpu/tensorflow-0.7.1-cp27-none-linux_x86_64.whl
+wget https://storage.googleapis.com/tensorflow/linux/gpu/tensorflow-0.8.0-cp27-none-linux_x86_64.whl
+pip install tensorflow-0.8.0-cp27-none-linux_x86_64.whl
 deactivate
 
+rm tensorflow-0.8.0-cp27-none-linux_x86_64.whl
+
 source tf-gpu/bin/activate
-pip install --upgrade https://storage.googleapis.com/tensorflow/linux/gpu/tensorflow-0.7.1-cp27-none-linux_x86_64.whl
+wget https://storage.googleapis.com/tensorflow/linux/gpu/tensorflow-0.8.0-cp27-none-linux_x86_64.whl
+pip install tensorflow-0.8.0-cp27-none-linux_x86_64.whl
 deactivate
+
+rm tensorflow-0.8.0-cp27-none-linux_x86_64.whl
 
 for ENV in tf tf-gpu; do
     source $ENV/bin/activate
     pip install --upgrade pip
     pip install --upgrade ipdb
-    pip install --upgrade javabridge
+#    pip install --upgrade javabridge
     pip install --upgrade termcolor
-    pip install --upgrade nltk
+    pip install --upgrade nltk==3.2.0
+    pip install --upgrade python-magic
     deactivate
 done
 
 # Decompounder
-cd tf
-if [ ! -d jwordsplitter ]; then
-    git clone https://github.com/danielnaber/jwordsplitter
-    cd jwordsplitter
-    ./build.sh
-fi
-cd ../..
-ln -s tf/jwordsplitter tf-gpu/jwordsplitter
+#cd tf
+#if [ ! -d jwordsplitter ]; then
+#    git clone https://github.com/danielnaber/jwordsplitter
+#    cd jwordsplitter
+#    ./build.sh
+#fi
+#cd ../..
+#ln -s tf/jwordsplitter tf-gpu/jwordsplitter
