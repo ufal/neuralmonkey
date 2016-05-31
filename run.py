@@ -22,6 +22,7 @@ if __name__ == "__main__":
     config.add_argument('runner')
     config.add_argument('test_datasets', list, required=False, default=[])
     config.add_argument('initial_variables', str, required=False, default=[])
+    config.add_argument('threads', int, required=False, default=4)
 
     test_datasets = Configuration()
     test_datasets.add_argument('test_datasets')
@@ -30,7 +31,7 @@ if __name__ == "__main__":
     datasets_args = test_datasets.load_file(sys.argv[2])
     print ""
 
-    sess, _ = initialize_tf(args.initial_variables)
+    sess, _ = initialize_tf(args.initial_variables, args.threads)
     for dataset in datasets_args.test_datasets:
         _, evaluation = run_on_dataset(sess, args.runner, args.encoders + [args.decoder],
                                        args.decoder, dataset,

@@ -65,7 +65,7 @@ def get_eval_string(evaluation_functions, evaluation_res):
     return eval_string
 
 
-def initialize_tf(initial_variables):
+def initialize_tf(initial_variables, threads):
     """
     Initializes the TensorFlow session after the graph is built.
 
@@ -79,8 +79,8 @@ def initialize_tf(initial_variables):
 
     """
     log("Initializing the TensorFlow session.")
-    sess = tf.Session(config=tf.ConfigProto(inter_op_parallelism_threads=4,
-                                            intra_op_parallelism_threads=4))
+    sess = tf.Session(config=tf.ConfigProto(inter_op_parallelism_threads=threads,
+                                            intra_op_parallelism_threads=threads))
     sess.run(tf.initialize_all_variables())
 
     saver = tf.train.Saver()

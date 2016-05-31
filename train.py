@@ -41,6 +41,7 @@ if __name__ == "__main__":
     config.add_argument('initial_variables', str, required=False, default=[])
     config.add_argument('validation_period', int, required=False, default=500)
     config.add_argument('logging_period', int, required=False, default=20)
+    config.add_argument('threads', int, required=False, default=4)
 
     args = config.load_file(sys.argv[1])
 
@@ -76,7 +77,7 @@ if __name__ == "__main__":
     save_configuration(run_configuration, args.output)
 
 
-    sess, saver = initialize_tf(args.initial_variables)
+    sess, saver = initialize_tf(args.initial_variables, args.threads)
     training_loop(sess, saver, args.epochs, args.trainer, 
                   args.encoders + [args.decoder], args.decoder,
                   args.batch_size, args.train_dataset, args.val_dataset,
