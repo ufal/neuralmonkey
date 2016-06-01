@@ -3,6 +3,8 @@ import tensorflow as tf
 class VectorEncoder(object):
     def __init__(self, dimension, output_shape, data_id):
         self.image_features = tf.placeholder(tf.float32, shape=[None, dimension])
+        self.dimension = dimension
+        self.output_shape = output_shape
         self.data_id = data_id
 
         self.flat = self.image_features
