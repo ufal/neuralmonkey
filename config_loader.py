@@ -63,8 +63,18 @@ def format_value(string):
         class_parts = string.split(".")
         class_name = class_parts[-1]
         module_name = ".".join(class_parts[:-1])
-        module = __import__(module_name)
-        clazz = getattr(module, class_name)
+        try:
+            module = __import__(module_name)
+        except:
+            raise Exception(("Intepretion \"{}\" as type name, module \"{}\" "+
+                             "does not exist. Did you mean file \"./{}\"?")\
+                                     .format(string, module_name, string))
+        try:
+            clazz = getattr(module, class_name)
+        except:
+            raise Exception(("Intepretion \"{}\" as type name, class \"{}\" "+
+                             "does not exist. Did you mean file \"./{}\"?")\
+                                     .format(string, class_name, string))
         return clazz
     elif OBJECT_REF.match(string):
         return "object:"+OBJECT_REF.match(string)[1]
