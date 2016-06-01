@@ -15,7 +15,9 @@ def log_print(text):
     if log_file:
         log_file.write(text+"\n")
         log_file.flush()
-    print text
+
+    encoded = text.encode('utf8', 'replace')
+    print encoded
 
 
 def log(message, color='yellow'):
