@@ -5,6 +5,8 @@ from utils import log
 from bidirectional_rnn_layer import BidirectionalRNNLayer
 from tensorflow.models.rnn import rnn_cell
 from noisy_gru_cell import NoisyGRUCell
+from checking import assert_type
+from vocabulary import Vocabulary
 
 
 class SentenceEncoder(object):
@@ -13,8 +15,10 @@ class SentenceEncoder(object):
                  dropout_keep_p=0.5,
                  use_noisy_activations=False, attention_type=None,
                  attention_fertility=3, name="sentence_encoder", parent_encoder=None):
+
         self.name = name
         self.max_input_len = max_input_len
+        assert_type(self, 'vocabulary', vocabulary, Vocabulary)
         self.vocabulary = vocabulary
         self.data_id = data_id
         self.embedding_size = embedding_size
@@ -24,6 +28,7 @@ class SentenceEncoder(object):
         self.use_noisy_activations = use_noisy_activations
         self.attention_type = attention_type
         self.attention_fertility = attention_fertility
+        assert_type(self, 'parent_encoder', parent_encoder, SentenceEncoder, can_be_none=True)
         self.parent_encoder = parent_encoder
 
         log("Initializing sentence encoder, name: \"{}\"".format(name))

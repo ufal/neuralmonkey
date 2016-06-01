@@ -8,6 +8,8 @@ from utils import log
 from decoding_function import attention_decoder
 from learning_utils import log
 from noisy_gru_cell import NoisyGRUCell
+from checking import assert_type
+from vocabulary import Vocabulary
 
 class Decoder:
     def __init__(self, encoders, vocabulary, data_id, rnn_size, embedding_size=128, use_attention=None,
@@ -96,6 +98,7 @@ class Decoder:
 
         log("Initializing decoder, name: \"{}\"".format(name))
         self.encoders = encoders
+        assert_type(self, 'vocabulary', vocabulary, Vocabulary)
         self.vocabulary = vocabulary
         self.data_id = data_id
         self.rnn_size = rnn_size
