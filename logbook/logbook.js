@@ -1,4 +1,5 @@
 selectedExperiment = null;
+fileToLoad = null;
 
 function loadExperiments() {
     $.get("/experiments", function(data) {
@@ -18,6 +19,19 @@ function loadExperiments() {
     });
 }
 
+function unselectTopButtons() {
+    $(".topButton").removeClass("topButton_selected");
+}
+
+function selectTopButton(button, fileName) {
+    unselectTopButtons();
+    fileToLoad = fileName;
+    button.addClass("topButton_selected");
+}
+
 $(document).ready(function() {
     loadExperiments();
+    $("#showConfiguration").click(function() {selectTopButton($(this), "experiment.ini")})
+    $("#showLog").click(function() {selectTopButton($(this), "experiment.log")})
+    selectTopButton($("#showLog"), "experiment.log")
 });
