@@ -19,3 +19,42 @@ body {
 #content {
     background: #40404A;
 }
+
+
+#file_panel {
+    text-align: center;
+    padding: 5px
+}
+
+.exp_item {
+    text-align: center;
+    background: #FFFFCC;
+    margin: 5px;
+    padding: 3px;
+    cursor: pointer;
+}
+
+.exp_item:hover {
+    background: #FFFF33;
+}
+
+.exp_item_selected {
+    background: #990000;
+    font-weight: bold;
+}
+
+.exp_item_selected:hover {
+    background: #CC0000;
+}
+
+.topButton {
+    background: #990000;
+    text-align: center;
+    margin: 5px;
+    padding: 10px;
+    cursor: pointer;
+}
+
+.topButton:hover {
+    background: #CC0000;
+}
