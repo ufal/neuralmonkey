@@ -1,11 +1,15 @@
 import argparse
 import os
 import json
+from ansi2html import Ansi2HTMLConverter
 from flask import Flask, Response
+import regex as re
 
 APP = Flask(__name__)
 APP.config.from_object(__name__)
 APP.config['log_dir'] = None
+
+ANSI_CONV = Ansi2HTMLConverter()
 
 def root_dir():  # pragma: no cover
     return os.path.abspath(os.path.dirname(__file__))
@@ -20,7 +24,7 @@ def index():
     return Response(content, mimetype="text/html")
 
 @APP.route('/experiments', methods=['GET'])
-def experiments():
+def list_experiments():
     log_dir = APP.config['log_dir']
     experiment_list = \
         [dr for dr in os.listdir(log_dir) if os.path.isdir(os.path.join(log_dir, dr))]
@@ -31,6 +35,22 @@ def experiments():
     response.headers.add('content-length', len(json_response))
     response.status_code = 200
     return response
+
+@APP.route('/experiments/<path:path>', methods=['GET'])
+def get_experiment(path):
+    log_dir = APP.config['log_dir']
+    complete_path = os.path.join(log_dir, path)
+    if os.path.isfile(complete_path):
+        file_content = get_file(complete_path)
+        if path.endswith(".log"):
+            result = ANSI_CONV.convert(file_content, full=False)
+        elif path.endswith(".ini"):
+            result = file_content
+        else:
+            result = "Unknow file type: \"{}\".".format(complete_path)
+    else:
+        result = "File \"{}\" does not exist.".format(complete_path)
+    return Response(result, mimetype='text/html', status=200)
 
 @APP.route('/', defaults={'path': ''})
 @APP.route('/<path:path>')

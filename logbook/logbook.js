@@ -13,6 +13,7 @@ function loadExperiments() {
                     $(".exp_item_selected").removeClass("exp_item_selected");
                     $(this).addClass("exp_item_selected");
                     selectedExperiment = $(this).text()
+                    loadContent();
                 });
             $("#experiments").append(experiment_box)
         }
@@ -27,6 +28,16 @@ function selectTopButton(button, fileName) {
     unselectTopButtons();
     fileToLoad = fileName;
     button.addClass("topButton_selected");
+    loadContent();
+}
+
+function loadContent() {
+    if ((selectedExperiment != null) && (fileToLoad != null)) {
+        $.get("/experiments/"+selectedExperiment+"/"+fileToLoad,
+              function(data) {
+                  $("#content").html(data);
+              });
+    }
 }
 
 $(document).ready(function() {

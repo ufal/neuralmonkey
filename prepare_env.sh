@@ -40,6 +40,7 @@ for ENV in tf tf-gpu; do
     pip install --upgrade termcolor
     pip install --upgrade nltk==3.2.0
     pip install --upgrade python-magic
+    pip install --upgrade ansi2html
     deactivate
 done
 
