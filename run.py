@@ -6,7 +6,7 @@ import codecs
 from utils import log
 from configuration import Configuration
 from learning_utils import initialize_tf, run_on_dataset, print_dataset_evaluation
-from dataset import Dataset
+from checking import check_dataset_and_coders
 
 if __name__ == "__main__":
     if len(sys.argv) != 3:
@@ -30,6 +30,13 @@ if __name__ == "__main__":
     args = config.load_file(sys.argv[1])
     datasets_args = test_datasets.load_file(sys.argv[2])
     print ""
+
+    try:
+        for dataset in datasets_args.test_datasets:
+            check_dataset_and_coders(dataset, args.encoders)
+    except Exception as exc:
+        log(exc.message, color='red')
+        exit(1)
 
     sess, _ = initialize_tf(args.initial_variables, args.threads)
     for dataset in datasets_args.test_datasets:

@@ -12,6 +12,7 @@ from shutil import copyfile
 
 import tensorflow as tf
 
+from checking import check_dataset_and_coders
 from utils import print_header, log, set_log_file
 from configuration import Configuration
 from learning_utils import training_loop, initialize_tf
@@ -52,6 +53,15 @@ if __name__ == "__main__":
 
     if os.path.isdir(args.output):
         log("Directory \"{}\" exists.".format(args.output), color='red')
+        exit(1)
+
+    try:
+        check_dataset_and_coders(args.train_dataset, args.encoders + [args.decoder])
+        check_dataset_and_coders(args.val_dataset, args.encoders + [args.decoder])
+        for test in args.test_datasets:
+            check_dataset_and_coders(test, args.encoders)
+    except Exception as exc:
+        log(exc.message, color='red')
         exit(1)
 
     try:
