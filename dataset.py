@@ -2,6 +2,8 @@
 
 import codecs
 import random
+from itertools import izip
+
 import magic
 import numpy as np
 
@@ -135,12 +137,9 @@ class Dataset(object):
         keys = self.series.keys()
         batched_series = [self.batch_serie(key, batch_size) for key in keys]
 
-        # we need to avoid using zip(*[...]) because it materializes the sequence,
-        # it needs to be in the explicit while-true loop
-        while True:
+        for next_batches in izip(*batched_series):
             next_batches = [next(bs, None) for bs in batched_series]
-            if None in next_batches:
-                break
+            log("In batching loop")
             batch_dict = {key:data for key, data in zip(keys, next_batches)}
             dataset = Dataset(**{})
             dataset.series = batch_dict

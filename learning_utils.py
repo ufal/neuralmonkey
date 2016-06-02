@@ -179,12 +179,10 @@ def training_loop(sess, saver,
             train_dataset.shuffle()
             log("Training dataset shuffled.")
             train_batched_datasets = train_dataset.batch_dataset(batch_size)
-            # we must keep the batch because train_batched_dataset is iterable once only
-            train_feed_dicts = [(feed_dicts(batch, all_coders, train=True), batch)
-                                for batch in train_batched_datasets]
 
-            for batch_n, (batch_feed_dict, batch_dataset) in enumerate(train_feed_dicts):
+            for batch_n, batch_dataset in enumerate(train_batched_datasets):
 
+                batch_feed_dict = feed_dicts(batch_dataset, all_coders, train=True)
                 step += 1
                 batch_sentences = batch_dataset.series[decoder.data_id]
                 seen_instances += len(batch_sentences)
