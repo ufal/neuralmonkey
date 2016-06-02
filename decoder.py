@@ -1,8 +1,7 @@
 import math
 import tensorflow as tf
 import numpy as np
-from tensorflow.models.rnn import seq2seq
-from tensorflow.models.rnn import rnn_cell
+from tensorflow.models.rnn import seq2seq, rnn_cell
 
 from utils import log
 from decoding_function import attention_decoder
@@ -11,8 +10,9 @@ from noisy_gru_cell import NoisyGRUCell
 from checking import assert_type
 from vocabulary import Vocabulary
 
-class Decoder:
-    def __init__(self, encoders, vocabulary, data_id, rnn_size, embedding_size=128, use_attention=None,
+class Decoder(object):
+    def __init__(self, encoders, vocabulary, data_id, rnn_size, embedding_size=128,
+                 use_attention=None,
                  max_output_len=20, scheduled_sampling=None,
                  dropout_keep_p=0.5, copy_net=None, reused_word_embeddings=None,
                  use_noisy_activations=False, depth=1, name="decoder"):
@@ -151,29 +151,29 @@ class Decoder:
                 self.weights_ins.append(tf.placeholder(tf.float32, [None]))
 
         with tf.variable_scope('decoder'):
-            decoding_W = \
+            decoding_w = \
                 tf.Variable(tf.random_uniform([rnn_size, len(vocabulary)], -0.5, 0.5),
-                        name="state_to_word_W")
-            decoding_B = \
+                            name="state_to_word_W")
+            decoding_b = \
                 tf.Variable(tf.fill([len(vocabulary)], - math.log(len(vocabulary))),
-                        name="state_to_word_b")
+                            name="state_to_word_b")
 
             if reused_word_embeddings is None:
-                decoding_EM = \
+                decoding_em = \
                     tf.Variable(tf.random_uniform([len(vocabulary), embedding_size], -0.5, 0.5),
                                 name="word_embeddings")
             else:
-                decoding_EM = reused_word_embeddings
+                decoding_em = reused_word_embeddings
 
             embedded_gt_inputs = \
-                    [tf.nn.embedding_lookup(decoding_EM, o) for o in self.gt_inputs[:-1]]
+                    [tf.nn.embedding_lookup(decoding_em, o) for o in self.gt_inputs[:-1]]
 
             embedded_gt_inputs = \
                 [tf.nn.dropout(i, self.dropout_placeholder) for i in embedded_gt_inputs]
 
             def standard_logits(state):
                 state = tf.nn.dropout(state, self.dropout_placeholder)
-                return tf.matmul(state, decoding_W) + decoding_B, None
+                return tf.matmul(state, decoding_w) + decoding_b, None
 
             logit_function = standard_logits
 
@@ -182,51 +182,54 @@ class Decoder:
                 # This is implementation of Copy-net (http://arxiv.org/pdf/1603.06393v2.pdf)
                 encoder_input_indices, copy_states, copy_mask = copy_net
                 copy_tensor_dropped = tf.nn.dropout(copy_states, self.dropout_placeholder)
-                copy_tensors = [tf.squeeze(t, [1]) for t in tf.split(1, max_output_len + 2, copy_tensor_dropped)]
+                copy_tensors = [tf.squeeze(t, [1]) for t in
+                                tf.split(1, max_output_len + 2, copy_tensor_dropped)]
                 copy_features_size = copy_states.get_shape()[2].value
 
                 # first we do the learned projection of the ecnoder outputs
-                copy_W = tf.get_variable(name="copy_W", shape=[copy_features_size, rnn_size])
+                copy_w = tf.get_variable(name="copy_W", shape=[copy_features_size, rnn_size])
 
                 projected_inputs = \
-                        tf.concat(1, [tf.expand_dims(tf.matmul(c, copy_W), 1) for c in copy_tensors])
+                        tf.concat(1, [tf.expand_dims(tf.matmul(c, copy_w), 1)
+                                      for c in copy_tensors])
                 batch_size = tf.shape(encoder_input_indices[0])[0]
 
                 # tensor of batch numbers for indexing in a sparse vector
                 batch_range = tf.range(start=0, limit=batch_size)
                 batch_time_vocabulary_shape = \
-                        tf.concat(0, [tf.expand_dims(batch_size, 0), tf.constant(len(vocabulary), shape=[1])])
+                        tf.concat(0, [tf.expand_dims(batch_size, 0),
+                                      tf.constant(len(vocabulary), shape=[1])])
                 ones = tf.ones(tf.expand_dims(batch_size, 0))
 
                 vocabulary_shaped_list = []
                 for slice_indices in encoder_input_indices:
                     complete_indices = \
-                        tf.concat(1, [tf.expand_dims(batch_range, 1), tf.expand_dims(slice_indices, 1)])
+                        tf.concat(1, [tf.expand_dims(batch_range, 1),
+                                      tf.expand_dims(slice_indices, 1)])
                     vocabulary_shaped = \
                                 tf.sparse_to_dense(complete_indices,
                                                    batch_time_vocabulary_shape,
                                                    ones)
                     vocabulary_shaped_list.append(vocabulary_shaped)
-                vocabulary_shaped_indices = tf.concat(1, [tf.expand_dims(v, 1) for v in vocabulary_shaped_list])
+                vocabulary_shaped_indices = tf.concat(1, [tf.expand_dims(v, 1)
+                                                          for v in vocabulary_shaped_list])
 
                 def copy_net_logit_function(state):
                     state = tf.nn.dropout(state, self.dropout_placeholder)
                     # the logits for generating the next word are computed in the standard way
-                    generate_logits = tf.matmul(state, decoding_W) + decoding_B
-
-                    # in addition to that logits for copying a word from the
-                    # input are computed, here in a loop for each of the
-                    # encoder words
-                    all_vocabulary_logits = [generate_logits]
+                    generate_logits = tf.matmul(state, decoding_w) + decoding_b
 
                     # Equation 8 in the paper ... in shape of source sentence (batch x time)
-                    copy_logits_in_time = tf.reduce_sum(projected_inputs * tf.expand_dims(state, 1), [2])
+                    copy_logits_in_time = \
+                        tf.reduce_sum(projected_inputs * tf.expand_dims(state, 1), [2])
                     # mask out the padding in exponential domain
-                    copy_logits_in_time_exp_masked = tf.exp(tf.minimum([[80.0]], copy_logits_in_time)) * copy_mask
+                    copy_logits_in_time_exp_masked = \
+                        tf.exp(tf.minimum([[80.0]], copy_logits_in_time)) * copy_mask
 
                     #  ... in shape of vocabulary (batch x time x vocabulary)
                     copy_logits_in_vocabulary = \
-                        vocabulary_shaped_indices * tf.expand_dims(copy_logits_in_time_exp_masked, 2)
+                        vocabulary_shaped_indices * \
+                            tf.expand_dims(copy_logits_in_time_exp_masked, 2)
 
                     # Equation 6 without normalization
                     copy_logits_exp = tf.reduce_sum(copy_logits_in_vocabulary, [1])
@@ -239,11 +242,12 @@ class Decoder:
 
             def loop(prev_state, _):
                 # it takes the previous hidden state, finds the word and formats it
-                # as input for the next time step ... used in the decoder in the "real decoding scenario"
+                # as input for the next time step ... used in the decoder
+                # in the "real decoding scenario"
                 out_activation, _ = logit_function(prev_state)
                 prev_word_index = tf.argmax(out_activation, 1)
                 next_step_embedding = \
-                        tf.nn.embedding_lookup(decoding_EM, prev_word_index)
+                        tf.nn.embedding_lookup(decoding_em, prev_word_index)
                 return tf.nn.dropout(next_step_embedding, self.dropout_placeholder)
 
             def sampling_loop(prev_state, i):
@@ -253,8 +257,10 @@ class Decoder:
                 sigmoid decay.
                 """
                 threshold = scheduled_sampling / \
-                        (scheduled_sampling + tf.exp(tf.to_float(self.learning_step) / scheduled_sampling))
-                condition = tf.less_equal(tf.random_uniform(tf.shape(embedded_gt_inputs[0])), threshold)
+                        (scheduled_sampling + tf.exp(tf.to_float(self.learning_step) \
+                            / scheduled_sampling))
+                condition = tf.less_equal(tf.random_uniform(tf.shape(embedded_gt_inputs[0])),
+                                          threshold)
                 return tf.select(condition, embedded_gt_inputs[i], loop(prev_state, i))
 
             def get_rnn_cell(input_size=rnn_size):
@@ -265,7 +271,9 @@ class Decoder:
 
             decoder_cells = [get_rnn_cell(input_size=embedding_size)]
             for _ in range(1, depth):
-                decoder_cells[-1] = rnn_cell.DropoutWrapper(decoder_cells[-1], output_keep_prob=self.dropout_placeholder)
+                decoder_cells[-1] = \
+                        rnn_cell.DropoutWrapper(decoder_cells[-1],
+                                                output_keep_prob=self.dropout_placeholder)
                 decoder_cells.append(get_rnn_cell())
 
             decoder_cell = rnn_cell.MultiRNNCell(decoder_cells)
@@ -290,7 +298,7 @@ class Decoder:
             tf.get_variable_scope().reuse_variables()
 
             self.go_symbols = tf.placeholder(tf.int64, [None], name="go_symbols_placeholder")
-            decoder_inputs = [tf.nn.embedding_lookup(decoding_EM, self.go_symbols)]
+            decoder_inputs = [tf.nn.embedding_lookup(decoding_em, self.go_symbols)]
             decoder_inputs += [None for _ in range(self.max_output_len)]
 
             rnn_outputs_decoded_ins, _ = \
@@ -306,30 +314,44 @@ class Decoder:
             decoded = []
             copynet_logits = []
 
-            for o in rnn_outputs:
-                out_activation, logits_in_time = logit_function(o)
+            for out in rnn_outputs:
+                out_activation, logits_in_time = logit_function(out)
 
                 if copy_net:
                     copynet_logits.append(logits_in_time)
 
                 logits.append(out_activation)
-                decoded.append(tf.argmax(out_activation[:,1:], 1) + 1)
+                decoded.append(tf.argmax(out_activation[:, 1:], 1) + 1)
 
             return decoded, logits, copynet_logits
 
 
         _, self.gt_logits, _ = get_decoded(rnn_outputs_gt_ins)
-        self.loss_with_gt_ins = seq2seq.sequence_loss(self.gt_logits, self.targets, self.weights_ins, len(vocabulary))
+        self.loss_with_gt_ins = \
+                seq2seq.sequence_loss(self.gt_logits,
+                                      self.targets,
+                                      self.weights_ins,
+                                      len(vocabulary))
 
-        tf.scalar_summary('val_loss_with_gt_input', self.loss_with_gt_ins, collections=["summary_val"])
-        tf.scalar_summary('train_loss_with_gt_intpus', self.loss_with_gt_ins, collections=["summary_train"])
+        tf.scalar_summary('val_loss_with_gt_input',
+                          self.loss_with_gt_ins,
+                          collections=["summary_val"])
+        tf.scalar_summary('train_loss_with_gt_intpus',
+                          self.loss_with_gt_ins,
+                          collections=["summary_train"])
 
 
-        self.decoded_seq, self.decoded_logits, self.copynet_logits = get_decoded(rnn_outputs_decoded_ins)
-        self.loss_with_decoded_ins = seq2seq.sequence_loss(self.decoded_logits, self.targets, self.weights_ins, len(vocabulary))
+        self.decoded_seq, self.decoded_logits, self.copynet_logits = \
+                get_decoded(rnn_outputs_decoded_ins)
+        self.loss_with_decoded_ins = seq2seq.sequence_loss(self.decoded_logits, self.targets,
+                                                           self.weights_ins, len(vocabulary))
 
-        tf.scalar_summary('val_loss_with_decoded_inputs', self.loss_with_decoded_ins, collections=["summary_val"])
-        tf.scalar_summary('train_loss_with_decoded_inputs', self.loss_with_decoded_ins, collections=["summary_train"])
+        tf.scalar_summary('val_loss_with_decoded_inputs',
+                          self.loss_with_decoded_ins,
+                          collections=["summary_val"])
+        tf.scalar_summary('train_loss_with_decoded_inputs',
+                          self.loss_with_decoded_ins,
+                          collections=["summary_train"])
 
         self.cost = self.loss_with_gt_ins
 
