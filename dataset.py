@@ -77,11 +77,6 @@ class Dataset(object):
         else:
             self.random_seed = None
 
-        try:
-            if args:
-                log("Dataset loaded, {} examples.".format(len(self)))
-        except:
-            pass
 
     def create_serie(self, name, args):
         """ Loads a data serie from a file """
@@ -139,7 +134,6 @@ class Dataset(object):
 
         for next_batches in izip(*batched_series):
             next_batches = [next(bs, None) for bs in batched_series]
-            log("In batching loop")
             batch_dict = {key:data for key, data in zip(keys, next_batches)}
             dataset = Dataset(**{})
             dataset.series = batch_dict

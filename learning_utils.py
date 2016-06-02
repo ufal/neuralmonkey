@@ -337,14 +337,14 @@ def print_dataset_evaluation(name, evaluation):
     line_len = 22
     log("Evaluating model on \"{}\"".format(name))
 
-    log("    optimization loss:      {:.4f}".format(evaluation['opt_loss']))
-    log("    runtime loss:           {:.4f}".format(evaluation['opt_loss']))
+    log("... optimization loss:      {:.4f}".format(evaluation['opt_loss']))
+    log("... runtime loss:           {:.4f}".format(evaluation['opt_loss']))
 
     for func in evaluation:
         if hasattr(func, '__call__'):
             name = func.__name__
             space = "".join([" " for _ in range(line_len - len(name))])
-            log("    {}:{} {:.4f}".format(name, space, evaluation[func]))
+            log("... {}:{} {:.4f}".format(name, space, evaluation[func]))
 
     log_print("")
 
