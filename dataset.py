@@ -122,7 +122,6 @@ class Dataset(object):
 
     def batch_serie(self, serie_name, batch_size):
         """ Splits a data serie into batches """
-        serie = self.series[serie_name]
         buf = []
         for item in self.series[serie_name]:
             buf.append(item)
@@ -134,10 +133,16 @@ class Dataset(object):
     def batch_dataset(self, batch_size):
         """ Splits the dataset into a list of batched datasets. """
         keys = self.series.keys()
-        batch_series = zip(*[self.batch_serie(key, batch_size) for key in keys])
-        for batch in batch_series:
-            batch_series = {key:data for key, data in zip(keys, batch)}
+        batched_series = [self.batch_serie(key, batch_size) for key in keys]
+
+        # we need to avoid using zip(*[...]) because it materializes the sequence,
+        # it needs to be in the explicit while-true loop
+        while True:
+            next_batches = [next(bs, None) for bs in batched_series]
+            if None in next_batches:
+                break
+            batch_dict = {key:data for key, data in zip(keys, next_batches)}
             dataset = Dataset(**{})
-            dataset.series = batch_series
+            dataset.series = batch_dict
             yield dataset
 

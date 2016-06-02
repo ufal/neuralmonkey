@@ -11,12 +11,14 @@ class GreedyRunner(object):
 
     def __call__(self, sess, dataset, coders):
         batched_dataset = dataset.batch_dataset(self.batch_size)
-        dicts = [feed_dicts(batch, coders, train=False) for batch in batched_dataset]
         decoded_sentences = []
 
         loss_with_gt_ins = 0.0
         loss_with_decoded_ins = 0.0
-        for batch_feed_dict in dicts:
+        batch_count = 0
+        for batch in batched_dataset:
+            batch_feed_dict = feed_dicts(batch, coders, train=False)
+            batch_count += 1
             if self.decoder.data_id in dataset.series:
                 losses = [self.decoder.loss_with_gt_ins,
                           self.decoder.loss_with_decoded_ins]
@@ -35,5 +37,5 @@ class GreedyRunner(object):
             decoded_sentences = self.postprocess(decoded_sentences, dataset)
 
         return decoded_sentences, \
-               loss_with_gt_ins / len(dicts), \
-               loss_with_decoded_ins / len(dicts)
+               loss_with_gt_ins / batch_count, \
+               loss_with_decoded_ins / batch_count
