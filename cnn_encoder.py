@@ -201,25 +201,24 @@ class CNNEncoder(object):
                                               dropout_placeholder=self.dropout_placeholder,
                                               input_weights=att_in_weights)
 
-    def feed_dict(self, dataset, batch_size, train=False, dicts=None):
-    #def feed_dict(self, images, batch_size, dicts=None):
-        images = dataset.series[self.data_id]
-        if dicts is None:
-            dicts = [{} for _ in range(images.shape[0] / batch_size)]
+    def feed_dict(self, dataset, train=False):
+        # if it is from the pickled file, it is list, not numpy tensor,
+        # so convert it as as a prevention
+        images = np.array(dataset.series[self.data_id])
 
-        for f_dict, start in zip(dicts, range(0, images.shape[0], batch_size)):
-            f_dict[self.input_op] = images[start:start+batch_size] / 225.0
-            # it is one everywhere where non-zero
-            f_dict[self.padding_masks] = \
-                    np.sum(np.sign(images[start:start+batch_size]),
-                           axis=3, keepdims=True)
+        f_dict = {}
+        f_dict[self.input_op] = images / 225.0
 
-            if train:
-                f_dict[self.dropout_placeholder] = self.dropout_keep_p
-            else:
-                f_dict[self.dropout_placeholder] = 1.0
-            f_dict[self.is_training] = train
-        return dicts
+        # it is one everywhere where non-zero, i.e. zero columns are masked out
+        f_dict[self.padding_masks] = \
+                np.sum(np.sign(images), axis=3, keepdims=True)
+
+        if train:
+            f_dict[self.dropout_placeholder] = self.dropout_keep_p
+        else:
+            f_dict[self.dropout_placeholder] = 1.0
+        f_dict[self.is_training] = train
+        return f_dict
 
 
 def batch_norm(tensor, n_out, phase_train, scope='bn', scale_after_norm=True):
