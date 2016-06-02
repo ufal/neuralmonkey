@@ -4,6 +4,8 @@ load the data into memory, but loads gradually from a file.
 """
 
 import codecs
+import gzip
+import cPickle as pickle
 import magic
 
 from utils import log
@@ -40,7 +42,13 @@ class LazyDataset(Dataset):
             with codecs.open(path, 'r', 'utf-8') as f_data:
                 for line in f_data:
                     yield preprocess(line.rstrip())
-        # TODO add pickled numpy objects
+        elif file_type == 'application/gzip':
+            with gzip.open(path, 'rb') as f_data:
+                try:
+                    while True:
+                        yield pickle.load(f_data)
+                except:
+                    pass
         else:
             raise Exception("\"{}\" has Unsopported data type: {}".format(path, file_type))
 
