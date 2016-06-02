@@ -79,7 +79,10 @@ def format_value(string):
     elif OBJECT_REF.match(string):
         return "object:"+OBJECT_REF.match(string)[1]
     elif LIST.match(string):
-        items = split_on_commas(LIST.match(string)[1])
+        matched_content = LIST.match(string)[1]
+        if matched_content == '':
+            return []
+        items = split_on_commas(matched_content)
         values = [format_value(val) for val in items]
         types = [type(val) for val in values]
         if len(set(types)) > 1:
