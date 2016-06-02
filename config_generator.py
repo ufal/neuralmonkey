@@ -36,14 +36,6 @@ def object_to_dict(obj, final_dict, name_dict, depth, out_dir):
         return "{}.{}".format(obj.__module__, obj.__name__)
     elif obj in name_dict:
         return "<{}>".format(name_dict[obj])
-    elif isinstance(obj, dataset.Dataset):
-        name = "dataset_{}".format(obj.__hash__())
-        name_dict[obj] = name
-        obj_dict = {'class': 'dataset.Dataset'}
-        obj_dict.update(obj.series)
-        obj_dict.update({key+'_out': val for key, val in obj.series_outputs.iteritems()})
-        final_dict[name] = obj_dict
-        return "<{}>".format(name)
     elif isinstance(obj, vocabulary.Vocabulary):
         voc_name = "vocabulary_{}".format(obj.__hash__())
         file_name = "{}/{}.pickle".format(out_dir, voc_name)

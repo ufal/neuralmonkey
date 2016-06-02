@@ -168,7 +168,7 @@ def training_loop(sess, saver,
     max_score_batch_no = 0
 
     val_tgt_sentences = \
-        postprocess(val_dataset.series[decoder.data_id], val_dataset)
+        postprocess(val_dataset.get_series(decoder.data_id), val_dataset)
 
     log("Starting training")
     try:
@@ -184,7 +184,7 @@ def training_loop(sess, saver,
 
                 batch_feed_dict = feed_dicts(batch_dataset, all_coders, train=True)
                 step += 1
-                batch_sentences = batch_dataset.series[decoder.data_id]
+                batch_sentences = batch_dataset.get_series(decoder.data_id)
                 seen_instances += len(batch_sentences)
                 if step % logging_period == logging_period - 1:
                     computation = trainer.run(sess, batch_feed_dict, batch_sentences, verbose=True)
@@ -323,8 +323,8 @@ def run_on_dataset(sess, runner, all_coders, decoder, dataset,
                     .format(dataset.name), color='red')
 
     evaluation = {}
-    if decoder.data_id in dataset.series:
-        test_targets = dataset.series[decoder.data_id]
+    if dataset.has_series(decoder.data_id):
+        test_targets = dataset.get_series(decoder.data_id)
         evaluation["opt_loss"] = opt_loss
         evaluation["dec_loss"] = dec_loss
         for func in evaluation_functions:

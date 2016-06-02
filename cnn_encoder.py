@@ -204,7 +204,7 @@ class CNNEncoder(object):
     def feed_dict(self, dataset, train=False):
         # if it is from the pickled file, it is list, not numpy tensor,
         # so convert it as as a prevention
-        images = np.array(dataset.series[self.data_id])
+        images = np.array(dataset.get_series(self.data_id))
 
         f_dict = {}
         f_dict[self.input_op] = images / 225.0

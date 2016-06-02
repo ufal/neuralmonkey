@@ -47,17 +47,25 @@ class LazyDataset(Dataset):
                 try:
                     while True:
                         yield pickle.load(f_data)
-                except:
+                except EOFError:
                     pass
         else:
             raise Exception("\"{}\" has Unsopported data type: {}".format(path, file_type))
+
+    def get_series(self, name, allow_none=False):
+        if allow_none and name not in self.original_args:
+            return None
+        else:
+            return self.create_serie(name, self.original_args)
 
     def __len__(self):
         raise Exception("Lazy dataset does not know its size")
 
     def shuffle(self):
         """
-        Instead of shuffling the dataset, it restarts the file reading.
+        Does nothing, not in-memory shuffle is impossible.
         """
-        self.series = {name: self.create_serie(name, self.original_args)
-                       for name in self.series.keys()}
+        pass
+
+    def batch_dataset(self, batch_size):
+        return super(LazyDataset, self).batch_dataset(batch_size)

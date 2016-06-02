@@ -83,7 +83,7 @@ class SentenceEncoder(object):
 
 
     def feed_dict(self, dataset, train=False):
-        sentences = dataset.series[self.data_id]
+        sentences = dataset.get_series(self.data_id)
 
         res = {}
         res[self.sentence_lengths] = np.array([min(self.max_input_len,

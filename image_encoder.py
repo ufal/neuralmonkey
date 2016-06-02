@@ -17,8 +17,9 @@ class VectorEncoder(object):
         self.attention_tensor = None
         self.attention_object = None
 
+    #pylint: disable=unused-argument
     def feed_dict(self, dataset, train=False):
-        return {self.image_features: dataset.series[self.data_id]}
+        return {self.image_features: dataset.get_series(self.data_id)}
 
 
 class PostCNNImageEncoder(object):
@@ -60,7 +61,7 @@ class PostCNNImageEncoder(object):
                 if attention_type else None
 
     def feed_dict(self, dataset, train=False):
-        res = {self.image_features: dataset.series[self.data_id]}
+        res = {self.image_features: dataset.get_series(self.data_id)}
 
         if train:
             res[self.dropout_placeholder] = self.dropout_keep_p

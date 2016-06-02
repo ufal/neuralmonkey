@@ -361,7 +361,7 @@ class Decoder(object):
         log("Decoder initalized.")
 
     def feed_dict(self, dataset, train=False):
-        sentences = dataset.series.get(self.data_id)
+        sentences = dataset.get_series(self.data_id, allow_none=True)
         res = {}
 
         if sentences is not None:

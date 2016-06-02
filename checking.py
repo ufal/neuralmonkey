@@ -4,8 +4,9 @@ constructing the computational graph.
 """
 
 def check_dataset_and_coders(dataset, coders):
+    #pylint: disable=protected-access
     missing = \
-        [(cod.data_id, cod) for cod in coders if cod.data_id not in dataset.series]
+        [(cod.data_id, cod) for cod in coders if not dataset.has_series(cod.data_id)]
     if missing:
         formated = ["{} ({}, {}.{})".format(name,
                                             cod.name,

@@ -61,11 +61,11 @@ class Dataset(object):
             log("Initializing dataset with: {}".format(", ".join(series_names)))
 
 
-        self.series = {name: self.create_serie(name, args) for name in series_names}
+        self._series = {name: self.create_serie(name, args) for name in series_names}
 
-        if len(set([len(v) for v in self.series.values()
+        if len(set([len(v) for v in self._series.values()
                     if isinstance(v, list) or isinstance(v, np.ndarray)])) > 1:
-            lengths = ["{} ({}): {}".format(s, args[s], len(self.series[s])) for s in self.series]
+            lengths = ["{} ({}): {}".format(s, args[s], len(self._series[s])) for s in self._series]
             raise Exception("All data series should have the same length, have: {}"\
                     .format(", ".join(lengths)))
 
@@ -102,40 +102,50 @@ class Dataset(object):
             raise Exception("\"{}\" has Unsopported data type: {}".format(path, file_type))
 
     def __len__(self):
-        if not self.series.values():
+        if not self._series.values():
             return 0
         else:
-            return len(self.series.values()[0])
+            return len(self._series.values()[0])
+
+    def has_series(self, name):
+        return name in self._series
+
+    def get_series(self, name, allow_none=False):
+        if allow_none:
+            return self._series.get(name)
+        else:
+            return self._series[name]
 
     def shuffle(self):
         # type: None -> None
         """ Shuffles the dataset randomly """
 
-        keys = self.series.keys()
-        zipped = zip(*[self.series[k] for k in keys])
+        keys = self._series.keys()
+        zipped = zip(*[self._series[k] for k in keys])
         random.shuffle(zipped)
         for key, serie in zip(keys, zip(*zipped)):
-            self.series[key] = serie
+            self._series[key] = serie
 
     def batch_serie(self, serie_name, batch_size):
         """ Splits a data serie into batches """
         buf = []
-        for item in self.series[serie_name]:
+        for item in self.get_series(serie_name):
             buf.append(item)
             if len(buf) >= batch_size:
                 yield buf
                 buf = []
-        yield buf
+        if buf:
+            yield buf
 
     def batch_dataset(self, batch_size):
         """ Splits the dataset into a list of batched datasets. """
-        keys = self.series.keys()
+        keys = self._series.keys()
         batched_series = [self.batch_serie(key, batch_size) for key in keys]
 
         for next_batches in izip(*batched_series):
-            next_batches = [next(bs, None) for bs in batched_series]
             batch_dict = {key:data for key, data in zip(keys, next_batches)}
             dataset = Dataset(**{})
-            dataset.series = batch_dict
+            #pylint: disable=protected-access
+            dataset._series = batch_dict
             yield dataset
 

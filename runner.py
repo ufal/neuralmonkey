@@ -19,7 +19,7 @@ class GreedyRunner(object):
         for batch in batched_dataset:
             batch_feed_dict = feed_dicts(batch, coders, train=False)
             batch_count += 1
-            if self.decoder.data_id in dataset.series:
+            if dataset.has_series(self.decoder.data_id):
                 losses = [self.decoder.loss_with_gt_ins,
                           self.decoder.loss_with_decoded_ins]
             else:

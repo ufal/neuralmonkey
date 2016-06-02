@@ -4,7 +4,7 @@ import regex as re
 import numpy as np
 
 try:
-    #pylint: disable=unused-import,bare-except
+    #pylint: disable=unused-import,bare-except,import-error
     from typing import List, Tuple, Dict
 except:
     pass
@@ -141,8 +141,9 @@ def from_datasets(datasets, series_ids, max_size, random_seed=None):
 
     for dataset in datasets:
         for series_id in series_ids:
-            serie = dataset.series.get(series_id, [])
-            vocabulary.add_tokenized_text([token for sent in serie for token in sent])
+            series = dataset.get_series(series_id, allow_none=True)
+            if series:
+                vocabulary.add_tokenized_text([token for sent in series for token in sent])
 
     vocabulary.trunkate(max_size)
     return vocabulary
