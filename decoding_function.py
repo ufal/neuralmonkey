@@ -12,6 +12,14 @@ def attention_decoder(decoder_inputs, initial_state, attention_objects,
     with tf.variable_scope(scope or "attention_decoder"):
         batch_size = tf.shape(decoder_inputs[0])[0]    # Needed for reshaping.
 
+        # do manualy broadcasting of the initial state if we want it
+        # to be the same for all inputs
+        if len(initial_state.get_shape()) == 1:
+            state_size = initial_state.get_shape()[0].value
+            initial_state = tf.reshape(tf.tile(initial_state,
+                                               tf.shape(decoder_inputs[0])[:1]),
+                                       [-1, state_size])
+
         state = initial_state
         outputs = []
         prev = None

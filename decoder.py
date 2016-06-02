@@ -129,7 +129,7 @@ class Decoder:
                 proj_bias = tf.Variable(tf.zeros([depth * rnn_size]))
                 encoded = tf.matmul(encoded_concat_dropped, proj) + proj_bias
         elif len(encoders) == 0: # if we want to train just LM
-            encoded = tf.zeros(rnn_size)
+            encoded = tf.zeros([rnn_size])
             log("No encoder - language model only.")
         self.encoded = encoded
 

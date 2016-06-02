@@ -30,7 +30,7 @@ if __name__ == "__main__":
     config.add_argument('output', basestring)
     config.add_argument('epochs', int, cond=lambda x: x >= 0)
     config.add_argument('trainer')
-    config.add_argument('encoders', list, cond=lambda l: len(l) > 0)
+    config.add_argument('encoders', list)
     config.add_argument('decoder')
     config.add_argument('batch_size', int, cond=lambda x: x > 0)
     config.add_argument('train_dataset', Dataset)
