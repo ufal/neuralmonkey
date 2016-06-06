@@ -41,6 +41,8 @@ for ENV in tf tf-gpu; do
     pip install --upgrade nltk==3.2.0
     pip install --upgrade python-magic
     pip install --upgrade ansi2html
+    pip install --upgrade regex
+    pip install --upgrade python-Levenshtein
     deactivate
 done
 
