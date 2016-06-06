@@ -128,7 +128,7 @@ class Vocabulary(object):
                 if not sentence or (sentence and sentence[-1] != "</s>"):
                     sentence.append(self.index_to_word[word_i])
 
-        return [s[:-1] for s in sentences]
+        return [s[:-1] if s[-1] == "</s>" else s for s in sentences]
 
     def save_to_file(self, path):
         with open(path, 'wb') as f_pickle:
