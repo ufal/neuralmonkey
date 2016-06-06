@@ -8,7 +8,7 @@ import regex as re
 from utils import log, log_print
 
 try:
-    #pylint: disable=unused-import,bare-except,invalid-name
+    #pylint: disable=unused-import,bare-except,invalid-name,import-error,no-member
     from typing import Dict, List, Union, Tuple
     from decoder import Decoder
     Hypothesis = Tuple[float, List[int]]
@@ -186,22 +186,19 @@ def training_loop(sess, saver,
                 step += 1
                 batch_sentences = batch_dataset.get_series(decoder.data_id)
                 seen_instances += len(batch_sentences)
+                computation = trainer.run(sess, batch_feed_dict, batch_sentences, verbose=False)
                 if step % logging_period == logging_period - 1:
                     computation = trainer.run(sess, batch_feed_dict, batch_sentences, verbose=True)
 
-                    decoded_sentences = \
-                            decoder.vocabulary.vectors_to_sentences(\
-                            computation[-decoder.max_output_len - 1:])
+                    _, train_evaluation = \
+                            run_on_dataset(sess, runner, all_coders, decoder, batch_dataset,
+                                           evaluation_functions, write_out=False)
+                    eval_string = get_eval_string(evaluation_functions, train_evaluation)
 
-                    decoded_sentences = postprocess(decoded_sentences, train_dataset)
-
-                    evaluation_result = \
-                            {f: f(decoded_sentences, batch_sentences) for f in evaluation_functions}
-
-                    eval_string = get_eval_string(evaluation_functions, evaluation_result)
-
-                    log("opt. loss: {:.4f}    dec. loss: {:.4f}    ".\
-                            format(computation[2], computation[1]) + eval_string)
+                    log("opt. loss: {:.4f}    dec. loss: {:.4f}    {}"\
+                            .format(train_evaluation['opt_loss'],
+                                    train_evaluation['dec_loss'],
+                                    eval_string))
 
                     if log_directory:
                         summary_str = computation[3]
@@ -209,13 +206,11 @@ def training_loop(sess, saver,
                         #histograms_str = computation[4]
                         #tb_writer.add_summary(histograms_str, seen_instances)
                         external_str = \
-                                tf.Summary(value=[tf.Summary.Value(tag="train_"+func.__name__,
-                                                                   simple_value=value) \
-                                for func, value in evaluation_result.iteritems()])
+                            tf.Summary(value=[tf.Summary.Value(tag="val_"+format_eval_name(name),
+                                                               simple_value=value)\
+                                              for name, value in train_evaluation.iteritems()])
 
                         tb_writer.add_summary(external_str, seen_instances)
-                else:
-                    trainer.run(sess, batch_feed_dict, batch_sentences, verbose=False)
 
                 if step % validation_period == validation_period - 1:
                     decoded_val_sentences, val_evaluation = \
@@ -244,19 +239,17 @@ def training_loop(sess, saver,
                     log_print("")
                     log_print("Examples:")
                     for sent, ref_sent in zip(decoded_val_sentences[:15], val_tgt_sentences):
-                        log_print(u"    {}".format(u" ".join(sent)))
+                        if isinstance(sent, list):
+                            log_print(u"    {}".format(u" ".join(sent)))
+                        else:
+                            log_print(sent)
                         log_print(colored(u"      ref.: {}".format(u" ".join(ref_sent)),
                                           color="magenta"))
                     log_print("")
 
                     if log_directory:
-                        def format_name(name):
-                            if hasattr(name, '__call__'):
-                                return name.__name__
-                            else:
-                                return str(name)
                         external_str = \
-                            tf.Summary(value=[tf.Summary.Value(tag="val_"+format_name(name),
+                            tf.Summary(value=[tf.Summary.Value(tag="val_"+format_eval_name(name),
                                                                simple_value=value)\
                                               for name, value in val_evaluation.iteritems()])
 
@@ -275,6 +268,13 @@ def training_loop(sess, saver,
             print_dataset_evaluation(dataset.name, evaluation)
 
     log("Finished.")
+
+
+def format_eval_name(name):
+    if hasattr(name, '__call__'):
+        return name.__name__
+    else:
+        return str(name)
 
 
 def run_on_dataset(sess, runner, all_coders, decoder, dataset,
@@ -306,7 +306,6 @@ def run_on_dataset(sess, runner, all_coders, decoder, dataset,
             they are available which are dictionary function -> value.
 
     """
-    log("Applying model on dataset \"{}\"".format(dataset.name))
     result, opt_loss, dec_loss = runner(sess, dataset, all_coders)
     if write_out:
         if decoder.data_id in dataset.series_outputs:

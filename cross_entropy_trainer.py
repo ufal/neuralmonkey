@@ -10,7 +10,7 @@ class CrossEntropyTrainer(object):
         with tf.variable_scope("l2_regularization"):
             l2_value = sum([tf.reduce_sum(v ** 2) for v in tf.trainable_variables()])
             if l2_regularization > 0:
-                    l2_cost = l2_regularization * l2_value
+                l2_cost = l2_regularization * l2_value
             else:
                 l2_cost = 0.0
 

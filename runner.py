@@ -13,6 +13,14 @@ class GreedyRunner(object):
         batched_dataset = dataset.batch_dataset(self.batch_size)
         decoded_sentences = []
 
+        # if are are target sentence, we will compute also the
+        # losses, otherwise just compute zero
+        if dataset.has_series(self.decoder.data_id):
+            losses = [self.decoder.loss_with_gt_ins,
+                      self.decoder.loss_with_decoded_ins]
+        else:
+            losses = [tf.zeros([]), tf.zeros([])]
+
         loss_with_gt_ins = 0.0
         loss_with_decoded_ins = 0.0
         batch_count = 0

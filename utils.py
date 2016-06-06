@@ -13,6 +13,8 @@ def set_log_file(path):
 def log_print(text):
     """ Prints a string both to console and a log file is it si defined. """
     if log_file:
+        if not isinstance(text, basestring):
+            text = str(text)
         log_file.write(text+"\n")
         log_file.flush()
 
