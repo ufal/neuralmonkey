@@ -23,17 +23,17 @@ class CrossEntropyTrainer(object):
         #        tf.histogram_summary('gr_' + v.name, g, collections=["summary_gradients"])
         self.optimize_op = optimizer.apply_gradients(gradients, global_step=decoder.learning_step)
         #self.summary_gradients = tf.merge_summary(tf.get_collection("summary_gradients"))
-        self.summary_train = summary_train = tf.merge_summary(tf.get_collection("summary_train"))
-        self.summary_val = summary_train = tf.merge_summary(tf.get_collection("summary_val"))
-
-    def run(self, sess, fd, references, verbose=False):
-        if verbose:
-            return sess.run([self.optimize_op, self.decoder.loss_with_decoded_ins,
-                             self.decoder.loss_with_gt_ins,
-                             self.summary_train] + self.decoder.copynet_logits + self.decoder.decoded_seq,
-                            #self.summary_train, self.summary_gradients] + self.decoder.copynet_logits + self.decoder.decoded_seq,
-                            feed_dict=fd)
-        else:
-            return sess.run([self.optimize_op], feed_dict=fd)
+        self.summary_train = tf.merge_summary(tf.get_collection("summary_train"))
+        self.summary_val = tf.merge_summary(tf.get_collection("summary_val"))
         log("Trainer initialized.")
+
+    def run(self, sess, f_dict, summary=False):
+        if summary:
+            _, summary_str = \
+                   sess.run([self.optimize_op,
+                             self.summary_train],#, self.summary_gradients
+                            feed_dict=f_dict)
+            return summary_str
+        else:
+            sess.run(self.optimize_op, feed_dict=f_dict)
 

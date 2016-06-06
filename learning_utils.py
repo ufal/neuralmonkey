@@ -177,7 +177,6 @@ def training_loop(sess, saver,
             log("Epoch {} starts".format(i + 1), color='red')
 
             train_dataset.shuffle()
-            log("Training dataset shuffled.")
             train_batched_datasets = train_dataset.batch_dataset(batch_size)
 
             for batch_n, batch_dataset in enumerate(train_batched_datasets):
@@ -186,52 +185,26 @@ def training_loop(sess, saver,
                 step += 1
                 batch_sentences = batch_dataset.get_series(decoder.data_id)
                 seen_instances += len(batch_sentences)
-                computation = trainer.run(sess, batch_feed_dict, batch_sentences, verbose=False)
                 if step % logging_period == logging_period - 1:
-                    computation = trainer.run(sess, batch_feed_dict, batch_sentences, verbose=True)
-
+                    summary_str = trainer.run(sess, batch_feed_dict, summary=True)
                     _, train_evaluation = \
                             run_on_dataset(sess, runner, all_coders, decoder, batch_dataset,
                                            evaluation_functions, write_out=False)
-                    eval_string = get_eval_string(evaluation_functions, train_evaluation)
 
-                    log("opt. loss: {:.4f}    dec. loss: {:.4f}    {}"\
-                            .format(train_evaluation['opt_loss'],
-                                    train_evaluation['dec_loss'],
-                                    eval_string))
-
-                    if log_directory:
-                        summary_str = computation[3]
-                        tb_writer.add_summary(summary_str, seen_instances)
-                        #histograms_str = computation[4]
-                        #tb_writer.add_summary(histograms_str, seen_instances)
-                        external_str = \
-                            tf.Summary(value=[tf.Summary.Value(tag="val_"+format_eval_name(name),
-                                                               simple_value=value)\
-                                              for name, value in train_evaluation.iteritems()])
-
-                        tb_writer.add_summary(external_str, seen_instances)
+                    process_evaluation(evaluation_functions, tb_writer, train_evaluation,
+                                       seen_instances, summary_str, None, color='yellow')
+                else:
+                    trainer.run(sess, batch_feed_dict, summary=False)
 
                 if step % validation_period == validation_period - 1:
                     decoded_val_sentences, val_evaluation = \
                             run_on_dataset(sess, runner, all_coders, decoder, val_dataset,
                                            evaluation_functions, write_out=False)
 
-                    eval_string = get_eval_string(evaluation_functions, val_evaluation)
-
-                    this_score = val_evaluation[evaluation_functions[-1]]
-                    if this_score > max_score:
-                        max_score = this_score
-                        max_score_epoch = i
-                        max_score_batch_no = batch_n
-                        saver.save(sess, variables_file)
-
-                    log_print("")
                     log("Validation (epoch {}, batch number {}):"\
                             .format(i + 1, batch_n), color='blue')
-                    log("opt. loss: {:.4f}    dec. loss: {:.4f}    "\
-                            .format(val_evaluation['opt_loss'], val_evaluation['dec_loss']) \
-                        + eval_string, color='blue')
+                    process_evaluation(evaluation_functions, tb_writer, val_evaluation,
+                                       seen_instances, summary_str, None, color='blue')
                     log("max {} on validation: {:.2f} (in epoch {}, after batch number {})".\
                             format(evaluation_labels[-1], max_score,
                                    max_score_epoch, max_score_batch_no), color='blue')
@@ -247,13 +220,6 @@ def training_loop(sess, saver,
                                           color="magenta"))
                     log_print("")
 
-                    if log_directory:
-                        external_str = \
-                            tf.Summary(value=[tf.Summary.Value(tag="val_"+format_eval_name(name),
-                                                               simple_value=value)\
-                                              for name, value in val_evaluation.iteritems()])
-
-                        tb_writer.add_summary(external_str, seen_instances)
     except KeyboardInterrupt:
         log("Training interrupted by user.")
 
@@ -269,12 +235,6 @@ def training_loop(sess, saver,
 
     log("Finished.")
 
-
-def format_eval_name(name):
-    if hasattr(name, '__call__'):
-        return name.__name__
-    else:
-        return str(name)
 
 
 def run_on_dataset(sess, runner, all_coders, decoder, dataset,
@@ -330,6 +290,39 @@ def run_on_dataset(sess, runner, all_coders, decoder, dataset,
             evaluation[func] = func(result, test_targets)
 
     return result, evaluation
+
+
+def process_evaluation(evaluation_functions, tb_writer, eval_result,
+                       seen_instances,
+                       summary_str, histograms_str, color='yellow'):
+    """
+    Logs the evaluation results and writes the summaries to the TensorBoard.
+    """
+
+    def format_eval_name(name):
+        if hasattr(name, '__call__'):
+            return name.__name__
+        else:
+            return str(name)
+
+    eval_string = get_eval_string(evaluation_functions, eval_result)
+
+    log("opt. loss: {:.4f}    dec. loss: {:.4f}    {}"\
+            .format(eval_result['opt_loss'],
+                    eval_result['dec_loss'],
+                    eval_string),
+        color=color)
+
+    if tb_writer:
+        tb_writer.add_summary(summary_str, seen_instances)
+        if histograms_str:
+            tb_writer.add_summary(histograms_str, seen_instances)
+        external_str = \
+            tf.Summary(value=[tf.Summary.Value(tag="val_"+format_eval_name(name),
+                                               simple_value=value)\
+                              for name, value in eval_result.iteritems()])
+
+        tb_writer.add_summary(external_str, seen_instances)
 
 
 def print_dataset_evaluation(name, evaluation):
