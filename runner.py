@@ -38,7 +38,7 @@ class GreedyRunner(object):
             loss_with_gt_ins += computation[0]
             loss_with_decoded_ins += computation[1]
             decoded_sentences_batch = \
-                self.vocabulary.vectors_to_sentences(computation[-self.decoder.max_output_len - 1:])
+                    self.vocabulary.vectors_to_sentences(computation[len(losses):])
             decoded_sentences += decoded_sentences_batch
 
         if self.postprocess is not None:
