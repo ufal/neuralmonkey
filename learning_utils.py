@@ -102,7 +102,8 @@ def training_loop(sess, saver,
                   initial_variables=None,
                   logging_period=20,
                   validation_period=500,
-                  postprocess=None):
+                  postprocess=None,
+                  minimize_metric=False):
 
     """
     Performs the training loop for given graph and data.
@@ -163,9 +164,11 @@ def training_loop(sess, saver,
         tb_writer = tf.train.SummaryWriter(log_directory, sess.graph)
         log("TesorBoard writer initialized.")
 
-    max_score = 0.0
-    max_score_epoch = 0
-    max_score_batch_no = 0
+    best_score = 0.0
+    if minimize_metric:
+        best_score = float('inf')
+    best_score_epoch = 0
+    best_score_batch_no = 0
 
     val_tgt_sentences = \
         postprocess(val_dataset.get_series(decoder.data_id), val_dataset)
@@ -201,13 +204,20 @@ def training_loop(sess, saver,
                             run_on_dataset(sess, runner, all_coders, decoder, val_dataset,
                                            evaluation_functions, write_out=False)
 
+                    this_score = val_evaluation[evaluation_functions[-1]]
+                    if (minimize_metric and this_score < best_score) or \
+                            (not minimize_metric and this_score > best_score):
+                        best_score = this_score
+                        best_score_epoch = i
+                        best_score_batch_no = batch_n
+
                     log("Validation (epoch {}, batch number {}):"\
                             .format(i + 1, batch_n), color='blue')
                     process_evaluation(evaluation_functions, tb_writer, val_evaluation,
                                        seen_instances, summary_str, None, color='blue')
-                    log("max {} on validation: {:.2f} (in epoch {}, after batch number {})".\
-                            format(evaluation_labels[-1], max_score,
-                                   max_score_epoch, max_score_batch_no), color='blue')
+                    log("best {} on validation: {:.2f} (in epoch {}, after batch number {})".\
+                            format(evaluation_labels[-1], best_score,
+                                   best_score_epoch, best_score_batch_no), color='blue')
 
                     log_print("")
                     log_print("Examples:")
@@ -225,7 +235,7 @@ def training_loop(sess, saver,
 
     saver.restore(sess, variables_file)
     log("Training finished. Maximum {} on validation data: {:.2f}, epoch {}"\
-            .format(evaluation_labels[-1], max_score, max_score_epoch))
+            .format(evaluation_labels[-1], best_score, best_score_epoch))
 
     for dataset in test_datasets:
         _, evaluation = run_on_dataset(sess, runner, all_coders, decoder,
@@ -234,7 +244,6 @@ def training_loop(sess, saver,
             print_dataset_evaluation(dataset.name, evaluation)
 
     log("Finished.")
-
 
 
 def run_on_dataset(sess, runner, all_coders, decoder, dataset,
