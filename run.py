@@ -8,26 +8,26 @@ from configuration import Configuration
 from learning_utils import initialize_tf, run_on_dataset, print_dataset_evaluation
 from checking import check_dataset_and_coders
 
+CONFIG = Configuration()
+CONFIG.add_argument('encoders', list, cond=lambda l: len(l) > 0)
+CONFIG.add_argument('decoder')
+CONFIG.add_argument('batch_size', int, cond=lambda x: x > 0)
+CONFIG.add_argument('postprocess')
+CONFIG.add_argument('evaluation', cond=list)
+CONFIG.add_argument('runner')
+CONFIG.add_argument('test_datasets', list, required=False, default=[])
+CONFIG.add_argument('initial_variables', str, required=False, default=[])
+CONFIG.add_argument('threads', int, required=False, default=4)
+
 if __name__ == "__main__":
     if len(sys.argv) != 3:
         print "Usage: run.py <run_ini_file> <test_datasets>"
         exit(1)
 
-    config = Configuration()
-    config.add_argument('encoders', list, cond=lambda l: len(l) > 0)
-    config.add_argument('decoder')
-    config.add_argument('batch_size', int, cond=lambda x: x > 0)
-    config.add_argument('postprocess')
-    config.add_argument('evaluation', cond=list)
-    config.add_argument('runner')
-    config.add_argument('test_datasets', list, required=False, default=[])
-    config.add_argument('initial_variables', str, required=False, default=[])
-    config.add_argument('threads', int, required=False, default=4)
-
     test_datasets = Configuration()
     test_datasets.add_argument('test_datasets')
 
-    args = config.load_file(sys.argv[1])
+    args = CONFIG.load_file(sys.argv[1])
     datasets_args = test_datasets.load_file(sys.argv[2])
     print ""
 
