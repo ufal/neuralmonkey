@@ -195,7 +195,7 @@ def training_loop(sess, saver,
                                            evaluation_functions, write_out=False)
 
                     process_evaluation(evaluation_functions, tb_writer, train_evaluation,
-                                       seen_instances, summary_str, None, color='yellow')
+                                       seen_instances, summary_str, None, train=True)
                 else:
                     trainer.run(sess, batch_feed_dict, summary=False)
 
@@ -214,7 +214,7 @@ def training_loop(sess, saver,
                     log("Validation (epoch {}, batch number {}):"\
                             .format(i + 1, batch_n), color='blue')
                     process_evaluation(evaluation_functions, tb_writer, val_evaluation,
-                                       seen_instances, summary_str, None, color='blue')
+                                       seen_instances, summary_str, None, train=False)
                     log("best {} on validation: {:.2f} (in epoch {}, after batch number {})".\
                             format(evaluation_labels[-1], best_score,
                                    best_score_epoch, best_score_batch_no), color='blue')
@@ -303,7 +303,7 @@ def run_on_dataset(sess, runner, all_coders, decoder, dataset,
 
 def process_evaluation(evaluation_functions, tb_writer, eval_result,
                        seen_instances,
-                       summary_str, histograms_str, color='yellow'):
+                       summary_str, histograms_str, train=False):
     """
     Logs the evaluation results and writes the summaries to the TensorBoard.
     """
@@ -313,6 +313,13 @@ def process_evaluation(evaluation_functions, tb_writer, eval_result,
             return name.__name__
         else:
             return str(name)
+
+    if train:
+        color = 'yellow'
+        prefix = 'train'
+    else:
+        color = 'blue'
+        prefix = 'val'
 
     eval_string = get_eval_string(evaluation_functions, eval_result)
 
@@ -327,7 +334,7 @@ def process_evaluation(evaluation_functions, tb_writer, eval_result,
         if histograms_str:
             tb_writer.add_summary(histograms_str, seen_instances)
         external_str = \
-            tf.Summary(value=[tf.Summary.Value(tag="val_"+format_eval_name(name),
+            tf.Summary(value=[tf.Summary.Value(tag=prefix+"_"+format_eval_name(name),
                                                simple_value=value)\
                               for name, value in eval_result.iteritems()])
 
