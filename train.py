@@ -44,6 +44,7 @@ if __name__ == "__main__":
     config.add_argument('logging_period', int, required=False, default=20)
     config.add_argument('threads', int, required=False, default=4)
     config.add_argument('minimize', bool, required=False, default=False)
+    config.add_argument('save_n_best', int, required=False, default=1)
 
     #pylint: disable=no-member
     args = config.load_file(sys.argv[1])
@@ -88,13 +89,13 @@ if __name__ == "__main__":
     }
     save_configuration(run_configuration, args.output)
 
-
     sess, saver = initialize_tf(args.initial_variables, args.threads)
     training_loop(sess, saver, args.epochs, args.trainer,
                   args.encoders + [args.decoder], args.decoder,
                   args.batch_size, args.train_dataset, args.val_dataset,
                   args.output, args.evaluation, args.runner,
                   test_datasets=args.test_datasets,
+                  save_n_best_vars=args.save_n_best,
                   logging_period=args.logging_period,
                   validation_period=args.validation_period,
                   postprocess=args.postprocess,

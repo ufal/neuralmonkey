@@ -99,6 +99,7 @@ def training_loop(sess, saver,
                   evaluation_functions,
                   runner,
                   test_datasets=[],
+                  save_n_best_vars=1,
                   initial_variables=None,
                   logging_period=20,
                   validation_period=500,
@@ -156,8 +157,17 @@ def training_loop(sess, saver,
     if initial_variables:
         saver.restore(sess, initial_variables)
 
-    variables_file = log_directory+'/variables.data'
-    saver.save(sess, variables_file)
+    if save_n_best_vars < 1:
+        raise Exception('save_n_best_vars must be greater than zero')
+
+    if save_n_best_vars == 1:
+        variables_files = ['{}/variables.data'.format(log_directory)]
+    elif save_n_best_vars > 1:
+        variables_files = ['{}/variables.data.{}'.format(log_directory, i)
+                           for i in range(save_n_best_vars)]
+
+    var_file_i = 0
+    saver.save(sess, variables_files[var_file_i])
 
     if log_directory:
         log("Initializing TensorBoard summary writer.")
@@ -199,25 +209,43 @@ def training_loop(sess, saver,
                 else:
                     trainer.run(sess, batch_feed_dict, summary=False)
 
+
                 if step % validation_period == validation_period - 1:
                     decoded_val_sentences, val_evaluation = \
                             run_on_dataset(sess, runner, all_coders, decoder, val_dataset,
                                            evaluation_functions, write_out=False)
 
                     this_score = val_evaluation[evaluation_functions[-1]]
+                    best_var_file = None
+
                     if (minimize_metric and this_score < best_score) or \
                             (not minimize_metric and this_score > best_score):
                         best_score = this_score
                         best_score_epoch = i
                         best_score_batch_no = batch_n
 
+                        ## increment var file index here or restoring must decrement
+                        var_file_i = (var_file_i + 1) % save_n_best_vars
+                        best_var_file = variables_files[var_file_i]
+                        saver.save(sess, best_var_file)
+
+
                     log("Validation (epoch {}, batch number {}):"\
                             .format(i + 1, batch_n), color='blue')
                     process_evaluation(evaluation_functions, tb_writer, val_evaluation,
                                        seen_instances, summary_str, None, train=False)
-                    log("best {} on validation: {:.2f} (in epoch {}, after batch number {})".\
-                            format(evaluation_labels[-1], best_score,
-                                   best_score_epoch, best_score_batch_no), color='blue')
+
+                    if this_score == best_score:
+                        best_score_str = colored("{:.2f}".format(best_score), attrs=['bold'])
+                    else:
+                        best_score_str = "{:.2f}".format(best_score)
+
+                    log("best {} on validation: {} (in epoch {}, after batch number {})"\
+                            .format(evaluation_labels[-1], best_score_str,
+                                best_score_epoch, best_score_batch_no), color='blue')
+
+                    if best_var_file is not None:
+                        log("variable file saved in {}".format(best_var_file))
 
                     log_print("")
                     log_print("Examples:")
@@ -233,7 +261,7 @@ def training_loop(sess, saver,
     except KeyboardInterrupt:
         log("Training interrupted by user.")
 
-    saver.restore(sess, variables_file)
+    saver.restore(sess, variables_files[var_file_i])
     log("Training finished. Maximum {} on validation data: {:.2f}, epoch {}"\
             .format(evaluation_labels[-1], best_score, best_score_epoch))
 
@@ -355,4 +383,3 @@ def print_dataset_evaluation(name, evaluation):
             log("... {}:{} {:.4f}".format(name, space, evaluation[func]))
 
     log_print("")
-
