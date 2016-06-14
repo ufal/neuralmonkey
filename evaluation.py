@@ -47,7 +47,8 @@ def bleu_4_dedup(decoded, references):
 
 
 def accuracy(decoded, references):
-    return np.mean([dec == ref for dec, ref in zip(decoded, references)])
+    return np.mean([d == r for dec, ref in zip(decoded, references)
+                    for d, r in zip(dec, ref)])
 
 def edit_distance(decoded, references):
     return 1 - np.mean([ratio(u" ".join(ref), u" ".join(dec)) \
