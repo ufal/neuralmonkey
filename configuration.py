@@ -16,7 +16,9 @@ class Configuration(object):
         self.defaults = {}
         self.conditions = {}
 
-    def add_argument(self, name, arg_type=object, required=False, default=None, cond=None):
+    def add_argument(self, name, arg_type=object, required=False, default=None,
+                     cond=None):
+
         if name in self.data_types:
             raise Exception("Data filed defined multiple times.")
         self.data_types[name] = arg_type
@@ -26,7 +28,7 @@ class Configuration(object):
             self.conditions[name] = cond
 
     def load_file(self, path):
-        log("Loading ini file: \"{}\"".format(path), color='blue')
+        log("Loading ini file: '{}'".format(path), color='blue')
 
         try:
             config_f = codecs.open(path, 'r', 'utf-8')
@@ -42,8 +44,9 @@ class Configuration(object):
                     cond_filename = cond_code.co_filename
                     cond_line_number = cond_code.co_firstlineno
                     raise Exception(
-                        "Value of field \"{}\" does not satisfy condition defined at {}:{}."\
-                            .format(name, cond_filename, cond_line_number))
+                        "Value of field '{}' does not satisfy "
+                        "condition defined at {}:{}."
+                        .format(name, cond_filename, cond_line_number))
 
                 setattr(arguments, name, value)
                 #arguments.__dict__[name] = value
@@ -70,12 +73,13 @@ class Configuration(object):
             if name not in self.defaults:
                 expected_missing.append(name)
         if expected_missing:
-            raise Exception("Missing mandatory fileds: {}".format(", ".join(expected_missing)))
+            raise Exception("Missing mandatory fileds: {}"
+                            .format(", ".join(expected_missing)))
 
         unexpected = []
         for name in config_dict:
             if name not in expected_fields:
                 unexpected.append(name)
         if unexpected:
-            raise Exception("Unexpected fields: {}".format(", ".join(unexpected)))
-
+            raise Exception("Unexpected fields: {}"
+                            .format(", ".join(unexpected)))
