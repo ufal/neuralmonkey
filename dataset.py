@@ -1,4 +1,4 @@
-""" Iplementation of the dataset class. """
+""" Implementation of the dataset class. """
 
 import codecs
 import random
@@ -9,13 +9,14 @@ import numpy as np
 
 from utils import log
 
+from readers.plain_text_reader import PlainTextFileReader
+
 class Dataset(object):
-    """
-    This class serves as collection for data series for particular
+    """ This class serves as collection for data series for particular
     encoders and decoders in the model. If it is not provided a parent
     dataset, it also manages the vocabularies inferred from the data.
 
-    A data serie is either list of strings or a numpy array.
+    A data serie is either a list of strings or a numpy array.
 
     Attributes:
 
@@ -27,79 +28,90 @@ class Dataset(object):
 
     """
 
-    def __init__(self, **args):
-        """
+    def __init__(self, **kwargs):
+        """ Creates a dataset from the provided arguments. Paths to the data are
+        provided in a form of dictionary.
 
-        Creates a dataset from the provided arguments. Path to the data are
-        provided in a form dictionary.
-
-        Only textual datasets from the textual datasets for which the language
-        was provided a vocabulary can be generated.
+        Only textual datasets for which the language was provided a vocabulary
+        can be generated.
 
         Args:
 
-            args: Arguements treated as a dictionary. Paths to the data series
-                are specified here. Series identifiers should not contain
-                underscore. You can scecify a language fo the serie by adding
-
-                a preprocess method you want to
-                apply on the textual data by naming the function as
-                <identifier>_preprocess=function
+            kwargs: Arguments are treated as a dictionary. Paths to the data
+                series are specified here. Series identifiers should not contain
+                underscores. You can specify a language for the serie by adding
+                a preprocess method you want to apply on the textual data by
+                naming the function as <identifier>_preprocess=function
+                OR the preprocessor can be specified globally
 
                 output file path <identifier>_out
-
         """
 
-        if 'name' in args:
-            self.name = args['name']
-        else:
-            self.name = "dataset"
+        self.preprocessor = kwargs.get('preprocessor', lambda x: x)
+        self.random_seed = kwargs.get('random_seed', None)
 
-        self.original_args = args
-        series_names = [k for k in args.keys() if k.find('_') == -1]
-        if args:
-            log("Initializing dataset with: {}".format(", ".join(series_names)))
+        series_paths = self._get_series_paths(kwargs)
 
-
-        self._series = {name: self.create_serie(name, args) for name in series_names}
-
-        if len(set([len(v) for v in self._series.values()
-                    if isinstance(v, list) or isinstance(v, np.ndarray)])) > 1:
-            lengths = ["{} ({}): {}".format(s, args[s], len(self._series[s])) for s in self._series]
-            raise Exception("All data series should have the same length, have: {}"\
-                    .format(", ".join(lengths)))
-
-        self.series_outputs = \
-                {key[:-4]: value for key, value in args.iteritems() if key.endswith('_out')}
-
-        if 'random_seed' in args:
-            self.random_seed = args['random_seed']
-        else:
-            self.random_seed = None
+        if len(series_paths) > 0:
+            log("Initializing dataset with: {}".format(", ".join(series_paths)))
+            self._series = {s: self.create_serie(series_paths[s])
+                            for s in series_paths}
+            self._check_series_lengths()
+            self.name = kwargs.get('name', self._get_name_from_paths(series_paths))
 
 
-    def create_serie(self, name, args):
+        # TODO make the code nicer
+        self.series_outputs = {key[2:-4]: value
+                               for key, value in kwargs.iteritems()
+                               if key.endswith('_out') and key.startswith('s_')}
+
+
+    def _get_series_paths(self, kwargs):
+        # anything that is not a serie must have _
+        # keys = [k for k in kwargs.keys() if k.find('_') == -1]
+        # names = keys
+
+        # all series start with s_
+        keys = [k for k in kwargs.keys() if k.startswith('s_')]
+        names = [k[2:] for k in keys]
+
+        return {name : kwargs[key] for name, key in zip(names, keys)}
+
+
+    def _get_name_from_paths(self, series_paths):
+        name = "dataset"
+        for s, path in series_paths.iteritems():
+            name += "-{}".format(path)
+
+        return name
+
+
+    def _check_series_lengths(self):
+        lengths = [len(v) for v in self._series.values()
+                    if isinstance(v, list) or isinstance(v, np.ndarray)]
+
+        if len(set(lengths)) > 1:
+            err_str = ["{}: {}".format(s, len(self._series[s]))
+                       for s in self._series]
+            raise Exception("Lengths of data series must be equal. Instead: {}"
+                            .format(", ".join(err_str)))
+
+
+    def create_serie(self, path):
         """ Loads a data serie from a file """
-        path = args[name]
         log("Loading {}".format(path))
         file_type = magic.from_file(path, mime=True)
 
-        # if the dataset has no name, generate it from files
-        if 'name' not in args:
-            self.name += "-"+path
-
         if file_type.startswith('text/'):
-            if name+"_preprocess" in args:
-                preprocess = args[name+"_preprocess"]
-            else:
-                preprocess = lambda s: s.split(" ")
+            reader = PlainTextFileReader(path)
+            return list([self.preprocessor(line) for line in reader.read()])
 
-            with codecs.open(path, 'r', 'utf-8') as f_data:
-                return list([preprocess(line.rstrip()) for line in f_data])
         elif file_type == 'application/octet-stream':
             return np.load(path)
         else:
-            raise Exception("\"{}\" has Unsopported data type: {}".format(path, file_type))
+            raise Exception("\"{}\" has Unsupported data type: {}"
+                            .format(path, file_type))
+
 
     def __len__(self):
         if not self._series.values():
@@ -142,10 +154,12 @@ class Dataset(object):
         keys = self._series.keys()
         batched_series = [self.batch_serie(key, batch_size) for key in keys]
 
+        batch_index = 0
         for next_batches in izip(*batched_series):
             batch_dict = {key:data for key, data in zip(keys, next_batches)}
             dataset = Dataset(**{})
             #pylint: disable=protected-access
             dataset._series = batch_dict
+            dataset.name = self.name + "-batch-{}".format(batch_index)
+            batch_index += 1
             yield dataset
-

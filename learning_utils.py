@@ -202,7 +202,7 @@ def training_loop(sess, saver,
                     summary_str = trainer.run(sess, batch_feed_dict, summary=True)
                     _, train_evaluation = \
                             run_on_dataset(sess, runner, all_coders, decoder, batch_dataset,
-                                           evaluation_functions, write_out=False)
+                                           evaluation_functions, postprocess, write_out=False)
 
                     process_evaluation(evaluation_functions, tb_writer, train_evaluation,
                                        seen_instances, summary_str, None, train=True)
@@ -213,7 +213,7 @@ def training_loop(sess, saver,
                 if step % validation_period == validation_period - 1:
                     decoded_val_sentences, val_evaluation = \
                             run_on_dataset(sess, runner, all_coders, decoder, val_dataset,
-                                           evaluation_functions, write_out=False)
+                                           evaluation_functions, postprocess, write_out=False)
 
                     this_score = val_evaluation[evaluation_functions[-1]]
                     best_var_file = None
@@ -267,7 +267,7 @@ def training_loop(sess, saver,
 
     for dataset in test_datasets:
         _, evaluation = run_on_dataset(sess, runner, all_coders, decoder,
-                                       dataset, evaluation_functions, write_out=True)
+                                       dataset, evaluation_functions, postprocess, write_out=True)
         if evaluation:
             print_dataset_evaluation(dataset.name, evaluation)
 
@@ -275,9 +275,9 @@ def training_loop(sess, saver,
 
 
 def run_on_dataset(sess, runner, all_coders, decoder, dataset,
-                   evaluation_functions, write_out=False):
+                   evaluation_functions, postprocess, write_out=False):
     """
-    Applies the model on a dataset and eventualy writes outpus into a file.
+    Applies the model on a dataset and optionally writes outpus into a file.
 
     Args:
 
@@ -294,6 +294,8 @@ def run_on_dataset(sess, runner, all_coders, decoder, dataset,
         evaluation_functions: List of functions that are used for the model
             evaluation if the target data are provided.
 
+        postprocess: an object to use as postprocessing of the
+
         write_out: Flag whether the outputs should be printed to a file defined
             in the dataset object.
 
@@ -304,6 +306,8 @@ def run_on_dataset(sess, runner, all_coders, decoder, dataset,
 
     """
     result, opt_loss, dec_loss = runner(sess, dataset, all_coders)
+    result = postprocess(result, dataset)
+
     if write_out:
         if decoder.data_id in dataset.series_outputs:
             path = dataset.series_outputs[decoder.data_id]
