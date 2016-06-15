@@ -4,7 +4,7 @@ import numpy as np
 
 from utils import log
 from bidirectional_rnn_layer import BidirectionalRNNLayer
-from noisy_gru_cell import NoisyGRUCell
+from cells.noisy_gru_cell import NoisyGRUCell
 from checking import assert_type
 from vocabulary import Vocabulary
 

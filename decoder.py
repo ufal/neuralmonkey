@@ -6,7 +6,7 @@ from tensorflow.models.rnn import seq2seq, rnn_cell
 from utils import log
 from decoding_function import attention_decoder
 from learning_utils import log
-from noisy_gru_cell import NoisyGRUCell
+from cells.noisy_gru_cell import NoisyGRUCell
 from checking import assert_type
 from vocabulary import Vocabulary
 
