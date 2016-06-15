@@ -8,6 +8,7 @@ import collections
 from inspect import isfunction, isclass, getargspec
 import regex as re
 from utils import log
+import importlib
 
 
 OBJECT_NAME = re.compile(r"^\[([a-zA-Z][a-zA-Z0-9_]*)\]$")
@@ -64,7 +65,7 @@ def format_value(string):
         class_name = class_parts[-1]
         module_name = ".".join(class_parts[:-1])
         try:
-            module = __import__(module_name)
+            module = importlib.import_module(module_name)
         except:
             raise Exception(("Interpretation \"{}\" as type name, module \"{}\" "+
                              "does not exist. Did you mean file \"./{}\"?")\
