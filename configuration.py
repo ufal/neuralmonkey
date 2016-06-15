@@ -8,7 +8,7 @@ from config_loader import load_config_file
 class Configuration(object):
     """
     Loads the configuration file in an analogical way the python's
-    argparse.ArgumentParser words.
+    argparse.ArgumentParser works.
     """
 
     def __init__(self):
@@ -28,7 +28,7 @@ class Configuration(object):
             self.conditions[name] = cond
 
     def load_file(self, path):
-        log("Loading ini file: '{}'".format(path), color='blue')
+        log("Loading INI file: '{}'".format(path), color='blue')
 
         try:
             config_f = codecs.open(path, 'r', 'utf-8')
