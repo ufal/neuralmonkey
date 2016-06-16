@@ -221,7 +221,7 @@ def training_loop(sess, saver,
                     if (minimize_metric and this_score < best_score) or \
                             (not minimize_metric and this_score > best_score):
                         best_score = this_score
-                        best_score_epoch = i
+                        best_score_epoch = i + 1
                         best_score_batch_no = batch_n
 
                         ## increment var file index here or restoring must decrement
