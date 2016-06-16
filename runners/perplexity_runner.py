@@ -49,6 +49,8 @@ class PerplexityRunner(object):
                loss_with_gt_ins / batch_count, \
                loss_with_decoded_ins / batch_count
 
+
+### TODO move this to a more appropriate location
 def perplexity(perplexities, _):
     """
     Gets the average perplexity of a sentence. The list of perplexities is
@@ -56,4 +58,3 @@ def perplexity(perplexities, _):
     are not needed at all.
     """
     return np.mean(perplexities)
-
