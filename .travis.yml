@@ -1,0 +1,16 @@
+language: python
+python:
+  - "2.7"
+  #- "3.4"
+  #- "3.5"
+  #- "3.5-dev" # 3.5 development branch
+  #- "nightly" # currently points to 3.6-dev
+
+
+# commands to install dependencies
+before_install:
+  - pip install -r requirements.txt
+  - pip install -r test_requirements.txt
+
+# command to run tests
+script: ./lint.sh
