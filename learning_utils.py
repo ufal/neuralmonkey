@@ -1,3 +1,4 @@
+import os
 import codecs
 import numpy as np
 import tensorflow as tf
@@ -100,6 +101,7 @@ def training_loop(sess, saver,
                   runner,
                   test_datasets=[],
                   save_n_best_vars=1,
+                  link_best_vars=None,
                   initial_variables=None,
                   logging_period=20,
                   validation_period=500,
@@ -165,9 +167,11 @@ def training_loop(sess, saver,
     elif save_n_best_vars > 1:
         variables_files = ['{}/variables.data.{}'.format(log_directory, i)
                            for i in range(save_n_best_vars)]
-
     var_file_i = 0
-    saver.save(sess, variables_files[var_file_i])
+    saver.save(sess, variables_files[0])
+
+    if link_best_vars is not None:
+        os.symlink(variables_files[0], link_best_vars)
 
     if log_directory:
         log("Initializing TensorBoard summary writer.")
@@ -228,6 +232,12 @@ def training_loop(sess, saver,
                         var_file_i = (var_file_i + 1) % save_n_best_vars
                         best_var_file = variables_files[var_file_i]
                         saver.save(sess, best_var_file)
+
+                        ## TODO make link best vars never be none
+                        if save_n_best_vars > 1 and link_best_vars is not None:
+                            ## make the symlink point to the best vars
+                            os.unlink(link_best_vars)
+                            os.symlink(variables_files[var_file_i], link_best_vars)
 
 
                     log("Validation (epoch {}, batch number {}):"\

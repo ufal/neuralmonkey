@@ -80,12 +80,14 @@ if __name__ == "__main__":
     os.system("git log -1 --format=%H > {}/git_commit".format(args.output))
     os.system("git --no-pager diff --color=always > {}/git_diff".format(args.output))
 
+    link_best_vars = "{}/variables.data.best".format(args.output)
+
     run_configuration = {
         'encoders': args.encoders,
         'decoder': args.decoder,
         'runner': args.runner,
         'evaluation': args.evaluation,
-        'initial_variables': args.output+"/variables.data"
+        'initial_variables': link_best_vars
     }
     save_configuration(run_configuration, args.output)
 
@@ -96,6 +98,7 @@ if __name__ == "__main__":
                   args.output, args.evaluation, args.runner,
                   test_datasets=args.test_datasets,
                   save_n_best_vars=args.save_n_best,
+                  link_best_vars=link_best_vars,
                   logging_period=args.logging_period,
                   validation_period=args.validation_period,
                   postprocess=args.postprocess,
