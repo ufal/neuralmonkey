@@ -2,7 +2,7 @@ import tensorflow as tf
 import numpy as np
 from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
 from utils import log
-from cross_entropy_trainer import CrossEntropyTrainer
+from trainers.cross_entropy_trainer import CrossEntropyTrainer
 
 # TODO refactor to have the same API as cross-entropy trainer
 
