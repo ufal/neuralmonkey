@@ -1,15 +1,17 @@
 """ Implementation of the dataset class. """
 
-import codecs
 import random
 from itertools import izip
 
 import magic
 import numpy as np
+import regex as re
 
 from utils import log
-
 from readers.plain_text_reader import PlainTextFileReader
+
+SERIES_SOURCE = re.compile("s_(.*)")
+SERIES_OUTPUT = re.compile("s_(.*)_out")
 
 class Dataset(object):
     """ This class serves as collection for data series for particular
@@ -50,45 +52,23 @@ class Dataset(object):
         self.preprocessor = kwargs.get('preprocessor', lambda x: x)
         self.random_seed = kwargs.get('random_seed', None)
 
-        series_paths = self._get_series_paths(kwargs)
+        series_paths = _get_series_paths(kwargs)
 
         if len(series_paths) > 0:
             log("Initializing dataset with: {}".format(", ".join(series_paths)))
             self._series = {s: self.create_serie(series_paths[s])
                             for s in series_paths}
             self._check_series_lengths()
-            self.name = kwargs.get('name', self._get_name_from_paths(series_paths))
+            self.name = kwargs.get('name', _get_name_from_paths(series_paths))
 
-
-        # TODO make the code nicer
-        self.series_outputs = {key[2:-4]: value
+        self.series_outputs = {SERIES_OUTPUT.match(key)[1]: value
                                for key, value in kwargs.iteritems()
-                               if key.endswith('_out') and key.startswith('s_')}
-
-
-    def _get_series_paths(self, kwargs):
-        # anything that is not a serie must have _
-        # keys = [k for k in kwargs.keys() if k.find('_') == -1]
-        # names = keys
-
-        # all series start with s_
-        keys = [k for k in kwargs.keys() if k.startswith('s_')]
-        names = [k[2:] for k in keys]
-
-        return {name : kwargs[key] for name, key in zip(names, keys)}
-
-
-    def _get_name_from_paths(self, series_paths):
-        name = "dataset"
-        for s, path in series_paths.iteritems():
-            name += "-{}".format(path)
-
-        return name
+                               if SERIES_OUTPUT.match(key)}
 
 
     def _check_series_lengths(self):
         lengths = [len(v) for v in self._series.values()
-                    if isinstance(v, list) or isinstance(v, np.ndarray)]
+                   if isinstance(v, list) or isinstance(v, np.ndarray)]
 
         if len(set(lengths)) > 1:
             err_str = ["{}: {}".format(s, len(self._series[s]))
@@ -163,3 +143,18 @@ class Dataset(object):
             dataset.name = self.name + "-batch-{}".format(batch_index)
             batch_index += 1
             yield dataset
+
+def _get_series_paths(kwargs):
+    # all series start with s_
+    keys = [k for k in kwargs.keys() if SERIES_SOURCE.match(k)]
+    names = [SERIES_SOURCE.match(k)[1] for k in keys]
+
+    return {name : kwargs[key] for name, key in zip(names, keys)}
+
+
+def _get_name_from_paths(series_paths):
+    name = "dataset"
+    for _, path in series_paths.iteritems():
+        name += "-{}".format(path)
+
+    return name

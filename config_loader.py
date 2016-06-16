@@ -6,9 +6,9 @@ import time
 import traceback
 import collections
 from inspect import isfunction, isclass, getargspec
+import importlib
 import regex as re
 from utils import log
-import importlib
 
 
 OBJECT_NAME = re.compile(r"^\[([a-zA-Z][a-zA-Z0-9_]*)\]$")
@@ -48,7 +48,7 @@ def split_on_commas(string):
 
 
 def format_value(string):
-    #pylint: disable=too-many-return-statements
+    #pylint: disable=too-many-return-statements,too-many-branches
     """ Parses value from the INI file: int/float/string/object """
     if string == 'False':
         return False
@@ -173,7 +173,7 @@ def get_object(value, all_dicts, existing_objects, depth):
 
     if not isclass(clazz) and not isfunction(clazz):
         raise Exception(("The \"class\" field with value \"{}\" in object \"{}\""+
-            " should be a type or function, was").format(clazz, name, type(clazz)))
+                         " should be a type or function, was").format(clazz, name, type(clazz)))
 
     def process_arg(arg):
         """ Resolves potential references to other objects """
