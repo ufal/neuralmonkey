@@ -29,8 +29,9 @@ def object_to_dict(obj, final_dict, name_dict, depth, out_dir):
     elif isinstance(obj, type):
         return obj.__module__ + "." + obj.__name__
     elif isinstance(obj, list):
-        string_list = \
-            [object_to_dict(item, final_dict, name_dict, depth + 1, out_dir) for item in obj]
+        string_list = [object_to_dict(item, final_dict, name_dict, depth + 1,
+                                      out_dir)
+                       for item in obj]
         return "[{}]".format(",".join(string_list))
     elif isfunction(obj):
         return "{}.{}".format(obj.__module__, obj.__name__)
@@ -67,12 +68,12 @@ def object_to_dict(obj, final_dict, name_dict, depth, out_dir):
         obj_dict = {'class' : clazz.__module__ + "." + clazz.__name__}
         for arg in argument_names:
             try:
-                obj_dict[arg] = \
-                    object_to_dict(obj.__dict__[arg], final_dict, name_dict, depth + 1, out_dir)
+                obj_dict[arg] = object_to_dict(obj.__dict__[arg], final_dict,
+                                               name_dict, depth + 1, out_dir)
             except KeyError:
                 log("Error while generation the run-time configuration.")
-                log('Class "{}" in module "{}" is missing attribute "{}"'.\
-                        format(clazz.__name__, clazz.__module__, arg), 'red')
+                log('Class "{}" in module "{}" is missing attribute "{}"'
+                    .format(clazz.__name__, clazz.__module__, arg), 'red')
                 exit(1)
         final_dict[name] = obj_dict
         name_dict[obj] = name
@@ -84,7 +85,8 @@ def save_configuration(configuration, out_dir):
     name_dict = {}
     main_dict = {}
     for key, value in configuration.iteritems():
-        main_dict[key] = object_to_dict(value, final_dict, name_dict, 0, out_dir)
+        main_dict[key] = object_to_dict(value, final_dict, name_dict, 0,
+                                        out_dir)
 
     final_dict['main'] = main_dict
     final_dict_to_ini(out_dir+"/run.ini", final_dict)

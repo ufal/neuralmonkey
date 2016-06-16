@@ -18,7 +18,8 @@ INTEGER = re.compile(r"^[0-9]+$")
 FLOAT = re.compile(r"^[0-9]*\.[0-9]*(e[+-]?[0-9]+)?$")
 LIST = re.compile(r"\[([^]]*)\]")
 TUPLE = re.compile(r"\(([^]]+)\)")
-CLASS_NAME = re.compile(r"^_*[a-zA-Z][a-zA-Z0-9_]*(\._*[a-zA-Z][a-zA-Z0-9_]*)+$")
+CLASS_NAME = re.compile(
+    r"^_*[a-zA-Z][a-zA-Z0-9_]*(\._*[a-zA-Z][a-zA-Z0-9_]*)+$")
 
 def split_on_commas(string):
     """
@@ -67,15 +68,15 @@ def format_value(string):
         try:
             module = importlib.import_module(module_name)
         except:
-            raise Exception(("Interpretation \"{}\" as type name, module \"{}\" "+
-                             "does not exist. Did you mean file \"./{}\"?")\
-                                     .format(string, module_name, string))
+            raise Exception(("Interpretation '{}' as type name, module '{}' "
+                             "does not exist. Did you mean file './{}'?")
+                            .format(string, module_name, string))
         try:
             clazz = getattr(module, class_name)
         except:
-            raise Exception(("Interpretation \"{}\" as type name, class \"{}\" "+
-                             "does not exist. Did you mean file \"./{}\"?")\
-                                     .format(string, class_name, string))
+            raise Exception(("Interpretation '{}' as type name, class '{}' "
+                             "does not exist. Did you mean file './{}'?")
+                            .format(string, class_name, string))
         return clazz
     elif OBJECT_REF.match(string):
         return "object:"+OBJECT_REF.match(string)[1]
@@ -115,19 +116,22 @@ def get_config_dicts(config_file):
             elif OBJECT_NAME.match(line):
                 current_name = OBJECT_NAME.match(line)[1]
                 if current_name in config_dicts:
-                    raise Exception("Duplicit object key: '{}', line {}.".format(current_name, i))
+                    raise Exception("Duplicit object key: '{}', line {}."
+                                    .format(current_name, i))
                 config_dicts[current_name] = dict()
             elif KEY_VALUE_PAIR.match(line):
                 matched = KEY_VALUE_PAIR.match(line)
                 key = matched[1]
                 value_string = matched[2]
                 if key in config_dicts[current_name]:
-                    raise Exception("Duplicit key in '{}' object, line {}.".format(key, i))
+                    raise Exception("Duplicit key in '{}' object, line {}."
+                                    .format(key, i))
                 config_dicts[current_name][key] = format_value(value_string)
             else:
-                raise Exception("Unknown string: \"{}\"".format(line))
+                raise Exception("Unknown string: '{}'".format(line))
         except Exception as exc:
-            log("Syntax error on line {}: {}".format(i, exc.message), color='red')
+            log("Syntax error on line {}: {}".format(i, exc.message),
+                color='red')
             exit(1)
 
     config_file.close()
@@ -135,23 +139,23 @@ def get_config_dicts(config_file):
 
 
 def get_object(value, all_dicts, existing_objects, depth):
-    """
-    Constructs an object from dict with its arguments. It works recursively.
+    """Constructs an object from dict with its arguments. It works recursively.
 
     Args:
-
         value: A value that should be resolved (either a singular value or
             object name)
 
-        all_dicts: Raw configuration dictionaries. It is used to find configuration
-            of unconstructed objects.
+        all_dicts: Raw configuration dictionaries. It is used to find
+            configuration of unconstructed objects.
 
         existing_objects: A dictionary for keeping already constructed objects.
 
-        depth: Current depth of recursion. Used to prevent an infinite recursion.
-
+        depth: Current depth of recursion. Used to prevent an infinite
+        recursion.
     """
-    if not isinstance(value, basestring) and isinstance(value, collections.Iterable):
+
+    if not isinstance(value, basestring) and isinstance(value,
+                                                        collections.Iterable):
         return [get_object(val, all_dicts, existing_objects, depth + 1)
                 for val in value]
     if value in existing_objects:
@@ -161,7 +165,8 @@ def get_object(value, all_dicts, existing_objects, depth):
 
     name = value[7:]
     if name not in all_dicts:
-        raise Exception("Object \"{}\" was not defined in the configuration.".format(name))
+        raise Exception("Object '{}' was not defined in the configuration."
+                        .format(name))
     this_dict = all_dicts[name]
 
     if depth > 20:
@@ -172,19 +177,21 @@ def get_object(value, all_dicts, existing_objects, depth):
     clazz = this_dict['class']
 
     if not isclass(clazz) and not isfunction(clazz):
-        raise Exception(("The \"class\" field with value \"{}\" in object \"{}\""+
-                         " should be a type or function, was").format(clazz, name, type(clazz)))
+        raise Exception(("The 'class' field with value '{}' in object '{}'"
+                         " should be a type or function, was '{}'")
+                        .format(clazz, name, type(clazz)))
 
     def process_arg(arg):
         """ Resolves potential references to other objects """
         return get_object(arg, all_dicts, existing_objects, depth + 1)
 
-    args = {k: process_arg(arg) for k, arg in this_dict.iteritems() if k != 'class'}
+    args = {k: process_arg(arg)
+            for k, arg in this_dict.iteritems() if k != 'class'}
 
     func_to_call = clazz.__init__ if isclass(clazz) else clazz
     arg_spec = getargspec(func_to_call)
 
-    # if tha parameters are not passed via a keywords, check whether they match
+    # if the parameters are not passed via keywords, check whether they match
     if not arg_spec.keywords:
         defaults = arg_spec.defaults if arg_spec.defaults else ()
         if arg_spec.args[0] == 'self':
@@ -201,17 +208,19 @@ def get_object(value, all_dicts, existing_objects, depth):
                 additional_args.add(key)
 
         if required_args:
-            raise Exception("Object \"{}\" is missing required args: {}".\
-                    format(name, ", ".join(required_args)))
+            raise Exception("Object '{}' is missing required args: {}"
+                            .format(name, ", ".join(required_args)))
         if additional_args:
-            raise Exception("Object \"{}\" got unexpected argument: {}".\
-                    format(name, ", ".join(additional_args)))
+            raise Exception("Object '{}' got unexpected argument: {}"
+                            .format(name, ", ".join(additional_args)))
 
     try:
         result = clazz(**args)
     except Exception as exc:
-        log("Failed to create object \"{}\" of class \"{}.{}\": {}"\
-                .format(name, clazz.__module__, clazz.__name__, exc.message), color='red')
+        log("Failed to create object '{}' of class '{}.{}': {}"
+            .format(name, clazz.__module__, clazz.__name__, exc.message),
+            color='red')
+
         traceback.print_exc()
         exit(1)
     existing_objects[value] = result
@@ -238,7 +247,8 @@ def load_config_file(config_file):
             configuration[key] = get_object(value, config_dicts,
                                             existing_objects, 0)
         except Exception as exc:
-            log("Error while loading {}: {}".format(key, exc.message), color='red')
+            log("Error while loading {}: {}".format(key, exc.message),
+                color='red')
             traceback.print_exc()
             exit(1)
 

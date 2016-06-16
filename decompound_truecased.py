@@ -20,8 +20,10 @@ if __name__ == "__main__":
                 if token[0].isupper():
                     decompounded = decompounder.splitWord(token)
                     if decompounded.size() >= 2:
-                        parts = [decompounded.get(j) for j in range(decompounded.size())]
-                        parts_with_hyphens = [ '-' if not p else p for p in parts]
+                        parts = [decompounded.get(j)
+                                 for j in range(decompounded.size())]
+                        parts_with_hyphens = ['-' if not p else p
+                                              for p in parts]
                         tokens.append(">><<".join(parts_with_hyphens))
                         del decompounded
                     else:

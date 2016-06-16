@@ -13,9 +13,12 @@ the coefficient of the inverse sigmoid decay function.
 """
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Estimates parameter for scheduled sampling.")
-    parser.add_argument("--value", type=float, required=True, help="The value the threshold should achieve.")
-    parser.add_argument("--step", type=int, required=True, help="Step when you want to achieve the value.")
+    parser = argparse.ArgumentParser(
+        description="Estimates parameter for scheduled sampling.")
+    parser.add_argument("--value", type=float, required=True,
+                        help="The value the threshold should achieve.")
+    parser.add_argument("--step", type=int, required=True,
+                        help="Step when you want to achieve the value.")
     args = parser.parse_args()
 
     x = args.step
