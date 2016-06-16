@@ -1,5 +1,7 @@
 #Neural Monkey
 
+[![Build Status](https://travis-ci.org/ufal/neuralmonkey.svg?branch=master)](https://travis-ci.org/ufal/neuralmonkey)
+
 Multimodal machine translation and crosslingual image description generation
 
 - `caffe_image_features.py` extracts features from images using pre-trained network
