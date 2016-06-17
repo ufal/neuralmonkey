@@ -45,6 +45,7 @@ if __name__ == "__main__":
     config.add_argument('threads', int, required=False, default=4)
     config.add_argument('minimize', bool, required=False, default=False)
     config.add_argument('save_n_best', int, required=False, default=1)
+    config.add_argument('overwrite_output_dir', bool, required=False, default=False)
 
     #pylint: disable=no-member
     args = config.load_file(sys.argv[1])
@@ -54,9 +55,14 @@ if __name__ == "__main__":
     if args.random_seed is not None:
         tf.set_random_seed(args.random_seed)
 
-    if os.path.isdir(args.output):
-        log("Directory \"{}\" exists.".format(args.output), color='red')
+    if os.path.isdir(args.output) and not args.overwrite_output_dir:
+        log("Directory '{}' exists, overwriting disabled.".format(args.output), color='red')
         exit(1)
+    elif args.overwrite_output_dir:
+        # no point in deleting directory contents explicitly
+        log("Directory '{}' exists, overwriting enabled, proceeding."
+            .format(args.output))
+
 
     try:
         check_dataset_and_coders(args.train_dataset, args.encoders + [args.decoder])
@@ -67,11 +73,12 @@ if __name__ == "__main__":
         log(exc.message, color='red')
         exit(1)
 
-    try:
-        os.mkdir(args.output)
-    except Exception as exc:
-        log("Failed to create experiment dictionary: {}".format(exc.message), color='red')
-        exit(1)
+    if not args.overwrite_output_dir:
+        try:
+            os.mkdir(args.output)
+        except Exception as exc:
+            log("Failed to create experiment dictionary: {}".format(exc.message), color='red')
+            exit(1)
 
     copyfile(sys.argv[1], args.output+"/experiment.ini")
     set_log_file(args.output+"/experiment.log")

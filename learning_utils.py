@@ -171,6 +171,9 @@ def training_loop(sess, saver,
     saver.save(sess, variables_files[0])
 
     if link_best_vars is not None:
+        if os.path.islink(link_best_vars):
+            # if overwriting output dir
+            os.unlink(link_best_vars)
         os.symlink(variables_files[0], link_best_vars)
 
     if log_directory:
