@@ -5,6 +5,7 @@ import numpy as np
 from utils import log
 from bidirectional_rnn_layer import BidirectionalRNNLayer
 from cells.noisy_gru_cell import NoisyGRUCell
+from cells.pervasive_dropout_wrapper import PervasiveDropoutWrapper
 from checking import assert_type
 from vocabulary import Vocabulary
 
@@ -12,8 +13,9 @@ from vocabulary import Vocabulary
 class SentenceEncoder(object):
     def __init__(self, max_input_len, vocabulary, data_id, embedding_size,
                  rnn_size, dropout_keep_p=0.5, use_noisy_activations=False,
-                 attention_type=None, attention_fertility=3,
-                 name="sentence_encoder", parent_encoder=None):
+                 use_pervasive_dropout=False, attention_type=None,
+                 attention_fertility=3, name="sentence_encoder",
+                 parent_encoder=None):
 
         self.name = name
         self.max_input_len = max_input_len
@@ -77,6 +79,29 @@ class SentenceEncoder(object):
                         rnn_size, input_size=embedding_size)
                     self.backward_gru = rnn_cell.GRUCell(
                         rnn_size, input_size=embedding_size)
+
+            if use_pervasive_dropout:
+
+                # create dropout mask (shape batch x rnn_size)
+                # floor (random uniform + dropout_keep)
+
+                shape = tf.concat(0, [tf.shape(self.inputs[0]), [rnn_size]])
+
+                forward_dropout_mask = tf.floor(
+                    tf.random_uniform(shape, 0.0, 1.0) + dropout_placeholder)
+
+                backward_dropout_mask = tf.floor(
+                    tf.random_uniform(shape, 0.0, 1.0) + dropout_placeholder)
+
+                scale = tf.inv(dropout_placeholder)
+
+                self.forward_gru = PervasiveDropoutWrapper(
+                    self.forward_gru, forward_dropout_mask, scale)
+                self.backward_gru = PervasiveDropoutWrapper(
+                    self.backward_gru, backward_dropout_mask, scale)
+
+
+
 
             bidi_layer = BidirectionalRNNLayer(self.forward_gru,
                                                self.backward_gru,
