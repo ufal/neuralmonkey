@@ -2,7 +2,7 @@
 
 [![Build Status](https://travis-ci.org/ufal/neuralmonkey.svg?branch=master)](https://travis-ci.org/ufal/neuralmonkey)
 
-Multimodal machine translation and crosslingual image description generation
+Neural Sequence Learning Using Tensorflow
 
 
 ### Usage
