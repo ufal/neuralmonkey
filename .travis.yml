@@ -1,20 +1,22 @@
-sudo: required
 language: python
+env:
+  matrix:
+    - TEST_SUITE=lint
 python:
   - "2.7"
   #- "3.4"
   #- "3.5"
   #- "3.5-dev" # 3.5 development branch
   #- "nightly" # currently points to 3.6-dev
-
+matrix:
+  include:
+    - python: "3.4"
+      env: TEST_SUITE=mypy
 
 # commands to install dependencies
 before_install:
   - pip install -r requirements.txt
-  - pip install -r test_requirements.txt
-  - travis_retry sudo apt-get update
-  - travis_retry sudo apt-get install python3 python3-pip
-  - sudo pip3 install mypy-lang
+  - pip install -r $(TEST_SUITE)_requirements.txt
 
 # command to run tests
-script: before_merge.sh
+script: $(TEST_SUITE)_run.sh
