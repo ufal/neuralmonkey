@@ -27,6 +27,7 @@ class SentenceEncoder(object):
         self.max_input_len = max_input_len
         self.dropout_keep_p = dropout_keep_p
         self.use_noisy_activations = use_noisy_activations
+        self.use_pervasive_dropout = use_pervasive_dropout
         self.attention_type = attention_type
         self.attention_fertility = attention_fertility
 
