@@ -12,6 +12,8 @@ python:
 before_install:
   - pip install -r requirements.txt
   - pip install -r test_requirements.txt
+  - travis_retry sudo apt-get update
+  - travis_retry sudo apt-get install python3 python3-pip
   - sudo pip3 install mypy-lang
 
 # command to run tests
