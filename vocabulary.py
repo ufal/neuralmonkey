@@ -1,11 +1,12 @@
 import random
 import cPickle as pickle
-import regex as re
 import numpy as np
+import regex as re
 
 try:
     #pylint: disable=unused-import,bare-except,import-error
     from typing import List, Tuple, Dict
+    from dataset import Dataset
 except:
     pass
 
@@ -119,7 +120,7 @@ class Vocabulary(object):
         return word_indices, weights
 
     def vectors_to_sentences(self, vectors):
-        #pylint: disable=fixme
+        # pylint: disable=fixme
         # TODO type
         sentences = [[] for _ in range(vectors[0].shape[0])]
 
@@ -150,7 +151,7 @@ def from_datasets(datasets, series_ids, max_size, random_seed=None):
 
 
 def from_pickled(path):
-    # type: str -> Vocabulary
+    # type: (str) -> Vocabulary
     with open(path, 'rb') as f_pickle:
         vocabulary = pickle.load(f_pickle)
     assert isinstance(vocabulary, Vocabulary)
