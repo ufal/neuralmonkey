@@ -1,6 +1,6 @@
 #!/bin/bash
 
-mypy --py2 -s $(grep --include='*.py' -rl -e "^# *tests:.*mypy")
+mypy --py2 -s $(grep --include='*.py' -rl 'tests/..' -e "^# *tests:.*mypy")
 
 if (( $? ))
 then
