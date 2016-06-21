@@ -109,7 +109,7 @@ class Dataset(object):
             return self._series[name]
 
     def shuffle(self):
-        # type: None -> None
+        # type: (None) -> None
         """ Shuffles the dataset randomly """
 
         keys = self._series.keys()
