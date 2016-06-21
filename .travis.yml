@@ -1,6 +1,8 @@
 language: python
 
 env:
+  global:
+    - TF=0.8.0
   matrix:
     - TEST_SUITE=lint
     - TEST_SUITE=tests
@@ -20,6 +22,7 @@ matrix:
 # commands to install dependencies
 before_install:
   - pip install -r requirements.txt
+  - if [ $TEST_SUITE = "lint" ]; then pip install https://storage.googleapis.com/tensorflow/linux/cpu/tensorflow-$TF""-cp27-none-linux_x86_64.whl; fi
   - if [ -f $TEST_SUITE""_requirements.txt ]; then pip install -r $TEST_SUITE""_requirements.txt; fi
 
 # command to run tests
