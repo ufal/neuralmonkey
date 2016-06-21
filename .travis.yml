@@ -20,7 +20,7 @@ matrix:
 # commands to install dependencies
 before_install:
   - pip install -r requirements.txt
-  - if [ -f $TEST_SUITE""_requirements.txt ]; then; pip install -r $TEST_SUITE""_requirements.txt; fi
+  - if [ -f $TEST_SUITE""_requirements.txt ]; then pip install -r $TEST_SUITE""_requirements.txt; fi
 
 # command to run tests
 script: ./$TEST_SUITE""_run.sh
