@@ -1,3 +1,5 @@
+# tests: mypy
+
 import os
 import codecs
 import numpy as np

@@ -1,3 +1,3 @@
 #!/bin/bash
 
-pylint -j 4 vocabulary.py dataset.py #config_loader.py
+pylint -j 4 $(grep --include='*.py' -rl . -e "^# *tests:.*lint")

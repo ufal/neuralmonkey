@@ -1,5 +1,7 @@
 """ Implementation of the dataset class. """
 
+# tests: lint, mypy
+
 import random
 from itertools import izip
 
