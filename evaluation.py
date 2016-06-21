@@ -1,6 +1,9 @@
 import numpy as np
 from nltk.translate.bleu_score import corpus_bleu, SmoothingFunction
+# pylint: disable=no-name-in-module
 from Levenshtein import ratio
+
+# tests: lint, mypy
 
 BLEU_SMOOTHING = SmoothingFunction(epsilon=0.01).method1
 
