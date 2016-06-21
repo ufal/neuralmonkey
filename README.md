@@ -9,7 +9,7 @@ Neural Sequence Learning Using Tensorflow
 
 `python train.py <EXPERIMENT_INI>`
 
-### Packages
+### Package Overview
 
 The toolkit is organized into packages as follows:
 
@@ -36,3 +36,13 @@ The toolkit is organized into packages as follows:
 - `tokenize_data.py` tokenizes data
 - `tokenize_persistable.sh` manages the tokenize_data script
 - `vocabulary.py` python definition for vocabulary object
+
+### Installation
+
+- Install Tensorflow by following their installation docs
+  [here](https://www.tensorflow.org/versions/r0.8/get_started/os_setup.html#download-and-setup)
+
+- Clone this repository and follow the installation procedure outlined in
+`prepare_env.sh`. If the training crashes on an unknown dependency, just install
+it with pip. At time of this being written, used Tensorflow version is 0.8 and
+it is known that 0.9 throws errors.
