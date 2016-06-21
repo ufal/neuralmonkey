@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
 import sys
-import codecs
 
 from utils import log
 from configuration import Configuration

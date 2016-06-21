@@ -3,6 +3,8 @@ This module servers as a library of API checks used as assertions during
 constructing the computational graph.
 """
 
+# tests: lint
+
 def check_dataset_and_coders(dataset, coders):
     #pylint: disable=protected-access
     missing = \

@@ -2,6 +2,8 @@
 This module gathers some tools for image preprocessing.
 """
 
+# tests: mypy
+
 import numpy as np
 from scipy.misc import imread, imresize
 

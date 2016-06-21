@@ -1,4 +1,12 @@
+# tests: mypy
+
 import regex as re
+
+try:
+    #pylint: disable=unused-import,bare-except,import-error
+    from typing import Dict
+except:
+    pass
 
 def preprocess_char_based(sequence):
     return list(sequence)
@@ -22,7 +30,7 @@ UNCONTRACTED_FORMS = [["an", "dem"], ["an", "das"], ["bei", "dem"], ["in", "dem"
                       ["in", "das"], ["von", "dem"], ["zu", "dem"], ["zu", "der"]]
 UNCONTRACT = {c: un for c, un in zip(CONTRACTIONS, UNCONTRACTED_FORMS)}
 
-CONTRACT = {}
+CONTRACT = {} # type: Dict[str, Dict[str, str]]
 for cont, (prep, article) in zip(CONTRACTIONS, UNCONTRACTED_FORMS):
     if not article in CONTRACT:
         CONTRACT[article] = {}

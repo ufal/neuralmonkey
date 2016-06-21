@@ -1,11 +1,12 @@
-""" This module contains function that are generate configuration INI file for
+""" This module contains function that generate configuration INI file for
 running model, if it is provided a coniguration to train a model. """
+
+# TODO: ^ this does not make any sense! TM
 
 import codecs
 import os
 from inspect import isfunction
 
-import dataset
 import vocabulary
 from utils import log
 
