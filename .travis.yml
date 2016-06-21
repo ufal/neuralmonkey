@@ -1,13 +1,16 @@
 language: python
+
 env:
   matrix:
     - TEST_SUITE=lint
+
 python:
   - "2.7"
   #- "3.4"
   #- "3.5"
   #- "3.5-dev" # 3.5 development branch
   #- "nightly" # currently points to 3.6-dev
+  
 matrix:
   include:
     - python: "3.4"
