@@ -6,6 +6,8 @@ This is a training script for sequence to sequence learning.
 
 """
 
+# tests: lint, mypy
+
 import sys
 import os
 from shutil import copyfile
@@ -19,11 +21,7 @@ from learning_utils import training_loop, initialize_tf
 from dataset import Dataset
 from config_generator import save_configuration
 
-if __name__ == "__main__":
-    if len(sys.argv) != 2:
-        print "Usage: train.py <ini_file>"
-        exit(1)
-
+def create_config(config_file):
     config = Configuration()
     config.add_argument('name', str)
     config.add_argument('random_seed', int, required=False)
@@ -47,11 +45,15 @@ if __name__ == "__main__":
     config.add_argument('save_n_best', int, required=False, default=1)
     config.add_argument('overwrite_output_dir', bool, required=False, default=False)
 
-    #pylint: disable=no-member
-    args = config.load_file(sys.argv[1])
+    return config.load_file(config_file)
+
+def main():
+
+    args = create_config(sys.argv[1])
 
     print ""
 
+    #pylint: disable=no-member,broad-except
     if args.random_seed is not None:
         tf.set_random_seed(args.random_seed)
 
@@ -110,3 +112,10 @@ if __name__ == "__main__":
                   validation_period=args.validation_period,
                   postprocess=args.postprocess,
                   minimize_metric=args.minimize)
+
+if __name__ == "__main__":
+    if len(sys.argv) != 2:
+        print "Usage: train.py <ini_file>"
+        exit(1)
+    else:
+        main()
