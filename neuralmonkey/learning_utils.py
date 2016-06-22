@@ -151,7 +151,7 @@ def training_loop(sess, saver,
     """
 
     if not postprocess:
-        postprocess = lambda x, _: x
+        postprocess = lambda x: x
 
     evaluation_labels = [f.__name__ for f in evaluation_functions]
     step = 0

@@ -16,3 +16,5 @@ logs-postedit
 *.tmp.meta
 checkpoint
 experiments
+tests/*.en
+tests/*.de

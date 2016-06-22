@@ -8,8 +8,8 @@ import collections
 from inspect import isfunction, isclass, getargspec
 import importlib
 import regex as re
-from utils import log
 
+from neuralmonkey.utils import log
 
 OBJECT_NAME = re.compile(r"^\[([a-zA-Z][a-zA-Z0-9_]*)\]$")
 OBJECT_REF = re.compile(r"^<([a-zA-Z][a-zA-Z0-9_]*)>$")
@@ -64,13 +64,14 @@ def format_value(string):
     elif CLASS_NAME.match(string):
         class_parts = string.split(".")
         class_name = class_parts[-1]
-        module_name = ".".join(class_parts[:-1])
+        # TODO should we not assume that everything is from neuralmonkey?
+        module_name = ".".join(["neuralmonkey"] + class_parts[:-1])
         try:
             module = importlib.import_module(module_name)
-        except:
+        except Exception as exc:
             raise Exception(("Interpretation '{}' as type name, module '{}' "
-                             "does not exist. Did you mean file './{}'?")
-                            .format(string, module_name, string))
+                             "does not exist. Did you mean file './{}'? {}")
+                            .format(string, module_name, string, exc))
         try:
             clazz = getattr(module, class_name)
         except:

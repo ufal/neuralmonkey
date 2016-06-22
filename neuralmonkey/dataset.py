@@ -78,6 +78,8 @@ class Dataset(object):
             raise Exception("Lengths of data series must be equal. Instead: {}"
                             .format(", ".join(err_str)))
 
+        log("Dataset length: {}".format(lengths[0]))
+
 
     def create_serie(self, path):
         """ Loads a data serie from a file """
