@@ -32,7 +32,6 @@ The toolkit is organized into packages as follows:
 - `prepare_vgg16.sh` deprecated
 - `README.md` this file
 - `reformat_downloaded_image_features.py` deprecated
-- `tagging` see tagging/README.md
 - `test_vocabulary.py` unit test for vocabulary
 - `tokenize_data.py` tokenizes data
 - `tokenize_persistable.sh` manages the tokenize_data script
