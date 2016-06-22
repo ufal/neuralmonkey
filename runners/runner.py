@@ -3,10 +3,9 @@ import tensorflow as tf
 from learning_utils import feed_dicts
 
 class GreedyRunner(object):
-    def __init__(self, decoder, batch_size, postprocess=None):
+    def __init__(self, decoder, batch_size):
         self.decoder = decoder
         self.batch_size = batch_size
-        self.postprocess = postprocess
         self.vocabulary = decoder.vocabulary
 
     def __call__(self, sess, dataset, coders):
@@ -40,9 +39,6 @@ class GreedyRunner(object):
             decoded_sentences_batch = \
                     self.vocabulary.vectors_to_sentences(computation[len(losses):])
             decoded_sentences += decoded_sentences_batch
-
-        if self.postprocess is not None:
-            decoded_sentences = self.postprocess(decoded_sentences, dataset)
 
         return decoded_sentences, \
                loss_with_gt_ins / batch_count, \

@@ -41,7 +41,6 @@ if __name__ == "__main__":
     for dataset in datasets_args.test_datasets:
         _, evaluation = run_on_dataset(sess, args.runner, args.encoders + [args.decoder],
                                        args.decoder, dataset,
-                                       args.evaluation, write_out=True)
+                                       args.evaluation, postprocess, write_out=True)
         if evaluation:
             print_dataset_evaluation(dataset.name, evaluation)
-

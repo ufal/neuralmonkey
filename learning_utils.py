@@ -190,8 +190,8 @@ def training_loop(sess, saver,
     best_score_epoch = 0
     best_score_batch_no = 0
 
-    val_tgt_sentences = \
-        postprocess(val_dataset.get_series(decoder.data_id), val_dataset)
+    val_raw_tgt_sentences = val_dataset.get_series(decoder.data_id)
+    val_tgt_sentences = postprocess(val_raw_tgt_sentences)
 
     log("Starting training")
     try:
@@ -210,7 +210,7 @@ def training_loop(sess, saver,
                 seen_instances += len(batch_sentences)
                 if step % logging_period == logging_period - 1:
                     summary_str = trainer.run(sess, batch_feed_dict, summary=True)
-                    _, train_evaluation = \
+                    _, _, train_evaluation = \
                             run_on_dataset(sess, runner, all_coders, decoder, batch_dataset,
                                            evaluation_functions, postprocess, write_out=False)
 
@@ -221,7 +221,7 @@ def training_loop(sess, saver,
 
 
                 if step % validation_period == validation_period - 1:
-                    decoded_val_sentences, val_evaluation = \
+                    decoded_val_sentences, decoded_raw_val_sentences, val_evaluation = \
                             run_on_dataset(sess, runner, all_coders, decoder, val_dataset,
                                            evaluation_functions, postprocess, write_out=False)
 
@@ -265,24 +265,39 @@ def training_loop(sess, saver,
 
                     log_print("")
                     log_print("Examples:")
-                    for sent, ref_sent in zip(decoded_val_sentences[:15], val_tgt_sentences):
+                    for sent, sent_raw, ref_sent, ref_sent_raw in zip(
+                            decoded_val_sentences[:15],
+                            decoded_raw_val_sentences,
+                            val_tgt_sentences,
+                            val_raw_tgt_sentences):
+
                         if isinstance(sent, list):
-                            log_print(u"    {}".format(u" ".join(sent)))
+                            log_print(u"      raw: {}"
+                                      .format(u" ".join(sent_raw)))
+                            log_print(u"      out: {}".format(u" ".join(sent)))
                         else:
+                            # TODO does this code ever execute?
+                            log_print(sent_raw)
                             log_print(sent)
-                        log_print(colored(u"      ref.: {}".format(u" ".join(ref_sent)),
-                                          color="magenta"))
+
+                        log_print(colored(
+                            u" raw ref.: {}".format(u" ".join(ref_sent_raw)),
+                            color="magenta"))
+                        log_print(colored(
+                            u"     ref.: {}".format(u" ".join(ref_sent)),
+                            color="magenta"))
+
                     log_print("")
 
     except KeyboardInterrupt:
         log("Training interrupted by user.")
 
     saver.restore(sess, variables_files[var_file_i])
-    log("Training finished. Maximum {} on validation data: {:.2f}, epoch {}"\
-            .format(evaluation_labels[-1], best_score, best_score_epoch))
+    log("Training finished. Maximum {} on validation data: {:.2f}, epoch {}"
+        .format(evaluation_labels[-1], best_score, best_score_epoch))
 
     for dataset in test_datasets:
-        _, evaluation = run_on_dataset(sess, runner, all_coders, decoder,
+        _, _, evaluation = run_on_dataset(sess, runner, all_coders, decoder,
                                        dataset, evaluation_functions, postprocess, write_out=True)
         if evaluation:
             print_dataset_evaluation(dataset.name, evaluation)
@@ -321,8 +336,8 @@ def run_on_dataset(sess, runner, all_coders, decoder, dataset,
             they are available which are dictionary function -> value.
 
     """
-    result, opt_loss, dec_loss = runner(sess, dataset, all_coders)
-    result = postprocess(result, dataset)
+    result_raw, opt_loss, dec_loss = runner(sess, dataset, all_coders)
+    result = postprocess(result_raw)
 
     if write_out:
         if decoder.data_id in dataset.series_outputs:
@@ -346,7 +361,7 @@ def run_on_dataset(sess, runner, all_coders, decoder, dataset,
         for func in evaluation_functions:
             evaluation[func] = func(result, test_targets)
 
-    return result, evaluation
+    return result, result_raw, evaluation
 
 
 def process_evaluation(evaluation_functions, tb_writer, eval_result,
