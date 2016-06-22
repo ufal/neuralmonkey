@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 
-"""
-
-This is a training script for sequence to sequence learning.
+"""This is a training script for sequence to sequence learning.
 
 """
 
@@ -43,7 +41,8 @@ def create_config(config_file):
     config.add_argument('threads', int, required=False, default=4)
     config.add_argument('minimize', bool, required=False, default=False)
     config.add_argument('save_n_best', int, required=False, default=1)
-    config.add_argument('overwrite_output_dir', bool, required=False, default=False)
+    config.add_argument('overwrite_output_dir', bool, required=False,
+                        default=False)
 
     return config.load_file(config_file)
 
@@ -57,39 +56,67 @@ def main():
     if args.random_seed is not None:
         tf.set_random_seed(args.random_seed)
 
-    if os.path.isdir(args.output) and not args.overwrite_output_dir:
-        log("Directory '{}' exists, overwriting disabled.".format(args.output), color='red')
-        exit(1)
-    elif args.overwrite_output_dir:
-        # no point in deleting directory contents explicitly
-        log("Directory '{}' exists, overwriting enabled, proceeding."
-            .format(args.output))
-
+    if os.path.isdir(args.output):
+        if args.overwrite_output_dir:
+            # we do not want to delete the directory contents
+            log("Directory '{}' exists, overwriting enabled, proceeding."
+                .format(args.output))
+        else:
+            log("Directory '{}' exists, overwriting disabled."
+                .format(args.output), color='red')
+            exit(1)
 
     try:
-        check_dataset_and_coders(args.train_dataset, args.encoders + [args.decoder])
-        check_dataset_and_coders(args.val_dataset, args.encoders + [args.decoder])
+        check_dataset_and_coders(args.train_dataset,
+                                 args.encoders + [args.decoder])
+        check_dataset_and_coders(args.val_dataset,
+                                 args.encoders + [args.decoder])
         for test in args.test_datasets:
             check_dataset_and_coders(test, args.encoders)
     except Exception as exc:
         log(exc.message, color='red')
         exit(1)
 
-    if not args.overwrite_output_dir:
+    if not os.path.isdir(args.output):
         try:
             os.mkdir(args.output)
         except Exception as exc:
-            log("Failed to create experiment dictionary: {}".format(exc.message), color='red')
+            log("Failed to create experiment dictionary: {}"
+                .format(exc.message), color='red')
             exit(1)
 
-    copyfile(sys.argv[1], args.output+"/experiment.ini")
-    set_log_file(args.output+"/experiment.log")
+    log_file = "{}/experiment.log".format(args.output)
+    ini_file = "{}/experiment.ini".format(args.output)
+    git_commit_file = "{}/git_commit".format(args.output)
+    git_diff_file = "{}/git_diff".format(args.output)
+    variables_file_prefix = "{}/variables.data".format(args.output)
+
+    cont_index = 0
+
+    while (os.path.exists(log_file)
+           or os.path.exists(ini_file)
+           or os.path.exists(git_commit_file)
+           or os.path.exists(git_diff_file)
+           or os.path.exists(variables_file_prefix)
+           or os.path.exists("{}.0".format(variables_file_prefix))):
+        cont_index += 1
+
+        log_file = "{}/experiment.log.cont-{}".format(args.output, cont_index)
+        ini_file = "{}/experiment.ini.cont-{}".format(args.output, cont_index)
+        git_commit_file = "{}/git_commit.cont-{}".format(
+            args.output, cont_index)
+        git_diff_file = "{}/git_diff.cont-{}".format(args.output, cont_index)
+        variables_file_prefix = "{}/variables.data.cont-{}".format(
+            args.output, cont_index)
+
+    copyfile(sys.argv[1], ini_file)
+    set_log_file(log_file)
     print_header(args.name)
 
-    os.system("git log -1 --format=%H > {}/git_commit".format(args.output))
-    os.system("git --no-pager diff --color=always > {}/git_diff".format(args.output))
+    os.system("git log -1 --format=%H > {}".format(git_commit_file))
+    os.system("git --no-pager diff --color=always > {}".format(git_diff_file))
 
-    link_best_vars = "{}/variables.data.best".format(args.output)
+    link_best_vars = "{}.best".format(variables_file_prefix)
 
     run_configuration = {
         'encoders': args.encoders,
@@ -108,6 +135,7 @@ def main():
                   test_datasets=args.test_datasets,
                   save_n_best_vars=args.save_n_best,
                   link_best_vars=link_best_vars,
+                  vars_prefix=variables_file_prefix,
                   logging_period=args.logging_period,
                   validation_period=args.validation_period,
                   postprocess=args.postprocess,

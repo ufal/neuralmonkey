@@ -104,6 +104,7 @@ def training_loop(sess, saver,
                   test_datasets=[],
                   save_n_best_vars=1,
                   link_best_vars=None,
+                  vars_prefix="/tmp/variables.data",
                   initial_variables=None,
                   logging_period=20,
                   validation_period=500,
@@ -165,9 +166,9 @@ def training_loop(sess, saver,
         raise Exception('save_n_best_vars must be greater than zero')
 
     if save_n_best_vars == 1:
-        variables_files = ['{}/variables.data'.format(log_directory)]
+        variables_files = [vars_prefix]
     elif save_n_best_vars > 1:
-        variables_files = ['{}/variables.data.{}'.format(log_directory, i)
+        variables_files = ['{}.{}'.format(vars_prefix, log_directory, i)
                            for i in range(save_n_best_vars)]
     var_file_i = 0
     saver.save(sess, variables_files[0])
