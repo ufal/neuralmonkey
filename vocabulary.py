@@ -1,5 +1,6 @@
 # tests: lint, mypy
 
+import collections
 import random
 import cPickle as pickle
 import numpy as np
@@ -7,13 +8,13 @@ import regex as re
 from utils import log
 
 try:
-    #pylint: disable=unused-import,bare-except,import-error
+    #pylint: disable=unused-import,ungrouped-imports,bare-except,import-error
     from typing import List, Tuple, Dict
     from dataset import Dataset
 except:
     pass
 
-class Vocabulary(object):
+class Vocabulary(collections.Sized):
     def __init__(self, tokenized_text=None, random_seed=None):
         # type: (List[str], int) -> None
         self.word_to_index = {} # type: Dict[str, int]
