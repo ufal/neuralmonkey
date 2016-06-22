@@ -122,9 +122,9 @@ class Vocabulary(object):
         return word_indices, weights
 
     def vectors_to_sentences(self, vectors):
-        # pylint: disable=fixme
-        # TODO type
+        # type: (List[np.Array]) -> List[List[str]]
         sentences = [[] for _ in range(vectors[0].shape[0])]
+        # type: List[List[str]]
 
         for vec in vectors:
             for sentence, word_i in zip(sentences, vec):
@@ -134,6 +134,7 @@ class Vocabulary(object):
         return [s[:-1] if s[-1] == "</s>" else s for s in sentences]
 
     def save_to_file(self, path):
+        # type: (str) -> None
         with open(path, 'wb') as f_pickle:
             pickle.dump(self, f_pickle)
 

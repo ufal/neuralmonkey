@@ -96,12 +96,14 @@ class Dataset(object):
 
 
     def __len__(self):
+        # type: () -> int
         if not self._series.values():
             return 0
         else:
             return len(self._series.values()[0])
 
     def has_series(self, name):
+        # type: (str) -> bool
         return name in self._series
 
     def get_series(self, name, allow_none=False):
@@ -111,7 +113,7 @@ class Dataset(object):
             return self._series[name]
 
     def shuffle(self):
-        # type: (None) -> None
+        # type: () -> None
         """ Shuffles the dataset randomly """
 
         keys = self._series.keys()

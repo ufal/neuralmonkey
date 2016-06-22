@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+# tests: mypy
+
 import codecs
 import regex as re
 from utils import log
@@ -23,7 +25,7 @@ class BPEPreprocessor(object):
 
 
     def __call__(self, sentence):
-        # type: List[str] -> List[str]
+        # type: (List[str]) -> List[str]
         """ Adapted code from BPE.segment """
 
         output = []
@@ -50,13 +52,13 @@ class BPEPostprocessor(object):
         esc = re.escape(self.separator)
         self.pattern = re.compile(esc + r" ")
 
-    def __call__(self, decoded_sentences, dataset):
-        # type: List[List[str]] -> List[List[str]]
+    def __call__(self, decoded_sentences):
+        # type: (List[List[str]]) -> List[List[str]]
         return [self.decode(s) for s in decoded_sentences]
 
 
     def decode(self, sentence):
-        # type: List[str] -> List[str]
+        # type: (List[str]) -> List[str]
 
         joined = " ".join(sentence)
         decoded = self.pattern.sub("", joined)
