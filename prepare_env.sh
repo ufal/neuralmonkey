@@ -34,15 +34,14 @@ rm tensorflow-0.8.0-cp27-none-linux_x86_64.whl
 
 for ENV in tf tf-gpu; do
     source $ENV/bin/activate
-    pip install --upgrade pip
+
+    # requirement to run the model
+    pip install -r requirements.txt --upgrade
+
+    # packages used during development
     pip install --upgrade ipdb
-#    pip install --upgrade javabridge
-    pip install --upgrade termcolor
-    pip install --upgrade nltk==3.2.0
-    pip install --upgrade python-magic
-    pip install --upgrade ansi2html
-    pip install --upgrade regex
-    pip install --upgrade python-Levenshtein
+    pip install --upgrade pylint
+
     deactivate
 done
 
