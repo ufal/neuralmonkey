@@ -11,9 +11,10 @@ The inverse script to this one is 'post_edit_prepare_data.py'.
 # tests: lint, mypy
 
 import argparse
-from language_utils import GermanPreprocessor, GermanPostprocessor
+from processors.german import GermanPreprocessor, GermanPostprocessor
 from learning_utils import load_tokenized
 
+## TODO make reconstruct a postprocessor
 def reconstruct(source, edits):
     index = 0
     target = []
@@ -58,7 +59,8 @@ def main():
 
     for trans, edits in zip(trans_sentences, edit_sequences):
         target = reconstruct(trans, edits)
-        print " ".join(postprocess(target))
+        # TODO refactor this (change postprocessor api)
+        print " ".join(postprocess([target])[0])
 
 
 if __name__ == '__main__':

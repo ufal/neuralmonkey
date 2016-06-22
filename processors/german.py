@@ -8,22 +8,6 @@ try:
 except:
     pass
 
-def preprocess_char_based(sequence):
-    return list(sequence)
-
-
-def postprocess_char_based(sequences, _):
-    return [["".join(sqc)] for sqc in sequences]
-
-
-def untruecase(sentence):
-    if sentence:
-        return [sentence[0].capitalize()] + sentence[1:]
-    else:
-        return []
-
-## Now starts the language specific code for geman
-
 CONTRACTIONS = ["am", "ans", "beim", "im", "ins", "vom", "zum", "zur"]
 CONTRACTIONS_SET = set(CONTRACTIONS)
 UNCONTRACTED_FORMS = [["an", "dem"], ["an", "das"], ["bei", "dem"], ["in", "dem"],
@@ -80,7 +64,13 @@ class GermanPostprocessor(object):
         self.contracting = contracting
         self.pronouns = pronouns
 
-    def __call__(self, sentence):
+
+    def __call__(self, decoded_sentences):
+        # type: (List[List[str]]) -> List[List[str]]
+        return [self.decode(s) for s in decoded_sentences]
+
+
+    def decode(self, sentence):
         result = []
 
         compound = False

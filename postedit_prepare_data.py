@@ -16,7 +16,7 @@ The inverse to this script is 'postedit_reconstruct_data.py'.
 
 
 import numpy as np
-from language_utils import GermanPreprocessor, GermanPostprocessor
+from processors.german import GermanPreprocessor
 from learning_utils import log, load_tokenized
 
 
