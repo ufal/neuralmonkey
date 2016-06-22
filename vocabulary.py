@@ -4,6 +4,7 @@ import random
 import cPickle as pickle
 import numpy as np
 import regex as re
+from utils import log
 
 try:
     #pylint: disable=unused-import,bare-except,import-error
@@ -150,6 +151,14 @@ def from_datasets(datasets, series_ids, max_size, random_seed=None):
                 vocabulary.add_tokenized_text([token for sent in series for token in sent])
 
     vocabulary.trunkate(max_size)
+
+    log("Vocabulary for series {} initialized, containing {} words"
+        .format(series_ids, len(vocabulary)))
+
+    log("Sample of the vocabulary: {}"
+        .format([vocabulary.index_to_word[i]
+                 for i in np.random.randint(0, len(vocabulary), 5)]))
+
     return vocabulary
 
 
