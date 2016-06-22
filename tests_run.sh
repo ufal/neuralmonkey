@@ -2,6 +2,6 @@
 
 set -ex
 
-for file in $(cd tests/python && echo *.py); do
-	python -m tests.python.${file%.py}
+for file in $(cd neuralmonkey/tests && echo *.py); do
+	python -m neuralmonkey.tests.${file%.py}
 done
