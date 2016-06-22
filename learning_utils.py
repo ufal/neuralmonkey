@@ -168,7 +168,7 @@ def training_loop(sess, saver,
     if save_n_best_vars == 1:
         variables_files = [vars_prefix]
     elif save_n_best_vars > 1:
-        variables_files = ['{}.{}'.format(vars_prefix, log_directory, i)
+        variables_files = ['{}.{}'.format(vars_prefix, i)
                            for i in range(save_n_best_vars)]
     var_file_i = 0
     saver.save(sess, variables_files[0])
