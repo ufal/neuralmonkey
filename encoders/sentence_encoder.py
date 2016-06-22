@@ -89,12 +89,12 @@ class SentenceEncoder(object):
                 shape = tf.concat(0, [tf.shape(self.inputs[0]), [rnn_size]])
 
                 forward_dropout_mask = tf.floor(
-                    tf.random_uniform(shape, 0.0, 1.0) + dropout_placeholder)
+                    tf.random_uniform(shape, 0.0, 1.0) + self.dropout_placeholder)
 
                 backward_dropout_mask = tf.floor(
-                    tf.random_uniform(shape, 0.0, 1.0) + dropout_placeholder)
+                    tf.random_uniform(shape, 0.0, 1.0) + self.dropout_placeholder)
 
-                scale = tf.inv(dropout_placeholder)
+                scale = tf.inv(self.dropout_placeholder)
 
                 self.forward_gru = PervasiveDropoutWrapper(
                     self.forward_gru, forward_dropout_mask, scale)
