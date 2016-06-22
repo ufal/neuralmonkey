@@ -168,7 +168,7 @@ class Decoder(object):
                                       -0.5, 0.5),
                     name="word_embeddings")
             else:
-                decoding_em = reused_word_embeddings
+                decoding_em = reused_word_embeddings.word_embeddings
 
             embedded_gt_inputs = [tf.nn.embedding_lookup(decoding_em, o)
                                   for o in self.gt_inputs[:-1]]
