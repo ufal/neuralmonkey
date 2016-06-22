@@ -81,7 +81,7 @@ def object_to_dict(obj, final_dict, name_dict, depth, out_dir):
         return "<{}>".format(name)
 
 
-def save_configuration(configuration, out_dir):
+def save_configuration(configuration, out_dir, filename="run.ini"):
     final_dict = {}
     name_dict = {}
     main_dict = {}
@@ -90,4 +90,4 @@ def save_configuration(configuration, out_dir):
                                         out_dir)
 
     final_dict['main'] = main_dict
-    final_dict_to_ini(out_dir+"/run.ini", final_dict)
+    final_dict_to_ini("{}/{}".format(out_dir, filename), final_dict)
