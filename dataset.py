@@ -12,7 +12,7 @@ import regex as re
 from utils import log
 from readers.plain_text_reader import PlainTextFileReader
 
-SERIES_SOURCE = re.compile("s_(.*)")
+SERIES_SOURCE = re.compile("s_([^_]*)$")
 SERIES_OUTPUT = re.compile("s_(.*)_out")
 
 class Dataset(object):
