@@ -19,6 +19,7 @@ The toolkit is organized into packages as follows:
 - `runners`: The runners (run the trained thing)
 - `readers`: The readers (read files)
 - `processors`: The pre- and postprocessors (pre- and postprocess data)
+- `config`: The configuration (loading, saving, parsing)
 
 ### Other files
 
