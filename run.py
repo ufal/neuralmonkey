@@ -3,7 +3,7 @@
 import sys
 
 from utils import log
-from configuration import Configuration
+from config.configuration import Configuration
 from learning_utils import initialize_tf, run_on_dataset, print_dataset_evaluation
 from checking import check_dataset_and_coders
 

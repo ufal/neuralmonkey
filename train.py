@@ -14,10 +14,10 @@ import tensorflow as tf
 
 from checking import check_dataset_and_coders
 from utils import print_header, log, set_log_file
-from configuration import Configuration
+from config.configuration import Configuration
+from config.config_generator import save_configuration
 from learning_utils import training_loop, initialize_tf
 from dataset import Dataset
-from config_generator import save_configuration
 
 def create_config(config_file):
     config = Configuration()

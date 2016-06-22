@@ -3,7 +3,7 @@ import traceback
 from argparse import Namespace
 
 from utils import log
-from config_loader import load_config_file
+from config.config_loader import load_config_file
 
 class Configuration(object):
     """
