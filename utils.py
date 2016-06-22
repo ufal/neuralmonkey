@@ -2,11 +2,14 @@ import time
 import codecs
 from termcolor import colored
 
-log_file = None
+# tests: mypy
+
+# TODO make this a class!
+
+log_file = None # type: file
 
 def set_log_file(path):
     """ Sets up the file where the logging will be done. """
-    global log_file
     log_file = codecs.open(path, 'w', 'utf-8', buffering=0)
 
 
@@ -37,4 +40,3 @@ def print_header(title):
     log_print("Launched at {}".format(time.strftime("%Y-%m-%d %H:%M:%S")))
 
     log_print("")
-

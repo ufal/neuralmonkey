@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 import codecs
 
 class PlainTextFileReader(object):
@@ -9,7 +7,7 @@ class PlainTextFileReader(object):
         self.encoding = encoding
 
     def read(self):
-        # type: Generator[List[str]]
+        # type: () -> Iterator[List[str]]
         with codecs.open(self.path, "r", self.encoding) as f_data:
             for line in f_data:
                 yield line.strip().split(" ")

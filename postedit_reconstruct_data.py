@@ -8,14 +8,13 @@ original text being post-edited.
 The inverse script to this one is 'post_edit_prepare_data.py'.
 """
 
-import numpy as np
+# tests: lint, mypy
+
+import argparse
 from language_utils import GermanPreprocessor, GermanPostprocessor
-from learning_utils import log, load_tokenized
+from learning_utils import load_tokenized
 
 def reconstruct(source, edits):
-    keep='<keep>'
-    delete='<delete>'
-
     index = 0
     target = []
 
@@ -38,15 +37,9 @@ def reconstruct(source, edits):
 
     return target
 
-
-if __name__ == '__main__':
-    #edits = ['<keep>', 'ahoj', '<delete>', 'proc?']
-    #source = ['Karle', 'co', 'kdy']
-    #print reconstruct(source, edits)
-
-    import argparse
-
-    parser = argparse.ArgumentParser(description="Convert postediting target data to sequence of edits")
+def main():
+    parser = argparse.ArgumentParser(
+        description="Convert postediting target data to sequence of edits")
     parser.add_argument("--edits", type=argparse.FileType('r'), required=True)
     parser.add_argument("--translated-sentences", type=argparse.FileType('r'), required=True)
     parser.add_argument("--target-german", type=bool, default=False)
@@ -54,10 +47,11 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     postprocess = lambda x: x
-    preprocess = None
+    preprocess = None # type: GermanPreprocessor
     if args.target_german:
+        # pylint: disable=redefined-variable-type
         postprocess = GermanPostprocessor()
-        preprocesss = GermanPreprocessor()
+        preprocess = GermanPreprocessor()
 
     trans_sentences = load_tokenized(args.translated_sentences, preprocess=preprocess)
     edit_sequences = load_tokenized(args.edits, preprocess=None)
@@ -66,3 +60,10 @@ if __name__ == '__main__':
         target = reconstruct(trans, edits)
         print " ".join(postprocess(target))
 
+
+if __name__ == '__main__':
+    #edits = ['<keep>', 'ahoj', '<delete>', 'proc?']
+    #source = ['Karle', 'co', 'kdy']
+    #print reconstruct(source, edits)
+
+    main()
