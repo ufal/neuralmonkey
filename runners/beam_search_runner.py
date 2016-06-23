@@ -11,10 +11,7 @@ class BeamSearchRunner(object):
         self.postprocess = postprocess
         self.vocabulary = decoder.vocabulary
 
-        if tf.__version__ == "0.8.0rc0":
-            self.decoded_probs = [tf.nn.log_softmax(l) for l in decoder.gt_logits]
-        else:
-            self.decoded_probs = [tf.log(tf.nn.softmax(l)) for l in decoder.gt_logits]
+        self.decoded_probs = [tf.nn.log_softmax(l) for l in decoder.gt_logits]
         self.top_n_probs = [tf.nn.top_k(p, beam_size) for p in self.decoded_probs]
 
     def _expand(self, session, feed_dict, state, hypotheses):
