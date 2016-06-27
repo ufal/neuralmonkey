@@ -1,5 +1,4 @@
 import tensorflow as tf
-from tensorflow.models.rnn import rnn
 from tensorflow.python.ops import array_ops
 
 class BidirectionalRNNLayer(object):
@@ -22,7 +21,7 @@ class BidirectionalRNNLayer(object):
 
 
         with tf.variable_scope('forward'):
-            outputs, last_state = rnn.rnn(
+            outputs, last_state = tf.nn.rnn(
                 cell=forward_cell,
                 inputs=inputs,
                 dtype=tf.float32,
@@ -30,7 +29,7 @@ class BidirectionalRNNLayer(object):
 
 
         with tf.variable_scope('backward'):
-            outputs_rev_rev, last_state_rev = rnn.rnn(
+            outputs_rev_rev, last_state_rev = tf.nn.rnn(
                 cell=backward_cell,
                 inputs=self._reverse_seq(inputs, sentence_lengths_placeholder),
                 dtype=tf.float32,
@@ -68,4 +67,3 @@ class BidirectionalRNNLayer(object):
         # Split again into list
         result = array_ops.unpack(s_reversed)
         return result
-

@@ -1,7 +1,6 @@
 import math
 import tensorflow as tf
 import numpy as np
-from tensorflow.models.rnn import seq2seq, rnn_cell
 
 from neuralmonkey.utils import log
 from neuralmonkey.decoding_function import attention_decoder
@@ -289,23 +288,22 @@ class Decoder(object):
                                  loop(prev_state, i))
 
 
-            def get_rnn_cell(input_size=rnn_size):
+            def get_rnn_cell():
                 if use_noisy_activations:
-                    return NoisyGRUCell(rnn_size, training=self.is_training,
-                                        input_size=input_size)
+                    return NoisyGRUCell(rnn_size, training=self.is_training)
                 else:
-                    return rnn_cell.GRUCell(rnn_size, input_size=input_size)
+                    return tf.nn.rnn_cell.GRUCell(rnn_size)
 
-            decoder_cells = [get_rnn_cell(input_size=embedding_size)]
+            decoder_cells = [get_rnn_cell()]
 
             for _ in range(1, depth):
-                decoder_cells[-1] = rnn_cell.DropoutWrapper(
+                decoder_cells[-1] = tf.nn.rnn_cell.DropoutWrapper(
                     decoder_cells[-1],
                     output_keep_prob=self.dropout_placeholder)
 
                 decoder_cells.append(get_rnn_cell())
 
-            decoder_cell = rnn_cell.MultiRNNCell(decoder_cells)
+            decoder_cell = tf.nn.rnn_cell.MultiRNNCell(decoder_cells)
             gt_loop_function = sampling_loop if scheduled_sampling else None
             encoded = tf.nn.dropout(encoded, self.dropout_placeholder)
 
@@ -316,9 +314,8 @@ class Decoder(object):
                 attention_objects = []
 
             rnn_outputs_gt_ins, _ = attention_decoder(
-                embedded_gt_inputs, encoded,
-                attention_objects=attention_objects, cell=decoder_cell,
-                loop_function=gt_loop_function)
+                embedded_gt_inputs, encoded, attention_objects, embedding_size,
+                cell=decoder_cell, loop_function=gt_loop_function)
 
             tf.get_variable_scope().reuse_variables()
 
@@ -331,9 +328,8 @@ class Decoder(object):
             decoder_inputs += [None for _ in range(self.max_output_len)]
 
             rnn_outputs_decoded_ins, _ = attention_decoder(
-                decoder_inputs, encoded, cell=decoder_cell,
-                attention_objects=attention_objects,
-                loop_function=loop)
+                decoder_inputs, encoded, attention_objects, embedding_size,
+                cell=decoder_cell, loop_function=loop)
 
             self.hidden_states = rnn_outputs_decoded_ins
 
@@ -355,7 +351,7 @@ class Decoder(object):
 
 
         _, self.gt_logits, _ = get_decoded(rnn_outputs_gt_ins)
-        self.loss_with_gt_ins = seq2seq.sequence_loss(self.gt_logits,
+        self.loss_with_gt_ins = tf.nn.seq2seq.sequence_loss(self.gt_logits,
                                                       self.targets,
                                                       self.weights_ins,
                                                       len(vocabulary))
@@ -371,7 +367,7 @@ class Decoder(object):
         self.decoded_seq, self.decoded_logits, self.copynet_logits = \
             get_decoded(rnn_outputs_decoded_ins)
 
-        self.loss_with_decoded_ins = seq2seq.sequence_loss(
+        self.loss_with_decoded_ins = tf.nn.seq2seq.sequence_loss(
             self.decoded_logits, self.targets, self.weights_ins,
             len(vocabulary))
 
