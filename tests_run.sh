@@ -1,7 +1,9 @@
 #!/bin/bash
 
-set -ex
+if [ ! -f tests/train.tc.en ]; then
+	cd tests
+	wget http://ufallab.ms.mff.cuni.cz/~musil/{train,val}.tc.{en,de}
+	cd ..
+fi
 
-for file in $(cd tests/python && echo *.py); do
-	python -m tests.python.${file%.py}
-done
+python -m neuralmonkey.train tests/small.ini

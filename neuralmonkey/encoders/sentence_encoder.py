@@ -2,12 +2,12 @@ import tensorflow as tf
 from tensorflow.models.rnn import rnn_cell
 import numpy as np
 
-from utils import log
-from bidirectional_rnn_layer import BidirectionalRNNLayer
-from cells.noisy_gru_cell import NoisyGRUCell
-from cells.pervasive_dropout_wrapper import PervasiveDropoutWrapper
-from checking import assert_type
-from vocabulary import Vocabulary
+from neuralmonkey.utils import log
+from neuralmonkey.bidirectional_rnn_layer import BidirectionalRNNLayer
+from neuralmonkey.cells.noisy_gru_cell import NoisyGRUCell
+from neuralmonkey.cells.pervasive_dropout_wrapper import PervasiveDropoutWrapper
+from neuralmonkey.checking import assert_type
+from neuralmonkey.vocabulary import Vocabulary
 
 
 class SentenceEncoder(object):

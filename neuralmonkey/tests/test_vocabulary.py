@@ -5,7 +5,7 @@ import unittest
 from cStringIO import StringIO
 import numpy as np
 
-from vocabulary import Vocabulary
+from neuralmonkey.vocabulary import Vocabulary
 
 corpus = [
   "the colorless ideas slept furiously",

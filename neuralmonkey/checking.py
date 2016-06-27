@@ -33,5 +33,5 @@ def assert_type(obj, name, value, expected_type, can_be_none=False):
         caller_type_str = type_to_str(type(obj))
         exptected_str = type_to_str(expected_type)
         real_type_str = type_to_str(type(value))
-        raise Exception("Value of \"{}\" in \"{}\" should be \"{}\" but was \"{}\"".\
-                format(name, caller_type_str, exptected_str, real_type_str))
+        raise Exception("Value of \"{}\" in \"{}\" should be \"{}\" but was \"{}\"{}".\
+                format(name, caller_type_str, exptected_str, real_type_str, value))

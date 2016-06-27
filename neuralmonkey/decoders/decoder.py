@@ -3,12 +3,12 @@ import tensorflow as tf
 import numpy as np
 from tensorflow.models.rnn import seq2seq, rnn_cell
 
-from utils import log
-from decoding_function import attention_decoder
-from learning_utils import log
-from cells.noisy_gru_cell import NoisyGRUCell
-from checking import assert_type
-from vocabulary import Vocabulary
+from neuralmonkey.utils import log
+from neuralmonkey.decoding_function import attention_decoder
+from neuralmonkey.learning_utils import log
+from neuralmonkey.cells.noisy_gru_cell import NoisyGRUCell
+from neuralmonkey.checking import assert_type
+from neuralmonkey.vocabulary import Vocabulary
 
 class Decoder(object):
     def __init__(self, encoders, vocabulary, data_id, rnn_size,

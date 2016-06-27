@@ -1,6 +1,6 @@
 import tensorflow as tf
 
-from learning_utils import feed_dicts
+from neuralmonkey.learning_utils import feed_dicts
 
 class GreedyRunner(object):
     def __init__(self, decoder, batch_size):

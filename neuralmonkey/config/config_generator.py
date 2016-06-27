@@ -7,8 +7,8 @@ import codecs
 import os
 from inspect import isfunction
 
-import vocabulary
-from utils import log
+import neuralmonkey.vocabulary as vocabulary
+from neuralmonkey.utils import log
 
 def final_dict_to_ini(path, dictionary):
     f_ini = codecs.open(path, 'w', 'utf-8')

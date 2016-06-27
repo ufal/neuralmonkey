@@ -5,12 +5,13 @@ import random
 import cPickle as pickle
 import numpy as np
 import regex as re
-from utils import log
+
+from neuralmonkey.utils import log
 
 try:
     #pylint: disable=unused-import,ungrouped-imports,bare-except,import-error
     from typing import List, Tuple, Dict
-    from dataset import Dataset
+    from neuralmonkey.dataset import Dataset
 except:
     pass
 
