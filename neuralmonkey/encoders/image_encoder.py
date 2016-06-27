@@ -1,5 +1,7 @@
 import tensorflow as tf
 
+# tests: mypy
+
 class VectorEncoder(object):
     def __init__(self, dimension, output_shape, data_id):
         self.image_features = tf.placeholder(tf.float32, shape=[None, dimension])

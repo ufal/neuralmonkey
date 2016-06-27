@@ -7,8 +7,9 @@ its perplexities given the decoder.
 """
 
 import numpy as np
+import tensorflow as tf
 
-from learning_utils import feed_dicts
+from neuralmonkey.learning_utils import feed_dicts
 
 class PerplexityRunner(object):
     def __init__(self, decoder, batch_size):

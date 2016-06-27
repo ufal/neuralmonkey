@@ -3,13 +3,15 @@ This module implements a dataset class that unlike dataset.Dataset does not
 load the data into memory, but loads gradually from a file.
 """
 
+# tests: mypy
+
 import codecs
 import gzip
 import cPickle as pickle
 import magic
 
-from utils import log
-from dataset import Dataset
+from neuralmonkey.utils import log
+from neuralmonkey.dataset import Dataset
 
 class LazyDataset(Dataset):
     """
@@ -22,6 +24,7 @@ class LazyDataset(Dataset):
     def __init__(self, **args):
         super(LazyDataset, self).__init__(**args)
 
+# TODO 'serie' is not an English word
 
     def create_serie(self, name, args):
         """ Loads a data serie from a file """

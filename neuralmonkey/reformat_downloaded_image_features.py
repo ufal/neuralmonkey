@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-import h5py, argparse
+import argparse
+import h5py
 import numpy as np
 
 if __name__ == "__main__":

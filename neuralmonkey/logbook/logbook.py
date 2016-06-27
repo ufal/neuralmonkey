@@ -3,7 +3,6 @@ import os
 import json
 from ansi2html import Ansi2HTMLConverter
 from flask import Flask, Response
-import regex as re
 
 APP = Flask(__name__)
 APP.config.from_object(__name__)

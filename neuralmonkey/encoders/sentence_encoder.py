@@ -8,6 +8,7 @@ from neuralmonkey.cells.pervasive_dropout_wrapper import PervasiveDropoutWrapper
 from neuralmonkey.checking import assert_type
 from neuralmonkey.vocabulary import Vocabulary
 
+# tests: mypy
 
 class SentenceEncoder(object):
     def __init__(self, max_input_len, vocabulary, data_id, embedding_size,

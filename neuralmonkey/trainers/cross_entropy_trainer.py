@@ -2,6 +2,8 @@ import tensorflow as tf
 
 from neuralmonkey.utils import log
 
+# tests: mypy
+
 class CrossEntropyTrainer(object):
     def __init__(self, decoder, l2_regularization):
         log("Initializing Cross-entropy trainer.")

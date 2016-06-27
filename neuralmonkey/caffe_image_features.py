@@ -1,10 +1,11 @@
-import sys, os
+import argparse
+import sys
+import os
 os.environ['GLOG_minloglevel'] = '4'
 sys.path.append("caffe/python")
 import caffe
 import numpy as np
 import skimage
-import argparse
 
 def crop_image(x, target_height=227, target_width=227):
     image = skimage.img_as_float(skimage.io.imread(x)).astype(np.float32)

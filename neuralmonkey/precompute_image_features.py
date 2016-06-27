@@ -2,11 +2,12 @@
 
 import argparse
 import os
+import time
 import numpy as np
 import tensorflow as tf
 from scipy.misc import imresize, imread
-import time
 
+# tests: mypy
 
 def load_image(path):
     # load image
@@ -23,7 +24,7 @@ def load_image(path):
     return resized_img
 
 
-if __name__ == "__main__":
+def main():
     parser = argparse.ArgumentParser(description='Processes the image with a pretrained network.')
     parser.add_argument("--network-file", type=argparse.FileType('rb'), required=True,
                         help="File with the image processig network.")
@@ -37,14 +38,14 @@ if __name__ == "__main__":
                         help="Output file.")
     args = parser.parse_args()
 
-    fileContent = args.network_file.read()
+    file_content = args.network_file.read()
 
     graph_def = tf.GraphDef()
-    graph_def.ParseFromString(fileContent)
+    graph_def.ParseFromString(file_content)
 
     images_placeholder = tf.placeholder("float", [None, 224, 224, 3])
 
-    tf.import_graph_def(graph_def, input_map={ "images": images_placeholder })
+    tf.import_graph_def(graph_def, input_map={"images": images_placeholder})
     print "Network graph loaded from disk."
 
     graph = tf.get_default_graph()
@@ -56,7 +57,8 @@ if __name__ == "__main__":
 
     image_paths = [os.path.join(args.image_dir, i.rstrip()) for i in args.image_list]
 
-    image_batches = [np.array([load_image(p) for p in image_paths[i:i + 100]]) for i in xrange(0, len(image_paths), 100)]
+    image_batches = [np.array([load_image(p) for p in image_paths[i:i + 100]])
+                     for i in xrange(0, len(image_paths), 100)]
 
     print "Images pre-loaded."
 
@@ -72,7 +74,11 @@ if __name__ == "__main__":
         it_time = time.time() - it_start
         print "Processed batch {} / {} in {:.4f}.".format(i + 1, len(image_batches), it_time)
     all_time = time.time() - start
-    print "Done in {:.4f} seconds, i.e. {:.4f} per image.".format(all_time, all_time / len(image_paths))
+    print "Done in {:.4f} seconds, i.e. {:.4f} per image.".format(
+        all_time, all_time / len(image_paths))
 
     np.save(args.output, np.concatenate(processed_batches))
     print "Image tensors saved to: {}".format(args.output)
+
+if __name__ == "__main__":
+    main()

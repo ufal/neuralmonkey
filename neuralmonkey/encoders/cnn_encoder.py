@@ -5,7 +5,9 @@ a CNN, followed by a sequential processing by RNN.
 
 import numpy as np
 import tensorflow as tf
-from decoding_function import Attention
+from neuralmonkey.decoding_function import Attention
+
+# tests: mypy
 
 class CNNEncoder(object):
     """

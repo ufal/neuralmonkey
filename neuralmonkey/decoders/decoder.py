@@ -1,3 +1,5 @@
+#tests: mypy
+
 import math
 import tensorflow as tf
 import numpy as np
@@ -351,10 +353,9 @@ class Decoder(object):
 
 
         _, self.gt_logits, _ = get_decoded(rnn_outputs_gt_ins)
-        self.loss_with_gt_ins = tf.nn.seq2seq.sequence_loss(self.gt_logits,
-                                                      self.targets,
-                                                      self.weights_ins,
-                                                      len(vocabulary))
+        self.loss_with_gt_ins = tf.nn.seq2seq.sequence_loss(
+            self.gt_logits, self.targets, self.weights_ins,
+            len(vocabulary))
 
         tf.scalar_summary('val_loss_with_gt_input',
                           self.loss_with_gt_ins,

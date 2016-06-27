@@ -3,6 +3,8 @@
 import tensorflow as tf
 import numpy as np
 
+# tests: mypy
+
 class CopyNetTrainer(object):
     """
     This is a specialized trainer for the CopyNet architecture. In addition to
@@ -27,7 +29,7 @@ class CopyNetTrainer(object):
         with tf.variable_scope("l2_regularization"):
             l2_value = sum([tf.reduce_sum(v ** 2) for v in tf.trainable_variables()])
             if l2_regularization > 0:
-                    l2_cost = l2_regularization * l2_value
+                l2_cost = l2_regularization * l2_value
             else:
                 l2_cost = 0.0
 
@@ -40,8 +42,8 @@ class CopyNetTrainer(object):
         #        tf.histogram_summary('gr_' + v.name, g, collections=["summary_gradients"])
         self.optimize_op = optimizer.apply_gradients(gradients, global_step=decoder.learning_step)
         #self.summary_gradients = tf.merge_summary(tf.get_collection("summary_gradients"))
-        self.summary_train = summary_train = tf.merge_summary(tf.get_collection("summary_train"))
-        self.summary_val = summary_train = tf.merge_summary(tf.get_collection("summary_val"))
+        self.summary_train = tf.merge_summary(tf.get_collection("summary_train"))
+        self.summary_val = tf.merge_summary(tf.get_collection("summary_val"))
 
     def run(self, sess, fd, references, verbose=False):
         if verbose:
@@ -54,8 +56,9 @@ class CopyNetTrainer(object):
             return sess.run([self.optimize_op], feed_dict=fd)
 
     def feed_dict(self, trans_sentences, tgt_sentences, batch_size, dicts=None):
-        if dicts == None:
-            dicts = [{} for _ in range(len(sentences) / batch_size + int(len(sentences) % batch_size > 0))]
+        if dicts is None:
+            dicts = [{} for _ in
+                     range(len(sentences) / batch_size + int(len(sentences) % batch_size > 0))]
 
         for fd, start in zip(dicts, range(0, len(tgt_sentences), batch_size)):
             this_trans_sentences = trans_sentences[start:start + batch_size]
@@ -70,9 +73,9 @@ class CopyNetTrainer(object):
                         copy_index = -float('inf')
                         for j, trans_word in enumerate(trans_sent):
                             if trans_word == tgt_word and abs(j - i) < abs(copy_index - i):
-                               copy_index = j
-                               weights[n] = 1.0
-                               targets[n] = j + 1
+                                copy_index = j
+                                weights[n] = 1.0
+                                targets[n] = j + 1
                 fd[target_plc] = targets
                 fd[weight_plc] = weights
 

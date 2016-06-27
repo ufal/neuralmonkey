@@ -1,8 +1,8 @@
 import numpy as np
 import tensorflow as tf
 
-from learning_utils import feed_dicts
-from utils import log
+from neuralmonkey.learning_utils import feed_dicts
+from neuralmonkey.utils import log
 
 class BeamSearchRunner(object):
     def __init__(self, decoder, beam_size, postprocess=None):
@@ -22,7 +22,7 @@ class BeamSearchRunner(object):
         if hyp_length == 2:
             for k in feed_dict:
                 shape = k.get_shape()
-                if not shape == tf.TensorShape(None):
+                if shape != tf.TensorShape(None):
                     if len(shape) == 1:
                         feed_dict[k] = np.repeat(feed_dict[k], hyp_count)
                     elif len(shape) == 2:

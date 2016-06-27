@@ -1,7 +1,7 @@
 import tensorflow as tf
 import numpy as np
 
-from learning_utils import feed_dicts
+from neuralmonkey.learning_utils import feed_dicts
 
 # TODO inherit from greedy runner
 
@@ -24,7 +24,7 @@ def copynet_substitute(decoded_sentences, copy_logits, copy_sentences):
 
     return decoded_sentences
 
-def copynet_runner(batch_size, postprocess=None):
+def copynet_runner(_, postprocess=None):
     def run(sess, dataset, coders, decoder):
         batched_dataset = dataset.batch_dataset(self.batch_size)
         dicts = [feed_dicts(batch, coders, train=False) for batch in batched_dataset]

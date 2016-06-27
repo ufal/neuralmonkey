@@ -1,6 +1,8 @@
 import tensorflow as tf
 from tensorflow.python.ops import array_ops
 
+# tests: mypy
+
 class BidirectionalRNNLayer(object):
     """
     Bidirectional RNN Layer class - forward and backward RNN layers in one.
@@ -35,7 +37,7 @@ class BidirectionalRNNLayer(object):
                 dtype=tf.float32,
                 sequence_length=sentence_lengths_placeholder)
 
-            outputs_rev=self._reverse_seq(outputs_rev_rev, sentence_lengths_placeholder)
+            outputs_rev = self._reverse_seq(outputs_rev_rev, sentence_lengths_placeholder)
 
         self.outputs_bidi = [tf.concat(1, [o1, o2]) for o1, o2 in zip(outputs, outputs_rev)]
         self.encoded = tf.concat(1, [last_state, last_state_rev])

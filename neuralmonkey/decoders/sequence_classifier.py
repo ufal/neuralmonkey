@@ -1,6 +1,8 @@
 import tensorflow as tf
 
-from mlp import MultilayerPerceptron
+from neuralmonkey.mlp import MultilayerPerceptron
+
+# tests: mypy
 
 class SequenceClassifier(object):
     """

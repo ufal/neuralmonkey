@@ -6,10 +6,10 @@ import gzip
 import cPickle as pickle
 import numpy as np
 
-from utils import log
-from image_utils import STRPreprocessor
+from neuralmonkey.utils import log
+from neuralmonkey.image_utils import STRPreprocessor
 
-if __name__ == "__main__":
+def main():
     parser = argparse.ArgumentParser(description="Prepares the STR data.")
     parser.add_argument("--list", type=argparse.FileType('r'),
                         help="File with images.", required=True)
@@ -50,3 +50,5 @@ if __name__ == "__main__":
             format(len(preprocessor.shrinkages),
                    np.mean(preprocessor.shrinkages) if preprocessor.shrinkages else 0.0))
 
+if __name__ == "__main__":
+    main()

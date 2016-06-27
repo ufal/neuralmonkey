@@ -2,6 +2,8 @@
 
 import tensorflow as tf
 
+# tests: lint, mypy
+
 class PervasiveDropoutWrapper(tf.nn.rnn_cell.RNNCell):
 
     def __init__(self, cell, mask, scale):

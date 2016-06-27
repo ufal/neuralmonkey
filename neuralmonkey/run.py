@@ -7,6 +7,8 @@ from config.configuration import Configuration
 from learning_utils import initialize_tf, run_on_dataset, print_dataset_evaluation
 from checking import check_dataset_and_coders
 
+# tests: lint, mypy
+
 CONFIG = Configuration()
 CONFIG.add_argument('encoders', list, cond=lambda l: len(l) > 0)
 CONFIG.add_argument('decoder')
@@ -18,7 +20,8 @@ CONFIG.add_argument('test_datasets', list, required=False, default=[])
 CONFIG.add_argument('initial_variables', str, required=False, default=[])
 CONFIG.add_argument('threads', int, required=False, default=4)
 
-if __name__ == "__main__":
+def main():
+    # pylint: disable=no-member,broad-except
     if len(sys.argv) != 3:
         print "Usage: run.py <run_ini_file> <test_datasets>"
         exit(1)
@@ -39,8 +42,11 @@ if __name__ == "__main__":
 
     sess, _ = initialize_tf(args.initial_variables, args.threads)
     for dataset in datasets_args.test_datasets:
-        _, evaluation = run_on_dataset(sess, args.runner, args.encoders + [args.decoder],
-                                       args.decoder, dataset,
-                                       args.evaluation, postprocess, write_out=True)
+        _, _, evaluation = run_on_dataset(
+            sess, args.runner, args.encoders + [args.decoder], args.decoder,
+            dataset, args.evaluation, args.postprocess, write_out=True)
         if evaluation:
             print_dataset_evaluation(dataset.name, evaluation)
+
+if __name__ == "__main__":
+    main()

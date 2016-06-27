@@ -1,9 +1,8 @@
 import tensorflow as tf
-import numpy as np
 from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
-from utils import log
-from trainers.cross_entropy_trainer import CrossEntropyTrainer
+from neuralmonkey.utils import log
 
+# tests: mypy
 # TODO refactor to have the same API as cross-entropy trainer
 
 class Mixer(object):
@@ -53,8 +52,8 @@ class Mixer(object):
                 linear_reg_W = tf.Variable(tf.truncated_normal([decoder.rnn_size, 1]))
                 linear_reg_b = tf.Variable(tf.zeros([1]))
 
-                expected_rewards = \
-                        [tf.squeeze(tf.matmul(h, linear_reg_W)) + linear_reg_b for h in hidden_states]
+                expected_rewards = [
+                    tf.squeeze(tf.matmul(h, linear_reg_W)) + linear_reg_b for h in hidden_states]
 
                 regression_loss = sum([(r - self.bleu) ** 2 for r in expected_rewards]) * 0.5
                 self.regression_optimizer = tf.train.AdamOptimizer(1e-3).minimize(regression_loss)
@@ -75,11 +74,12 @@ class Mixer(object):
                 log("Forward cmomputation graph ready")
 
                 # this is implementation of equation (11) in the paper
-                derivatives = \
-                    [tf.reduce_sum(tf.expand_dims(self.bleu - r, 1) *  \
-                        (tf.nn.softmax(l) - i) * w, 0, keep_dims=True) \
-                        for r, l, i, w in zip(expected_rewards, decoder.decoded_logits,
-                                indicator, decoder.weights_ins)]
+                derivatives = [
+                    tf.reduce_sum(
+                        tf.expand_dims(self.bleu - r, 1) * (tf.nn.softmax(l) - i) * w,
+                        0, keep_dims=True)
+                    for r, l, i, w in zip(
+                        expected_rewards, decoder.decoded_logits, indicator, decoder.weights_ins)]
                 ## ^^^ list of  [1 x vocabulary] tensors
 
                 # this derivatives are constant for us now, we don't really
@@ -99,9 +99,10 @@ class Mixer(object):
                 log("Reinfoce gradients computed")
 
             with tf.variable_scope("cross_entropy_gradients"):
-                cross_entropies = \
-                    [tf.reduce_sum(tf.nn.sparse_softmax_cross_entropy_with_logits(l, t) * w, 0) \
-                        for l, t, w in zip(decoder.decoded_logits, decoder.targets, decoder.weights_ins)]
+                cross_entropies = [
+                    tf.reduce_sum(tf.nn.sparse_softmax_cross_entropy_with_logits(l, t) * w, 0)
+                    for l, t, w in zip(decoder.decoded_logits, decoder.targets, decoder.weights_ins)
+                ]
                     ## ^^^ list of scalars in time
 
                 xent_gradients = [tf.gradients(e, trainable_vars) for e in cross_entropies]
@@ -111,7 +112,8 @@ class Mixer(object):
 
             mixed_gradients = [] # a list for each of the traininable variables
 
-            for i, (rgs, xent_gs, mix_w) in enumerate(zip(reinforce_gradients, xent_gradients, self.mixer_weights_plc)):
+            for i, (rgs, xent_gs, mix_w) in enumerate(
+                    zip(reinforce_gradients, xent_gradients, self.mixer_weights_plc)):
                 for j, (rg, xent_g) in enumerate(zip(rgs, xent_gs)):
                     if xent_g is None and i == 0:
                         mixed_gradients.append(None)
@@ -168,9 +170,11 @@ class Mixer(object):
                 fd[w_plc] = 1.0
 
         if verbose:
-            computation = sess.run([self.mixer_optimizer, self.decoder.loss_with_decoded_ins,
-                             self.decoder.loss_with_gt_ins, self.summary_train] + self.decoder.decoded_seq,
-                            feed_dict=fd)
+            computation = sess.run(
+                [self.mixer_optimizer, self.decoder.loss_with_decoded_ins,
+                 self.decoder.loss_with_gt_ins, self.summary_train]
+                + self.decoder.decoded_seq,
+                feed_dict=fd)
         else:
             computation = sess.run([self.mixer_optimizer], feed_dict=fd)
 

@@ -1,11 +1,12 @@
 #!/usr/bin/env python
 
-import sys, codecs
+import sys
+import codecs
 import javabridge
 
 from tokenize_data import get_decompounder
 
-if __name__ == "__main__":
+def main():
     sys.stdin = codecs.getreader('utf-8')(sys.stdin)
     sys.stdout = codecs.getwriter('utf-8')(sys.stdout)
     sys.stderr = codecs.getwriter('utf-8')(sys.stderr)
@@ -36,3 +37,6 @@ if __name__ == "__main__":
 #        exit(1)
     finally:
         javabridge.kill_vm()
+
+if __name__ == "__main__":
+    main()
