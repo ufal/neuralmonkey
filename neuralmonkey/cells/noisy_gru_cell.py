@@ -10,14 +10,9 @@ class NoisyGRUCell(tf.nn.rnn_cell.RNNCell):
   It is based on the TensorFlow implementatin of GRU just the activation
   function are changed for the noisy ones.
   """
-  def __init__(self, num_units, training, input_size=None):
+  def __init__(self, num_units, training):
     self._num_units = num_units
-    self._input_size = num_units if input_size is None else input_size
     self.training = training
-
-  @property
-  def input_size(self):
-    return self._input_size
 
   @property
   def output_size(self):

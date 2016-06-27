@@ -288,14 +288,13 @@ class Decoder(object):
                                  loop(prev_state, i))
 
 
-            def get_rnn_cell(input_size=rnn_size):
+            def get_rnn_cell():
                 if use_noisy_activations:
-                    return NoisyGRUCell(rnn_size, training=self.is_training,
-                                        input_size=input_size)
+                    return NoisyGRUCell(rnn_size, training=self.is_training)
                 else:
-                    return tf.nn.rnn_cell.GRUCell(rnn_size, input_size=input_size)
+                    return tf.nn.rnn_cell.GRUCell(rnn_size)
 
-            decoder_cells = [get_rnn_cell(input_size=embedding_size)]
+            decoder_cells = [get_rnn_cell()]
 
             for _ in range(1, depth):
                 decoder_cells[-1] = tf.nn.rnn_cell.DropoutWrapper(
@@ -315,9 +314,8 @@ class Decoder(object):
                 attention_objects = []
 
             rnn_outputs_gt_ins, _ = attention_decoder(
-                embedded_gt_inputs, encoded,
-                attention_objects=attention_objects, cell=decoder_cell,
-                loop_function=gt_loop_function)
+                embedded_gt_inputs, encoded, attention_objects, embedding_size,
+                cell=decoder_cell, loop_function=gt_loop_function)
 
             tf.get_variable_scope().reuse_variables()
 
@@ -330,9 +328,8 @@ class Decoder(object):
             decoder_inputs += [None for _ in range(self.max_output_len)]
 
             rnn_outputs_decoded_ins, _ = attention_decoder(
-                decoder_inputs, encoded, cell=decoder_cell,
-                attention_objects=attention_objects,
-                loop_function=loop)
+                decoder_inputs, encoded, attention_objects, embedding_size,
+                cell=decoder_cell, loop_function=loop)
 
             self.hidden_states = rnn_outputs_decoded_ins
 

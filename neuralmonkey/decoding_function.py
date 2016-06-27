@@ -1,9 +1,8 @@
 import tensorflow as tf
 
 def attention_decoder(decoder_inputs, initial_state, attention_objects,
-                      cell,
-                      output_size=None, loop_function=None,
-                      dtype=tf.float32, scope=None):
+                      embedding_size, cell, output_size=None,
+                      loop_function=None, dtype=tf.float32, scope=None):
 
     if output_size is None:
         output_size = cell.output_size
@@ -35,7 +34,7 @@ def attention_decoder(decoder_inputs, initial_state, attention_objects,
                     inp = loop_function(prev, i)
             # Merge input and previous attentions into one vector of the right
             # size.
-            x = tf.nn.seq2seq.linear([inp] + attns, cell.input_size, True)
+            x = tf.nn.seq2seq.linear([inp] + attns, embedding_size, True)
             # Run the RNN.
             cell_output, state = cell(x, state)
             states.append(state)

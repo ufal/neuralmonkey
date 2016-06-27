@@ -70,15 +70,11 @@ class SentenceEncoder(object):
                 self.backward_gru = parent_encoder.backward_gru
             else:
                 if use_noisy_activations:
-                    self.forward_gru = NoisyGRUCell(
-                        rnn_size, self.is_training, input_size=embedding_size)
-                    self.backward_gru = NoisyGRUCell(
-                        rnn_size, self.is_training, input_size=embedding_size)
+                    self.forward_gru = NoisyGRUCell(rnn_size, self.is_training)
+                    self.backward_gru = NoisyGRUCell(rnn_size, self.is_training)
                 else:
-                    self.forward_gru = tf.nn.rnn_cell.GRUCell(
-                        rnn_size, input_size=embedding_size)
-                    self.backward_gru = tf.nn.rnn_cell.GRUCell(
-                        rnn_size, input_size=embedding_size)
+                    self.forward_gru = tf.nn.rnn_cell.GRUCell(rnn_size)
+                    self.backward_gru = tf.nn.rnn_cell.GRUCell(rnn_size)
 
             if use_pervasive_dropout:
 
