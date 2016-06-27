@@ -11,8 +11,8 @@ The inverse script to this one is 'post_edit_prepare_data.py'.
 # tests: lint, mypy
 
 import argparse
-from processors.german import GermanPreprocessor, GermanPostprocessor
-from learning_utils import load_tokenized
+from neuralmonkey.processors.german import GermanPreprocessor, GermanPostprocessor
+from neuralmonkey.learning_utils import load_tokenized
 
 ## TODO make reconstruct a postprocessor
 def reconstruct(source, edits):

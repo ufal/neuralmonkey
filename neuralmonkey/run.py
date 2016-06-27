@@ -2,10 +2,10 @@
 
 import sys
 
-from utils import log
-from config.configuration import Configuration
-from learning_utils import initialize_tf, run_on_dataset, print_dataset_evaluation
-from checking import check_dataset_and_coders
+from neuralmonkey.utils import log
+from neuralmonkey.config.configuration import Configuration
+from neuralmonkey.learning_utils import initialize_tf, run_on_dataset, print_dataset_evaluation
+from neuralmonkey.checking import check_dataset_and_coders
 
 # tests: lint, mypy
 
