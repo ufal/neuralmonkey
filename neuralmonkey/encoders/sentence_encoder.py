@@ -1,5 +1,4 @@
 import tensorflow as tf
-from tensorflow.models.rnn import rnn_cell
 import numpy as np
 
 from neuralmonkey.utils import log
@@ -76,9 +75,9 @@ class SentenceEncoder(object):
                     self.backward_gru = NoisyGRUCell(
                         rnn_size, self.is_training, input_size=embedding_size)
                 else:
-                    self.forward_gru = rnn_cell.GRUCell(
+                    self.forward_gru = tf.nn.rnn_cell.GRUCell(
                         rnn_size, input_size=embedding_size)
-                    self.backward_gru = rnn_cell.GRUCell(
+                    self.backward_gru = tf.nn.rnn_cell.GRUCell(
                         rnn_size, input_size=embedding_size)
 
             if use_pervasive_dropout:

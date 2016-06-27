@@ -1,9 +1,8 @@
 #!/usr/bin/env python
 
 import tensorflow as tf
-from tensorflow.models.rnn.rnn_cell import RNNCell
 
-class PervasiveDropoutWrapper(RNNCell):
+class PervasiveDropoutWrapper(tf.nn.rnn_cell.RNNCell):
 
     def __init__(self, cell, mask, scale):
         self._cell = cell

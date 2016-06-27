@@ -1,8 +1,7 @@
 import tensorflow as tf
-from tensorflow.models.rnn.rnn_cell import RNNCell, linear
 import math
 
-class NoisyGRUCell(RNNCell):
+class NoisyGRUCell(tf.nn.rnn_cell.RNNCell):
   """
   Gated Recurrent Unit cell (cf. http://arxiv.org/abs/1406.1078) with noisy
   activation functions (http://arxiv.org/abs/1603.00391). The theano code is
@@ -33,11 +32,11 @@ class NoisyGRUCell(RNNCell):
     with tf.variable_scope(scope or type(self).__name__):  # "GRUCell"
       with tf.variable_scope("Gates"):  # Reset gate and update gate.
         # We start with bias of 1.0 to not reset and not update.
-        r, u = tf.split(1, 2, linear([inputs, state],
+        r, u = tf.split(1, 2, tf.nn.seq2seq.linear([inputs, state],
                                             2 * self._num_units, True, 1.0))
         r, u = noisy_sigmoid(r, self.training), noisy_sigmoid(u, self.training)
       with tf.variable_scope("Candidate"):
-        c = noisy_tanh(linear([inputs, r * state], self._num_units, True), self.training)
+        c = noisy_tanh(tf.nn.seq2seq.linear([inputs, r * state], self._num_units, True), self.training)
       new_h = u * state + (1 - u) * c
     return new_h, new_h
 

@@ -5,8 +5,6 @@ a CNN, followed by a sequential processing by RNN.
 
 import numpy as np
 import tensorflow as tf
-from tensorflow.models.rnn import rnn_cell
-from tensorflow.models.rnn import rnn
 from decoding_function import Attention
 
 class CNNEncoder(object):
@@ -163,17 +161,17 @@ class CNNEncoder(object):
                 with tf.variable_scope(scope):
                     encoder_layers = []
                     for size in rnn_layers:
-                        cell = rnn_cell.GRUCell(size, last_layer_size)
+                        cell = tf.nn.rnn_cell.GRUCell(size, last_layer_size)
                         last_layer_size = size
-                        cell = rnn_cell.DropoutWrapper(cell,
+                        cell = tf.nn.rnn_cell.DropoutWrapper(cell,
                                                        output_keep_prob=self.dropout_placeholder)
                         encoder_layers.append(cell)
 
-                    encoder_cell = rnn_cell.MultiRNNCell(encoder_layers)
+                    encoder_cell = tf.nn.rnn_cell.MultiRNNCell(encoder_layers)
                     last_layer_size = len(encoder_layers) * last_layer_size
                     # MultiRNNCell concatenates output of all the recurent layers,
                     # but we want only the very last one
-                    _, encoder_state_concatenated = rnn.rnn(encoder_cell, inputs, dtype=tf.float32)
+                    _, encoder_state_concatenated = tf.nn.rnn(encoder_cell, inputs, dtype=tf.float32)
 
                     if concatenate_rnns:
                         encoder_state = encoder_state_concatenated

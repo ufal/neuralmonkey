@@ -1,5 +1,4 @@
 import tensorflow as tf
-from tensorflow.models.rnn import rnn_cell
 
 def attention_decoder(decoder_inputs, initial_state, attention_objects,
                       cell,
@@ -36,7 +35,7 @@ def attention_decoder(decoder_inputs, initial_state, attention_objects,
                     inp = loop_function(prev, i)
             # Merge input and previous attentions into one vector of the right
             # size.
-            x = rnn_cell.linear([inp] + attns, cell.input_size, True)
+            x = tf.nn.seq2seq.linear([inp] + attns, cell.input_size, True)
             # Run the RNN.
             cell_output, state = cell(x, state)
             states.append(state)
@@ -45,7 +44,7 @@ def attention_decoder(decoder_inputs, initial_state, attention_objects,
 
             if attns:
                 with tf.variable_scope("AttnOutputProjection"):
-                    output = rnn_cell.linear([cell_output] + attns, output_size,
+                    output = tf.nn.seq2seq.linear([cell_output] + attns, output_size,
                                              True)
             else:
                 output = cell_output
@@ -93,7 +92,7 @@ class Attention(object):
         """
 
         with tf.variable_scope(self.scope+"/Attention"):
-            y = rnn_cell.linear(query_state, self.attention_vec_size, True)
+            y = tf.nn.seq2seq.linear(query_state, self.attention_vec_size, True)
             y = tf.reshape(y, [-1, 1, 1, self.attention_vec_size])
 
             s = self.get_logits(y)

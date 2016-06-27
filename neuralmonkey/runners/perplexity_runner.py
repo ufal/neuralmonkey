@@ -7,7 +7,6 @@ its perplexities given the decoder.
 """
 
 import numpy as np
-from tensorflow.models.rnn.seq2seq import sequence_loss_by_example
 
 from learning_utils import feed_dicts
 
@@ -17,11 +16,9 @@ class PerplexityRunner(object):
         self.batch_size = batch_size
         self.vocabulary = decoder.vocabulary
 
-        self.cross_entropies_op = \
-                sequence_loss_by_example(decoder.gt_logits,
-                                         decoder.targets,
-                                         decoder.weights_ins,
-                                         len(decoder.vocabulary))
+        self.cross_entropies_op = tf.nn.seq2seq.sequence_loss_by_example(
+            decoder.gt_logits, decoder.targets, decoder.weights_ins,
+            len(decoder.vocabulary))
 
     def __call__(self, sess, dataset, coders):
         if not dataset.has_series(self.decoder.data_id):
