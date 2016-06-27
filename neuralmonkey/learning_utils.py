@@ -313,7 +313,9 @@ def training_loop(sess, saver,
     except KeyboardInterrupt:
         log("Training interrupted by user.")
 
-    saver.restore(sess, link_best_vars)
+    if os.path.islink(link_best_vars):
+        saver.restore(sess, link_best_vars)
+
     log("Training finished. Maximum {} on validation data: {:.2f}, epoch {}"
         .format(evaluation_labels[-1], best_score, best_score_epoch))
 
