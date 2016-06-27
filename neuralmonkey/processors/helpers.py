@@ -1,3 +1,5 @@
+# tests: lint
+
 def preprocess_char_based(sequence):
     return list(sequence)
 

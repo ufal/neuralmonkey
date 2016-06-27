@@ -1,9 +1,5 @@
 #!/usr/bin/python
 
-import numpy as np
-from scipy.special import lambertw
-import argparse
-
 """
 
 A script for estimating the parameters of scheduled sampling. Based on the
@@ -12,7 +8,11 @@ the coefficient of the inverse sigmoid decay function.
 
 """
 
-if __name__ == "__main__":
+import argparse
+import numpy as np
+from scipy.special import lambertw
+
+def main():
     parser = argparse.ArgumentParser(
         description="Estimates parameter for scheduled sampling.")
     parser.add_argument("--value", type=float, required=True,
@@ -27,3 +27,7 @@ if __name__ == "__main__":
     coeff = c * np.exp(lambertw((1 - c) / c * x)) / (1 - c)
 
     print coeff.real
+
+
+if __name__ == "__main__":
+    main()

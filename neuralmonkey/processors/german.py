@@ -16,7 +16,7 @@ UNCONTRACT = {c: un for c, un in zip(CONTRACTIONS, UNCONTRACTED_FORMS)}
 
 CONTRACT = {} # type: Dict[str, Dict[str, str]]
 for cont, (prep, article) in zip(CONTRACTIONS, UNCONTRACTED_FORMS):
-    if not article in CONTRACT:
+    if article not in CONTRACT:
         CONTRACT[article] = {}
     CONTRACT[article][prep] = cont
 
