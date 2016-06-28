@@ -81,8 +81,8 @@ def main():
         try:
             os.mkdir(args.output)
         except Exception as exc:
-            log("Failed to create experiment dictionary: {}"
-                .format(exc.message), color='red')
+            log("Failed to create experiment directory: {}. Exception: {}"
+                    .format(args.output, exc), color='red')
             exit(1)
 
     log_file = "{}/experiment.log".format(args.output)
