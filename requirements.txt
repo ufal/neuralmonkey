@@ -4,4 +4,4 @@ termcolor
 python-magic
 flask
 ansi2html
-python-Levenshtein
+

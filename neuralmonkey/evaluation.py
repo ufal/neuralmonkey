@@ -1,6 +1,6 @@
+from difflib import SequenceMatcher
 import numpy as np
 from nltk.translate.bleu_score import corpus_bleu, SmoothingFunction
-from Levenshtein import ratio
 
 # tests: lint, mypy
 
@@ -52,6 +52,11 @@ def accuracy(decoded, references):
     return np.mean([d == r for dec, ref in zip(decoded, references)
                     for d, r in zip(dec, ref)])
 
+
 def edit_distance(decoded, references):
+    def ratio(string1, string2):
+        matcher = SequenceMatcher(None, string1, string2)
+        return matcher.ratio()
+
     return 1 - np.mean([ratio(u" ".join(ref), u" ".join(dec)) \
                         for dec, ref in zip(decoded, references)])
