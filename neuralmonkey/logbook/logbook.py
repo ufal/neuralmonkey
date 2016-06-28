@@ -6,7 +6,7 @@ from flask import Flask, Response
 
 APP = Flask(__name__)
 APP.config.from_object(__name__)
-APP.config['log_dir'] = None
+APP.config['logdir'] = None
 
 ANSI_CONV = Ansi2HTMLConverter()
 
@@ -24,9 +24,9 @@ def index():
 
 @APP.route('/experiments', methods=['GET'])
 def list_experiments():
-    log_dir = APP.config['log_dir']
+    logdir = APP.config['logdir']
     experiment_list = \
-        [dr for dr in os.listdir(log_dir) if os.path.isdir(os.path.join(log_dir, dr))]
+        [dr for dr in os.listdir(logdir) if os.path.isdir(os.path.join(logdir, dr))]
     json_response = json.dumps({'experiments': experiment_list}).decode('unicode-escape')
 
     response = Response(json_response,
@@ -37,8 +37,8 @@ def list_experiments():
 
 @APP.route('/experiments/<path:path>', methods=['GET'])
 def get_experiment(path):
-    log_dir = APP.config['log_dir']
-    complete_path = os.path.join(log_dir, path)
+    logdir = APP.config['logdir']
+    complete_path = os.path.join(logdir, path)
     if os.path.isfile(complete_path):
         file_content = get_file(complete_path)
         if path.endswith(".log"):
@@ -75,10 +75,10 @@ if __name__ == '__main__':  # pragma: no cover
     parser.add_argument("--logdir", type=str)
     args = parser.parse_args()
 
-    if not os.path.isdir(args.log_dir):
+    if not os.path.isdir(args.logdir):
         print "The log directory '{}' does not exist."
         exit(1)
 
-    APP.config['log_dir'] = args.log_dir
+    APP.config['logdir'] = args.logdir
 
     APP.run(port=args.port)
