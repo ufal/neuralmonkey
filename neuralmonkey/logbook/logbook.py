@@ -12,17 +12,14 @@ APP.config['logdir'] = None
 def root_dir():  # pragma: no cover
     return os.path.abspath(os.path.dirname(__file__))
 
-
 def get_file(filename):  # pragma: no cover
     src = os.path.join(root_dir(), filename)
     return open(src).read()
-
 
 @APP.route('/', methods=['GET'])
 def index():
     content = get_file('index.html')
     return Response(content, mimetype="text/html")
-
 
 @APP.route('/experiments', methods=['GET'])
 def list_experiments():
@@ -36,7 +33,6 @@ def list_experiments():
     response.headers.add('content-length', len(json_response))
     response.status_code = 200
     return response
-
 
 @APP.route('/experiments/<path:path>', methods=['GET'])
 def get_experiment(path):

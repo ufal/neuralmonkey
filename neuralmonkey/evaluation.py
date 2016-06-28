@@ -52,7 +52,6 @@ def accuracy(decoded, references):
     return np.mean([d == r for dec, ref in zip(decoded, references)
                     for d, r in zip(dec, ref)])
 
-
 def edit_distance(decoded, references):
     def ratio(string1, string2):
         matcher = SequenceMatcher(None, string1, string2)

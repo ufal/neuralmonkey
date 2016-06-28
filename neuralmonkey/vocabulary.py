@@ -2,7 +2,7 @@
 
 import collections
 import random
-import cPickle as pickle
+import pickle as pickle
 import numpy as np
 import regex as re
 
@@ -75,11 +75,11 @@ class Vocabulary(collections.Sized):
 
         # sort by frequency
         words_by_freq = \
-            sorted(self.word_count.keys(), key=lambda w: self.word_count[w])
+            sorted(list(self.word_count.keys()), key=lambda w: self.word_count[w])
 
         # keep the least frequent words which are not special symbols
         words_to_delete = \
-            [w for w in words_by_freq[:-size] if not re.match(ur"^<.*>$", w)]
+            [w for w in words_by_freq[:-size] if not re.match(r"^<.*>$", w)]
         # sort by index ... bigger indices needs to be removed first
         # to keep the lists propertly shaped
         delete_words_by_index = \

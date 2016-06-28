@@ -31,7 +31,7 @@ def main():
                         tokens.append(token)
                 else:
                     tokens.append(token)
-            print " ".join(tokens)
+            print(" ".join(tokens))
 #    except:
 #        javabridge.kill_vm()
 #        exit(1)

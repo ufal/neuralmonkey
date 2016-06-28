@@ -3,7 +3,7 @@
 import argparse
 import os
 import gzip
-import cPickle as pickle
+import pickle as pickle
 import numpy as np
 
 from neuralmonkey.logging import log

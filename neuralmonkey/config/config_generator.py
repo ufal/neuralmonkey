@@ -12,9 +12,9 @@ from neuralmonkey.logging import log
 
 def final_dict_to_ini(path, dictionary):
     f_ini = codecs.open(path, 'w', 'utf-8')
-    for name, values in dictionary.iteritems():
+    for name, values in dictionary.items():
         f_ini.write("[{}]\n".format(name))
-        for key, val in values.iteritems():
+        for key, val in values.items():
             f_ini.write("{}={}\n".format(key, val))
         f_ini.write("\n")
     f_ini.close()
@@ -23,7 +23,7 @@ def final_dict_to_ini(path, dictionary):
 def object_to_dict(obj, final_dict, name_dict, depth, out_dir):
     if obj is None:
         return 'None'
-    elif isinstance(obj, basestring):
+    elif isinstance(obj, str):
         return obj
     elif isinstance(obj, int) or isinstance(obj, float):
         return str(obj)
@@ -52,7 +52,7 @@ def object_to_dict(obj, final_dict, name_dict, depth, out_dir):
         return "<{}>".format(voc_name)
     else:
         clazz = obj.__class__
-        init_f = clazz.__init__.func_code
+        init_f = clazz.__init__.__code__
         argument_count = init_f.co_argcount
         # from all variables take only arguments without self
         argument_names = init_f.co_varnames[1:argument_count]
@@ -85,7 +85,7 @@ def save_configuration(configuration, out_dir, filename="run.ini"):
     final_dict = {}
     name_dict = {}
     main_dict = {}
-    for key, value in configuration.iteritems():
+    for key, value in configuration.items():
         main_dict[key] = object_to_dict(value, final_dict, name_dict, 0,
                                         out_dir)
 

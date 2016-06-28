@@ -35,22 +35,22 @@ if __name__ == "__main__":
             decompounded_count = 0
 
         for ln, line in enumerate(sys.stdin):
-            line = re.sub(ur"[[:space:]]+", " ", line.rstrip())
-            line = re.sub(ur"^[[:space:]]+", "", line)
-            line = re.sub(ur"''", "\"", line)
-            line = re.sub(ur"``", "\"", line)
-            line = re.sub(ur"-([[:punct:]\$])", "\g<1>", line)
-            line = re.sub(ur"([[:punct:]\$])-", "\g<1>", line)
-            line = re.sub(ur"^[[:space:]]*-[[:space:]]", "", line)
-            line = re.sub(ur"([[:alpha:]0-9ß])-([ [:punct:]])", "\g<1>\g<2>", line, re.UNICODE)
-            line = re.sub(ur"([ [:punct:]])-([[:alpha:]0-9ß])", "\g<1>\g<2>", line, re.UNICODE)
-            line = re.sub(ur" - ", u" – ", line)
-            line = re.sub(ur"– -", u"–", line)
+            line = re.sub(r"[[:space:]]+", " ", line.rstrip())
+            line = re.sub(r"^[[:space:]]+", "", line)
+            line = re.sub(r"''", "\"", line)
+            line = re.sub(r"``", "\"", line)
+            line = re.sub(r"-([[:punct:]\$])", "\g<1>", line)
+            line = re.sub(r"([[:punct:]\$])-", "\g<1>", line)
+            line = re.sub(r"^[[:space:]]*-[[:space:]]", "", line)
+            line = re.sub(r"([[:alpha:]0-9ß])-([ [:punct:]])", "\g<1>\g<2>", line, re.UNICODE)
+            line = re.sub(r"([ [:punct:]])-([[:alpha:]0-9ß])", "\g<1>\g<2>", line, re.UNICODE)
+            line = re.sub(r" - ", " – ", line)
+            line = re.sub(r"– -", "–", line)
 
             def normalize_quotes(token):
-                token = re.sub(r"-$", u'', token)
-                token = re.sub(r"``", u'\u201c', token)
-                token = re.sub(r"''", u'\u201d', token)
+                token = re.sub(r"-$", '', token)
+                token = re.sub(r"``", '\u201c', token)
+                token = re.sub(r"''", '\u201d', token)
                 return token
 
             tokenized = [normalize_quotes(t) for t in word_tokenize(line, language=args.language)]
@@ -82,7 +82,7 @@ if __name__ == "__main__":
                     tokenized_chars_result.append(char)
                     original_i += 1
                     #print u"same characters {}".format(char)
-                elif line[original_i] == '"' and (char == u'\u201c' or char == u'\u201d'):
+                elif line[original_i] == '"' and (char == '\u201c' or char == '\u201d'):
                     original_i += 1
                     #print u"quotation mark {}".format(char)
                 elif char == " ":
@@ -117,7 +117,7 @@ if __name__ == "__main__":
                     tokenized_chars_result = list("<ERROR>")
                     break
 
-            print "".join(tokenized_chars_result)
+            print("".join(tokenized_chars_result))
     except:
         javabridge.kill_vm()
         exit(1)

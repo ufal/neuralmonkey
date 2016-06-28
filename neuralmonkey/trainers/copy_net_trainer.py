@@ -60,7 +60,7 @@ class CopyNetTrainer(object):
             dicts = [{} for _ in
                      range(len(sentences) / batch_size + int(len(sentences) % batch_size > 0))]
 
-        for fd, start in zip(dicts, range(0, len(tgt_sentences), batch_size)):
+        for fd, start in zip(dicts, list(range(0, len(tgt_sentences), batch_size))):
             this_trans_sentences = trans_sentences[start:start + batch_size]
             this_tgt_sentences = tgt_sentences[start:start + batch_size]
 

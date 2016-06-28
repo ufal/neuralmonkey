@@ -80,7 +80,7 @@ def main():
 
     for trans, tgt in zip(trans_sentences, tgt_sentences):
         edits = convert_to_edits(trans, tgt)
-        print " ".join(edits)
+        print(" ".join(edits))
 
 if __name__ == '__main__':
     main()

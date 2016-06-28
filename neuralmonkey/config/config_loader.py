@@ -155,13 +155,13 @@ def get_object(value, all_dicts, existing_objects, depth):
         recursion.
     """
 
-    if not isinstance(value, basestring) and isinstance(value,
+    if not isinstance(value, str) and isinstance(value,
                                                         collections.Iterable):
         return [get_object(val, all_dicts, existing_objects, depth + 1)
                 for val in value]
     if value in existing_objects:
         return existing_objects[value]
-    if not isinstance(value, basestring) or not value.startswith("object:"):
+    if not isinstance(value, str) or not value.startswith("object:"):
         return value
 
     name = value[7:]
@@ -187,7 +187,7 @@ def get_object(value, all_dicts, existing_objects, depth):
         return get_object(arg, all_dicts, existing_objects, depth + 1)
 
     args = {k: process_arg(arg)
-            for k, arg in this_dict.iteritems() if k != 'class'}
+            for k, arg in this_dict.items() if k != 'class'}
 
     func_to_call = clazz.__init__ if isclass(clazz) else clazz
     arg_spec = getargspec(func_to_call)
@@ -202,7 +202,7 @@ def get_object(value, all_dicts, existing_objects, depth):
         all_args = set(arg_spec.args)
         additional_args = set()
 
-        for key in args.keys():
+        for key in list(args.keys()):
             if key in required_args:
                 required_args.remove(key)
             if key not in all_args:
@@ -243,7 +243,7 @@ def load_config_file(config_file):
     main_config = config_dicts['main']
 
     configuration = dict()
-    for key, value in main_config.iteritems():
+    for key, value in main_config.items():
         try:
             configuration[key] = get_object(value, config_dicts,
                                             existing_objects, 0)

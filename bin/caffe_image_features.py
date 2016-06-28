@@ -62,11 +62,11 @@ class CNN(object):
         iter_until = len(image_list) + self.batch_size
         all_feats = np.zeros([len(image_list)] + layer_sizes, dtype=np.float32)
 
-        for start, end in zip(range(0, iter_until, self.batch_size), \
-                              range(self.batch_size, iter_until, self.batch_size)):
+        for start, end in zip(list(range(0, iter_until, self.batch_size)), \
+                              list(range(self.batch_size, iter_until, self.batch_size))):
 
             image_batch_file = image_list[start:end]
-            image_batch = np.array(map(lambda x: crop_image(x, target_width=self.width, target_height=self.height), image_batch_file))
+            image_batch = np.array([crop_image(x, target_width=self.width, target_height=self.height) for x in image_batch_file])
 
             caffe_in = np.zeros(np.array(image_batch.shape)[[0,3,1,2]], dtype=np.float32)
 
