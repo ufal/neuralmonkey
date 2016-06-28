@@ -4,54 +4,59 @@ from tensorflow.python.ops import array_ops
 # tests: mypy
 
 class BidirectionalRNNLayer(object):
-    """
-    Bidirectional RNN Layer class - forward and backward RNN layers in one.
-
+    """Bidirectional RNN Layer class - forward and backward RNN layers in one.
     """
 
-
-    def __init__(self, forward_cell, backward_cell, inputs, sentence_lengths_placeholder):
-        """
-        Creates new BiRNN layer.
+    def __init__(self, forward_cell, backward_cell, inputs,
+                 sentence_lengths_placeholder):
+        """Creates new BiRNN layer.
 
         Args:
-        cell - the type of the cell (LSTMCell, GRUCell, NoisyGRUCell, ...)
-        inputs - a list of inputs to the layer
-        sentence_lengths_placeholder - lengths of the sequences in inputs
+          cell - the type of the cell (LSTMCell, GRUCell, NoisyGRUCell, ...)
+          inputs - a list of inputs to the layer
+          sentence_lengths_placeholder - lengths of the sequences in inputs
 
         """
-
-
         with tf.variable_scope('forward'):
-            outputs, last_state = tf.nn.rnn(
+            self._outputs, self._last_state = tf.nn.rnn(
                 cell=forward_cell,
                 inputs=inputs,
                 dtype=tf.float32,
                 sequence_length=sentence_lengths_placeholder)
 
-
         with tf.variable_scope('backward'):
-            outputs_rev_rev, last_state_rev = tf.nn.rnn(
+            outputs_rev_rev, self._last_state_rev = tf.nn.rnn(
                 cell=backward_cell,
                 inputs=self._reverse_seq(inputs, sentence_lengths_placeholder),
                 dtype=tf.float32,
                 sequence_length=sentence_lengths_placeholder)
 
-            outputs_rev = self._reverse_seq(outputs_rev_rev, sentence_lengths_placeholder)
+            self._outputs_rev = self._reverse_seq(outputs_rev_rev,
+                                                  sentence_lengths_placeholder)
 
-        self.outputs_bidi = [tf.concat(1, [o1, o2]) for o1, o2 in zip(outputs, outputs_rev)]
-        self.encoded = tf.concat(1, [last_state, last_state_rev])
+
+    @property
+    def outputs_bidi(self):
+        """Outputs of the bidirectional layer"""
+        return [tf.concat(1, [o1, o2]) for o1, o2 in zip(self._outputs,
+                                                         self._outputs_rev)]
+
+    @property
+    def encoded(self):
+        """States of the bidirectional layer"""
+        return tf.concat(1, [self._last_state, self._last_state_rev])
 
 
     def _reverse_seq(self, input_seq, lengths):
         """Reverse a list of Tensors up to specified lengths.
 
         Args:
-            input_seq: Sequence of seq_len tensors of dimension (batch_size, depth)
-            lengths:   A tensor of dimension batch_size, containing lengths for each
-                       sequence in the batch. If "None" is specified, simply reverses
-                       the list.
+            input_seq: Sequence of seq_len tensors of dimension
+                       (batch_size, depth)
 
+            lengths:   A tensor of dimension batch_size, containing lengths for
+                       each sequence in the batch. If "None" is specified,
+                       simply reverses the list.
         Returns:
             time-reversed sequence
         """
