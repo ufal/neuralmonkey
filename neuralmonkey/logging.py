@@ -20,8 +20,7 @@ class Logging(object):
             Logging.log_file.write(text+"\n")
             Logging.log_file.flush()
 
-        encoded = text.encode('utf8', 'replace')
-        print(encoded)
+        print(text)
 
     @staticmethod
     def log(message, color='yellow'):
