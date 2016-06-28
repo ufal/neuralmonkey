@@ -3,5 +3,4 @@ nltk==3.2.0
 termcolor
 python-magic
 flask
-ansi2html
-
+ansiconv

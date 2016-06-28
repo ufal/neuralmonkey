@@ -1,26 +1,28 @@
 import argparse
 import os
 import json
-from ansi2html import Ansi2HTMLConverter
 from flask import Flask, Response
+import ansiconv
 
 APP = Flask(__name__)
 APP.config.from_object(__name__)
 APP.config['logdir'] = None
 
-ANSI_CONV = Ansi2HTMLConverter()
 
 def root_dir():  # pragma: no cover
     return os.path.abspath(os.path.dirname(__file__))
+
 
 def get_file(filename):  # pragma: no cover
     src = os.path.join(root_dir(), filename)
     return open(src).read()
 
+
 @APP.route('/', methods=['GET'])
 def index():
     content = get_file('index.html')
     return Response(content, mimetype="text/html")
+
 
 @APP.route('/experiments', methods=['GET'])
 def list_experiments():
@@ -35,6 +37,7 @@ def list_experiments():
     response.status_code = 200
     return response
 
+
 @APP.route('/experiments/<path:path>', methods=['GET'])
 def get_experiment(path):
     logdir = APP.config['logdir']
@@ -42,7 +45,7 @@ def get_experiment(path):
     if os.path.isfile(complete_path):
         file_content = get_file(complete_path)
         if path.endswith(".log"):
-            result = ANSI_CONV.convert(file_content, full=False)
+            result = ansiconv.to_html(file_content)
         elif path.endswith(".ini"):
             result = file_content
         else:
@@ -50,6 +53,12 @@ def get_experiment(path):
     else:
         result = "File \"{}\" does not exist.".format(complete_path)
     return Response(result, mimetype='text/html', status=200)
+
+
+@APP.route("/ansiconv.css")
+def get_ansiconv_css():
+    return ansiconv.base_css()
+
 
 @APP.route('/', defaults={'path': ''})
 @APP.route('/<path:path>')
@@ -75,10 +84,13 @@ if __name__ == '__main__':  # pragma: no cover
     parser.add_argument("--logdir", type=str)
     args = parser.parse_args()
 
-    if not os.path.isdir(args.logdir):
+    logdir = os.path.abspath(args.logdir)
+    print logdir
+
+    if not os.path.isdir(logdir):
         print "The log directory '{}' does not exist."
         exit(1)
 
-    APP.config['logdir'] = args.logdir
+    APP.config['logdir'] = logdir
 
     APP.run(port=args.port)
