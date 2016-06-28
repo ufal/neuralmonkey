@@ -2,13 +2,13 @@
 
 import os
 import codecs
+import re
 import numpy as np
 import tensorflow as tf
 from nltk.tokenize import word_tokenize
 from termcolor import colored
-import regex as re
 
-from logging import log, log_print
+from neuralmonkey.logging import log, log_print
 
 try:
     #pylint: disable=unused-import,bare-except,invalid-name,import-error,no-member
@@ -35,7 +35,7 @@ def load_tokenized(text_file, preprocess=None):
     if not preprocess:
         preprocess = lambda x: x
 
-    return [preprocess(re.split(ur"[ ]", l.rstrip())) for l in text_file]
+    return [preprocess(re.split(r"[ ]", l.rstrip())) for l in text_file]
 
 
 def tokenize_char_seq(chars):
@@ -293,19 +293,19 @@ def training_loop(sess, saver,
                             val_raw_tgt_sentences):
 
                         if isinstance(sent, list):
-                            log_print(u"      raw: {}"
-                                      .format(u" ".join(sent_raw)))
-                            log_print(u"      out: {}".format(u" ".join(sent)))
+                            log_print("      raw: {}"
+                                      .format(" ".join(sent_raw)))
+                            log_print("      out: {}".format(" ".join(sent)))
                         else:
                             # TODO does this code ever execute?
                             log_print(sent_raw)
                             log_print(sent)
 
                         log_print(colored(
-                            u" raw ref.: {}".format(u" ".join(ref_sent_raw)),
+                            " raw ref.: {}".format(" ".join(ref_sent_raw)),
                             color="magenta"))
                         log_print(colored(
-                            u"     ref.: {}".format(u" ".join(ref_sent)),
+                            "     ref.: {}".format(" ".join(ref_sent)),
                             color="magenta"))
 
                     log_print("")
@@ -371,7 +371,7 @@ def run_on_dataset(sess, runner, all_coders, decoder, dataset,
                 log("Result saved as numpy array to \"{}\"".format(path))
             else:
                 with codecs.open(path, 'w', 'utf-8') as f_out:
-                    f_out.writelines([u" ".join(sent)+"\n" for sent in result])
+                    f_out.writelines([" ".join(sent)+"\n" for sent in result])
                 log("Result saved as plain text \"{}\"".format(path))
         else:
             log("There is no output file for dataset: {}"\
@@ -423,7 +423,7 @@ def process_evaluation(evaluation_functions, tb_writer, eval_result,
         external_str = \
             tf.Summary(value=[tf.Summary.Value(tag=prefix+"_"+format_eval_name(name),
                                                simple_value=value)\
-                              for name, value in eval_result.iteritems()])
+                              for name, value in eval_result.items()])
 
         tb_writer.add_summary(external_str, seen_instances)
 

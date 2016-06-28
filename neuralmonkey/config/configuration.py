@@ -38,9 +38,9 @@ class Configuration(object):
 
             self._check_loaded_conf(config_dict)
 
-            for name, value in config_dict.iteritems():
+            for name, value in config_dict.items():
                 if name in self.conditions and not self.conditions[name](value):
-                    cond_code = self.conditions[name].func_code
+                    cond_code = self.conditions[name].__code__
                     cond_filename = cond_code.co_filename
                     cond_line_number = cond_code.co_firstlineno
                     raise Exception(
@@ -51,12 +51,12 @@ class Configuration(object):
                 setattr(arguments, name, value)
                 #arguments.__dict__[name] = value
 
-            for name, value in self.defaults.iteritems():
+            for name, value in self.defaults.items():
                 if name not in arguments.__dict__:
                     arguments.__dict__[name] = value
             log("INI file loaded.", color='blue')
         except Exception as exc:
-            log("Failed to load INI file: "+exc.message, color='red')
+            log("Failed to load INI file: {}".format(exc), color='red')
             traceback.print_exc()
             exit(1)
         finally:

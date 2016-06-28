@@ -26,7 +26,7 @@ def main():
 
     coeff = c * np.exp(lambertw((1 - c) / c * x)) / (1 - c)
 
-    print coeff.real
+    print(coeff.real)
 
 
 if __name__ == "__main__":

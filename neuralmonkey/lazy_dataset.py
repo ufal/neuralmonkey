@@ -7,7 +7,7 @@ load the data into memory, but loads gradually from a file.
 
 import codecs
 import gzip
-import cPickle as pickle
+import pickle as pickle
 import magic
 
 from neuralmonkey.logging import log

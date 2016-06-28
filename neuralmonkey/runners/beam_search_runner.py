@@ -32,7 +32,7 @@ class BeamSearchRunner(object):
         elif hyp_length > 2:
             feed_dict[self.decoder.encoded] = np.repeat(state, hyp_count, axis=0)
 
-        for i, n in zip(self.decoder.gt_inputs, range(hyp_length)):
+        for i, n in zip(self.decoder.gt_inputs, list(range(hyp_length))):
             for k in range(hyp_count):
                 feed_dict[i][k] = hypotheses[k][1][n]
         probs, prob_i = session.run([self.top_n_probs[hyp_length - 1][0],

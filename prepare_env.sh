@@ -1,13 +1,15 @@
 #!/bin/bash
 
-if [ ! -d tf ]; then
-    virtualenv -p python3 --system-site-packages tf
+set -ex
+
+if [ ! -d tfpy3 ]; then
+    virtualenv -p python3.4 --system-site-packages tfpy3
 fi
 
-if [ ! -d tf-gpu ]; then
-    virtualenv -p python3 --system-site-packages tf-gpu
+if [ ! -d tfpy3-gpu ]; then
+    virtualenv -p python3.4 --system-site-packages tfpy3-gpu
 fi
-cat tf-gpu/bin/activate - << EOF > tf-gpu/bin/activate-cuda
+cat tfpy3-gpu/bin/activate - << EOF > tfpy3-gpu/bin/activate-cuda
 CUDA_DIR=/usr/local/cuda
 
 if [ -d \$CUDA_DIR ] ; then
@@ -18,23 +20,21 @@ if [ -d \$CUDA_DIR ] ; then
 fi
 EOF
 
-TF_VERSION=tensorflow-0.8.0-cp27-none-linux_x86_64.whl
+TF_VERSION=tensorflow-0.9.0-cp34-cp34m-linux_x86_64.whl
 
-source tf/bin/activate
-wget https://storage.googleapis.com/tensorflow/linux/cpu/$TF_VERSION
-pip install $TF_VERSION
+source tfpy3/bin/activate
+pip install https://storage.googleapis.com/tensorflow/linux/cpu/$TF_VERSION
 deactivate
 
 rm $TF_VERSION
 
-source tf-gpu/bin/activate
-wget https://storage.googleapis.com/tensorflow/linux/gpu/$TF_VERSION
-pip install $TF_VERSION
+source tfpy3-gpu/bin/activate
+pip install https://storage.googleapis.com/tensorflow/linux/gpu/$TF_VERSION
 deactivate
 
 rm $TF_VERSION
 
-for ENV in tf tf-gpu; do
+for ENV in tfpy3 tfpy3-gpu; do
     source $ENV/bin/activate
 
     # requirement to run the model

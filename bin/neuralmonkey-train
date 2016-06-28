@@ -23,7 +23,7 @@ def create_config(config_file):
     config = Configuration()
     config.add_argument('name', str)
     config.add_argument('random_seed', int, required=False)
-    config.add_argument('output', basestring)
+    config.add_argument('output', str)
     config.add_argument('epochs', int, cond=lambda x: x >= 0)
     config.add_argument('trainer')
     config.add_argument('encoders', list)
@@ -50,7 +50,7 @@ def main():
 
     args = create_config(sys.argv[1])
 
-    print ""
+    print("")
 
     #pylint: disable=no-member,broad-except
     if args.random_seed is not None:
@@ -143,7 +143,7 @@ def main():
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
-        print "Usage: train.py <ini_file>"
+        print("Usage: train.py <ini_file>")
         exit(1)
     else:
         main()

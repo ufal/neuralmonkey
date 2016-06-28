@@ -2,8 +2,6 @@ import time
 import codecs
 from termcolor import colored
 
-# tests: mypy
-
 class Logging(object):
 
     log_file = None # type: file
@@ -17,13 +15,12 @@ class Logging(object):
     def log_print(text):
         """ Prints a string both to console and a log file is it si defined. """
         if Logging.log_file is not None:
-            if not isinstance(text, basestring):
+            if not isinstance(text, str):
                 text = str(text)
             Logging.log_file.write(text+"\n")
             Logging.log_file.flush()
 
-        encoded = text.encode('utf8', 'replace')
-        print encoded
+        print(text)
 
     @staticmethod
     def log(message, color='yellow'):

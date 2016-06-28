@@ -23,7 +23,7 @@ CONFIG.add_argument('threads', int, required=False, default=4)
 def main():
     # pylint: disable=no-member,broad-except
     if len(sys.argv) != 3:
-        print "Usage: run.py <run_ini_file> <test_datasets>"
+        print("Usage: run.py <run_ini_file> <test_datasets>")
         exit(1)
 
     test_datasets = Configuration()
@@ -31,7 +31,7 @@ def main():
 
     args = CONFIG.load_file(sys.argv[1])
     datasets_args = test_datasets.load_file(sys.argv[2])
-    print ""
+    print("")
 
     try:
         for dataset in datasets_args.test_datasets:

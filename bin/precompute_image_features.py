@@ -46,21 +46,21 @@ def main():
     images_placeholder = tf.placeholder("float", [None, 224, 224, 3])
 
     tf.import_graph_def(graph_def, input_map={"images": images_placeholder})
-    print "Network graph loaded from disk."
+    print("Network graph loaded from disk.")
 
     graph = tf.get_default_graph()
 
     sess = tf.Session()
     init = tf.initialize_all_variables()
     sess.run(init)
-    print "Variables initialized."
+    print("Variables initialized.")
 
     image_paths = [os.path.join(args.image_dir, i.rstrip()) for i in args.image_list]
 
     image_batches = [np.array([load_image(p) for p in image_paths[i:i + 100]])
-                     for i in xrange(0, len(image_paths), 100)]
+                     for i in range(0, len(image_paths), 100)]
 
-    print "Images pre-loaded."
+    print("Images pre-loaded.")
 
     start = time.time()
     processed_batches = []
@@ -72,13 +72,13 @@ def main():
         data = sess.run(tensor, feed_dict=feed_dict)
         processed_batches.append(data)
         it_time = time.time() - it_start
-        print "Processed batch {} / {} in {:.4f}.".format(i + 1, len(image_batches), it_time)
+        print("Processed batch {} / {} in {:.4f}.".format(i + 1, len(image_batches), it_time))
     all_time = time.time() - start
-    print "Done in {:.4f} seconds, i.e. {:.4f} per image.".format(
-        all_time, all_time / len(image_paths))
+    print("Done in {:.4f} seconds, i.e. {:.4f} per image.".format(
+        all_time, all_time / len(image_paths)))
 
     np.save(args.output, np.concatenate(processed_batches))
-    print "Image tensors saved to: {}".format(args.output)
+    print("Image tensors saved to: {}".format(args.output))
 
 if __name__ == "__main__":
     main()

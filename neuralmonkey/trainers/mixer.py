@@ -135,7 +135,7 @@ class Mixer(object):
                             mixed_gradients[j] += g
 
             self.mixer_optimizer = \
-                    tf.train.AdamOptimizer().apply_gradients(zip(mixed_gradients, trainable_vars))
+                    tf.train.AdamOptimizer().apply_gradients(list(zip(mixed_gradients, trainable_vars)))
 
         self.summary_gradients = tf.merge_summary(tf.get_collection("summary_gradients"))
         self.summary_train = summary_train = tf.merge_summary(tf.get_collection("summary_train"))
