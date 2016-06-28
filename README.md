@@ -1,9 +1,16 @@
-#Neural Monkey
+# Neural Monkey
 
 [![Build Status](https://travis-ci.org/ufal/neuralmonkey.svg?branch=master)](https://travis-ci.org/ufal/neuralmonkey)
 
-Neural Sequence Learning Using Tensorflow
+__Neural Sequence Learning Using Tensorflow__
 
+The _Neural Monkey_ package is supposed to provide a higher level abstraction
+for sequential models, most prominently in Natural Language Processing (NLP)
+built over [TensorFlow](http://tensorflow.org/). It should be used for fast
+prototyping sequential models in NLP which can be e.g. for neural machine
+translation or sentence classification. The higher-level API enables work with
+standard building blocks (RNN encoder, RNN decoder, multi-layer percetpron) as
+well as simple adding new building blocks implemented directly in TensorFlow.
 
 ### Usage
 
@@ -45,3 +52,20 @@ The toolkit is organized into packages as follows:
 - Clone this repository and follow the installation procedure outlined in
 `prepare_env.sh`. If the training crashes on an unknown dependency, just install
 it with pip.
+
+## Related projects
+
+- [tflearn](https://github.com/tflearn/tflearn) -- a more general and less
+abstract deep learning toolkit built over TensorFlow
+
+- [nlpnet](https://github.com/erickrf/nlpnet) -- deep learning tools for
+tagging and parsing
+
+- [NNBlocks](https://github.com/brmson/NNBlocks) -- a library build over Theano
+containing NLP specific models
+
+### License
+
+The software is distributed under the [BSD
+License](https://opensource.org/licenses/BSD-3-Clause)
+
