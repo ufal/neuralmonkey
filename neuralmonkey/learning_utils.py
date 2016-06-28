@@ -183,7 +183,7 @@ def training_loop(sess, saver,
     if os.path.islink(link_best_vars):
         # if overwriting output dir
         os.unlink(link_best_vars)
-    os.symlink(variables_files[0], link_best_vars)
+    os.symlink(os.path.basename(variables_files[0]), link_best_vars)
 
     if log_directory:
         log("Initializing TensorBoard summary writer.")
@@ -260,7 +260,7 @@ def training_loop(sess, saver,
                         # update symlink
                         if best_score == this_score:
                             os.unlink(link_best_vars)
-                            os.symlink(worst_var_file, link_best_vars)
+                            os.symlink(os.path.basename(worst_var_file), link_best_vars)
 
                         log("Best scores saved so far: {}".format(saved_scores))
 
