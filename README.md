@@ -7,7 +7,7 @@ Neural Sequence Learning Using Tensorflow
 
 ### Usage
 
-`python train.py <EXPERIMENT_INI>`
+`neuralmonkey-train <EXPERIMENT_INI>`
 
 ### Package Overview
 
