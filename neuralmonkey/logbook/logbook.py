@@ -72,7 +72,7 @@ def get_resource(path):  # pragma: no cover
 if __name__ == '__main__':  # pragma: no cover
     parser = argparse.ArgumentParser(description="Runs the Experiment LogBook server")
     parser.add_argument("--port", type=int)
-    parser.add_argument("--log-dir", type=str)
+    parser.add_argument("--logdir", type=str)
     args = parser.parse_args()
 
     if not os.path.isdir(args.log_dir):
