@@ -1,6 +1,6 @@
 import tensorflow as tf
 from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
-from neuralmonkey.utils import log
+from neuralmonkey.logging import log
 
 # tests: mypy
 # TODO refactor to have the same API as cross-entropy trainer

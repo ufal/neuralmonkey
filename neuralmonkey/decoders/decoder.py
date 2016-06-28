@@ -4,9 +4,8 @@ import math
 import tensorflow as tf
 import numpy as np
 
-from neuralmonkey.utils import log
+from neuralmonkey.logging import log
 from neuralmonkey.decoding_function import attention_decoder
-from neuralmonkey.learning_utils import log
 from neuralmonkey.cells.noisy_gru_cell import NoisyGRUCell
 from neuralmonkey.checking import assert_type
 from neuralmonkey.vocabulary import Vocabulary

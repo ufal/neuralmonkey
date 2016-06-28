@@ -13,7 +13,7 @@ from shutil import copyfile
 import tensorflow as tf
 
 from neuralmonkey.checking import check_dataset_and_coders
-from neuralmonkey.utils import print_header, log, set_log_file
+from neuralmonkey.logging import Logging, log
 from neuralmonkey.config.configuration import Configuration
 from neuralmonkey.config.config_generator import save_configuration
 from neuralmonkey.learning_utils import training_loop, initialize_tf
@@ -110,8 +110,8 @@ def main():
             args.output, cont_index)
 
     copyfile(sys.argv[1], ini_file)
-    set_log_file(log_file)
-    print_header(args.name)
+    Logging.set_log_file(log_file)
+    Logging.print_header(args.name)
 
     os.system("git log -1 --format=%H > {}".format(git_commit_file))
     os.system("git --no-pager diff --color=always > {}".format(git_diff_file))

@@ -6,7 +6,7 @@ import gzip
 import cPickle as pickle
 import numpy as np
 
-from neuralmonkey.utils import log
+from neuralmonkey.logging import log
 from neuralmonkey.image_utils import STRPreprocessor
 
 def main():

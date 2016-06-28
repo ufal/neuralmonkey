@@ -6,7 +6,7 @@ import cPickle as pickle
 import numpy as np
 import regex as re
 
-from neuralmonkey.utils import log
+from neuralmonkey.logging import log
 
 try:
     #pylint: disable=unused-import,ungrouped-imports,bare-except,import-error

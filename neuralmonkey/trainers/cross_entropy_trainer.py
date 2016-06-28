@@ -1,6 +1,6 @@
 import tensorflow as tf
 
-from neuralmonkey.utils import log
+from neuralmonkey.logging import log
 
 # tests: mypy
 
@@ -38,4 +38,3 @@ class CrossEntropyTrainer(object):
             return summary_str
         else:
             sess.run(self.optimize_op, feed_dict=f_dict)
-

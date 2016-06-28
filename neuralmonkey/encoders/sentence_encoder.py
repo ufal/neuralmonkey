@@ -1,7 +1,7 @@
 import tensorflow as tf
 import numpy as np
 
-from neuralmonkey.utils import log
+from neuralmonkey.logging import log
 from neuralmonkey.bidirectional_rnn_layer import BidirectionalRNNLayer
 from neuralmonkey.cells.noisy_gru_cell import NoisyGRUCell
 from neuralmonkey.cells.pervasive_dropout_wrapper import PervasiveDropoutWrapper

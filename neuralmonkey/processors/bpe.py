@@ -4,7 +4,7 @@
 
 import codecs
 import regex as re
-from neuralmonkey.utils import log
+from neuralmonkey.logging import log
 from lib.subword_nmt.apply_bpe import BPE, encode
 
 class BPEPreprocessor(object):

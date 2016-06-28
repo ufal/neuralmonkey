@@ -9,7 +9,7 @@ import magic
 import numpy as np
 import regex as re
 
-from neuralmonkey.utils import log
+from neuralmonkey.logging import log
 from neuralmonkey.readers.plain_text_reader import PlainTextFileReader
 
 SERIES_SOURCE = re.compile("s_([^_]*)$")

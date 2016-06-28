@@ -2,7 +2,7 @@ import codecs
 import traceback
 from argparse import Namespace
 
-from neuralmonkey.utils import log
+from neuralmonkey.logging import log
 from neuralmonkey.config.config_loader import load_config_file
 
 class Configuration(object):

@@ -9,7 +9,7 @@ from inspect import isfunction, isclass, getargspec
 import importlib
 import regex as re
 
-from neuralmonkey.utils import log
+from neuralmonkey.logging import log
 
 OBJECT_NAME = re.compile(r"^\[([a-zA-Z][a-zA-Z0-9_]*)\]$")
 OBJECT_REF = re.compile(r"^<([a-zA-Z][a-zA-Z0-9_]*)>$")

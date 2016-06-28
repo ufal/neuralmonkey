@@ -2,7 +2,7 @@ import numpy as np
 import tensorflow as tf
 
 from neuralmonkey.learning_utils import feed_dicts
-from neuralmonkey.utils import log
+from neuralmonkey.logging import log
 
 class BeamSearchRunner(object):
     def __init__(self, decoder, beam_size, postprocess=None):

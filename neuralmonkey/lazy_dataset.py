@@ -10,7 +10,7 @@ import gzip
 import cPickle as pickle
 import magic
 
-from neuralmonkey.utils import log
+from neuralmonkey.logging import log
 from neuralmonkey.dataset import Dataset
 
 class LazyDataset(Dataset):
