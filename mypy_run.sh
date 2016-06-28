@@ -1,10 +1,12 @@
 #!/bin/bash
 
-mypy --py2 -s $(grep --include='*.py' --exclude='__init__.py' -rl neuralmonkey -e "^# *tests:.*mypy")
+mypy -s $(grep --include='*.py' --exclude='__init__.py' -rl neuralmonkey -e "^# *tests:.*mypy")
 
-if (( $? ))
+r=$?
+
+if (( $r ))
 then
-	exit $?
+	exit $r
 else
 	echo "Typecheck OK."
 fi
