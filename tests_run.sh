@@ -6,4 +6,4 @@ if [ ! -f tests/train.tc.en ]; then
 	cd ..
 fi
 
-python -m neuralmonkey.train tests/small.ini
+bin/neuralmonkey-train tests/small.ini
