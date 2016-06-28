@@ -1,15 +1,15 @@
 # tests: lint, mypy
 
+import re
 import collections
 import random
 import pickle as pickle
 import numpy as np
-import regex as re
 
 from neuralmonkey.logging import log
 
 try:
-    #pylint: disable=unused-import,ungrouped-imports,bare-except,import-error
+    #pylint: disable=unused-import,ungrouped-imports,bare-except,import-error,wrong-import-order
     from typing import List, Tuple, Dict
     from neuralmonkey.dataset import Dataset
 except:

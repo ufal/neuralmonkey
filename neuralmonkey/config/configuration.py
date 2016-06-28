@@ -56,7 +56,7 @@ class Configuration(object):
                     arguments.__dict__[name] = value
             log("INI file loaded.", color='blue')
         except Exception as exc:
-            log("Failed to load INI file: "+exc.message, color='red')
+            log("Failed to load INI file: {}".format(exc), color='red')
             traceback.print_exc()
             exit(1)
         finally:

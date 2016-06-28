@@ -3,11 +3,10 @@
 # tests: lint, mypy
 
 import random
-
+import re
 
 import magic
 import numpy as np
-import regex as re
 
 from neuralmonkey.logging import log
 from neuralmonkey.readers.plain_text_reader import PlainTextFileReader
@@ -84,7 +83,7 @@ class Dataset(object):
     def create_serie(self, path):
         """ Loads a data serie from a file """
         log("Loading {}".format(path))
-        file_type = magic.from_file(path, mime=True)
+        file_type = magic.from_file(path, mime=True).decode()
 
         if file_type.startswith('text/'):
             reader = PlainTextFileReader(path)
@@ -153,7 +152,7 @@ class Dataset(object):
 def _get_series_paths(kwargs):
     # all series start with s_
     keys = [k for k in list(kwargs.keys()) if SERIES_SOURCE.match(k)]
-    names = [SERIES_SOURCE.match(k)[1] for k in keys]
+    names = [SERIES_SOURCE.match(k).group(1) for k in keys]
 
     return {name : kwargs[key] for name, key in zip(names, keys)}
 

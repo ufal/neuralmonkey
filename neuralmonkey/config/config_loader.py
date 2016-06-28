@@ -7,7 +7,7 @@ import traceback
 import collections
 from inspect import isfunction, isclass, getargspec
 import importlib
-import regex as re
+import re
 
 from neuralmonkey.logging import log
 
@@ -80,9 +80,9 @@ def format_value(string):
                             .format(string, class_name, string))
         return clazz
     elif OBJECT_REF.match(string):
-        return "object:"+OBJECT_REF.match(string)[1]
+        return "object:" + OBJECT_REF.match(string).group(1)
     elif LIST.match(string):
-        matched_content = LIST.match(string)[1]
+        matched_content = LIST.match(string).group(1)
         if matched_content == '':
             return []
         items = split_on_commas(matched_content)
@@ -115,15 +115,15 @@ def get_config_dicts(config_file):
             elif line.startswith(";"):
                 pass
             elif OBJECT_NAME.match(line):
-                current_name = OBJECT_NAME.match(line)[1]
+                current_name = OBJECT_NAME.match(line).group(1)
                 if current_name in config_dicts:
                     raise Exception("Duplicit object key: '{}', line {}."
                                     .format(current_name, i))
                 config_dicts[current_name] = dict()
             elif KEY_VALUE_PAIR.match(line):
                 matched = KEY_VALUE_PAIR.match(line)
-                key = matched[1]
-                value_string = matched[2]
+                key = matched.group(1)
+                value_string = matched.group(2)
                 if key in config_dicts[current_name]:
                     raise Exception("Duplicit key in '{}' object, line {}."
                                     .format(key, i))
@@ -131,7 +131,7 @@ def get_config_dicts(config_file):
             else:
                 raise Exception("Unknown string: '{}'".format(line))
         except Exception as exc:
-            log("Syntax error on line {}: {}".format(i, exc.message),
+            log("Syntax error on line {}: {}".format(i, exc),
                 color='red')
             exit(1)
 
@@ -219,7 +219,7 @@ def get_object(value, all_dicts, existing_objects, depth):
         result = clazz(**args)
     except Exception as exc:
         log("Failed to create object '{}' of class '{}.{}': {}"
-            .format(name, clazz.__module__, clazz.__name__, exc.message),
+            .format(name, clazz.__module__, clazz.__name__, exc),
             color='red')
 
         traceback.print_exc()
@@ -248,7 +248,7 @@ def load_config_file(config_file):
             configuration[key] = get_object(value, config_dicts,
                                             existing_objects, 0)
         except Exception as exc:
-            log("Error while loading {}: {}".format(key, exc.message),
+            log("Error while loading {}: {}".format(key, exc),
                 color='red')
             traceback.print_exc()
             exit(1)

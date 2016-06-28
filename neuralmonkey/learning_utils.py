@@ -2,13 +2,13 @@
 
 import os
 import codecs
+import re
 import numpy as np
 import tensorflow as tf
 from nltk.tokenize import word_tokenize
 from termcolor import colored
-import regex as re
 
-from logging import log, log_print
+from neuralmonkey.logging import log, log_print
 
 try:
     #pylint: disable=unused-import,bare-except,invalid-name,import-error,no-member

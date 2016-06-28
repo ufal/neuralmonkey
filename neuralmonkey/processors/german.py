@@ -1,6 +1,6 @@
 # tests: mypy
 
-import regex as re
+import re
 
 try:
     #pylint: disable=unused-import,bare-except,import-error
