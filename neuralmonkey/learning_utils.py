@@ -232,7 +232,7 @@ def training_loop(sess, saver,
                             sess, runner, all_coders, decoder, val_dataset,
                             evaluators, postprocess, write_out=False)
 
-                    this_score = val_evaluation[evaluators[-1]]
+                    this_score = val_evaluation[evaluators[-1].name]
 
                     def is_better(score1, score2, minimize):
                         if minimize:
