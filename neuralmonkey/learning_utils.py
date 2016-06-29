@@ -55,16 +55,20 @@ def feed_dicts(dataset, coders, train=False):
     return res
 
 
-def get_eval_string(evaluation_functions, evaluation_res):
+def get_eval_string(evaluators, evaluation_res):
     """ Formats the external evaluation metric for the console output. """
-    eval_string = \
-        "    ".join(["{}: {:.2f}".format(f.__name__, evaluation_res[f])
-                     for f in evaluation_functions[:-1]])
-    if evaluation_functions:
+    eval_string = "    ".join(["{}: {:.2f}".format(f.name,
+                                                   evaluation_res[f.name])
+                               for f in evaluators[:-1]])
+
+    if len(evaluators) > 1:
+        main_evaluator = evaluators[-1]
+
         eval_string += colored(
-            "    {}: {:.2f}".format(evaluation_functions[-1].__name__,
-                                    evaluation_res[evaluation_functions[-1]]),
+            "    {}: {:.2f}".format(main_evaluator.name,
+                                    evaluation_res[main_evaluator.name]),
             attrs=['bold'])
+
     return eval_string
 
 
@@ -99,7 +103,7 @@ def training_loop(sess, saver,
                   epochs, trainer, all_coders, decoder, batch_size,
                   train_dataset, val_dataset,
                   log_directory,
-                  evaluation_functions,
+                  evaluators,
                   runner,
                   test_datasets=[],
                   save_n_best_vars=1,
@@ -137,7 +141,7 @@ def training_loop(sess, saver,
         log_directory: Directory where the TensordBoard log will be generated.
             If None, nothing will be done.
 
-        evaluation_functions: List of evaluation functions. The last function
+        evaluators: List of evaluators. The last evaluator
             is used as the main. Each function accepts list of decoded sequences
             and list of reference sequences and returns a float.
 
@@ -153,7 +157,7 @@ def training_loop(sess, saver,
     if not postprocess:
         postprocess = lambda x: x
 
-    evaluation_labels = [f.__name__ for f in evaluation_functions]
+    evaluation_labels = [f.name for f in evaluators]
     step = 0
     seen_instances = 0
 
@@ -215,9 +219,9 @@ def training_loop(sess, saver,
                     summary_str = trainer.run(sess, batch_feed_dict, summary=True)
                     _, _, train_evaluation = \
                             run_on_dataset(sess, runner, all_coders, decoder, batch_dataset,
-                                           evaluation_functions, postprocess, write_out=False)
+                                           evaluators, postprocess, write_out=False)
 
-                    process_evaluation(evaluation_functions, tb_writer, train_evaluation,
+                    process_evaluation(evaluators, tb_writer, train_evaluation,
                                        seen_instances, summary_str, None, train=True)
                 else:
                     trainer.run(sess, batch_feed_dict, summary=False)
@@ -226,9 +230,9 @@ def training_loop(sess, saver,
                     decoded_val_sentences, decoded_raw_val_sentences, \
                         val_evaluation = run_on_dataset(
                             sess, runner, all_coders, decoder, val_dataset,
-                            evaluation_functions, postprocess, write_out=False)
+                            evaluators, postprocess, write_out=False)
 
-                    this_score = val_evaluation[evaluation_functions[-1]]
+                    this_score = val_evaluation[evaluators[-1]]
 
                     def is_better(score1, score2, minimize):
                         if minimize:
@@ -267,7 +271,7 @@ def training_loop(sess, saver,
                     log("Validation (epoch {}, batch number {}):"
                         .format(i + 1, batch_n), color='blue')
 
-                    process_evaluation(evaluation_functions, tb_writer,
+                    process_evaluation(evaluators, tb_writer,
                                        val_evaluation, seen_instances,
                                        summary_str, None, train=False)
 
@@ -321,7 +325,7 @@ def training_loop(sess, saver,
 
     for dataset in test_datasets:
         _, _, evaluation = run_on_dataset(sess, runner, all_coders, decoder,
-                                          dataset, evaluation_functions,
+                                          dataset, evaluators,
                                           postprocess, write_out=True)
         if evaluation:
             print_dataset_evaluation(dataset.name, evaluation)
@@ -330,7 +334,7 @@ def training_loop(sess, saver,
 
 
 def run_on_dataset(sess, runner, all_coders, decoder, dataset,
-                   evaluation_functions, postprocess, write_out=False):
+                   evaluators, postprocess, write_out=False):
     """
     Applies the model on a dataset and optionally writes outpus into a file.
 
@@ -346,7 +350,7 @@ def run_on_dataset(sess, runner, all_coders, decoder, dataset,
 
         dataset: The dataset on which the model will be executed.
 
-        evaluation_functions: List of functions that are used for the model
+        evaluators: List of evaluators that are used for the model
             evaluation if the target data are provided.
 
         postprocess: an object to use as postprocessing of the
@@ -382,13 +386,13 @@ def run_on_dataset(sess, runner, all_coders, decoder, dataset,
         test_targets = dataset.get_series(decoder.data_id)
         evaluation["opt_loss"] = opt_loss
         evaluation["dec_loss"] = dec_loss
-        for func in evaluation_functions:
-            evaluation[func] = func(result, test_targets)
+        for func in evaluators:
+            evaluation[func.name] = func(result, test_targets)
 
     return result, result_raw, evaluation
 
 
-def process_evaluation(evaluation_functions, tb_writer, eval_result,
+def process_evaluation(evaluators, tb_writer, eval_result,
                        seen_instances,
                        summary_str, histograms_str, train=False):
     """
@@ -408,7 +412,7 @@ def process_evaluation(evaluation_functions, tb_writer, eval_result,
         color = 'blue'
         prefix = 'val'
 
-    eval_string = get_eval_string(evaluation_functions, eval_result)
+    eval_string = get_eval_string(evaluators, eval_result)
 
     log("opt. loss: {:.4f}    dec. loss: {:.4f}    {}"\
             .format(eval_result['opt_loss'],
