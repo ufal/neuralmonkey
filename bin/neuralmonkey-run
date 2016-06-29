@@ -62,7 +62,7 @@ def main():
 
     def continuation_file():
         return os.path.join(args.output, "variables.data.cont-{}.best".format(cont_index))
-    while not os.path.exists(continuation_file()):
+    while os.path.exists(continuation_file()):
         variables_file = continuation_file()
         cont_index += 1
 
