@@ -5,3 +5,4 @@ if [ ! -f tests/data/train.tc.en ]; then
 fi
 
 bin/neuralmonkey-train tests/small.ini
+bin/neuralmonkey-run tests/small.ini tests/test_data.ini
