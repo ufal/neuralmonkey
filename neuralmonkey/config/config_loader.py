@@ -68,16 +68,21 @@ def format_value(string):
         module_name = ".".join(["neuralmonkey"] + class_parts[:-1])
         try:
             module = importlib.import_module(module_name)
-        except Exception as exc:
-            raise Exception(("Interpretation '{}' as type name, module '{}' "
-                             "does not exist. Did you mean file './{}'? {}")
-                            .format(string, module_name, string, exc))
+        except ImportError as exc:
+            # if the problem is really importing the module
+            if exc.name == module_name:
+                raise Exception(("Interpretation '{}' as type name, module '{}' "
+                                 "does not exist. Did you mean file './{}'? \n{}")
+                                .format(string, module_name, string, exc)) from None
+            else:
+                raise
+
         try:
             clazz = getattr(module, class_name)
-        except:
+        except AttributeError as exc:
             raise Exception(("Interpretation '{}' as type name, class '{}' "
-                             "does not exist. Did you mean file './{}'?")
-                            .format(string, class_name, string))
+                             "does not exist. Did you mean file './{}'? \n{}")
+                            .format(string, class_name, string, exc))
         return clazz
     elif OBJECT_REF.match(string):
         return "object:" + OBJECT_REF.match(string).group(1)
@@ -117,27 +122,42 @@ def get_config_dicts(config_file):
             elif OBJECT_NAME.match(line):
                 current_name = OBJECT_NAME.match(line).group(1)
                 if current_name in config_dicts:
-                    raise Exception("Duplicit object key: '{}', line {}."
-                                    .format(current_name, i))
+                    raise IniSyntaxError(i, "Duplicit object key: '{}', line {}."
+                                         .format(current_name, i))
                 config_dicts[current_name] = dict()
             elif KEY_VALUE_PAIR.match(line):
                 matched = KEY_VALUE_PAIR.match(line)
                 key = matched.group(1)
                 value_string = matched.group(2)
                 if key in config_dicts[current_name]:
-                    raise Exception("Duplicit key in '{}' object, line {}."
-                                    .format(key, i))
+                    raise IniSyntaxError(i, "Duplicit key in '{}' object, line {}."
+                                         .format(key, i))
                 config_dicts[current_name][key] = format_value(value_string)
             else:
-                raise Exception("Unknown string: '{}'".format(line))
+                raise IniSyntaxError(i, "Unknown string: '{}'".format(line))
+        except IniSyntaxError as exc:
+            raise
         except Exception as exc:
-            log("Syntax error on line {}: {}".format(i, exc),
-                color='red')
-            exit(1)
+            raise IniSyntaxError(i, "Error", exc) from None
 
     config_file.close()
     return config_dicts
 
+
+class IniSyntaxError(Exception):
+    def __init__(self, line, message, original_exc=None):
+        super().__init__()
+        self.line = line
+        self.message = message
+        self.original_exc = original_exc
+
+    def __str__(self):
+        msg = "Error on line {}: {}".format(self.line, self.message)
+        if self.original_exc is not None:
+            trc = "\n".join(traceback.format_list(traceback.extract_tb(
+                self.original_exc.__traceback__)))
+            msg += "\nTraceback:{}".format(trc)
+        return msg
 
 def get_object(value, all_dicts, existing_objects, ignore_names, depth):
     """Constructs an object from dict with its arguments. It works recursively.
@@ -222,13 +242,8 @@ def get_object(value, all_dicts, existing_objects, ignore_names, depth):
 
     try:
         result = clazz(**args)
-    #pylint: disable=broad-except
     except Exception as exc:
-        log("Failed to create object '{}' of class '{}.{}': {}"
-            .format(name, clazz.__module__, clazz.__name__, exc),
-            color='red')
-        traceback.print_exc()
-        exit(1)
+        raise ConfigBuildException(name, exc) from None
     existing_objects[value] = result
     return result
 
@@ -263,11 +278,21 @@ def load_config_file(config_file, ignore_names):
             try:
                 configuration[key] = get_object(value, config_dicts,
                                                 existing_objects, ignore_names, 0)
-            #pylint: disable=broad-except
             except Exception as exc:
-                log("Error while loading {}: {}".format(key, exc),
-                    color='red')
-                traceback.print_exc()
-                exit(1)
+                raise ConfigBuildException(key, exc) from None
 
     return configuration
+
+
+class ConfigBuildException(Exception):
+    def __init__(self, object_name, original_exception):
+        super().__init__()
+        self.object_name = object_name
+        self.original_exception = original_exception
+
+    def __str__(self):
+        trc = "\n".join(traceback.format_list(traceback.extract_tb(
+            self.original_exception.__traceback__)))
+        return "Error while loading '{}': {}\nTraceback: {}".format(
+            self.object_name, self.original_exception, trc)
+
