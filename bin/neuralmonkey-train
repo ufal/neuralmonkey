@@ -56,13 +56,13 @@ def main():
     if args.random_seed is not None:
         tf.set_random_seed(args.random_seed)
 
-    if os.path.isdir(args.output):
+    if os.path.isdir(args.output) and os.path.exists("experiment.ini"):
         if args.overwrite_output_dir:
             # we do not want to delete the directory contents
-            log("Directory '{}' exists, overwriting enabled, proceeding."
+            log("Directory with experiment.ini '{}' exists, overwriting enabled, proceeding."
                 .format(args.output))
         else:
-            log("Directory '{}' exists, overwriting disabled."
+            log("Directory with experiment.ini '{}' exists, overwriting disabled."
                 .format(args.output), color='red')
             exit(1)
 
