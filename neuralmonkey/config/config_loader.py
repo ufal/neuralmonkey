@@ -139,7 +139,7 @@ def get_config_dicts(config_file):
     return config_dicts
 
 
-def get_object(value, all_dicts, existing_objects, depth):
+def get_object(value, all_dicts, existing_objects, ignore_names, depth):
     """Constructs an object from dict with its arguments. It works recursively.
 
     Args:
@@ -151,14 +151,19 @@ def get_object(value, all_dicts, existing_objects, depth):
 
         existing_objects: A dictionary for keeping already constructed objects.
 
+        ignore_names: A set of names that shoud be ignored.
+
         depth: Current depth of recursion. Used to prevent an infinite
         recursion.
     """
 
-    if not isinstance(value, str) and isinstance(value,
-                                                        collections.Iterable):
-        return [get_object(val, all_dicts, existing_objects, depth + 1)
+
+    if not isinstance(value, str) and isinstance(value, collections.Iterable):
+        return [get_object(val, all_dicts, existing_objects, ignore_names, depth + 1)
                 for val in value]
+    if value in ignore_names:
+        existing_objects[value] = None
+        return None
     if value in existing_objects:
         return existing_objects[value]
     if not isinstance(value, str) or not value.startswith("object:"):
@@ -184,7 +189,7 @@ def get_object(value, all_dicts, existing_objects, depth):
 
     def process_arg(arg):
         """ Resolves potential references to other objects """
-        return get_object(arg, all_dicts, existing_objects, depth + 1)
+        return get_object(arg, all_dicts, existing_objects, ignore_names, depth + 1)
 
     args = {k: process_arg(arg)
             for k, arg in this_dict.items() if k != 'class'}
@@ -217,19 +222,29 @@ def get_object(value, all_dicts, existing_objects, depth):
 
     try:
         result = clazz(**args)
+    #pylint: disable=broad-except
     except Exception as exc:
         log("Failed to create object '{}' of class '{}.{}': {}"
             .format(name, clazz.__module__, clazz.__name__, exc),
             color='red')
-
         traceback.print_exc()
         exit(1)
     existing_objects[value] = result
     return result
 
 
-def load_config_file(config_file):
-    """ Loads the complete configuration of an experiment. """
+def load_config_file(config_file, ignore_names):
+    """
+
+    Loads the complete configuration of an experiment.
+
+    Args:
+
+        config_file: The configuration file
+
+        ignore_names: A set of names that should be ignored during the loading.
+
+    """
     config_dicts = get_config_dicts(config_file)
     log("INI file is parsed.")
 
@@ -244,13 +259,15 @@ def load_config_file(config_file):
 
     configuration = dict()
     for key, value in main_config.items():
-        try:
-            configuration[key] = get_object(value, config_dicts,
-                                            existing_objects, 0)
-        except Exception as exc:
-            log("Error while loading {}: {}".format(key, exc),
-                color='red')
-            traceback.print_exc()
-            exit(1)
+        if key not in ignore_names:
+            try:
+                configuration[key] = get_object(value, config_dicts,
+                                                existing_objects, ignore_names, 0)
+            #pylint: disable=broad-except
+            except Exception as exc:
+                log("Error while loading {}: {}".format(key, exc),
+                    color='red')
+                traceback.print_exc()
+                exit(1)
 
     return configuration

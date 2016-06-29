@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 
 import sys
+import os
 
-from neuralmonkey.utils import log
+from neuralmonkey.logging import log
 from neuralmonkey.config.configuration import Configuration
 from neuralmonkey.learning_utils import initialize_tf, run_on_dataset, print_dataset_evaluation
 from neuralmonkey.checking import check_dataset_and_coders
@@ -10,15 +11,23 @@ from neuralmonkey.checking import check_dataset_and_coders
 # tests: lint, mypy
 
 CONFIG = Configuration()
+CONFIG.add_argument('output', str)
 CONFIG.add_argument('encoders', list, cond=lambda l: len(l) > 0)
 CONFIG.add_argument('decoder')
 CONFIG.add_argument('batch_size', int, cond=lambda x: x > 0)
 CONFIG.add_argument('postprocess')
 CONFIG.add_argument('evaluation', cond=list)
 CONFIG.add_argument('runner')
-CONFIG.add_argument('test_datasets', list, required=False, default=[])
-CONFIG.add_argument('initial_variables', str, required=False, default=[])
 CONFIG.add_argument('threads', int, required=False, default=4)
+
+# ignore arguments which are just for training
+CONFIG.ignore_argument('val_dataset')
+CONFIG.ignore_argument('trainer')
+CONFIG.ignore_argument('name')
+CONFIG.ignore_argument('train_dataset')
+CONFIG.ignore_argument('epochs')
+CONFIG.ignore_argument('random_seed')
+
 
 def main():
     # pylint: disable=no-member,broad-except
@@ -40,7 +49,18 @@ def main():
         log(exc.message, color='red')
         exit(1)
 
-    sess, _ = initialize_tf(args.initial_variables, args.threads)
+    variables_file = os.path.join(args.output, "variables.data.best")
+    cont_index = 1
+
+    def continuation_file():
+        return os.path.join(args.output, "variables.data.cont-{}.best".format(cont_index))
+    print(continuation_file())
+
+    if not os.path.exists(variables_file):
+        log("No variables file is stored in {}".format(args.output), color="red")
+        exit(1)
+
+    sess, _ = initialize_tf(variables_file, args.threads)
     for dataset in datasets_args.test_datasets:
         _, _, evaluation = run_on_dataset(
             sess, args.runner, args.encoders + [args.decoder], args.decoder,
