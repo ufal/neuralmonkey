@@ -4,13 +4,15 @@
 
 __Neural Sequence Learning Using Tensorflow__
 
-The _Neural Monkey_ package is supposed to provide a higher level abstraction
-for sequential models, most prominently in Natural Language Processing (NLP)
-built over [TensorFlow](http://tensorflow.org/). It should be used for fast
-prototyping sequential models in NLP which can be e.g. for neural machine
-translation or sentence classification. The higher-level API enables work with
-standard building blocks (RNN encoder, RNN decoder, multi-layer percetpron) as
-well as simple adding new building blocks implemented directly in TensorFlow.
+The _Neural Monkey_ package provides a higher level abstraction for sequential
+models, most prominently in Natural Language Processing (NLP), built on
+[TensorFlow](http://tensorflow.org/). It can be used for fast prototyping of
+sequential models in NLP which can be used e.g. for neural machine translation
+or sentence classification.
+
+The higher-level API brings together a collection of standard building blocks
+(RNN encoder and decoder, multi-layer percetpron) and a simple way of adding new
+building blocks implemented directly in TensorFlow.
 
 ### Usage
 
@@ -68,4 +70,3 @@ containing NLP specific models
 
 The software is distributed under the [BSD
 License](https://opensource.org/licenses/BSD-3-Clause)
-
