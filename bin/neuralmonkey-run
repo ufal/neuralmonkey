@@ -14,7 +14,6 @@ CONFIG = Configuration()
 CONFIG.add_argument('output', str)
 CONFIG.add_argument('encoders', list, cond=lambda l: len(l) > 0)
 CONFIG.add_argument('decoder')
-CONFIG.add_argument('batch_size', int, cond=lambda x: x > 0)
 CONFIG.add_argument('postprocess')
 CONFIG.add_argument('evaluation', cond=list)
 CONFIG.add_argument('runner')
@@ -27,6 +26,15 @@ CONFIG.ignore_argument('name')
 CONFIG.ignore_argument('train_dataset')
 CONFIG.ignore_argument('epochs')
 CONFIG.ignore_argument('random_seed')
+CONFIG.ignore_argument('epochs')
+CONFIG.ignore_argument('batch_size')
+CONFIG.ignore_argument('tests_datasets')
+CONFIG.ignore_argument('initial_variables')
+CONFIG.ignore_argument('validation_period')
+CONFIG.ignore_argument('logging_period')
+CONFIG.ignore_argument('minimize')
+CONFIG.ignore_argument('save_n_best')
+CONFIG.ignore_argument('overwrite_output_dir')
 
 
 def main():
@@ -54,7 +62,9 @@ def main():
 
     def continuation_file():
         return os.path.join(args.output, "variables.data.cont-{}.best".format(cont_index))
-    print(continuation_file())
+    while not os.path.exists(continuation_file()):
+        variables_file = continuation_file()
+        cont_index += 1
 
     if not os.path.exists(variables_file):
         log("No variables file is stored in {}".format(args.output), color="red")
