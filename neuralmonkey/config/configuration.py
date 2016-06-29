@@ -15,7 +15,9 @@ class Configuration(object):
         self.data_types = {}
         self.defaults = {}
         self.conditions = {}
+        self.ignored = set()
 
+    #pylint: disable=too-many-arguments
     def add_argument(self, name, arg_type=object, required=False, default=None,
                      cond=None):
 
@@ -27,6 +29,9 @@ class Configuration(object):
         if cond is not None:
             self.conditions[name] = cond
 
+    def ignore_argument(self, name):
+        self.ignored.add(name)
+
     def load_file(self, path):
         log("Loading INI file: '{}'".format(path), color='blue')
 
@@ -34,7 +39,7 @@ class Configuration(object):
             config_f = codecs.open(path, 'r', 'utf-8')
             arguments = Namespace()
 
-            config_dict = load_config_file(config_f)
+            config_dict = load_config_file(config_f, self.ignored)
 
             self._check_loaded_conf(config_dict)
 
@@ -55,6 +60,7 @@ class Configuration(object):
                 if name not in arguments.__dict__:
                     arguments.__dict__[name] = value
             log("INI file loaded.", color='blue')
+        #pylint: disable=broad-except
         except Exception as exc:
             log("Failed to load INI file: {}".format(exc), color='red')
             traceback.print_exc()

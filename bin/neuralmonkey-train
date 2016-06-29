@@ -15,7 +15,6 @@ import tensorflow as tf
 from neuralmonkey.checking import check_dataset_and_coders
 from neuralmonkey.logging import Logging, log
 from neuralmonkey.config.configuration import Configuration
-from neuralmonkey.config.config_generator import save_configuration
 from neuralmonkey.learning_utils import training_loop, initialize_tf
 from neuralmonkey.dataset import Dataset
 
@@ -56,13 +55,14 @@ def main():
     if args.random_seed is not None:
         tf.set_random_seed(args.random_seed)
 
-    if os.path.isdir(args.output):
+    if os.path.isdir(args.output) and \
+            os.path.exists(os.path.join(args.output, "experiment.ini")):
         if args.overwrite_output_dir:
             # we do not want to delete the directory contents
-            log("Directory '{}' exists, overwriting enabled, proceeding."
+            log("Directory with experiment.ini '{}' exists, overwriting enabled, proceeding."
                 .format(args.output))
         else:
-            log("Directory '{}' exists, overwriting disabled."
+            log("Directory with experiment.ini '{}' exists, overwriting disabled."
                 .format(args.output), color='red')
             exit(1)
 
@@ -117,15 +117,6 @@ def main():
     os.system("git --no-pager diff --color=always > {}".format(git_diff_file))
 
     link_best_vars = "{}.best".format(variables_file_prefix)
-
-    run_configuration = {
-        'encoders': args.encoders,
-        'decoder': args.decoder,
-        'runner': args.runner,
-        'evaluation': args.evaluation,
-        'initial_variables': link_best_vars
-    }
-    save_configuration(run_configuration, args.output)
 
     sess, saver = initialize_tf(args.initial_variables, args.threads)
     training_loop(sess, saver, args.epochs, args.trainer,

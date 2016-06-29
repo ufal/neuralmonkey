@@ -365,7 +365,10 @@ def run_on_dataset(sess, runner, all_coders, decoder, dataset,
 
     """
     result_raw, opt_loss, dec_loss = runner(sess, dataset, all_coders)
-    result = postprocess(result_raw)
+    if postprocess is not None:
+        result = postprocess(result_raw)
+    else:
+        result = result_raw
 
     if write_out:
         if decoder.data_id in dataset.series_outputs:

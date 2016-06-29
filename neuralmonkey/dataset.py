@@ -3,7 +3,6 @@
 # tests: lint, mypy
 
 import random
-import re
 
 import magic
 import numpy as np
@@ -11,8 +10,6 @@ import numpy as np
 from neuralmonkey.logging import log
 from neuralmonkey.readers.plain_text_reader import PlainTextFileReader
 
-SERIES_SOURCE = re.compile("s_([^_]*)$")
-SERIES_OUTPUT = re.compile("s_(.*)_out")
 
 class Dataset(object):
     """ This class serves as collection for data series for particular
@@ -31,41 +28,21 @@ class Dataset(object):
 
     """
 
-    def __init__(self, **kwargs):
-        """ Creates a dataset from the provided arguments. Paths to the data are
-        provided in a form of dictionary.
-
-        Only textual datasets for which the language was provided a vocabulary
-        can be generated.
+    def __init__(self, name, series, series_outputs, random_seed=None):
+        """
+        Creates a dataset from the provided already preprocessed series of
+        data.
 
         Args:
 
-            kwargs: Arguments are treated as a dictionary. Paths to the data
-                series are specified here. Series identifiers should not contain
-                underscores. You can specify a language for the serie by adding
-                a preprocess method you want to apply on the textual data by
-                naming the function as <identifier>_preprocess=function
-                OR the preprocessor can be specified globally
-
-                output file path <identifier>_out
         """
 
-        self.preprocessor = kwargs.get('preprocessor', lambda x: x)
-        self.random_seed = kwargs.get('random_seed', None)
+        self.name = name
+        self._series = series
+        self.series_outputs = series_outputs
+        self.random_seed = random_seed
 
-        series_paths = _get_series_paths(kwargs)
-
-        if len(series_paths) > 0:
-            log("Initializing dataset with: {}".format(", ".join(series_paths)))
-            self._series = {s: self.create_serie(series_paths[s])
-                            for s in series_paths}
-            self._check_series_lengths()
-            self.name = kwargs.get('name', _get_name_from_paths(series_paths))
-
-        self.series_outputs = {SERIES_OUTPUT.match(key)[1]: value
-                               for key, value in kwargs.items()
-                               if SERIES_OUTPUT.match(key)}
-
+        self._check_series_lengths()
 
     def _check_series_lengths(self):
         lengths = [len(v) for v in list(self._series.values())
@@ -77,17 +54,16 @@ class Dataset(object):
             raise Exception("Lengths of data series must be equal. Instead: {}"
                             .format(", ".join(err_str)))
 
-        log("Dataset length: {}".format(lengths[0]))
 
-
-    def create_serie(self, path):
+    @staticmethod
+    def create_series(path, preprocess=lambda x: x):
         """ Loads a data serie from a file """
         log("Loading {}".format(path))
         file_type = magic.from_file(path, mime=True).decode()
 
         if file_type.startswith('text/'):
             reader = PlainTextFileReader(path)
-            return list([self.preprocessor(line) for line in reader.read()])
+            return list([preprocess(line) for line in reader.read()])
 
         elif file_type == 'application/octet-stream':
             return np.load(path)
@@ -142,24 +118,7 @@ class Dataset(object):
         batch_index = 0
         for next_batches in zip(*batched_series):
             batch_dict = {key:data for key, data in zip(keys, next_batches)}
-            dataset = Dataset(**{})
-            #pylint: disable=protected-access
-            dataset._series = batch_dict
-            dataset.name = self.name + "-batch-{}".format(batch_index)
+            dataset = Dataset(self.name + "-batch-{}".format(batch_index), batch_dict, {})
             batch_index += 1
             yield dataset
 
-def _get_series_paths(kwargs):
-    # all series start with s_
-    keys = [k for k in list(kwargs.keys()) if SERIES_SOURCE.match(k)]
-    names = [SERIES_SOURCE.match(k).group(1) for k in keys]
-
-    return {name : kwargs[key] for name, key in zip(names, keys)}
-
-
-def _get_name_from_paths(series_paths):
-    name = "dataset"
-    for _, path in series_paths.items():
-        name += "-{}".format(path)
-
-    return name

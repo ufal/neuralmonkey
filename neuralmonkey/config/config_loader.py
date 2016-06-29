@@ -68,16 +68,21 @@ def format_value(string):
         module_name = ".".join(["neuralmonkey"] + class_parts[:-1])
         try:
             module = importlib.import_module(module_name)
-        except Exception as exc:
-            raise Exception(("Interpretation '{}' as type name, module '{}' "
-                             "does not exist. Did you mean file './{}'? {}")
-                            .format(string, module_name, string, exc))
+        except ImportError as exc:
+            # if the problem is really importing the module
+            if exc.name == module_name:
+                raise Exception(("Interpretation '{}' as type name, module '{}' "
+                                 "does not exist. Did you mean file './{}'? \n{}")
+                                .format(string, module_name, string, exc)) from None
+            else:
+                raise
+
         try:
             clazz = getattr(module, class_name)
-        except:
+        except AttributeError as exc:
             raise Exception(("Interpretation '{}' as type name, class '{}' "
-                             "does not exist. Did you mean file './{}'?")
-                            .format(string, class_name, string))
+                             "does not exist. Did you mean file './{}'? \n{}")
+                            .format(string, class_name, string, exc))
         return clazz
     elif OBJECT_REF.match(string):
         return "object:" + OBJECT_REF.match(string).group(1)
@@ -117,29 +122,44 @@ def get_config_dicts(config_file):
             elif OBJECT_NAME.match(line):
                 current_name = OBJECT_NAME.match(line).group(1)
                 if current_name in config_dicts:
-                    raise Exception("Duplicit object key: '{}', line {}."
-                                    .format(current_name, i))
+                    raise IniSyntaxError(i, "Duplicit object key: '{}', line {}."
+                                         .format(current_name, i))
                 config_dicts[current_name] = dict()
             elif KEY_VALUE_PAIR.match(line):
                 matched = KEY_VALUE_PAIR.match(line)
                 key = matched.group(1)
                 value_string = matched.group(2)
                 if key in config_dicts[current_name]:
-                    raise Exception("Duplicit key in '{}' object, line {}."
-                                    .format(key, i))
+                    raise IniSyntaxError(i, "Duplicit key in '{}' object, line {}."
+                                         .format(key, i))
                 config_dicts[current_name][key] = format_value(value_string)
             else:
-                raise Exception("Unknown string: '{}'".format(line))
+                raise IniSyntaxError(i, "Unknown string: '{}'".format(line))
+        except IniSyntaxError as exc:
+            raise
         except Exception as exc:
-            log("Syntax error on line {}: {}".format(i, exc),
-                color='red')
-            exit(1)
+            raise IniSyntaxError(i, "Error", exc) from None
 
     config_file.close()
     return config_dicts
 
 
-def get_object(value, all_dicts, existing_objects, depth):
+class IniSyntaxError(Exception):
+    def __init__(self, line, message, original_exc=None):
+        super().__init__()
+        self.line = line
+        self.message = message
+        self.original_exc = original_exc
+
+    def __str__(self):
+        msg = "Error on line {}: {}".format(self.line, self.message)
+        if self.original_exc is not None:
+            trc = "\n".join(traceback.format_list(traceback.extract_tb(
+                self.original_exc.__traceback__)))
+            msg += "\nTraceback:{}".format(trc)
+        return msg
+
+def get_object(value, all_dicts, existing_objects, ignore_names, depth):
     """Constructs an object from dict with its arguments. It works recursively.
 
     Args:
@@ -151,14 +171,19 @@ def get_object(value, all_dicts, existing_objects, depth):
 
         existing_objects: A dictionary for keeping already constructed objects.
 
+        ignore_names: A set of names that shoud be ignored.
+
         depth: Current depth of recursion. Used to prevent an infinite
         recursion.
     """
 
-    if not isinstance(value, str) and isinstance(value,
-                                                        collections.Iterable):
-        return [get_object(val, all_dicts, existing_objects, depth + 1)
+
+    if not isinstance(value, str) and isinstance(value, collections.Iterable):
+        return [get_object(val, all_dicts, existing_objects, ignore_names, depth + 1)
                 for val in value]
+    if value in ignore_names:
+        existing_objects[value] = None
+        return None
     if value in existing_objects:
         return existing_objects[value]
     if not isinstance(value, str) or not value.startswith("object:"):
@@ -184,7 +209,7 @@ def get_object(value, all_dicts, existing_objects, depth):
 
     def process_arg(arg):
         """ Resolves potential references to other objects """
-        return get_object(arg, all_dicts, existing_objects, depth + 1)
+        return get_object(arg, all_dicts, existing_objects, ignore_names, depth + 1)
 
     args = {k: process_arg(arg)
             for k, arg in this_dict.items() if k != 'class'}
@@ -218,18 +243,23 @@ def get_object(value, all_dicts, existing_objects, depth):
     try:
         result = clazz(**args)
     except Exception as exc:
-        log("Failed to create object '{}' of class '{}.{}': {}"
-            .format(name, clazz.__module__, clazz.__name__, exc),
-            color='red')
-
-        traceback.print_exc()
-        exit(1)
+        raise ConfigBuildException(name, exc) from None
     existing_objects[value] = result
     return result
 
 
-def load_config_file(config_file):
-    """ Loads the complete configuration of an experiment. """
+def load_config_file(config_file, ignore_names):
+    """
+
+    Loads the complete configuration of an experiment.
+
+    Args:
+
+        config_file: The configuration file
+
+        ignore_names: A set of names that should be ignored during the loading.
+
+    """
     config_dicts = get_config_dicts(config_file)
     log("INI file is parsed.")
 
@@ -244,13 +274,25 @@ def load_config_file(config_file):
 
     configuration = dict()
     for key, value in main_config.items():
-        try:
-            configuration[key] = get_object(value, config_dicts,
-                                            existing_objects, 0)
-        except Exception as exc:
-            log("Error while loading {}: {}".format(key, exc),
-                color='red')
-            traceback.print_exc()
-            exit(1)
+        if key not in ignore_names:
+            try:
+                configuration[key] = get_object(value, config_dicts,
+                                                existing_objects, ignore_names, 0)
+            except Exception as exc:
+                raise ConfigBuildException(key, exc) from None
 
     return configuration
+
+
+class ConfigBuildException(Exception):
+    def __init__(self, object_name, original_exception):
+        super().__init__()
+        self.object_name = object_name
+        self.original_exception = original_exception
+
+    def __str__(self):
+        trc = "\n".join(traceback.format_list(traceback.extract_tb(
+            self.original_exception.__traceback__)))
+        return "Error while loading '{}': {}\nTraceback: {}".format(
+            self.object_name, self.original_exception, trc)
+

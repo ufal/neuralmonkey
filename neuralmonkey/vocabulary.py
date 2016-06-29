@@ -141,32 +141,31 @@ class Vocabulary(collections.Sized):
         with open(path, 'wb') as f_pickle:
             pickle.dump(self, f_pickle)
 
+    @staticmethod
+    def from_datasets(datasets, series_ids, max_size, random_seed=None):
+        # type: (List[Dataset], List[str], int, int) -> Vocabulary
+        vocabulary = Vocabulary(random_seed=random_seed)
 
-def from_datasets(datasets, series_ids, max_size, random_seed=None):
-    # type: (List[Dataset], List[str], int, int) -> Vocabulary
-    vocabulary = Vocabulary(random_seed=random_seed)
+        for dataset in datasets:
+            for series_id in series_ids:
+                series = dataset.get_series(series_id, allow_none=True)
+                if series:
+                    vocabulary.add_tokenized_text([token for sent in series for token in sent])
 
-    for dataset in datasets:
-        for series_id in series_ids:
-            series = dataset.get_series(series_id, allow_none=True)
-            if series:
-                vocabulary.add_tokenized_text([token for sent in series for token in sent])
+        vocabulary.trunkate(max_size)
 
-    vocabulary.trunkate(max_size)
+        log("Vocabulary for series {} initialized, containing {} words"
+            .format(series_ids, len(vocabulary)))
 
-    log("Vocabulary for series {} initialized, containing {} words"
-        .format(series_ids, len(vocabulary)))
+        log("Sample of the vocabulary: {}"
+            .format([vocabulary.index_to_word[i]
+                     for i in np.random.randint(0, len(vocabulary), 5)]))
+        return vocabulary
 
-    log("Sample of the vocabulary: {}"
-        .format([vocabulary.index_to_word[i]
-                 for i in np.random.randint(0, len(vocabulary), 5)]))
-
-    return vocabulary
-
-
-def from_pickled(path):
-    # type: (str) -> Vocabulary
-    with open(path, 'rb') as f_pickle:
-        vocabulary = pickle.load(f_pickle)
-    assert isinstance(vocabulary, Vocabulary)
-    return vocabulary
+    @staticmethod
+    def from_pickled(path):
+        # type: (str) -> Vocabulary
+        with open(path, 'rb') as f_pickle:
+            vocabulary = pickle.load(f_pickle)
+        assert isinstance(vocabulary, Vocabulary)
+        return vocabulary
