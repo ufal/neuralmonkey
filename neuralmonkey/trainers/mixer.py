@@ -1,6 +1,7 @@
 import tensorflow as tf
-from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
+
 from neuralmonkey.logging import log
+from neuralmonkey.evaluators.bleu import BLEUEvaluator
 
 # tests: mypy
 # TODO refactor to have the same API as cross-entropy trainer
@@ -150,16 +151,18 @@ class Mixer(object):
 
         decoded_sequence = sess.run(self.decoder.decoded_seq, feed_dict=fd)
         sentences = self.decoder.vocabulary.vectors_to_sentences(decoded_sequence)
-        bleu_smoothing = SmoothingFunction(epsilon=0.01).method1
 
         def get_bleu(r, s):
             # sentence BLEU crashes in case of empty sentences
             if not s:
                 return 0.0
             else:
-                return sentence_bleu(r, s, smoothing_function=bleu_smoothing)
+                ## TODO think about what this should be - BLEU over one sentence
+                ## seems weird.
+                return BLEUEvaluator.bleu([s], [[r]], ngrams=1)
 
         bleus = [get_bleu(r, s) for r, s in zip(references, sentences)]
+
 
         fd[self.bleu] = bleus
 

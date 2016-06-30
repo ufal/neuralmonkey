@@ -5,7 +5,6 @@ import codecs
 import re
 import numpy as np
 import tensorflow as tf
-from nltk.tokenize import word_tokenize
 from termcolor import colored
 
 from neuralmonkey.logging import log, log_print
@@ -36,10 +35,6 @@ def load_tokenized(text_file, preprocess=None):
         preprocess = lambda x: x
 
     return [preprocess(re.split(r"[ ]", l.rstrip())) for l in text_file]
-
-
-def tokenize_char_seq(chars):
-    return word_tokenize("".join(chars))
 
 
 def feed_dicts(dataset, coders, train=False):
