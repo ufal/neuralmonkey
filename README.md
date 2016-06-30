@@ -20,31 +20,35 @@ building blocks implemented directly in TensorFlow.
 
 ### Package Overview
 
-The toolkit is organized into packages as follows:
+- `bin`: Directory with executables and tools
+- `examples`: Example configuration files for ready-made experiments
+- `lib`: Third party software
+- `neuralmonkey`: Python package files
+- `tests`: Test files
+
+The `neuralmonkey` package is organized into subpackages as follows:
 
 - `encoders`: The encoders (get sequences of data and encode them)
 - `decoders`: The decoders (get outputs of encoders and decode them)
+- `nn`: The NN (as in Neural Network components)
 - `trainers`: The trainers (train the whole thing)
 - `runners`: The runners (run the trained thing)
 - `readers`: The readers (read files)
 - `processors`: The pre- and postprocessors (pre- and postprocess data)
+- `evaluators`: The evaluators (used for measuring performance)
 - `config`: The configuration (loading, saving, parsing)
+- `logbook`: The Logbook (server for checking up on experiments)
+- `tests`: The unit tests
 
-### Other files
+### Additional Scripts
 
 - `caffe_image_features.py` extracts features from images using pre-trained network
-- `decoding_function.py` todo
 - `install_caffe.sh` installs caffe including prerequisites
-- `learning_utils.py` logging, header printing, training loop
 - `precompute_image_features.py` deprecated
-- `prepare_env.sh` self-explaining
-- `prepare_vgg16.sh` deprecated
-- `README.md` this file
 - `reformat_downloaded_image_features.py` deprecated
-- `test_vocabulary.py` unit test for vocabulary
 - `tokenize_data.py` tokenizes data
 - `tokenize_persistable.sh` manages the tokenize_data script
-- `vocabulary.py` python definition for vocabulary object
+
 
 ### Installation
 
