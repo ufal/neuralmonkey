@@ -31,12 +31,13 @@ def dataset_from_files(**kwargs):
     """
 
     random_seed = kwargs.get('random_seed', None)
+    preprocess = kwargs.get('preprocessor', lambda x: x)
 
     series_paths = _get_series_paths(kwargs)
 
     if len(series_paths) > 0:
         log("Initializing dataset with: {}".format(", ".join(series_paths)))
-        series = {s: Dataset.create_series(series_paths[s])
+        series = {s: Dataset.create_series(series_paths[s], preprocess)
                   for s in series_paths}
         name = kwargs.get('name', _get_name_from_paths(series_paths))
 
@@ -103,4 +104,3 @@ def initialize_vocabulary(directory, name, datasets=None, series_ids=None,
 
         vocabulary.save_to_file(file_name)
         return vocabulary
-
