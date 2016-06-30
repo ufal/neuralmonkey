@@ -1,6 +1,6 @@
 import tensorflow as tf
 
-from neuralmonkey.mlp import MultilayerPerceptron
+from neuralmonkey.nn.mlp import MultilayerPerceptron
 
 # tests: mypy
 

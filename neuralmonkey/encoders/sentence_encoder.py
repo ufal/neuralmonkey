@@ -2,9 +2,9 @@ import tensorflow as tf
 import numpy as np
 
 from neuralmonkey.logging import log
-from neuralmonkey.bidirectional_rnn_layer import BidirectionalRNNLayer
-from neuralmonkey.cells.noisy_gru_cell import NoisyGRUCell
-from neuralmonkey.cells.pervasive_dropout_wrapper import PervasiveDropoutWrapper
+from neuralmonkey.nn.bidirectional_rnn_layer import BidirectionalRNNLayer
+from neuralmonkey.nn.noisy_gru_cell import NoisyGRUCell
+from neuralmonkey.nn.pervasive_dropout_wrapper import PervasiveDropoutWrapper
 from neuralmonkey.checking import assert_type
 from neuralmonkey.vocabulary import Vocabulary
 

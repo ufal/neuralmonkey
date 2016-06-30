@@ -6,7 +6,7 @@ import numpy as np
 
 from neuralmonkey.logging import log
 from neuralmonkey.decoding_function import attention_decoder
-from neuralmonkey.cells.noisy_gru_cell import NoisyGRUCell
+from neuralmonkey.nn.noisy_gru_cell import NoisyGRUCell
 from neuralmonkey.checking import assert_type
 from neuralmonkey.vocabulary import Vocabulary
 
