@@ -1,0 +1,58 @@
+import argparse
+import json
+
+import flask
+from flask import Flask, request
+
+from neuralmonkey.logging import log
+from neuralmonkey.dataset import Dataset
+from neuralmonkey.learning_utils import run_on_dataset
+from neuralmonkey.checking import check_dataset_and_coders
+from neuralmonkey.run import initialize_for_running
+
+# tests: lint, mypy
+
+APP = Flask(__name__)
+APP.config.from_object(__name__)
+APP.config['args'] = None
+APP.config['sess'] = None
+
+@APP.route('/', methods=['GET', 'POST'])
+def post_request():
+    data = request.get_json()
+
+    if data is None:
+        response_data = {"error": "No data were provided."}
+        code = 400
+    else:
+        args = APP.config['args']
+        sess = APP.config['sess']
+
+        dataset = Dataset("request", data, {})
+
+        result, _, _ = run_on_dataset(
+            sess, args.runner, args.encoders + [args.decoder], args.decoder,
+            dataset, args.evaluation, args.postprocess, write_out=True)
+        response_data = {args.decoder.data_id: result}
+        code = 200
+
+    json_response = json.dumps(response_data)
+    response = flask.Response(json_response,
+                              content_type='application/json; charset=utf-8')
+    response.headers.add('content-length', len(json_response.encode('utf-8')))
+    response.status_code = code
+    return response
+
+def main():
+    # pylint: disable=no-member,broad-except
+    parser = argparse.ArgumentParser(description="Runs Neural Monkey as a web server.")
+    parser.add_argument("--port", type=int, default=5000)
+    parser.add_argument("--configuration", type=str)
+    cli_args = parser.parse_args()
+
+    print("")
+
+    args, sess = initialize_for_running(cli_args.configuration)
+    APP.config['args'] = args
+    APP.config['sess'] = sess
+    APP.run(port=cli_args.port)
