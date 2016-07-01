@@ -54,7 +54,6 @@ The `neuralmonkey` package is organized into subpackages as follows:
 
 - Install Tensorflow by following their installation docs
   [here](https://www.tensorflow.org/versions/r0.9/get_started/os_setup.html#download-and-setup)
-
 - Clone this repository and follow the installation procedure outlined in
 `prepare_env.sh`. If the training crashes on an unknown dependency, just install
 it with pip.
@@ -63,14 +62,12 @@ it with pip.
 
 - [tflearn](https://github.com/tflearn/tflearn) -- a more general and less
 abstract deep learning toolkit built over TensorFlow
-
 - [nlpnet](https://github.com/erickrf/nlpnet) -- deep learning tools for
 tagging and parsing
-
 - [NNBlocks](https://github.com/brmson/NNBlocks) -- a library build over Theano
 containing NLP specific models
 
 ### License
 
 The software is distributed under the [BSD
-License](https://opensource.org/licenses/BSD-3-Clause)
+License](https://opensource.org/licenses/BSD-3-Clause).
