@@ -58,7 +58,7 @@ The `neuralmonkey` package is organized into subpackages as follows:
 `prepare_env.sh`. If the training crashes on an unknown dependency, just install
 it with pip.
 
-## Related projects
+### Related projects
 
 - [tflearn](https://github.com/tflearn/tflearn) -- a more general and less
 abstract deep learning toolkit built over TensorFlow
