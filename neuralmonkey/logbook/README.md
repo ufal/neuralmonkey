@@ -18,7 +18,7 @@ whose summaries are stored in the same directory structure.
 
 You can run the server using the following command:
 
-`python neuralmonkey/logbook/logbook.py --logdir=<experiments> --port=<port>`
+`bin/neuralmonkey-logbook --logdir=<experiments> --port=<port>`
 
 where `<experiments>` is the directory where the experiments are listed and
 `<port>` is the number of the port the server will run on.
