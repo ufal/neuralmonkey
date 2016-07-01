@@ -116,10 +116,26 @@ class Decoder(object):
 
         self.is_training = tf.placeholder(tf.bool, name="decoder_is_training")
 
-        if len(encoders) == 1 and (rnn_size ==
-                                   encoders[0].encoded.get_shape()[1].value):
+        self.learning_step = tf.Variable(0, name="learning_step",
+                                         trainable=False)
+
+
+
+
+        ### tadyten nasledujici kus je rozhozeni podle poctu enkoderu
+        ### kdyz je jeden, tak berem rovnou jeho zakodovanej stav
+        ### kdyz je jich vic, tak je napred projektujem
+
+        ### lepsi by bylo dat nepovinnej atribut encoder_projection a tomu
+        ### dat jako hodnotu rnn_size. Ktera se odted bude inferovat automaticky
+        ### = bez projekce se konkatenujou vystupni stavy vsech enkoderu
+        ### a delka vyslednyho stavu bude rnn_size.
+
+        if len(encoders) == 1 and (rnn_size
+                                   == encoders[0].encoded.get_shape()[1].value):
+
             encoded = encoders[0].encoded
-            log("Using encoder output wihtout projection.")
+            log("Using encoder output without projection.")
         elif len(encoders) >= 1:
             with tf.variable_scope("encoders_projection"):
                 encoded_concat = tf.concat(1, [e.encoded for e in encoders])
@@ -134,11 +150,18 @@ class Decoder(object):
             encoded = tf.zeros([rnn_size])
             log("No encoder - language model only.")
 
-        self.encoded = encoded
-        self.learning_step = tf.Variable(0, name="learning_step",
-                                         trainable=False)
-        self.gt_inputs = []
 
+        ### TODO OTAZKA je, jestli to je ve spravnym poradi
+        self.encoded = encoded
+        encoded = tf.nn.dropout(encoded, self.dropout_placeholder)
+
+
+        ### tenhle kus pode mnou je deklarovani placeholderu pro vstupy dekoderu
+        ### placeholdery se vrazi do kolekce dec_endoder_ins, ktera
+        ### se asi nikde nepouziva
+        ### self.targets je self.gt_inputs posunuty o jedno doleva
+
+        self.gt_inputs = []
         with tf.variable_scope("decoder_inputs"):
             for i in range(max_output_len + 2):
                 dec = tf.placeholder(tf.int64, [None],
@@ -148,12 +171,28 @@ class Decoder(object):
 
         self.targets = self.gt_inputs[1:]
 
+
+        ### tenhle kousek zadefinovava vahy na vstup. je jich tolik co
+        ### targetu, a nejspis obsahujou jen jednicky a nuly podle toho,
+        ### jestli uz jsme za koncem vstupni vety nebo ne.
+        ### tohle by se melo s prechodem na dynamic rnn uplne vyhodit
+
         self.weights_ins = []
         with tf.variable_scope("input_weights"):
             for _ in range(len(self.targets)):
                 self.weights_ins.append(tf.placeholder(tf.float32, [None]))
 
+
+        ### nasleduje kod samotnyho decoderu ve vlastnim scopu
+        ### proc veci nade mnou jsou jinym vlastnim scopu, to nevim
+
         with tf.variable_scope('decoder'):
+
+            ### deklarovani promennych pro vahy a biasy pro prechod ze
+            ### stavu na vystupni vrstvu
+            ### proc tady neni get_variable? to pouziva uniform unit scaling
+            ### initializer, coz je prinejmensim vic cool nazev
+
             decoding_w = tf.Variable(
                 tf.random_uniform([rnn_size, len(vocabulary)], -0.5, 0.5),
                 name="state_to_word_W")
@@ -161,6 +200,11 @@ class Decoder(object):
             decoding_b = tf.Variable(
                 tf.fill([len(vocabulary)], - math.log(len(vocabulary))),
                 name="state_to_word_b")
+
+            ### pokud nepouzivame sdileny embeddingy, vytvorime si vlastni
+            ### to slouzi jako mapovani ze slovniku na vektor, kterej se dava
+            ### na vstup dekoderu v kazdym time-stepu
+            ### pro sdileni embeddingu je zapotrebi, aby mely stejnou velikost
 
             if reused_word_embeddings is None:
                 decoding_em = tf.Variable(
@@ -170,17 +214,30 @@ class Decoder(object):
             else:
                 decoding_em = reused_word_embeddings.word_embeddings
 
+
+            ### vyrobime embeddovany ground-truth inputy a dropoutujem
+            ### pouzivaj se pri trenovani
+
             embedded_gt_inputs = [tf.nn.embedding_lookup(decoding_em, o)
                                   for o in self.gt_inputs[:-1]]
 
             embedded_gt_inputs = [tf.nn.dropout(i, self.dropout_placeholder)
                                   for i in embedded_gt_inputs]
 
+
+            ### zadefinujem funkci, ktera nam pro dany stav vrati logity
+            ### tohle se bude muset predelat, je tu i ten copynet
+            ### logity sou dropoutlej stav vynasobenej s vahovou matici
+            ### vystupni a pricteny biasy
+
             def standard_logits(state):
                 state = tf.nn.dropout(state, self.dropout_placeholder)
                 return tf.matmul(state, decoding_w) + decoding_b, None
 
             logit_function = standard_logits
+
+            ### COPY NET
+            ### tomuhle se ted nebudu venovat
 
             if copy_net:
                 # This is implementation of Copy-net
@@ -259,6 +316,11 @@ class Decoder(object):
 
                 logit_function = copy_net_logit_function
 
+            ### KONEC COPY-NETU
+            ### Tohle pod nama jsou dve loop functions. Loop function je funkce
+            ### ktera se pouziva za run-timu. Bere stav a cislo kroku v case
+            ### a vraci vstup do dalsiho kroku po embeddovani a dropoutu
+
             def loop(prev_state, _):
                 # it takes the previous hidden state, finds the word and formats
                 # it as input for the next time step ... used in the decoder in
@@ -271,6 +333,11 @@ class Decoder(object):
                 return tf.nn.dropout(next_step_embedding,
                                      self.dropout_placeholder)
 
+
+            ### tahle loop function je pro scheduled sampling
+            ### scheduled sampling trenuje napred na zlatejch datech a postupem
+            ### casu zvolna prepina na loop function. Tahle konkretne to dela
+            ### pro kazdou trenovaci instanci v batchi zvlast.
 
             def sampling_loop(prev_state, i):
                 """
@@ -289,6 +356,14 @@ class Decoder(object):
                                  loop(prev_state, i))
 
 
+            gt_loop_function = sampling_loop if scheduled_sampling else None
+
+            ### Tahle funkce tu strasi kvuli tomu, abychom mohli vybrat
+            ### bunku, ktera se pouzije jako RNN cell. Jednak ty noisy
+            ### activations nepomahaly a jednak bych to stejne cely vyhodil
+            ### Dale tu je kod, kterej ty bunky vydropoutuje a udela z nich
+            ### multirnncell (v pripade ze bychom chteli hlubsi rekurentni cast)
+
             def get_rnn_cell():
                 if use_noisy_activations:
                     return NoisyGRUCell(rnn_size, training=self.is_training)
@@ -305,8 +380,9 @@ class Decoder(object):
                 decoder_cells.append(get_rnn_cell())
 
             decoder_cell = tf.nn.rnn_cell.MultiRNNCell(decoder_cells)
-            gt_loop_function = sampling_loop if scheduled_sampling else None
-            encoded = tf.nn.dropout(encoded, self.dropout_placeholder)
+
+            ### A ted prichazi na radu attention. To se jen kouknem na encodery,
+            ### jestli ho maji zadefinovanej nebo ne
 
             if use_attention:
                 attention_objects = [e.attention_object
@@ -314,14 +390,21 @@ class Decoder(object):
             else:
                 attention_objects = []
 
+            ### A ted samotna dekodovaci procedura. Tahle prvni vraci vystupy
+            ### s pouzitim zlatych vstupu (pri trenovani)
+
             rnn_outputs_gt_ins, _ = attention_decoder(
                 embedded_gt_inputs, encoded, attention_objects, embedding_size,
                 cell=decoder_cell, loop_function=gt_loop_function)
 
             tf.get_variable_scope().reuse_variables()
 
-            self.go_symbols = tf.placeholder(tf.int64, [None],
-                                             name="go_symbols_placeholder")
+            ### Tady to dolejc je dekodovaci procedura pro run-time, takze
+            ### s pouzitim loop functioně
+            ### Proc je to placeholder? Proc to neni konstanta?
+
+            self.go_symbols = tf.ones(tf.shape(embedded_gt_inputs[0]),
+                                      name="go_symbols")
 
             decoder_inputs = [tf.nn.embedding_lookup(decoding_em,
                                                      self.go_symbols)]
@@ -333,6 +416,8 @@ class Decoder(object):
                 cell=decoder_cell, loop_function=loop)
 
             self.hidden_states = rnn_outputs_decoded_ins
+
+            ### KONEC decoder scope
 
         def get_decoded(rnn_outputs):
             logits = []
@@ -351,18 +436,18 @@ class Decoder(object):
             return decoded, logits, copynet_logits
 
 
+        ### decoding a loss s ground truth (behem trenovani)
+
         _, self.gt_logits, _ = get_decoded(rnn_outputs_gt_ins)
+
         self.loss_with_gt_ins = tf.nn.seq2seq.sequence_loss(
             self.gt_logits, self.targets, self.weights_ins,
             len(vocabulary))
 
-        tf.scalar_summary('val_loss_with_gt_input',
-                          self.loss_with_gt_ins,
-                          collections=["summary_val"])
+        self.cost = self.loss_with_gt_ins
 
-        tf.scalar_summary('train_loss_with_gt_intpus',
-                          self.loss_with_gt_ins,
-                          collections=["summary_train"])
+
+        ### decoding a loss s loop function (runtime)
 
         self.decoded_seq, self.decoded_logits, self.copynet_logits = \
             get_decoded(rnn_outputs_decoded_ins)
@@ -371,18 +456,17 @@ class Decoder(object):
             self.decoded_logits, self.targets, self.weights_ins,
             len(vocabulary))
 
-        tf.scalar_summary('val_loss_with_decoded_inputs',
-                          self.loss_with_decoded_ins,
-                          collections=["summary_val"])
+        ### Tady pode mnou sou sumary. To je vsechno co se bude logovat do
+        ### tensorboardu.
+
+        tf.scalar_summary('train_loss_with_gt_intpus',
+                          self.loss_with_gt_ins,
+                          collections=["summary_train"])
 
         tf.scalar_summary('train_loss_with_decoded_inputs',
                           self.loss_with_decoded_ins,
                           collections=["summary_train"])
 
-        self.cost = self.loss_with_gt_ins
-
-        tf.scalar_summary('val_optimization_cost', self.cost,
-                          collections=["summary_val"])
         tf.scalar_summary('train_optimization_cost', self.cost,
                           collections=["summary_train"])
 
@@ -404,8 +488,6 @@ class Decoder(object):
             for words_plc, words_tensor in zip(self.gt_inputs,
                                                sentnces_tensors):
                 res[words_plc] = words_tensor
-
-        res[self.go_symbols] = np.ones(len(dataset))
 
         if train:
             res[self.dropout_placeholder] = self.dropout_keep_p
