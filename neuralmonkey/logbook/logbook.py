@@ -26,7 +26,7 @@ def list_experiments():
     logdir = APP.config['logdir']
     experiment_list = \
         [dr for dr in os.listdir(logdir) if os.path.isdir(os.path.join(logdir, dr))]
-    json_response = json.dumps({'experiments': experiment_list}).decode('unicode-escape')
+    json_response = json.dumps({'experiments': experiment_list})
 
     response = Response(json_response,
                         content_type='application/json; charset=utf-8')
@@ -73,20 +73,21 @@ def get_resource(path):  # pragma: no cover
     except IOError:
         return Response("'{}' not found.".format(path), status=404)
 
-
-if __name__ == '__main__':  # pragma: no cover
+def main():
     parser = argparse.ArgumentParser(description="Runs the Experiment LogBook server")
     parser.add_argument("--port", type=int)
     parser.add_argument("--logdir", type=str)
     args = parser.parse_args()
 
     logdir = os.path.abspath(args.logdir)
-    print logdir
 
     if not os.path.isdir(logdir):
-        print "The log directory '{}' does not exist."
+        print("The log directory '{}' does not exist.")
         exit(1)
 
     APP.config['logdir'] = logdir
 
     APP.run(port=args.port)
+
+if __name__ == '__main__':
+    main()
