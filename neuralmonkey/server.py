@@ -1,10 +1,10 @@
 import argparse
 import json
+import datetime
 
 import flask
 from flask import Flask, request
 
-from neuralmonkey.logging import log
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.learning_utils import run_on_dataset
 from neuralmonkey.checking import check_dataset_and_coders
@@ -19,23 +19,31 @@ APP.config['sess'] = None
 
 @APP.route('/', methods=['GET', 'POST'])
 def post_request():
-    data = request.get_json()
+    start_time = datetime.datetime.now()
+    request_data = request.get_json()
 
-    if data is None:
+    if request_data is None:
         response_data = {"error": "No data were provided."}
         code = 400
     else:
         args = APP.config['args']
         sess = APP.config['sess']
 
-        dataset = Dataset("request", data, {})
+        try:
+            dataset = Dataset("request", request_data, {})
+            check_dataset_and_coders(dataset, args.encoders)
 
-        result, _, _ = run_on_dataset(
-            sess, args.runner, args.encoders + [args.decoder], args.decoder,
-            dataset, args.evaluation, args.postprocess, write_out=True)
-        response_data = {args.decoder.data_id: result}
-        code = 200
+            result, _, _ = run_on_dataset(
+                sess, args.runner, args.encoders + [args.decoder], args.decoder,
+                dataset, args.evaluation, args.postprocess, write_out=True)
+            response_data = {args.decoder.data_id: result}
+            code = 200
+        #pylint: disable=broad-except
+        except Exception as exc:
+            response_data = {'error': str(exc)}
+            code = 400
 
+    response_data['duration'] = (datetime.datetime.now() - start_time).total_seconds()
     json_response = json.dumps(response_data)
     response = flask.Response(json_response,
                               content_type='application/json; charset=utf-8')
@@ -44,7 +52,6 @@ def post_request():
     return response
 
 def main():
-    # pylint: disable=no-member,broad-except
     parser = argparse.ArgumentParser(description="Runs Neural Monkey as a web server.")
     parser.add_argument("--port", type=int, default=5000)
     parser.add_argument("--configuration", type=str)
