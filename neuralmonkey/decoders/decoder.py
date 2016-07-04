@@ -1,25 +1,32 @@
 import math
-
 import tensorflow as tf
-import numpy as np
+
+from neuralmonkey.decoding_function import attention_decoder
 
 class Decoder(object):
-"""A class that manages parts of the computation graph that are
-used for the decoding.
-"""
+    """A class that manages parts of the computation graph that are
+    used for the decoding.
+    """
 
-    def __init__(self, encoders, vocabulary, **kwargs):
+    # pylint: disable=too-many-instance-attributes,too-many-locals
+    # Big decoder cannot be simpler. Not sure if refactoring
+    # it into smaller units would be helpful
+    # Some locals may be turned to attributes
+
+    def __init__(self, encoders, vocabulary, data_id, **kwargs):
         """Creates a new instance of the decoder
 
         Required arguments:
             encoders: List of encoders whose outputs will be decoded
             vocabulary: Output vocabulary
+            data_id: Identifier of the data series fed to this decoder
 
         Keyword arguments:
             embedding_size: Size of embedding vectors. Default 200
             max_output: Maximum length of the output. Default 20
             rnn_size: When projection is used, this is the size of the projected
                       vector
+            dropout_keep_prob: Dropout keep probability. Default 1 (no dropout)
 
         Flags:
             use_attention: Indicates whether to use attention from encoders
@@ -32,10 +39,12 @@ used for the decoding.
         """
         self.encoders = encoders
         self.vocabulary = vocabulary
+        self.data_id = data_id
 
         self.max_output = kwargs.get("max_output", 20)
         self.embedding_size = kwargs.get("embedding_size", 200)
         self.name = kwargs.get("name", "decoder")
+        dropout_keep_prob = kwargs.get("dropout_keep_prob", 1.0)
 
         self.use_attention = kwargs.get("use_attention", False)
         self.reuse_word_embeddings = kwargs.get("reuse_word_embeddings", False)
@@ -45,22 +54,25 @@ used for the decoding.
         if self.project_encoder_outputs:
             self.rnn_size = kwargs.get("rnn_size", 200)
         else:
-            self.rnn_size = sum([e.encoded for e in self.encoders])
+            self.rnn_size = sum([e.encoded.get_shape()[1].value
+                                 for e in self.encoders])
 
 
         ### Initialize model
 
+        self.dropout_placeholder = tf.placeholder_with_default(
+            dropout_keep_prob, [], "decoder_dropout_placeholder")
+
         state = self.initial_state()
 
-        self.w, self.b = self.state_to_output()
+        self.weights, self.biases = self.state_to_output()
         self.embedding_matrix = self.input_embeddings()
 
         cell = self.get_rnn_cell()
         attention_objects = self.collect_attention_objects(self.encoders)
 
-        self.train_inputs, train_targets, train_weights \
-            = self.training_placeholders()
-
+        self.train_inputs, self.train_weights = self.training_placeholders()
+        train_targets = self.train_inputs[1:]
 
         ### Perform computation
 
@@ -70,8 +82,11 @@ used for the decoding.
             embedded_train_inputs, state, attention_objects,
             self.embedding_size, cell)
 
-        runtime_inputs = self.runtime_inputs()
+        runtime_inputs = self.runtime_inputs(tf.shape(embedded_train_inputs[0]))
         loop_function = self.get_loop_function()
+
+        print(runtime_inputs)
+#        print(" ".join([str(t.get_shape()) for t in runtime_inputs]))
 
         self.runtime_rnn_outputs, _ = attention_decoder(
             runtime_inputs, state, attention_objects, self.embedding_size,
@@ -81,13 +96,15 @@ used for the decoding.
         ### KONEC decoder scope
 
         _, train_logits = self.decode(self.train_rnn_outputs)
-        runtime_decoded, runtime_logits = self.decode(self.runtime_rnn_outputs)
+        self.decoded, runtime_logits = self.decode(self.runtime_rnn_outputs)
 
         self.train_loss = tf.nn.seq2seq.sequence_loss(
-            train_logits, train_targets, train_weights, self.vocabulary_size)
+            train_logits, train_targets, self.train_weights,
+            self.vocabulary_size)
 
         self.runtime_loss = tf.nn.seq2seq.sequence_loss(
-            runtime_logits, train_targets, train_weights, self.vocabulary_size)
+            runtime_logits, train_targets, self.train_weights,
+            self.vocabulary_size)
 
 
         ### Summaries
@@ -127,8 +144,7 @@ used for the decoding.
         decoded = []
 
         for state in rnn_states:
-            output_activation = self.logit_function(output)
-
+            output_activation = self.logit_function(state)
             logits.append(output_activation)
 
             # we don"t want to generate padding
@@ -144,24 +160,24 @@ used for the decoding.
         inputs = [tf.placeholder(tf.int64, [None], name="decoder_{}".format(i))
                   for i in range(self.max_output + 2)]
 
-        targets = inputs[1:]
-
         # one less than inputs
-        weights = [tf.placeholder(tf.float32, [None])
-                   for _ in range(len(targets))]
+        weights = [tf.placeholder(tf.float32, [None],
+                                  name="decoder_padding_weights_{}".format(i))
+                   for i in range(self.max_output + 1)]
 
-        return inputs, targets, weights
+        return inputs, weights
 
 
 
-    def runtime_inputs(self):
+    def runtime_inputs(self, batch_size):
         """Defines data inputs for running trained decoder"""
-
-        go_symbols = tf.fill(tf.shape(embedded_train_inputs[0], 1))
+        go_symbols = tf.ones(batch_size, dtype=tf.int32)
         go_embeds = tf.nn.embedding_lookup(self.embedding_matrix, go_symbols)
 
+        print(go_embeds)
+
         inputs = [self.dropout(go_embeds)]
-        inputs += [None for _ in range(self.max_output_len)]
+        inputs += [None for _ in range(self.max_output)]
 
         return inputs
 
@@ -189,20 +205,18 @@ used for the decoding.
         if self.reuse_word_embeddings:
             return self.encoders[0].word_embeddings
 
-        return tf.get_variable([self.vocabulary_size, self.embedding_size],
-                               name="word_embeddings")
-
+        return tf.get_variable("word_embeddings", [self.vocabulary_size,
+                                                   self.embedding_size])
 
     def embed_inputs(self, inputs):
         """Embed inputs using the decoder"s word embedding matrix
 
         Arguments:
-            inputs: List of input words to be embedded
+            inputs: List of (batched) input words to be embedded
         """
         embedded = [tf.nn.embedding_lookup(self.embedding_matrix, o)
                     for o in inputs]
-
-        return self.dropout(embedded)
+        return [self.dropout(e) for e in embedded]
 
 
     def initial_state(self):
@@ -230,7 +244,7 @@ used for the decoding.
         weights = tf.get_variable("encoder_projection_W", [input_size,
                                                            output_size])
         biases = tf.Variable(tf.zeros([output_size]),
-                             name="encoder_projection_b"))
+                             name="encoder_projection_b")
 
         dropped_input = self.dropout(encoded_states)
         return tf.matmul(dropped_input, weights) + biases
@@ -251,10 +265,10 @@ used for the decoding.
         Arguments:
             state: the state of the decoder
         """
-        return tf.matmul(self.dropout(state), self.w) + self.b
+        return tf.matmul(self.dropout(state), self.weights) + self.biases
 
 
-    def get_loop_funciton(self):
+    def get_loop_function(self):
         """Constructs a loop function for the decoder"""
 
         def basic_loop(previous_state, _):
@@ -289,7 +303,43 @@ used for the decoding.
             encoders: Encoders from which to take attention objects
         """
         if self.use_attention:
-            attention_objects = [e.attention_object for e in encoders
-                                 if e.attention_object]
+            return [e.attention_object for e in encoders if e.attention_object]
         else:
             return []
+
+
+    def feed_dicts(self, dataset, train=False):
+        """Populate the feed dictionary for the decoder object
+
+        Decoder placeholders:
+            decoder_{x} for x in range(max_output+2):
+                Training data placeholders. Starts with <s> and ends with </s>
+
+            decoder_padding_weights{x} for x in range(max_output+1):
+                Weights used for padding. (Float) tensor of ones and zeros.
+                This tensor is one-item shorter than the other one since the
+                decoder does not produce the first <s>.
+
+            dropout_placeholder: Scalar placeholder for dropout probability.
+                Has value 'dropout_keep_prob' from the constructor or 1
+                in case we are decoding at run-time
+        """
+        # pylint: disable=invalid-name
+        # fd is the common name for feed dictionary
+        fd = {}
+        sentences = dataset.get_series(self.data_id, allow_none=True)
+
+        if sentences is not None:
+            inputs, weights = self.vocabulary.sentences_to_tensor(
+                sentences, self.max_output)
+
+            for placeholder, weight in zip(self.train_weights, weights):
+                fd[placeholder] = weight
+
+            for placeholder, tensor in zip(self.train_inputs, inputs):
+                fd[placeholder] = tensor
+
+        if not train:
+            fd[self.dropout_placeholder] = 1.0
+
+        return fd

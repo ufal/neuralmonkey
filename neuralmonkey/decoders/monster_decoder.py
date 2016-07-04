@@ -406,7 +406,7 @@ class Decoder(object):
             self.go_symbols = tf.ones(tf.shape(embedded_gt_inputs[0]),
                                       name="go_symbols")
 
-            decoder_inputs = [tf.nn.embedding_lookup(decoding_em,
+            decoder_inputs = [tf.nn.embepdding_lookup(decoding_em,
                                                      self.go_symbols)]
 
             decoder_inputs += [None for _ in range(self.max_output_len)]

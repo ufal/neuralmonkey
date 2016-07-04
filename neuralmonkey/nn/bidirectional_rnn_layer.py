@@ -43,7 +43,7 @@ class BidirectionalRNNLayer(object):
 
     @property
     def encoded(self):
-        """States of the bidirectional layer"""
+        """Last state of the bidirectional layer"""
         return tf.concat(1, [self._last_state, self._last_state_rev])
 
 
