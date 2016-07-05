@@ -24,8 +24,8 @@ class Decoder(object):
         Keyword arguments:
             embedding_size: Size of embedding vectors. Default 200
             max_output: Maximum length of the output. Default 20
-            rnn_size: When projection is used, this is the size of the projected
-                      vector
+            rnn_size: When projection is used or when no encoder is supplied,
+                      this is the size of the projected vector.
             dropout_keep_prob: Dropout keep probability. Default 1 (no dropout)
 
         Flags:
@@ -51,12 +51,11 @@ class Decoder(object):
         self.project_encoder_outputs = kwargs.get("project_encoder_outputs",
                                                   False)
 
-        if self.project_encoder_outputs:
+        if self.project_encoder_outputs or len(self.encoders) == 0:
             self.rnn_size = kwargs.get("rnn_size", 200)
         else:
             self.rnn_size = sum([e.encoded.get_shape()[1].value
                                  for e in self.encoders])
-
 
         ### Initialize model
 
@@ -72,26 +71,23 @@ class Decoder(object):
         attention_objects = self.collect_attention_objects(self.encoders)
 
         self.train_inputs, self.train_weights = self.training_placeholders()
+        self.batch_size = tf.shape(self.train_inputs[0])
         train_targets = self.train_inputs[1:]
 
         ### Perform computation
 
-        embedded_train_inputs = self.embed_inputs(self.train_inputs)
+        embedded_train_inputs = self.embed_inputs(self.train_inputs[:-1])
 
         self.train_rnn_outputs, _ = attention_decoder(
             embedded_train_inputs, state, attention_objects,
-            self.embedding_size, cell)
+            self.embedding_size, cell, scope="att_train")
 
-        runtime_inputs = self.runtime_inputs(tf.shape(embedded_train_inputs[0]))
+        runtime_inputs = self.runtime_inputs()
         loop_function = self.get_loop_function()
-
-        print(runtime_inputs)
-#        print(" ".join([str(t.get_shape()) for t in runtime_inputs]))
 
         self.runtime_rnn_outputs, _ = attention_decoder(
             runtime_inputs, state, attention_objects, self.embedding_size,
-            cell, loop_function=loop_function)
-
+            cell, loop_function=loop_function, scope="att_runtime")
 
         ### KONEC decoder scope
 
@@ -106,15 +102,23 @@ class Decoder(object):
             runtime_logits, train_targets, self.train_weights,
             self.vocabulary_size)
 
+        ### Learning step
+        ### TODO was here only because of scheduled sampling.
+        ### needs to be refactored out
+        self.learning_step = tf.Variable(0, name="learning_step",
+                                         trainable=False)
 
         ### Summaries
-
         self.init_summaries()
 
 
     @property
     def vocabulary_size(self):
         return len(self.vocabulary)
+
+    @property
+    def cost(self):
+        return self.train_loss
 
 
     def init_summaries(self):
@@ -138,20 +142,12 @@ class Decoder(object):
         """Decodes a sequence from a list of hidden states
 
         Arguments:
-            rnn_outputs: hidden states
+            rnn_states: hidden states
         """
-        logits = []
-        decoded = []
-
-        for state in rnn_states:
-            output_activation = self.logit_function(state)
-            logits.append(output_activation)
-
-            # we don"t want to generate padding
-            decoded.append(tf.argmax(output_activation[:, 1:], 1) + 1)
+        logits = [self.logit_function(s) for s in rnn_states]
+        decoded = [tf.argmax(l[:, 1:], 1) + 1 for l in logits]
 
         return decoded, logits
-
 
 
     def training_placeholders(self):
@@ -169,12 +165,10 @@ class Decoder(object):
 
 
 
-    def runtime_inputs(self, batch_size):
+    def runtime_inputs(self):
         """Defines data inputs for running trained decoder"""
-        go_symbols = tf.ones(batch_size, dtype=tf.int32)
+        go_symbols = tf.ones(self.batch_size, dtype=tf.int32)
         go_embeds = tf.nn.embedding_lookup(self.embedding_matrix, go_symbols)
-
-        print(go_embeds)
 
         inputs = [self.dropout(go_embeds)]
         inputs += [None for _ in range(self.max_output)]
@@ -221,6 +215,9 @@ class Decoder(object):
 
     def initial_state(self):
         """Create the initial state of the decoder."""
+        if len(self.encoders) == 0:
+            return tf.zeros([self.rnn_size])
+
         encoders_out = tf.concat(1, [e.encoded for e in self.encoders])
 
         if self.project_encoder_outputs:
@@ -308,7 +305,7 @@ class Decoder(object):
             return []
 
 
-    def feed_dicts(self, dataset, train=False):
+    def feed_dict(self, dataset, train=False):
         """Populate the feed dictionary for the decoder object
 
         Decoder placeholders:

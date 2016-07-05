@@ -495,3 +495,16 @@ class Decoder(object):
             res[self.dropout_placeholder] = 1.0
 
         return res
+
+
+    @property
+    def train_loss(self):
+        return self.loss_with_gt_ins
+
+    @property
+    def runtime_loss(self):
+        return self.loss_with_decoded_ins
+
+    @property
+    def decoded(self):
+        return self.decoded_seq
