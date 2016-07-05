@@ -59,7 +59,7 @@ class Dataset(object):
     def create_series(path, preprocess=lambda x: x):
         """ Loads a data serie from a file """
         log("Loading {}".format(path))
-        file_type = magic.from_file(path, mime=True).decode()
+        file_type = magic.from_file(path, mime=True)
 
         if file_type.startswith('text/'):
             reader = PlainTextFileReader(path)
