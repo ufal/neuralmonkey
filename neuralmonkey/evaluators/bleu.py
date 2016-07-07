@@ -1,4 +1,3 @@
-from __future__ import division
 from collections import Counter
 import numpy as np
 
@@ -133,8 +132,8 @@ class BLEUEvaluator(object):
         return eff_ref_length
 
 
-    # to mainain same API with the function above
     # pylint: disable=unused-argument
+    # to mainain same API with the function above
     @staticmethod
     def minimum_reference_length(hypotheses, references_list):
         # type: (List[List[str]], List[List[List[str]]]) -> int
@@ -163,9 +162,9 @@ class BLEUEvaluator(object):
     @staticmethod
     def bleu(hypotheses, references, ngrams=4, case_sensitive=True):
         # Type: (List[List[str]], List[List[List[str]]]) -> float
-        # pylint: disable=invalid-name
         """Computes BLEU on a corpus with multiple references using uniform
-        weights.
+        weights. Default is to use smoothing as in reference implementation on:
+        https://github.com/ufal/qtleap/blob/master/cuni_train/bin/mteval-v13a.pl#L831-L873
 
         Arguments:
             hypotheses: List of hypotheses
@@ -185,7 +184,9 @@ class BLEUEvaluator(object):
 
             log_bleu += weight * np.log(prec)
 
-        # add brevity penalty
+        # pylint: disable=invalid-name
+        # the symbols 'r', 'c', and 'bp' are taken from the formula in
+        # Papineni et al., it makes sense to follow the notation
         r = BLEUEvaluator.minimum_reference_length(hypotheses, references)
         c = sum([len(hyp) for hyp in hypotheses])
 
