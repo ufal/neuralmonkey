@@ -25,7 +25,9 @@ def index():
 def list_experiments():
     logdir = APP.config['logdir']
     experiment_list = \
-        [dr for dr in os.listdir(logdir) if os.path.isdir(os.path.join(logdir, dr))]
+        [dr for dr in os.listdir(logdir)
+         if os.path.isdir(os.path.join(logdir, dr))
+         and os.path.isfile(os.path.join(logdir, dr, 'experiment.ini'))]
     json_response = json.dumps({'experiments': experiment_list})
 
     response = Response(json_response,
