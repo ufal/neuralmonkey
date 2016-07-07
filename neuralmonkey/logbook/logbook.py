@@ -75,8 +75,9 @@ def get_resource(path):  # pragma: no cover
 
 def main():
     parser = argparse.ArgumentParser(description="Runs the Experiment LogBook server")
-    parser.add_argument("--port", type=int)
-    parser.add_argument("--logdir", type=str)
+    parser.add_argument("--port", type=int, default=5050)
+    parser.add_argument("--host", type=str, default="127.0.0.1")
+    parser.add_argument("--logdir", type=str, required=True)
     args = parser.parse_args()
 
     logdir = os.path.abspath(args.logdir)
@@ -87,7 +88,7 @@ def main():
 
     APP.config['logdir'] = logdir
 
-    APP.run(port=args.port)
+    APP.run(port=args.port, host=args.host)
 
 if __name__ == '__main__':
     main()
