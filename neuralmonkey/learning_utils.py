@@ -56,7 +56,7 @@ def get_eval_string(evaluators, evaluation_res):
                                                    evaluation_res[f.name])
                                for f in evaluators[:-1]])
 
-    if len(evaluators) > 1:
+    if len(evaluators) >= 1:
         main_evaluator = evaluators[-1]
 
         eval_string += colored(
