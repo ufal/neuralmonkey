@@ -1,7 +1,8 @@
 import tempfile
 import subprocess
-import os
 
+# pylint: disable=too-few-public-methods
+# to be further refactored
 class BLEUReferenceImplWrapper(object):
     """Wrapper for TectoMT's wrapper for reference NIST and BLEU scorer"""
 
@@ -37,8 +38,13 @@ class BLEUReferenceImplWrapper(object):
         lines = proc_stdout.splitlines()
 
         try:
-            fl = float(lines[0])
-            return fl
+            bleu_score = float(lines[0])
+            return bleu_score
+        except IndexError:
+            print("Error: Malformed output from BLEU wrapper:")
+            print(proc_stdout)
+            print("=======")
+            return 0.0
         except ValueError:
             print("Value error - bleu '{}' is not a number.".format(lines[0]))
             return 0.0
