@@ -1,3 +1,5 @@
+#tests: lint
+
 import math
 import tensorflow as tf
 
