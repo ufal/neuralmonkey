@@ -30,7 +30,6 @@ REFERENCE = [r.split() for r in CORPUS_REFERENCE]
 LOCATION = "lib/mteval/wrap-mteval.pl"
 FUNC = BLEUReferenceImplWrapper(LOCATION)
 
-@unittest.skip("not working on travis")
 class TestBLEU(unittest.TestCase):
 
     def test_empty_decoded(self):
