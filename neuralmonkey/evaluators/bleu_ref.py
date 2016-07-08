@@ -1,5 +1,6 @@
 import tempfile
 import subprocess
+import os
 
 class BLEUReferenceImplWrapper(object):
     """Wrapper for TectoMT's wrapper for reference NIST and BLEU scorer"""
@@ -10,23 +11,34 @@ class BLEUReferenceImplWrapper(object):
         self.name = name
 
 
+    def serialize_to_bytes(self, sentences):
+        # type: (List[List[str]]) -> bytes
+        joined = [" ".join(r) for r in sentences]
+        string = "\n".join(joined) + "\n"
+        return string.encode(self.encoding)
+
+
     def __call__(self, decoded, references):
         # type: (List[List[str]], List[List[str]]) -> float
-        references_joined = [" ".join(r) for r in references]
+
+        ref_bytes = self.serialize_to_bytes(references)
+        dec_bytes = self.serialize_to_bytes(decoded)
 
         reffile = tempfile.NamedTemporaryFile()
-        reffile.write("\n".join(references_joined).encode(self.encoding))
+        reffile.write(ref_bytes)
         reffile.flush()
 
-        decoded_joined = [" ".join(d) for d in decoded]
-
         output_proc = subprocess.run(["perl", self.wrapper, reffile.name],
-                                     input="\n".join(decoded_joined),
-                                     stderr=subprocess.DEVNULL,
-                                     stdout=subprocess.PIPE,
-                                     universal_newlines=True)
+                                     input=dec_bytes,
+                                     stderr=subprocess.PIPE,
+                                     stdout=subprocess.PIPE)
 
-        reffile.close()
+        proc_stdout = output_proc.stdout.decode("utf-8")
+        lines = proc_stdout.splitlines()
 
-        lines = output_proc.stdout.splitlines()
-        return float(lines[1])
+        try:
+            fl = float(lines[0])
+            return fl
+        except ValueError:
+            print("Value error - bleu '{}' is not a number.".format(lines[0]))
+            return 0.0
