@@ -7,7 +7,7 @@ use File::Basename;
 use File::Temp;
 
 my $mteval_path = dirname(__FILE__); # expect mteval-13a.pl in the current directory by default
-my $mteval_command = 'mteval-v13a.pl --international-tokenization';
+my $mteval_command = 'mteval-v13a.pl --international-tokenization -b';
 my $help=0;
 
 
@@ -68,7 +68,10 @@ print {$tst_tmp} '</doc>
 my $command = "$mteval_path/$mteval_command -r $ref_tmp -s $src_tmp -t $tst_tmp";
 warn "$command\n";
 my $scores =`$command`;
-my ($nist, $bleu) = $scores =~ /NIST score = ([\d.]+)  BLEU score = ([\d.]+)/;
+#my ($nist, $bleu) = $scores =~ /NIST score = ([\d.]+)  BLEU score = ([\d.]+)/;
+my ($bleu) = $scores =~ /BLEU score = ([\d.]+)/;
 warn "$scores\n";
 $bleu = $bleu * 100;
-print "$bleu\n$nist\n";
+#print "$bleu\n$nist\n";
+
+print "$bleu\n_\n";
