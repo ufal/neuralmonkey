@@ -97,4 +97,3 @@ def main():
             dataset, args.evaluation, args.postprocess, write_out=True)
         if evaluation:
             print_dataset_evaluation(dataset.name, evaluation)
-
