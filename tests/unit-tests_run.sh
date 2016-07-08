@@ -3,5 +3,5 @@
 set -ex
 
 for file in $(cd neuralmonkey/tests && echo *.py); do
-	python -m neuralmonkey.tests.${file%.py}
+	python3 -m neuralmonkey.tests.${file%.py}
 done
