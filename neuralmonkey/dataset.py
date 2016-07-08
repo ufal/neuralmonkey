@@ -4,8 +4,8 @@
 
 import random
 
-import magic
 import numpy as np
+import magic
 
 from neuralmonkey.logging import log
 from neuralmonkey.readers.plain_text_reader import PlainTextFileReader
@@ -121,4 +121,3 @@ class Dataset(object):
             dataset = Dataset(self.name + "-batch-{}".format(batch_index), batch_dict, {})
             batch_index += 1
             yield dataset
-
