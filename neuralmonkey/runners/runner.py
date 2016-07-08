@@ -17,8 +17,8 @@ class GreedyRunner(object):
         # if are are target sentence, we will compute also the
         # losses, otherwise just compute zero
         if dataset.has_series(self.decoder.data_id):
-            losses = [self.decoder.loss_with_gt_ins,
-                      self.decoder.loss_with_decoded_ins]
+            losses = [self.decoder.train_loss,
+                      self.decoder.runtime_loss]
         else:
             losses = [tf.zeros([]), tf.zeros([])]
 
@@ -29,12 +29,12 @@ class GreedyRunner(object):
             batch_feed_dict = feed_dicts(batch, coders, train=False)
             batch_count += 1
             if dataset.has_series(self.decoder.data_id):
-                losses = [self.decoder.loss_with_gt_ins,
-                          self.decoder.loss_with_decoded_ins]
+                losses = [self.decoder.train_loss,
+                          self.decoder.runtime_loss]
             else:
                 losses = [tf.zeros([]), tf.zeros([])]
 
-            computation = sess.run(losses + self.decoder.decoded_seq,
+            computation = sess.run(losses + self.decoder.decoded,
                                    feed_dict=batch_feed_dict)
             loss_with_gt_ins += computation[0]
             loss_with_decoded_ins += computation[1]
