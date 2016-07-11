@@ -10,7 +10,7 @@ SPLITTER_TESTS = [
     ["only_commas", ",,,,,,", []],
     ["commas_and_whitespace", ",    ,   ,,   , , ", []],
     ["no_commas", "without", ["without"]],
-    ["common", "a,b,c", ["a","b","c"]],
+    ["common", "a,b,c", ["a", "b", "c"]],
     ["brackets", "(brackets),(brac,kets)", ["(brackets)", "(brac,kets)"]],
 ]
 
@@ -24,10 +24,10 @@ class TestParsing(unittest.TestCase):
 
 
 def test_splitter_gen(a, b):
-    def test(self):
+    def test_case_fun(self):
         out = parsing.split_on_commas(a)
         self.assertEqual(out, b)
-    return test
+    return test_case_fun
 
 
 if __name__ == "__main__":
