@@ -198,7 +198,7 @@ class BLEUEvaluator(object):
 
     @staticmethod
     def _deduplicate_sentences(sentences):
-        # type: List[List[str]] -> List[List[str]]
+        # type: (List[List[str]]) -> List[List[str]]
         deduplicated_sentences = []
 
         for sentence in sentences:
