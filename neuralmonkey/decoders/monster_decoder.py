@@ -1,4 +1,5 @@
-#tests: mypy
+#tests: mypy, lint
+#pylint: skip-file
 
 import math
 import tensorflow as tf
