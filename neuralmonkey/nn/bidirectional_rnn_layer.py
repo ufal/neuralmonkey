@@ -1,7 +1,7 @@
 import tensorflow as tf
 from tensorflow.python.ops import array_ops
 
-# tests: mypy
+# tests: lint, mypy
 
 class BidirectionalRNNLayer(object):
     """Bidirectional RNN Layer class - forward and backward RNN layers in one.
@@ -27,12 +27,12 @@ class BidirectionalRNNLayer(object):
         with tf.variable_scope('backward'):
             outputs_rev_rev, self._last_state_rev = tf.nn.rnn(
                 cell=backward_cell,
-                inputs=self._reverse_seq(inputs, sentence_lengths_placeholder),
+                inputs=_reverse_seq(inputs, sentence_lengths_placeholder),
                 dtype=tf.float32,
                 sequence_length=sentence_lengths_placeholder)
 
-            self._outputs_rev = self._reverse_seq(outputs_rev_rev,
-                                                  sentence_lengths_placeholder)
+            self._outputs_rev = _reverse_seq(outputs_rev_rev,
+                                             sentence_lengths_placeholder)
 
 
     @property
@@ -47,30 +47,29 @@ class BidirectionalRNNLayer(object):
         return tf.concat(1, [self._last_state, self._last_state_rev])
 
 
-    def _reverse_seq(self, input_seq, lengths):
-        """Reverse a list of Tensors up to specified lengths.
+def _reverse_seq(input_seq, lengths):
+    """Reverse a list of Tensors up to specified lengths.
 
-        Args:
-            input_seq: Sequence of seq_len tensors of dimension
-                       (batch_size, depth)
+    Arguments:
+        input_seq: Sequence of seq_len tensors of dimension
+                   (batch_size, depth)
+        lengths:   A tensor of dimension batch_size, containing lengths for
+                   each sequence in the batch. If "None" is specified,
+                   simply reverses the list.
+    Returns:
+        time-reversed sequence
+    """
+    if lengths is None:
+        return list(reversed(input_seq))
 
-            lengths:   A tensor of dimension batch_size, containing lengths for
-                       each sequence in the batch. If "None" is specified,
-                       simply reverses the list.
-        Returns:
-            time-reversed sequence
-        """
-        if lengths is None:
-            return list(reversed(input_seq))
+    for input_ in input_seq:
+        input_.set_shape(input_.get_shape().with_rank(2))
 
-        for input_ in input_seq:
-            input_.set_shape(input_.get_shape().with_rank(2))
+    # Join into (time, batch_size, depth)
+    s_joined = array_ops.pack(input_seq)
 
-        # Join into (time, batch_size, depth)
-        s_joined = array_ops.pack(input_seq)
-
-        # Reverse along dimension 0
-        s_reversed = array_ops.reverse_sequence(s_joined, lengths, 0, 1)
-        # Split again into list
-        result = array_ops.unpack(s_reversed)
-        return result
+    # Reverse along dimension 0
+    s_reversed = array_ops.reverse_sequence(s_joined, lengths, 0, 1)
+    # Split again into list
+    result = array_ops.unpack(s_reversed)
+    return result
