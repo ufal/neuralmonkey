@@ -221,6 +221,6 @@ def parse_file(config_file):
 
         else:
             raise IniError(lineno + 1,
-                                 "Unknown string: '{}'".format(line))
+                           "Unknown string: '{}'".format(line))
 
     return parsed_dicts
