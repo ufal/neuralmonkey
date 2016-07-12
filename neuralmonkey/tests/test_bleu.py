@@ -3,6 +3,8 @@
 # tests: mypy, lint
 
 import unittest
+import sys
+import shutil
 
 from neuralmonkey.evaluators.bleu_ref import BLEUReferenceImplWrapper
 
@@ -30,6 +32,14 @@ REFERENCE = [r.split() for r in CORPUS_REFERENCE]
 LOCATION = "lib/mteval/wrap-mteval.pl"
 FUNC = BLEUReferenceImplWrapper(LOCATION)
 
+def check_perl():
+    return shutil.which("perl") is not None
+
+def check_version():
+    return sys.version_info >= (3, 5)
+
+@unittest.skipUnless(check_perl(), "Perl missing. Skipping.")
+@unittest.skipUnless(check_version(), "Old Python. Skipping.")
 class TestBLEU(unittest.TestCase):
 
     def test_empty_decoded(self):
