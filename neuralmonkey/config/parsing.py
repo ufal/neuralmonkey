@@ -4,7 +4,7 @@ import re
 import importlib
 import time
 
-from neuralmonkey.config.exceptions import IniSyntaxError
+from neuralmonkey.config.exceptions import IniError
 
 SECTION_HEADER = re.compile(r"^\[([a-zA-Z][a-zA-Z0-9_]*)\]$")
 KEY_VALUE_PAIR = re.compile(r"^([a-zA-Z][a-zA-Z0-9_]*) *= *(.+)$")
@@ -190,8 +190,8 @@ def parse_file(config_file):
             current_name = OBJECT_NAME.match(line).group(1)
 
             if current_name in parsed_dicts:
-                raise IniSyntaxError(
-                    lineno, "Duplicit section: '{}'".format(current_name))
+                raise IniError(
+                    lineno + 1, "Duplicit section: '{}'".format(current_name))
 
             parsed_dicts[current_name] = dict()
 
@@ -207,19 +207,20 @@ def parse_file(config_file):
 
 
             if key in selected_dict:
-                raise IniSyntaxError(
-                    lineno, "Duplicit key in '{}' section.".format(key))
+                raise IniError(
+                    lineno + 1, "Duplicit key in '{}' section.".format(key))
 
             try:
                 value = parse_value(value_string)
-            except IniSyntaxError as exc:
+            except IniError as exc:
                 raise
             except Exception as exc:
-                raise IniSyntaxError(lineno, "Error", exc) from None
+                raise IniError(lineno + 1, "Error", exc) from None
 
             selected_dict[key] = value
 
         else:
-            raise IniSyntaxError(lineno, "Unknown string: '{}'".format(line))
+            raise IniError(lineno + 1,
+                                 "Unknown string: '{}'".format(line))
 
     return parsed_dicts

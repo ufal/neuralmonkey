@@ -5,7 +5,7 @@ Module that contains exceptions handled in config parsing and loading
 
 import traceback
 
-class IniSyntaxError(Exception):
+class IniError(Exception):
     """ Exception caused by error in INI file syntax """
 
     def __init__(self, line, message, original_exc=None):
