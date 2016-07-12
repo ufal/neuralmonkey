@@ -1,3 +1,5 @@
+#tests: lint
+
 import tempfile
 import subprocess
 

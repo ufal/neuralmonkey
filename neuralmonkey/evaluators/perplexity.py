@@ -1,13 +1,15 @@
+#tests: lint
+
 import numpy as np
 
+#pylint: disable=too-few-public-methods
 class Perplexity(object):
-    #pylint disable=(too-few-public-methods)
 
-    def __init__(name="Perplexity"):
+    def __init__(self, name="Perplexity"):
         self.name = name
 
 
-    def __call__(perplexities, _):
+    def __call__(self, perplexities, _):
         """
         Gets the average perplexity of a sentence. The list of perplexities is
         provided instead of the list of decoded sentences, the reference sentences
