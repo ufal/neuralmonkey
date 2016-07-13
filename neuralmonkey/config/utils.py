@@ -41,7 +41,7 @@ def dataset_from_files(**kwargs):
                   for s in series_paths}
         name = kwargs.get('name', _get_name_from_paths(series_paths))
 
-    series_outputs = {SERIES_OUTPUT.match(key)[1]: value
+    series_outputs = {SERIES_OUTPUT.match(key).group(1): value
                       for key, value in kwargs.items()
                       if SERIES_OUTPUT.match(key)}
 
