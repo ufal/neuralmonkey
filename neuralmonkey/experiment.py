@@ -1,5 +1,6 @@
 import tensorflow as tf
 
+from neuralmonkey.logging import log, log_print, debug
 from neuralmonkey.checking import check_dataset_and_coders
 
 
@@ -21,6 +22,12 @@ class Experiment(object):
         self.batch_size = kwargs.get('batch_size', 64)
         self.postprocess = kwargs.get('postprocess', lambda x: x)
 
+        self.logging_period = kwargs.get('logging_period', 20)
+        self.validation_period = kwargs.get('validation_period', 500)
+
+        self.training_step = 0
+        self.training_seen_instances = 0
+
 
 
 
@@ -30,18 +37,70 @@ class Experiment(object):
         pass
 
 
+    def run_loop(self, epochs):
+
+        for epoch in range(1, epochs + 1):
+
+            log_print("")
+            log("Epoch {} starts".format(epoch), color="red")
+
+            self.train_dataset.shuffle()
+            train_batched_datasets = self.train_dataset.batch_dataset(
+                self.batch_size)
+
+            for batch_number, batch_dataset in enumerate(
+                    train_batched_datasets):
+                self.training_step += 1
+
+                if (self.training_step + 1) % self.logging_period == 0:
+                    summary = self.loop_batch(batch_dataset, summary=True)
+
+                    _, _, train_evaluation = self.run_on_dataset(
+                        batch_dataset, write_out=False)
+                else:
+                    self.loop_batch(batch_dataset)
+
+                if (self.training_step + 1) % self.validation_period == 0:
+                    self.validate()
 
 
 
 
-    def loop_batch(self, batch_dataset):
+    def validate(self):
+
+        """
+        run model on validation data, get score
+        save if high score
+        hooray if best score - symlink and stuff
+        log
+        """
+
+        pass
+
+
+
+    def loop_batch(self, batch_dataset, summary=False):
+
+
+        feed_dict = self.decoder.feed_dicts(batch_dataset train=True)
+        target_sentences = batch_dataset.get_series(self.decoder.data_id)
+
+        self.training_seen_instances += len(target_sentences)
+
+        return self.trainer.run(self.session, feed_dict, summary)
+
+
+
+
+
+
 
 
 
 class Model(object):
 
 
-
+### feed dicty budou stejne provazany jako konfigurace
 
 
 
