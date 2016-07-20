@@ -96,9 +96,9 @@ class BLEUEvaluator(object):
             corpus_generated_length += sum(hypothesis_counts.values())
 
         if corpus_generated_length == 0:
-            return 0
+            return 1
 
-        return corpus_true_positives / corpus_generated_length
+        return corpus_true_positives / corpus_generated_length, corpus_generated_length
 
 
     @staticmethod
@@ -151,10 +151,10 @@ class BLEUEvaluator(object):
             shortest_length = np.inf
 
             for reference in references:
-                if len(reference) > shortest_length:
+                if len(reference) < shortest_length:
                     shortest_length = len(reference)
 
-            eff_ref_length = shortest_length
+            eff_ref_length += shortest_length
 
         return eff_ref_length
 
@@ -175,22 +175,29 @@ class BLEUEvaluator(object):
         log_bleu = 0
         weight = 1 / ngrams
 
+        smooth = 1.0
+
         for order in range(1, ngrams + 1):
-            prec = BLEUEvaluator.modified_ngram_precision(
+            prec, gen_len = BLEUEvaluator.modified_ngram_precision(
                 hypotheses, references, order, case_sensitive)
 
-            if prec == 0.0:
-                return 0
+            if prec == 0:
+                smooth *= 2
+                prec = 1 / (smooth * gen_len)
 
             log_bleu += weight * np.log(prec)
 
         # pylint: disable=invalid-name
         # the symbols 'r', 'c', and 'bp' are taken from the formula in
         # Papineni et al., it makes sense to follow the notation
-        r = BLEUEvaluator.minimum_reference_length(hypotheses, references)
+        r = BLEUEvaluator.effective_reference_length(hypotheses, references)
         c = sum([len(hyp) for hyp in hypotheses])
 
+        print("r {}, c {}".format(r,c))
+
         bp = min(1 - r/c, 0)
+
+        print("bp {}".format(bp))
         log_bleu += bp
 
         return np.exp(log_bleu)
