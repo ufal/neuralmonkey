@@ -1,14 +1,13 @@
-#tests: lint
+# tests: mypy, lint
 
-import re
+import configparser
 import importlib
+import re
 import time
 
 from neuralmonkey.config.exceptions import IniError
 
-SECTION_HEADER = re.compile(r"^\[([a-zA-Z][a-zA-Z0-9_]*)\]$")
-KEY_VALUE_PAIR = re.compile(r"^([a-zA-Z][a-zA-Z0-9_]*) *= *(.+)$")
-OBJECT_NAME = re.compile(r"^\[([a-zA-Z][a-zA-Z0-9_]*)\]$")
+LINE_NUM = re.compile(r"^(.*) ([0-9]+)$")
 
 OBJECT_REF = re.compile(r"^<([a-zA-Z][a-zA-Z0-9_]*)>$")
 INTEGER = re.compile(r"^[0-9]+$")
@@ -143,33 +142,26 @@ def parse_value(string):
 
     return string
 
+def parse_config(config_file, filename=""):
+    """ Parses an INI file into a dictionary """
 
-def preprocess_line(line, time_stamp):
-    """ Remove comments and trim whitespaces from a line
-    of the configuration file. Also performs expansion of variables.
+    # TODO read the file here, not three layers above
 
-    Arguments:
-        line: Line from a config file to be processed.
+    line_numbers = (line.strip() + " " + str(i + 1)
+                    if line.strip() != "" else ""
+                    for i, line in
+                    enumerate(config_file)
+                   )
+    config = configparser.ConfigParser()
+    config.read_file(line_numbers, source=filename)
+    new_config = {}
+    for section in config.sections():
+        new_config[section] = {}
+        for key in config[section]:
+            match = LINE_NUM.match(config[section][key])
+            new_config[section][key] = match.group(2), match.group(1)
 
-    Supported variables:
-        $TIME - replace this variable with a current time
-    """
-
-    line = line.strip()
-
-    if line.startswith(';'):
-        return None
-
-    line = re.sub(r"#.*", "", line)
-    if line == "":
-        return None
-
-    # expansion
-    # TODO do this using **kwargs with dict from names to values
-    line = re.sub(r"\$TIME", time_stamp, line)
-
-    return line
-
+    return new_config
 
 def parse_file(config_file):
     """ Parses an INI file into a dictionary """
@@ -177,50 +169,22 @@ def parse_file(config_file):
     parsed_dicts = dict()
     time_stamp = time.strftime("%Y-%m-%d-%H-%M-%S")
 
-    current_name = None
-    global_dict = dict()
+    config = parse_config(config_file)
 
-    for lineno, line_raw in enumerate(config_file):
-        line = preprocess_line(line_raw, time_stamp)
-        if not line:
-            continue
-
-        ## Two kinds of lines: Section headers and key-value pairs
-        if SECTION_HEADER.match(line):
-            current_name = OBJECT_NAME.match(line).group(1)
-
-            if current_name in parsed_dicts:
-                raise IniError(
-                    lineno + 1, "Duplicit section: '{}'".format(current_name))
-
-            parsed_dicts[current_name] = dict()
-
-        elif KEY_VALUE_PAIR.match(line):
-            matched = KEY_VALUE_PAIR.match(line)
-            key = matched.group(1)
-            value_string = matched.group(2)
-
-            selected_dict = global_dict
-
-            if current_name is not None:
-                selected_dict = parsed_dicts[current_name]
-
-
-            if key in selected_dict:
-                raise IniError(
-                    lineno + 1, "Duplicit key in '{}' section.".format(key))
+    for section in config:
+        parsed_dicts[section] = dict()
+        for key, (lineno, value_string) in config[section].items():
+            # expansion
+            # TODO do this using **kwargs with dict from names to values
+            value_string = re.sub(r"\$TIME", time_stamp, value_string)
 
             try:
                 value = parse_value(value_string)
             except IniError as exc:
                 raise
             except Exception as exc:
-                raise IniError(lineno + 1, "Error", exc) from None
+                raise IniError(lineno, "Error", exc) from None
 
-            selected_dict[key] = value
-
-        else:
-            raise IniError(lineno + 1,
-                           "Unknown string: '{}'".format(line))
+            parsed_dicts[section][key] = value
 
     return parsed_dicts
