@@ -1,10 +1,28 @@
+import abc
+import os
+
 import tensorflow as tf
 
 from neuralmonkey.logging import log, log_print, debug
 from neuralmonkey.checking import check_dataset_and_coders
 
+from learning_utils import initialize_tf
 
-class Model(object):
+
+class EntryPoint(metaclass=abc.ABCMeta):
+
+    @abc.abstractmethod
+    def execute(self, *args):
+        """ Execute the entry point
+
+        Arguments:
+            args: additional arguments from command line
+        """
+        return
+
+
+
+class Model(EntryPoint):
 
     ## nezavislej na datech, ale potrebuje slovnik
     ## architektura, znovupouzitelny jak pro trenink tak pro run
@@ -66,7 +84,9 @@ class Model(object):
 
 
 
-
+    def execute(self, *args):
+        print("not implemented yet")
+        exit(1)
 
 
 class Experiment(object):
@@ -85,9 +105,34 @@ class Experiment(object):
         self.batch_size = kwargs.get('batch_size', 64)
         self.logging_period = kwargs.get('logging_period', 20)
         self.validation_period = kwargs.get('validation_period', 500)
+        self.initial_variables = kwargs.get('initial_variables', None)
+        self.save_n_best_vars = kwargs.get('save_n_best_vars', 1)
 
         self.training_step = 0
         self.training_seen_instances = 0
+
+
+        ### set up variable files
+
+        vars_prefix = "variables.data"
+
+
+
+
+
+
+
+    def execute(self, *args):
+
+        session, saver = initialize_tf(self.initial_variables,
+                                       self.save_n_best_vars))
+
+
+
+
+
+
+
 
 
 
@@ -98,13 +143,21 @@ class Experiment(object):
 
 
 
-    def run(self):
+    def run(self, sess):
         """Run the experiment"""
+
+        if self.save_n_best_vars < 1:
+            raise Exception('save_n_best_vars must be greater than zero')
+
+
+
+
 
         pass
 
 
     def run_loop(self, epochs):
+
         for epoch in range(1, epochs + 1):
             log_print("")
             log("Epoch {} starts".format(epoch), color="red")
@@ -186,10 +239,6 @@ class Experiment(object):
 
 
 
-
-
-
-class Model(object):
 
 
 ### feed dicty budou stejne provazany jako konfigurace

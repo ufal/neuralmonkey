@@ -55,32 +55,29 @@ def get_eval_string(evaluators, evaluation_res):
     return eval_string
 
 
-def initialize_tf(initial_variables, threads):
-    """
-    Initializes the TensorFlow session after the graph is built.
+def initialize_tf(initial_variables, save_n_best_vars, threads=4):
+    """ Initializes the TensorFlow session after the graph is built.
 
-    Args:
-
+    Arguments:
         initial_variables: File with the saved TF variables.
 
     Returns:
-
         A tuple of the TF session and the the TF saver object.
-
     """
     log("Initializing the TensorFlow session.")
     sess = tf.Session(config=tf.ConfigProto(inter_op_parallelism_threads=threads,
                                             intra_op_parallelism_threads=threads))
     sess.run(tf.initialize_all_variables())
 
-    saver = tf.train.Saver()
+#    saver = tf.train.Saver(max_to_keep=save_n_best_vars)
     if initial_variables:
         log("Loading variables from {}".format(initial_variables))
         saver.restore(sess, initial_variables)
 
     log("Session initialization done.")
-
     return sess, saver
+
+
 
 def training_loop(sess, saver,
                   epochs, trainer, all_coders, decoder, batch_size,
@@ -141,22 +138,22 @@ def training_loop(sess, saver,
         postprocess = lambda x: x
 
     evaluation_labels = [f.name for f in evaluators]
-    step = 0
-    seen_instances = 0
+#    step = 0
+#    seen_instances = 0
 
-    saver = tf.train.Saver()
+#    saver = tf.train.Saver()
 
-    if initial_variables:
-        saver.restore(sess, initial_variables)
+    # if initial_variables:
+    #     saver.restore(sess, initial_variables)
 
-    if save_n_best_vars < 1:
-        raise Exception('save_n_best_vars must be greater than zero')
+    # if save_n_best_vars < 1:
+    #     raise Exception('save_n_best_vars must be greater than zero')
 
-    if save_n_best_vars == 1:
-        variables_files = [vars_prefix]
-    elif save_n_best_vars > 1:
-        variables_files = ['{}.{}'.format(vars_prefix, i)
-                           for i in range(save_n_best_vars)]
+    #if save_n_best_vars == 1:
+    #    variables_files = [vars_prefix]
+    #elif save_n_best_vars > 1:
+    #    variables_files = ['{}.{}'.format(vars_prefix, i)
+    #                       for i in range(save_n_best_vars)]
 
     if minimize_metric:
         saved_scores = [np.inf for _ in range(save_n_best_vars)]
@@ -167,10 +164,10 @@ def training_loop(sess, saver,
 
     saver.save(sess, variables_files[0])
 
-    if os.path.islink(link_best_vars):
-        # if overwriting output dir
-        os.unlink(link_best_vars)
-    os.symlink(os.path.basename(variables_files[0]), link_best_vars)
+    # if os.path.islink(link_best_vars):
+    #     # if overwriting output dir
+    #     os.unlink(link_best_vars)
+    # os.symlink(os.path.basename(variables_files[0]), link_best_vars)
 
     if log_directory:
         log("Initializing TensorBoard summary writer.")
