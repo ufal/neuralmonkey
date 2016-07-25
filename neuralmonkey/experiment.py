@@ -4,15 +4,78 @@ from neuralmonkey.logging import log, log_print, debug
 from neuralmonkey.checking import check_dataset_and_coders
 
 
-class Experiment(object):
+class Model(object):
 
+    ## nezavislej na datech, ale potrebuje slovnik
+    ## architektura, znovupouzitelny jak pro trenink tak pro run
 
-    def __init__(self, decoder, encoders, runner, trainer, train_dataset,
-                 val_dataset, evaluation, **kwargs):
+    ## kdyz uz potrebuje slovnik, mohl by si i sam delat prelouskavani z vet
+    ## do vektoru (+ preprocessing)
+
+    def __init__(self, decoder, encoders, runner, postprocess=lambda x: x):
 
         self.decoder = decoder
         self.encoders = encoders # TODO resolve issue #27
         self.runner = runner
+        self.postprocess = postprocess
+
+
+    def feed_dicts(self, dataset, train=True):
+        """ This method gather feed dictionaries from all encoder and decoder
+        objects.
+
+        Arguments:
+            dataset: Dataset for creating the feed dicts
+            train: Boolean flag, True during training
+        """
+        fd = {}
+        for encoder in self.encoders:
+            fd.update(encoder.feed_dict(dataset, train=train))
+
+        fd.update(self.decoder.feed_dict(dataset, train=train))
+
+        return fd
+
+
+    def run_on_dataset(self, sess, dataset, save_output=False):
+
+        result_raw, opt_loss, dec_loss = self.runner(
+            sess, dataset, self.encoders + [self.decoder])
+        result = self.postprocess(result_raw)
+
+        if save_output:
+            if self.decoder.data_id in dataset.series_outputs:
+                path = dataset.series_outputs[self.decoder.data_id]
+
+                if isinstance(result, np.ndarray):
+                    np.save(path, result)
+                    log("Result saved as numpy array to '{}'".format(path))
+                else:
+                    with codecs.open(path, 'w', 'utf-8') as f_out:
+                        f_out.writelines([" ".join(sent)+"\n"
+                                          for sent in result])
+                    log("Result saved as plain text in '{}'".format(path))
+            else:
+                log("There is no output file for dataset: {}"
+                    .format(dataset.name), color='red')
+
+        ## evaluation will be done elsewhere
+
+        return result, result_raw
+
+
+
+
+
+
+
+class Experiment(object):
+
+
+    def __init__(self, model, trainer, train_dataset, val_dataset,
+                 evaluation, **kwargs):
+
+        self.model = model
         self.trainer = trainer
         self.train_dataset = train_dataset
         self.val_dataset = val_dataset
@@ -20,14 +83,18 @@ class Experiment(object):
 
         self.epochs = kwargs.get('epochs', 10)
         self.batch_size = kwargs.get('batch_size', 64)
-        self.postprocess = kwargs.get('postprocess', lambda x: x)
-
         self.logging_period = kwargs.get('logging_period', 20)
         self.validation_period = kwargs.get('validation_period', 500)
 
         self.training_step = 0
         self.training_seen_instances = 0
 
+
+
+    def log_evaluation(self, train=False):
+        """ Logs the evaluation results and writes summaries to TensorBoard """
+
+        pass
 
 
 
@@ -38,31 +105,61 @@ class Experiment(object):
 
 
     def run_loop(self, epochs):
-
         for epoch in range(1, epochs + 1):
-
             log_print("")
             log("Epoch {} starts".format(epoch), color="red")
 
-            self.train_dataset.shuffle()
-            train_batched_datasets = self.train_dataset.batch_dataset(
-                self.batch_size)
+            self.run_epoch()
 
-            for batch_number, batch_dataset in enumerate(
-                    train_batched_datasets):
-                self.training_step += 1
 
-                if (self.training_step + 1) % self.logging_period == 0:
-                    summary = self.loop_batch(batch_dataset, summary=True)
 
-                    _, _, train_evaluation = self.run_on_dataset(
-                        batch_dataset, write_out=False)
-                else:
-                    self.loop_batch(batch_dataset)
+    def run_epoch(self):
+        """ Runs one epoch of the experiment
 
-                if (self.training_step + 1) % self.validation_period == 0:
-                    self.validate()
+        First, this method shuffles the training dataset and splis it into
+        mini batches. Then, on each batch, it evaluates the computation graph
+        and possibly log the score on the batch or run the evaluation.
+        """
+        self.train_dataset.shuffle()
+        train_batched_datasets = self.train_dataset.batch_dataset(
+            self.batch_size)
 
+        for batch_number, batch_dataset in enumerate(train_batched_datasets):
+            self.training_step += 1
+
+            if (self.training_step + 1) % self.logging_period == 0:
+                summary = self.run_batch(batch_dataset, summary=True)
+
+                _, _, train_evaluation = self.run_on_dataset(batch_dataset,
+                                                             write_out=False)
+
+                ## process evaluation
+
+            else:
+                self.run_batch(batch_dataset)
+
+            if (self.training_step + 1) % self.validation_period == 0:
+                self.validate()
+
+
+
+
+    def run_batch(self, batch_dataset, summary=False):
+        """ Runs one batch of training throught the computation graph
+
+        This method creates feed dictionaries, gets target sentences for
+        loss computation and run the trainer.
+
+        Arguments:
+            batch_dataset: the dataset
+            summary: whether or not to create summaries (for tensorboard)
+        """
+        feed_dict = self.model.feed_dicts(batch_dataset, train=True)
+        target_sentences = batch_dataset.get_series(self.model.decoder.data_id)
+
+        self.training_seen_instances += len(target_sentences)
+
+        return self.trainer.run(self.session, feed_dict, summary)
 
 
 
@@ -75,19 +172,14 @@ class Experiment(object):
         log
         """
 
+
+
+
+
+
         pass
 
 
-
-    def loop_batch(self, batch_dataset, summary=False):
-
-
-        feed_dict = self.decoder.feed_dicts(batch_dataset train=True)
-        target_sentences = batch_dataset.get_series(self.decoder.data_id)
-
-        self.training_seen_instances += len(target_sentences)
-
-        return self.trainer.run(self.session, feed_dict, summary)
 
 
 

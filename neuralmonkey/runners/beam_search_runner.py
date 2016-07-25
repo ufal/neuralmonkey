@@ -1,12 +1,12 @@
 import numpy as np
 import tensorflow as tf
 
-from neuralmonkey.learning_utils import feed_dicts
 from neuralmonkey.logging import log
 
 class BeamSearchRunner(object):
-    def __init__(self, decoder, beam_size, postprocess=None):
-        self.decoder = decoder
+    def __init__(self, model, beam_size, postprocess=None):
+        self.model = model
+        self.decoder = model.decoder
         self.beam_size = beam_size
         self.postprocess = postprocess
         self.vocabulary = decoder.vocabulary
@@ -56,7 +56,7 @@ class BeamSearchRunner(object):
 
     def __call__(self, sess, dataset, coders):
         singletons = dataset.batch_dataset(1)
-        singleton_dicts = [feed_dicts(sing, coders, train=False) for sing in singletons]
+        singleton_dicts = [self.model.feed_dicts(sing, train=False) for sing in singletons]
 
         # call beamsearch for each sentence
         decoded_sentences = []

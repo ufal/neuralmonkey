@@ -1,14 +1,12 @@
 import tensorflow as tf
 
-from neuralmonkey.learning_utils import feed_dicts
-
 # tests: mypy
 
 class GreedyRunner(object):
-    def __init__(self, decoder, batch_size):
-        self.decoder = decoder
+    def __init__(self, model, batch_size):
+        self.model = model
         self.batch_size = batch_size
-        self.vocabulary = decoder.vocabulary
+        self.vocabulary = model.decoder.vocabulary
 
     def __call__(self, sess, dataset, coders):
         batched_dataset = dataset.batch_dataset(self.batch_size)
@@ -26,7 +24,7 @@ class GreedyRunner(object):
         loss_with_decoded_ins = 0.0
         batch_count = 0
         for batch in batched_dataset:
-            batch_feed_dict = feed_dicts(batch, coders, train=False)
+            batch_feed_dict = self.model.feed_dicts(batch, train=False)
             batch_count += 1
             if dataset.has_series(self.decoder.data_id):
                 losses = [self.decoder.train_loss,

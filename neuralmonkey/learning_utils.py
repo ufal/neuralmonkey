@@ -37,18 +37,6 @@ def load_tokenized(text_file, preprocess=None):
     return [preprocess(re.split(r"[ ]", l.rstrip())) for l in text_file]
 
 
-def feed_dicts(dataset, coders, train=False):
-    """
-    This function ensures all encoder and decoder objects feed their the data
-    they need from the dataset.
-    """
-    res = {}
-
-    for coder in coders:
-        res.update(coder.feed_dict(dataset, train=train))
-
-    return res
-
 
 def get_eval_string(evaluators, evaluation_res):
     """ Formats the external evaluation metric for the console output. """
