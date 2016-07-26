@@ -111,10 +111,12 @@ class Experiment(object):
         self.training_step = 0
         self.training_seen_instances = 0
 
-
         ### set up variable files
+        variables_file = "/tmp/variables.data"
+        variables_link = "/tmp/variables.data.best"
 
-        vars_prefix = "variables.data"
+        self.saver = Saving(variables_file, variables_link,
+                            self.save_n_best_vars)
 
 
 
@@ -316,3 +318,33 @@ jsou soucast modelu.
 
 
 """
+
+
+
+def OutputDirectory(object):
+
+
+
+    def __init__(path, overwrite=False):
+        ## TODO nicer exceptions
+        if os.path.isdir(path) and os.path.exists(
+                os.path.join(path, "experiment.ini")):
+            if overwrite:
+                log("Experiment directory '{}' exists, "
+                    "overwriting enabled, proceeding."
+                    .format(path))
+            else:
+                log("Experiment directory '{}' exists, "
+                    "overwriting disabled."
+                    .format(path), color='red')
+                raise Exception("Cannot create output dir")
+
+        if not os.path.isdir(path):
+            try:
+                os.mkdir(path)
+            except Exception as exc:
+                log("Failed to create experiment directory: {}. Exception: {}"
+                    .format(path, exc), color='red')
+                raise Exception("Cannot create output dir")
+
+        self.path = path
