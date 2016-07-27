@@ -195,11 +195,7 @@ class BLEUEvaluator(object):
         r = BLEUEvaluator.effective_reference_length(hypotheses, references)
         c = sum([len(hyp) for hyp in hypotheses])
 
-        print("r {}, c {}".format(r,c))
-
         bp = min(1 - r/c, 0)
-
-        print("bp {}".format(bp))
         log_bleu += bp
 
         return np.exp(log_bleu)
