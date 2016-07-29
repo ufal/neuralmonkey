@@ -98,7 +98,7 @@ class BLEUEvaluator(object):
             corpus_generated_length += sum(hypothesis_counts.values())
 
         if corpus_generated_length == 0:
-            return 1
+            return 1, 0
 
         return corpus_true_positives / corpus_generated_length, corpus_generated_length
 
