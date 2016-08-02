@@ -22,6 +22,7 @@ class EntryPoint(metaclass=abc.ABCMeta):
 
 
 
+
 class Model(EntryPoint):
 
     ## nezavislej na datech, ale potrebuje slovnik
@@ -85,8 +86,26 @@ class Model(EntryPoint):
 
 
     def execute(self, *args):
+
+        if len(args) != 1:
+            print("Command requires one additional argument"
+                  " (run configuration)")
+            exit(1)
+
+        ## parse dataset configuration
+        test_datasets = Configuration()
+        test_datasets.add_argument('test_datasets')
+        test_datasets.add_argument('variables')
+
+        datasets_args = test_datasets.load_file(args[0])
+        print("")
+
+
+
         print("not implemented yet")
         exit(1)
+
+
 
 
 class Experiment(object):
