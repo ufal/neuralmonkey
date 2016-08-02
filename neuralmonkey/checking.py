@@ -5,8 +5,12 @@ constructing the computational graph.
 
 # tests: lint
 
-def check_dataset_and_coders(dataset, coders):
+def check_dataset_and_model(dataset, model, test=False)
     #pylint: disable=protected-access
+    coders = model.encoders
+    if not test:
+        coders.append(model.decoder)
+
     missing = \
         [(cod.data_id, cod) for cod in coders if not dataset.has_series(cod.data_id)]
     if missing:

@@ -25,7 +25,9 @@ class IniError(Exception):
     def __str__(self):
         """ Converts this exception to string """
 
-        msg = "Error on line {}: {}".format(self.line, self.message)
+        msg = "Error on line {}\nMessage:{}\nCause:{}".format(
+            self.line, self.message, str(self.original_exc))
+
         if self.original_exc is not None:
             trc = "".join(traceback.format_list(traceback.extract_tb(
                 self.original_exc.__traceback__)))

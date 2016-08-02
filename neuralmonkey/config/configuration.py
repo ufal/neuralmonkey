@@ -38,10 +38,10 @@ class Configuration(object):
         log("Loading INI file: '{}'".format(path), color='blue')
 
         try:
-            config_f = codecs.open(path, 'r', 'utf-8')
+            #config_f = codecs.open(path, 'r', 'utf-8')
             arguments = Namespace()
 
-            config_dict = load_config_file(config_f, self.ignored)
+            config_dict = load_config_file(path, self.ignored)
 
             self._check_loaded_conf(config_dict)
 
@@ -67,8 +67,6 @@ class Configuration(object):
             log("Failed to load INI file: {}".format(exc), color='red')
             traceback.print_exc()
             exit(1)
-        finally:
-            config_f.close()
 
         return arguments
 

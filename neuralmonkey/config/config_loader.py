@@ -119,7 +119,6 @@ def load_config_file(config_file, ignore_names):
         ignore_names: A set of names that should be ignored during the loading.
     """
     config_dicts = parsing.parse_file(config_file)
-    config_file.close()
     log("INI file is parsed.")
 
     # first load the configuration into a dictionary

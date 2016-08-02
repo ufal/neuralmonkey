@@ -6,7 +6,7 @@ import tensorflow as tf
 class Saving(object):
 
 
-    def __init__(vars_prefix, link_best_vars, max_to_keep):
+    def __init__(vars_prefix, link_best_vars, max_to_keep, minimize=False):
         self.vars_prefix = vars_prefix
         self.link_best_vars = link_best_vars
         self.max_to_keep = max_to_keep
@@ -32,6 +32,7 @@ class Saving(object):
 
 
     def load_best_parameters(self, session):
-
         if os.path.islink(self.link_best_vars):
             self.saver.restore(session, self.link_best_vars)
+
+    def save_parameters(self, session, score):

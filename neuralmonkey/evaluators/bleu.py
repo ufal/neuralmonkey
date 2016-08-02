@@ -225,3 +225,9 @@ class BLEUEvaluator(object):
         # type: (float, float) -> int
         # the bigger the better
         return (score1 > score2) - (score1 < score2)
+
+
+
+def bleu4(decoded, references):
+    ev = BLEUEvaluator(n=4, name="BLEU-4")
+    return ev(decoded, references)

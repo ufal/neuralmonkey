@@ -4,8 +4,10 @@ import configparser
 import importlib
 import re
 import time
+import codecs
 
 from neuralmonkey.config.exceptions import IniError
+from neuralmonkey.logging import debug
 
 LINE_NUM = re.compile(r"^(.*) ([0-9]+)$")
 
@@ -103,8 +105,18 @@ def parse_class_name(string):
     class_parts = string.split(".")
     class_name = class_parts[-1]
 
-    # TODO should we not assume that everything is from neuralmonkey?
     module_name = ".".join(["neuralmonkey"] + class_parts[:-1])
+
+    # If the module does not exist in neuralmonkey, try to load it globally
+    try:
+        module = importlib.import_module(module_name)
+    except ImportError as exc:
+        if exc.name == module_name:
+            module_name = ".".join(class_parts[:-1])
+            debug("Cannot load neuralmonkey.{}, trying to load {}."
+                  .format(exc_name, module_name), label="configParsing")
+        else:
+            raise
 
     try:
         module = importlib.import_module(module_name)
@@ -142,16 +154,17 @@ def parse_value(string):
 
     return string
 
-def parse_config(config_file, filename=""):
+
+def parse_config(filename):
     """ Parses an INI file into a dictionary """
 
-    # TODO read the file here, not three layers above
-
+    config_file = codecs.open(filename, 'r', 'utf-8')
     line_numbers = (line.strip() + " " + str(i + 1)
                     if line.strip() != "" else ""
                     for i, line in
                     enumerate(config_file)
                    )
+
     config = configparser.ConfigParser()
     config.read_file(line_numbers, source=filename)
     new_config = {}
@@ -161,7 +174,9 @@ def parse_config(config_file, filename=""):
             match = LINE_NUM.match(config[section][key])
             new_config[section][key] = match.group(2), match.group(1)
 
+    config_file.close()
     return new_config
+
 
 def parse_file(config_file):
     """ Parses an INI file into a dictionary """

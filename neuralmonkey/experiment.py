@@ -1,24 +1,58 @@
-import abc
 import os
+from shutil import copyfile
 
 import tensorflow as tf
 
-from neuralmonkey.logging import log, log_print, debug
-from neuralmonkey.checking import check_dataset_and_coders
+from neuralmonkey.logging import Logging, log, log_print, debug
+from neuralmonkey.checking import check_dataset_and_model
+from neuralmonkey.config.configuration import Configuration
+from neuralmonkey.saving import Saving
 
-from learning_utils import initialize_tf
+def initialize_tf(initial_variables, threads):
+    if initial_variables:
+        log("Loading variables from {}".format(initial_variables))
+        saver.restore(sess, initial_variables)
+
+    log("Session initialization done.")
+    return sess, saver
 
 
-class EntryPoint(metaclass=abc.ABCMeta):
 
-    @abc.abstractmethod
+
+class EntryPoint(object):
+
+
+    def __init__(self, tfconfig):
+        self.tfconfig = tfconfig
+
+
     def execute(self, *args):
         """ Execute the entry point
 
         Arguments:
             args: additional arguments from command line
         """
-        return
+        raise Exception("Cannot call directly - abstract method")
+
+
+    def create_session(self, random_init=True):
+        log("Initializing the TensorFlow session.")
+        session = tf.Session(config=self.tfconfig)
+
+        if random_init:
+            session.run(tf.initialize_all_variables())
+            log("Random variable initialization done.")
+
+
+    def create_session_from_variables(self, variables_file):
+        session = self.create_session()
+
+        log("Loading variables from file {}.".format(variables_file))
+        saver = tf.train.Saver()
+        saver.restore(variables_file)
+        log("Variables restored.")
+
+        return session
 
 
 
@@ -31,7 +65,9 @@ class Model(EntryPoint):
     ## kdyz uz potrebuje slovnik, mohl by si i sam delat prelouskavani z vet
     ## do vektoru (+ preprocessing)
 
-    def __init__(self, decoder, encoders, runner, postprocess=lambda x: x):
+    def __init__(self, decoder, encoders, runner, postprocess=lambda x: x,
+                 **kwargs):
+        super().__init__(kwargs.get("tfconfig"))
 
         self.decoder = decoder
         self.encoders = encoders # TODO resolve issue #27
@@ -57,9 +93,8 @@ class Model(EntryPoint):
 
 
     def run_on_dataset(self, sess, dataset, save_output=False):
-
         result_raw, opt_loss, dec_loss = self.runner(
-            sess, dataset, self.encoders + [self.decoder])
+            sess, dataset, self.feed_dicts)
         result = self.postprocess(result_raw)
 
         if save_output:
@@ -79,58 +114,102 @@ class Model(EntryPoint):
                     .format(dataset.name), color='red')
 
         ## evaluation will be done elsewhere
-
         return result, result_raw
 
 
-
-
     def execute(self, *args):
-
         if len(args) != 1:
             print("Command requires one additional argument"
                   " (run configuration)")
             exit(1)
 
         ## parse dataset configuration
-        test_datasets = Configuration()
-        test_datasets.add_argument('test_datasets')
-        test_datasets.add_argument('variables')
+        run_config = Configuration()
+        run_config.add_argument("test_datasets")
+        run_config.add_argument("variables")
 
-        datasets_args = test_datasets.load_file(args[0])
+        run_args = run_config.load_file(args[0])
         print("")
 
+        variables_file = run_args.variables
+        datasets = run_args.test_datasets
+
+        if not os.path.exists(variables_file):
+            log("Variables file does not exist: {}".format(variables_file),
+                color="red")
+            exit(1)
+
+        log("Initializing TensorFlow session.")
+        sess = self.create_session()
+
+        log("Loading variables from {}".format(variables_file))
+        saver = tf.train.Saver()
+        saver.restore(sess, variables_file)
+        print("")
+
+        try:
+            for dataset in datasets:
+                check_dataset_and_model(dataset, self, test=True)
+        except Exception as exc:
+            log(exc.message, color="red")
+            exit(1)
+
+        for dataset in datasets:
+            _, _, evaluation = self.run_on_dataset(sess, dataset,
+                                                   save_output=True)
+            if evaluation:
+                #### TODO niy
+                raise Exception("not implemented yet")
 
 
-        print("not implemented yet")
-        exit(1)
 
 
 
 
-class Experiment(object):
 
+
+
+
+class Experiment(EntryPoint):
 
     def __init__(self, model, trainer, train_dataset, val_dataset,
-                 evaluation, **kwargs):
+                 evaluators, output, **kwargs):
+        super().__init__(kwargs.get("tfconfig"))
 
         self.model = model
         self.trainer = trainer
         self.train_dataset = train_dataset
         self.val_dataset = val_dataset
-        self.evaluation = evaluation
+        self.evaluators = evaluators
+        self.output_dir = output
 
-        self.epochs = kwargs.get('epochs', 10)
-        self.batch_size = kwargs.get('batch_size', 64)
-        self.logging_period = kwargs.get('logging_period', 20)
-        self.validation_period = kwargs.get('validation_period', 500)
-        self.initial_variables = kwargs.get('initial_variables', None)
-        self.save_n_best_vars = kwargs.get('save_n_best_vars', 1)
+        self.epochs = kwargs.get("epochs", 10)
+        self.batch_size = kwargs.get("batch_size", 64)
+        self.logging_period = kwargs.get("logging_period", 20)
+        self.validation_period = kwargs.get("validation_period", 500)
+        self.initial_variables = kwargs.get("initial_variables", None)
+        self.save_n_best_vars = kwargs.get("save_n_best", 1)
+        self.overwrite_output_dir = kwargs.get("overwrite_output_dir", False)
+        self.name = kwargs.get("name", "translation")
+        self.random_seed = kwargs.get("random_seed", None)
+        self.test_datasets = kwargs.get("test_datasets", [])
+        self.minimize = kwargs.get("minimize", False)
 
         self.training_step = 0
         self.training_seen_instances = 0
 
-        ### set up variable files
+        if minimize:
+            self.saved_scores = [np.inf for _ in range(save_n_best_vars)]
+            self.best_score = np.inf
+        else:
+            self.saved_scores = [-np.inf for _ in range(save_n_best_vars)]
+            self.best_score = -np.inf
+
+        self.best_score_epoch = 0
+        self.best_score_batch_no = 0
+
+
+        ### set up variable files ##### TODOODODODO
         variables_file = "/tmp/variables.data"
         variables_link = "/tmp/variables.data.best"
 
@@ -140,54 +219,12 @@ class Experiment(object):
 
 
 
-
-
-
-    def execute(self, *args):
-
-        session, saver = initialize_tf(self.initial_variables,
-                                       self.save_n_best_vars))
-
-
-
-
-
-
-
-
-
-
     def log_evaluation(self, train=False):
         """ Logs the evaluation results and writes summaries to TensorBoard """
-
-        pass
-
+        raise Exception("niy")
 
 
-    def run(self, sess):
-        """Run the experiment"""
-
-        if self.save_n_best_vars < 1:
-            raise Exception('save_n_best_vars must be greater than zero')
-
-
-
-
-
-        pass
-
-
-    def run_loop(self, epochs):
-
-        for epoch in range(1, epochs + 1):
-            log_print("")
-            log("Epoch {} starts".format(epoch), color="red")
-
-            self.run_epoch()
-
-
-
-    def run_epoch(self):
+    def run_epoch(self, session):
         """ Runs one epoch of the experiment
 
         First, this method shuffles the training dataset and splis it into
@@ -204,27 +241,26 @@ class Experiment(object):
             if (self.training_step + 1) % self.logging_period == 0:
                 summary = self.run_batch(batch_dataset, summary=True)
 
-                _, _, train_evaluation = self.run_on_dataset(batch_dataset,
-                                                             write_out=False)
+                _, _, train_evaluation = self.model.run_on_dataset(
+                    session, batch_dataset, write_out=False)
 
                 ## process evaluation
 
             else:
-                self.run_batch(batch_dataset)
+                self.run_batch(session, batch_dataset)
 
             if (self.training_step + 1) % self.validation_period == 0:
                 self.validate()
 
 
-
-
-    def run_batch(self, batch_dataset, summary=False):
+    def run_batch(self, session, batch_dataset, summary=False):
         """ Runs one batch of training throught the computation graph
 
         This method creates feed dictionaries, gets target sentences for
         loss computation and run the trainer.
 
         Arguments:
+            session: TF Session
             batch_dataset: the dataset
             summary: whether or not to create summaries (for tensorboard)
         """
@@ -233,25 +269,100 @@ class Experiment(object):
 
         self.training_seen_instances += len(target_sentences)
 
-        return self.trainer.run(self.session, feed_dict, summary)
+        return self.trainer.run(session, feed_dict, summary)
 
 
 
-    def validate(self):
+    def validate(self, session):
 
         """
         run model on validation data, get score
         save if high score
         hooray if best score - symlink and stuff
         log
+
+        Arguments:
+            session: TF Session
         """
 
+        decoded, decoded_raw, val_evaluation = self.model.run_on_dataset(
+            session, self.val_dataset)
+
+        score = val_evaluation[self.evaluators[-1].name]
+
+        def is_better(score1, score2, minimize):
+            if minimize:
+                return score1 < score2
+            else:
+                return score1 > score2
+
+        def argworst(scores, minimize):
+            if minimize:
+                return np.argmax(scores)
+            else:
+                return np.argmin(scores)
+
+        if is_better(score, self.best_score, self.minimize):
+            self.best_score = this_score
+            self.best_score_epoch = i + 1
+            self.best_score_batch_no = batch_n
+
+        worst_index = argworst(self.saved_scores, self.minimize)
+        worst_score = self.saved_scores[worst_index]
+
+        if is_better(score, worst_score, self.minimize):
+            worst_var_file = variables_files[worst_index]
+            saver.save(sess, worst_var_file)
+            saved_scores[worst_index] = this_score
+            log("Variable file saved in {}".format(worst_var_file))
+
+
+
+
+        raise Exception("niy")
+
+
+
+
+    def execute(self, *args):
+        if self.random_seed is not None:
+            tf.set_random_seed(self.random_seed)
+
+        try:
+            check_dataset_and_model(self.train_dataset, self.model)
+            check_dataset_and_model(self.val_dataset, self.model)
+
+            for test in self.test_datasets:
+                check_dataset_and_model(self.test, self.model, test=True)
+
+        except Exception as exc:
+            log(exc.message, color='red')
+            exit(1)
+
+        self.output = OutputDirectory(self.output_dir)
+
+        ## sess, saver = initialize_tf(self.initial_variables, self.threads)
+        session = self.create_session()
+
+        try:
+            for epoch in range(1, self.epochs + 1):
+                log_print("")
+                log("Epoch {} starts".format(epoch), color="red")
+
+                self.run_epoch()
+
+        except KeyboardInterrupt:
+            log("Training interrupted by user.")
+
+        ## restore best (if link exists)
+
+        log("Training finished. Maximum {} on validation data: {:.2f}, epoch {}"
+            .format(evaluation_labels[-1], best_score, best_score_epoch))
 
 
 
 
 
-        pass
 
 
 
@@ -260,94 +371,15 @@ class Experiment(object):
 
 
 
-
-
-### feed dicty budou stejne provazany jako konfigurace
-
-
-
-
-### konfigurace se tu řešit nebude
-
-### (NE)?bude se tu řešit vytváření složky
-
-### bude se tu řešit random seed
-
-### bude se tu řešit checking
-
-### bude tu rozhodne training_loop
-
-
-### bude se tu tvořit session a bude se tu ukldádat a loadovat tf
-
-
-### rozdělit main na experiment a model?
-
-
-
-###  veci co se resi v main a v training loop:
-"""
-stávající:
-main:
-
-- create config
-- random seed
-- create/reuse dir
-- check model
-- initialize log dir
-- set up logging
-- initialize tensorflow session and saver
-
-train loop:
-
-- restore variables
-- set up saving
-- init tensorboard
-- training loop
-
-Z KONFIGU:
-
-training má:
-
-běh programu potřebuje:
-
-output
-overwrite_output_dir
-
-
-samotný trénování potřebuje:
-
-model(decoder, [encoders]),
-batch_size
-runner
-trainer
-evaluation
-postprocess
-train_dataset
-val_dataset
-epochs
-validation_period
-logging_period
-save_n_best
-
-threads
-
-... a pak datasety. ty jsou spíš součást trainingu. ALE NE VOCABULARIES - ty uz
-jsou soucast modelu.
-
-
-"""
-
-
-
-def OutputDirectory(object):
-
-
+class OutputDirectory(object):
 
     def __init__(path, overwrite=False):
+        self.path = path
+        self.overwrite = overwrite
+
         ## TODO nicer exceptions
-        if os.path.isdir(path) and os.path.exists(
-                os.path.join(path, "experiment.ini")):
+
+        if os.path.isdir(path) and os.path.exists(self.ini_file):
             if overwrite:
                 log("Experiment directory '{}' exists, "
                     "overwriting enabled, proceeding."
@@ -355,7 +387,7 @@ def OutputDirectory(object):
             else:
                 log("Experiment directory '{}' exists, "
                     "overwriting disabled."
-                    .format(path), color='red')
+                    .format(path), color="red")
                 raise Exception("Cannot create output dir")
 
         if not os.path.isdir(path):
@@ -363,7 +395,60 @@ def OutputDirectory(object):
                 os.mkdir(path)
             except Exception as exc:
                 log("Failed to create experiment directory: {}. Exception: {}"
-                    .format(path, exc), color='red')
+                    .format(path, exc), color="red")
                 raise Exception("Cannot create output dir")
 
-        self.path = path
+        self.cont_index = 0
+
+        while (os.path.exists(self.log_file)
+               or os.path.exists(self.ini_file)
+               or os.path.exists(self.commit_file)
+               or os.path.exists(self.diff_file)
+               or os.path.exists(self.var_prefix)
+               or os.path.exists("{}.0".format(self.var_prefix))):
+            self.cont_index += 1
+
+        copyfile(sys.argv[1], ini_file)
+        Logging.set_log_file(log_file)
+        Logging.print_header(args.name)
+
+        os.system("git log -1 --format=%H > {}".format(git_commit_file))
+        os.system("git --no-pager diff --color=always > {}"
+                  .format(git_diff_file))
+
+
+
+
+
+    def get_filename(filename):
+        if self.cont_index == 0:
+            return os.path.join(self.path, filename)
+        else:
+            return os.path.join(self.path,
+                                "{}.cont-{}".format(filename, self.cont_index))
+
+
+
+    @property
+    def ini_file(self):
+        return self.get_filename("experiment.ini")
+
+    @property
+    def log_file(self):
+        return self.get_filename("experiment.log")
+
+    @property
+    def commit_file(self):
+        return self.get_filename("git_commit")
+
+    @property
+    def diff_file(self):
+        return self.get_filename("git_diff")
+
+    @property
+    def var_prefix(self):
+        return self.get_filename("variables.data")
+
+    @property
+    def link_best_vars(self):
+        return "{}.best".format(self.var_prefix)

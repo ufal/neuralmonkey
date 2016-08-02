@@ -3,12 +3,12 @@ import tensorflow as tf
 # tests: mypy
 
 class GreedyRunner(object):
-    def __init__(self, model, batch_size):
-        self.model = model
+    def __init__(self, decoder, batch_size):
+        self.decoder = decoder
         self.batch_size = batch_size
-        self.vocabulary = model.decoder.vocabulary
+        self.vocabulary = decoder.vocabulary
 
-    def __call__(self, sess, dataset, coders):
+    def __call__(self, sess, dataset, feed_dict_function):
         batched_dataset = dataset.batch_dataset(self.batch_size)
         decoded_sentences = []
 
@@ -24,7 +24,7 @@ class GreedyRunner(object):
         loss_with_decoded_ins = 0.0
         batch_count = 0
         for batch in batched_dataset:
-            batch_feed_dict = self.model.feed_dicts(batch, train=False)
+            batch_feed_dict = feed_dict_function(batch, train=False)
             batch_count += 1
             if dataset.has_series(self.decoder.data_id):
                 losses = [self.decoder.train_loss,
