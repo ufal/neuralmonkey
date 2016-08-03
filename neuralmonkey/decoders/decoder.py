@@ -309,13 +309,11 @@ class Decoder(object):
         collections:
 
         - summary_train: collects statistics from the train-time
-        - sumarry_val: collects OAstatistics while being tested on the
-                 development data
         """
         tf.scalar_summary("train_loss_with_decoded_inputs", self.runtime_loss,
                           collections=["summary_train"])
 
-        tf.scalar_summary("train_optimization_cost", self.train_loss,
+        tf.scalar_summary("train_loss_with_gt_inputs", self.train_loss,
                           collections=["summary_train"])
 
 

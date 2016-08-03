@@ -72,6 +72,7 @@ class Model(EntryPoint):
         result_raw, opt_loss, dec_loss = self.runner(sess, dataset,
                                                      self.feed_dicts)
         result = self.postprocess(result_raw)
+        debug("Raw result: {}".format(result_raw[0]), "rawResults")
 
         if save_output:
             if self.decoder.data_id in dataset.series_outputs:
@@ -89,8 +90,7 @@ class Model(EntryPoint):
                 log("There is no output file for dataset: {}"
                     .format(dataset.name), color='red')
 
-        ## evaluation will be done elsewhere
-        return result, result_raw, opt_loss, dec_loss
+        return result, opt_loss, dec_loss
 
 
 
@@ -140,7 +140,7 @@ class Model(EntryPoint):
             exit(1)
 
         for dataset in datasets:
-            result, _, _, _ = self.run_on_dataset(sess, dataset,
-                                                  save_output=True)
+            result, _, _ = self.run_on_dataset(sess, dataset,
+                                               save_output=True)
             # TODO if we have reference, show also reference
             Logging.show_sample(result, randomized=True)

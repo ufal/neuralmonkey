@@ -238,8 +238,8 @@ def training_loop(sess, saver,
                         # we need to save this score instead the worst score
                         worst_var_file = variables_files[worst_index]
                         saver.save(sess, worst_var_file)
-                        saved_scores[worst_index] = this_score
                         log("Variable file saved in {}".format(worst_var_file))
+                        saved_scores[worst_index] = this_score
 
                         # update symlink
                         if best_score == this_score:

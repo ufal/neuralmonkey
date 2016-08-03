@@ -9,6 +9,14 @@ from neuralmonkey.saving import Saving
 from neuralmonkey.entrypoints.entrypoint import EntryPoint
 
 
+class TrainingProgress(object):
+    def __init__(self, minimize, n_best):
+        self.best_score = np.inf if self.minimize else -np.inf
+        self.best_score_epoch = 0
+        self.best_score_batch = 0
+        self.saved_scores = [best_score for _ in n_best]
+
+
 class Experiment(EntryPoint):
 
     def __init__(self, model, trainer, train_dataset, val_dataset,
@@ -39,19 +47,7 @@ class Experiment(EntryPoint):
         self.logging_period = kwargs.get("logging_period", 20)
         self.validation_period = kwargs.get("validation_period", 500)
 
-        if minimize:
-            self.saved_scores = [np.inf for _ in range(save_n_best_vars)]
-            self.best_score = np.inf
-        else:
-            self.saved_scores = [-np.inf for _ in range(save_n_best_vars)]
-            self.best_score = -np.inf
-
-        self.best_score_epoch = 0
-        self.best_score_batch_no = 0
-
-        self.training_step = 0
-        self.training_seen_instances = 0
-
+        # TODO UDELAT TOHLE
         ### set up variable files ##### TODOODODODO
         variables_file = "/tmp/variables.data"
         variables_link = "/tmp/variables.data.best"
@@ -61,8 +57,17 @@ class Experiment(EntryPoint):
 
 
 
+    def check_data(self):
+        try:
+            check_dataset_and_model(self.train_dataset, self.model)
+            check_dataset_and_model(self.val_dataset, self.model)
 
+            for test in self.test_datasets:
+                check_dataset_and_model(self.test, self.model, test=True)
 
+        except CheckingException as exc:
+            log(str(exc), color='red')
+            exit(1)
 
 
     def run_batch(self, session, batch_dataset, summary=False):
@@ -79,93 +84,27 @@ class Experiment(EntryPoint):
         feed_dict = self.model.feed_dicts(batch_dataset, train=True)
         target_sentences = batch_dataset.get_series(self.model.decoder.data_id)
 
-        self.training_seen_instances += len(target_sentences)
-
         return self.trainer.run(session, feed_dict, summary)
 
 
 
+    def evaluate(self, session, dataset)
+        """ Run model on a dataset, return evaluation and decoded data
 
-
-    def validate(self, session, batch_number):
-
-        """
-        run model on validation data, get score
-        save if high score
-        hooray if best score - symlink and stuff
-        log
-
-        Arguments:
+        Argumetns:
             session: TF Session
+            dataset: Dataset to evaluate on
+
+        Returns: tuple of evaluation (dict of evaluation metrics)
+                 and the postprocessed decoded data
         """
-
-
-        score = val_evaluation[self.evaluators[-1].name]
-
-        def is_better(score1, score2, minimize):
-            if minimize:
-                return score1 < score2
-            else:
-                return score1 > score2
-
-        def argworst(scores, minimize):
-            if minimize:
-                return np.argmax(scores)
-            else:
-                return np.argmin(scores)
-
-        if is_better(score, self.best_score, self.minimize):
-            self.best_score = this_score
-            self.best_score_epoch = i + 1
-            self.best_score_batch_no = batch_n
-
-        worst_index = argworst(self.saved_scores, self.minimize)
-        worst_score = self.saved_scores[worst_index]
-
-        if is_better(score, worst_score, self.minimize):
-            worst_var_file = variables_files[worst_index]
-            saver.save(sess, worst_var_file)
-            saved_scores[worst_index] = this_score
-            log("Variable file saved in {}".format(worst_var_file))
-
-            # update symlink
-            if best_score == score:
-                os.unlink(link_best_vars)
-                os.symlink(os.path.basename(words_var_file), link_best_vars)
-
-            log("Best scores saved so far: {}".format(saved_scores))
-
-
-        log("Validation (epoch {}, batch_number {}):".
-            format(i + 1, batch_number), color="blue")
-
-        ## process_evaluation
-
-        if best_score == score:
-            best_score_str = colored("{:.2f}".format(best_score),
-                                     attrs=['bold'])
-        else:
-            best_score_str = "{:.2f}".format(best_score)
-
-        log("best {} on validation: {} (in epoch {}, after batch number {})"
-            .format(evaluation_labels[-1], best_score_str,
-                    best_score_epoch, best_score_batch_no),
-            color="blue")
-
-        Logging.show_sample(decoded, reference)
-
-
-
-
-
-    def evaluate(self, session, dataset, validation=False):
-        """ Run model on a dataset, evaluate"""
-
-        decoded, _, opt_loss, dec_loss = self.model.run_on_dataset(
+        decoded, opt_loss, dec_loss = self.model.run_on_dataset(
             session, dataset, save_output=False)
 
         evaluation = {}
-        if dataset.has_series(self.model.decoder.data_id): ## TODO is there a case when this is not true?
+        if dataset.has_series(self.model.decoder.data_id):
+            ## TODO is there a case when this is not true?
+
             test_targets = dataset.get_series(self.model.decoder.data_id)
             evaluation["opt_loss"] = opt_loss
             evaluation["dec_loss"] = dec_loss
@@ -173,8 +112,7 @@ class Experiment(EntryPoint):
             for func in self.evaluators:
                 evaluation[func.name] = func(decoded, test_targets)
 
-        return evaluation
-
+        return evaluation, decoded
 
 
     def log_evaluation(self, evaluation, validation=False)
@@ -202,9 +140,7 @@ class Experiment(EntryPoint):
 
 
 
-
-
-    def write_summaries(self, summary_str, tb_writer, validation=False):
+    def write_summaries(self, tb_writer, validation=False):
         """ Writes TensorBoard summaries
 
         Arguments:
@@ -222,8 +158,7 @@ class Experiment(EntryPoint):
                                    format_eval_name(n)), val)
                    for n, val in eval_result(items())]
 
-        tb_writer.add_summary(summary_str, seen_instances)
-
+        #tb_writer.add_summary(summary_str, seen_instances)
         if histograms_str:
             tb_writer.add_summary(histograms_str, seen_instances)
 
@@ -233,10 +168,50 @@ class Experiment(EntryPoint):
 
 
 
+    def is_better_score(self, score1, score2):
+        """ Checks whether a score is better than another one.
+
+        Arguments:
+            score1: The first score
+            score2: The second score
+
+        Returns: True if the first score is better then the second one,
+                 False otherwise.
+        """
+        if self.minimize:
+            return score1 < score2
+        else:
+            return score1 > score2
+
+
+    def argworst_score(self, scores):
+        """ Gets the index of the worst score in array
+
+        Arguments:
+            scores: An array of scores
+
+        Returns: Index to 'scores', pointing to the worst score in the array
+        """
+        if self.minimize:
+            return np.argmax(scores)
+        else:
+            return np.argmin(scores)
 
 
 
-    def run_training_loop(self, session):
+    def run_training_loop(self, session, progress):
+        """ Executes the training loop on the model.
+
+        Note: This method should not return anything since it should expect to
+        be interrupted by the user.
+
+        TODO: Refactor training progress into an object.
+
+        Arguments:
+            session: TF Session to use
+        """
+        training_step = 0
+
         for epoch in range(1, self.epochs + 1):
             log_print("")
             log("Epoch {} starts".format(epoch), color="red")
@@ -246,50 +221,61 @@ class Experiment(EntryPoint):
                 self.batch_size)
 
             for batch_number, batch_dataset in enumerate(train_batched_datasets):
-                self.training_step += 1
+                training_step += 1
 
-                if (self.training_step + 1) % self.logging_period == 0:
-                    summary = self.run_batch(batch_dataset, summary=True)
+                self.run_batch(session, batch_dataset)
 
-                    evaluation = self.evaluate(session, batch_dataset)
-
+                if (training_step + 1) % self.logging_period == 0:
+                    evaluation, _ = self.evaluate(session, batch_dataset)
                     self.log_evaluation(evaluation)
                     self.write_summaries(evaluation, tb_writer)
 
-
-
-
-                else:
-                    self.run_batch(session, batch_dataset)
-
-                if (self.training_step + 1) % self.validation_period == 0:
-                    evaluation = self.evaluate(session, val_dataset,
-                                               validation=True)
+                if (training_step + 1) % self.validation_period == 0:
+                    evaluation, decoded = self.evaluate(session, val_dataset,
+                                                        validation=True)
                     self.log_evaluation(evaluation, validation=True)
                     self.write_summaries(evaluation, tb_writer, validation=True)
 
+                    score = evaluation[self.evaluators[-1].name]
 
+                    worst_index = self.argworst_score(progress.saved_scores)
+                    worst_score = progress.saved_scores[worst_index]
 
+                    if self.is_better_score(score, worst_score):
+                        # TODO UDELAT TOHLE
+                        # TODO replace the worst model variables with this one's
+                        progress.saved_scores[worst_index] = score
 
+                        # This could also be one tab to the left
+                        if self.is_better_score(score, progress.best_score):
+                            progress.best_score = score
+                            progress.best_score_epoch = epoch
+                            progress.best_score_batch = batch_number + 1
 
+                            # update symlink
+                            # TODO update symlink
 
+                        log("Best scores saved so far: {}".
+                            format(progress.saved_scores))
 
+                    log("Validation (epoch {}, batch_number {}):"
+                        .format(epoch, batch_number + 1), color="blue")
 
-    def check_data(self):
-        try:
-            check_dataset_and_model(self.train_dataset, self.model)
-            check_dataset_and_model(self.val_dataset, self.model)
+                    if score == progress.best_score:
+                        best_score_str = colored(
+                            "{:.2f}".format(progress.best_score),
+                            attrs=['bold'])
+                    else:
+                        best_score_str = "{:.2f}".format(progress.best_score)
 
-            for test in self.test_datasets:
-                check_dataset_and_model(self.test, self.model, test=True)
+                    log("best {} on validation: {} (in epoch {}, "
+                        "after batch number {})"
+                        .format(self.evaluators[-1].name, best_score_str,
+                                progress.best_score_epoch,
+                                progress.best_score_batch),
+                        color="blue")
 
-        except CheckingException as exc:
-            log(str(exc), color='red')
-            exit(1)
-
-
-
-
+                    Logging.show_sample(decoded, val_dataset)
 
 
     def execute(self, *args):
@@ -298,15 +284,34 @@ class Experiment(EntryPoint):
 
         self.output = OutputDirectory(self.output_dir)
 
+        # TODO UDELAT TOHLE
         ## sess, saver = initialize_tf(self.initial_variables, self.threads)
         session = self.create_session()
 
+        training_progress = TrainingProgress(self.minimize,
+                                             self.save_n_best_vars)
+
         try:
-            self.run_training_loop(session)
+            self.run_training_loop(session, training_progress)
         except KeyboardInterrupt:
             log("Training interrupted by user.")
 
-        ## restore best (if link exists)
+        # TODO UDELAT TOHLE
+        if os.path.islink(link_best_vars):
+            saver.restore(sess, link_best_vars)
 
         log("Training finished. Maximum {} on validation data: {:.2f}, epoch {}"
-            .format(evaluation_labels[-1], best_score, best_score_epoch))
+            .format(self.evaluators[-1].name,
+                    training_progress.best_score,
+                    training_progress.best_score_epoch))
+
+        # TODO UDELAT TOHLE
+        for dataset in test_datasets:
+            _, _, evaluation = run_on_dataset(sess, runner, all_coders, decoder,
+                                              dataset, evaluators,
+                                              postprocess, write_out=True)
+        # TODO UDELAT TOHLE
+        if evaluation:
+            print_dataset_evaluation(dataset.name, evaluation)
+
+        log("Finished.")
