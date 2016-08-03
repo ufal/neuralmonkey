@@ -381,7 +381,7 @@ def process_evaluation(evaluators, tb_writer, eval_result,
         if histograms_str:
             tb_writer.add_summary(histograms_str, seen_instances)
         external_str = \
-            tf.Summary(value=[tf.Summary.Value(tag=prefix+"_"+format_eval_name(name),
+                       tf.Summary(value=[tf.Summary.Value(tag=prefix+"_"+format_eval_name(name),
                                                simple_value=value)\
                               for name, value in eval_result.items()])
 
