@@ -267,33 +267,6 @@ def training_loop(sess, saver,
                                 best_score_epoch, best_score_batch_no),
                         color='blue')
 
-
-                    log_print("")
-                    log_print("Examples:")
-                    for sent, sent_raw, ref_sent, ref_sent_raw in zip(
-                            decoded_val_sentences[:15],
-                            decoded_raw_val_sentences,
-                            val_tgt_sentences,
-                            val_raw_tgt_sentences):
-
-                        if isinstance(sent, list):
-                            log_print("      raw: {}"
-                                      .format(" ".join(sent_raw)))
-                            log_print("      out: {}".format(" ".join(sent)))
-                        else:
-                            # TODO does this code ever execute?
-                            log_print(sent_raw)
-                            log_print(sent)
-
-                        log_print(colored(
-                            " raw ref.: {}".format(" ".join(ref_sent_raw)),
-                            color="magenta"))
-                        log_print(colored(
-                            "     ref.: {}".format(" ".join(ref_sent)),
-                            color="magenta"))
-
-                    log_print("")
-
     except KeyboardInterrupt:
         log("Training interrupted by user.")
 

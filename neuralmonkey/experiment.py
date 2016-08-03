@@ -21,7 +21,6 @@ def initialize_tf(initial_variables, threads):
 
 class EntryPoint(object):
 
-
     def __init__(self, tfconfig):
         self.tfconfig = tfconfig
 
@@ -58,15 +57,27 @@ class EntryPoint(object):
 
 
 class Model(EntryPoint):
+    """ This class represents a sequence-to-sequence model.
+    Main functionality of this class is to process datasets through the model.
+    This class is also responsible for creating feed dictionaries for the model.
 
-    ## nezavislej na datech, ale potrebuje slovnik
-    ## architektura, znovupouzitelny jak pro trenink tak pro run
-
-    ## kdyz uz potrebuje slovnik, mohl by si i sam delat prelouskavani z vet
-    ## do vektoru (+ preprocessing)
+    The Model object can be also used as an entry point of a NeuralMonkey
+    application. In this case, an argument specifying the datasets to be
+    processed is expected.
+    """
 
     def __init__(self, decoder, encoders, runner, postprocess=lambda x: x,
                  **kwargs):
+        """ Creates a new instance of a Model.
+
+        Arguments:
+            decoder: Decoder for the model
+            encoders: Encoder objects
+            runner: A runner which will be used for computing the output
+            postprocess: A function which will be called on the raw output
+
+            tfconfig: A ConfigProto object to create the TensorFlow session.
+        """
         super().__init__(kwargs.get("tfconfig"))
 
         self.decoder = decoder
@@ -93,8 +104,19 @@ class Model(EntryPoint):
 
 
     def run_on_dataset(self, sess, dataset, save_output=False):
-        result_raw, opt_loss, dec_loss = self.runner(
-            sess, dataset, self.feed_dicts)
+        """ Runs the model on a dataset, performs postprocessing
+
+        Arguments:
+            sess: TensorFlow session to use (stores model parameters)
+            dataset: Dataset on which to run the model
+            save_output: If True, output is saved to a file (specified in the
+                         dataset ini config)
+
+        Returns:
+            Tuple of the postprocessed and raw outputs.
+        """
+        result_raw, opt_loss, dec_loss = self.runner(sess, dataset,
+                                                     self.feed_dicts)
         result = self.postprocess(result_raw)
 
         if save_output:
@@ -117,17 +139,24 @@ class Model(EntryPoint):
         return result, result_raw
 
 
+
     def execute(self, *args):
+        """ Executes this model as an entry point
+
+        Additional parameter in *args is required - path to config file for
+        dataset.
+
+        TODO solve how variables are gonna be passed to this entrypoint
+        TODO solve evaluation. In this executable, no evaluation is done
+        """
         if len(args) != 1:
             print("Command requires one additional argument"
                   " (run configuration)")
             exit(1)
 
-        ## parse dataset configuration
         run_config = Configuration()
         run_config.add_argument("test_datasets")
         run_config.add_argument("variables")
-
         run_args = run_config.load_file(args[0])
         print("")
 
@@ -155,12 +184,10 @@ class Model(EntryPoint):
             exit(1)
 
         for dataset in datasets:
-            _, _, evaluation = self.run_on_dataset(sess, dataset,
-                                                   save_output=True)
-            if evaluation:
-                #### TODO niy
-                raise Exception("not implemented yet")
-
+            result, result_raw = self.run_on_dataset(sess, dataset,
+                                                     save_output=True)
+            # TODO if we have reference, show also reference
+            Logging.show_sample(result, randomized=True)
 
 
 

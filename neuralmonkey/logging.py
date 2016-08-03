@@ -2,6 +2,7 @@
 
 import time
 import codecs
+import numpy as np
 from termcolor import colored
 
 class Logging(object):
@@ -64,6 +65,27 @@ class Logging(object):
             prefix = "DEBUG:"
 
         log_print("{}{}".format(colored(prefix, color="cyan"), message))
+
+    @staticmethod
+    def show_sample(decoded, reference=None, n=15, randomized=False):
+        log_print("")
+        log_print("Examples:")
+
+        if reference is not None:
+            assert len(decoded) == len(reference)
+
+        if randomized:
+            indices = np.random.choice(len(decoded), n, replace=False)
+        else:
+            indices = range(n)
+
+        for i in indices:
+            log_print("    out: {}".format(" ".join(decoded[i])))
+
+            if reference is not None:
+                log_print(colored("    ref: {}".format(" ".join(ref_sent)),
+                                  color="magenta"))
+        log_print("")
 
 
 # pylint: disable=invalid-name
