@@ -38,7 +38,6 @@ def main():
 
     entrypoint = build_object("object:{}".format(command), config_dicts,
                               dict(), 0)
-    print(entrypoint)
     entrypoint.execute(*sys.argv[3:])
 
 if __name__ == '__main__':
