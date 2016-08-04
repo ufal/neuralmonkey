@@ -27,6 +27,8 @@ class EntryPoint(object):
             session.run(tf.initialize_all_variables())
             log("Random variable initialization done.")
 
+        return session
+
 
     def create_session_from_variables(self, variables_file):
         session = self.create_session()

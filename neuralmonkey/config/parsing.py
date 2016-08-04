@@ -114,7 +114,7 @@ def parse_class_name(string):
         if exc.name == module_name:
             module_name = ".".join(class_parts[:-1])
             debug("Cannot load neuralmonkey.{}, trying to load {}."
-                  .format(exc_name, module_name), label="configParsing")
+                  .format(exc.name, module_name), label="configParsing")
         else:
             raise
 

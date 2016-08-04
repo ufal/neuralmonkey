@@ -2,12 +2,9 @@
 This module servers as a library of API checks used as assertions during
 constructing the computational graph.
 """
-
 # tests: lint
 
-class CheckingException(Exception):
-    pass
-
+from neuralmonkey.exceptions import CheckingException
 
 def check_dataset_and_model(dataset, model, test=False):
     #pylint: disable=protected-access

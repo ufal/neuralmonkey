@@ -3,13 +3,13 @@ import codecs
 import numpy as np
 import tensorflow as tf
 
-from neuralmonkey.logging import log, Logging
+from neuralmonkey.logging import log, Logging, debug
 from neuralmonkey.checking import check_dataset_and_model, CheckingException
 from neuralmonkey.config.configuration import Configuration
 from neuralmonkey.entrypoints.entrypoint import EntryPoint
 
 class Model(EntryPoint):
-    """ This class represents a sequence-to-sequence model.
+    """This class represents a sequence-to-sequence model.
     Main functionality of this class is to process datasets through the model.
     This class is also responsible for creating feed dictionaries for the model.
 
@@ -17,7 +17,6 @@ class Model(EntryPoint):
     application. In this case, an argument specifying the datasets to be
     processed is expected.
     """
-
     def __init__(self, decoder, encoders, runner, postprocess=lambda x: x,
                  **kwargs):
         """ Creates a new instance of a Model.
@@ -39,7 +38,7 @@ class Model(EntryPoint):
 
 
     def feed_dicts(self, dataset, train=True):
-        """ This method gather feed dictionaries from all encoder and decoder
+        """This method gather feed dictionaries from all encoder and decoder
         objects.
 
         Arguments:
@@ -58,7 +57,7 @@ class Model(EntryPoint):
 
 
     def run_on_dataset(self, sess, dataset, save_output=False):
-        """ Runs the model on a dataset, performs postprocessing
+        """Runs the model on a dataset, performs postprocessing
 
         Arguments:
             sess: TensorFlow session to use (stores model parameters)
@@ -95,7 +94,7 @@ class Model(EntryPoint):
 
 
     def execute(self, *args):
-        """ Executes this model as an entry point
+        """Executes this model as an entry point
 
         Additional parameter in *args is required - path to config file for
         dataset.

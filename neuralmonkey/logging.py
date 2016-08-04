@@ -11,7 +11,7 @@ class Logging(object):
 
     ## 'all' and 'none' are special symbols,
     ## others are filtered according the labels
-    debug_enabled = ['all']
+    debug_enabled = ['none']
 
 
     @staticmethod
@@ -83,7 +83,7 @@ class Logging(object):
             log_print("    out: {}".format(" ".join(decoded[i])))
 
             if reference is not None:
-                log_print(colored("    ref: {}".format(" ".join(ref_sent)),
+                log_print(colored("    ref: {}".format(" ".join(reference[i])),
                                   color="magenta"))
         log_print("")
 

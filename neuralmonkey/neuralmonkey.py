@@ -3,7 +3,7 @@
 import sys
 
 from neuralmonkey.logging import log
-from neuralmonkey.experiment import EntryPoint
+from neuralmonkey.entrypoints.entrypoint import EntryPoint
 
 import neuralmonkey.config.parsing as parsing
 from neuralmonkey.config.config_loader import build_object
@@ -40,7 +40,6 @@ def main():
                               dict(), 0)
     print(entrypoint)
     entrypoint.execute(*sys.argv[3:])
-
 
 if __name__ == '__main__':
     main()
