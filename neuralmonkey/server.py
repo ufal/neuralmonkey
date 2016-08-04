@@ -10,8 +10,6 @@ from neuralmonkey.learning_utils import run_on_dataset
 from neuralmonkey.checking import check_dataset_and_coders
 from neuralmonkey.run import initialize_for_running
 
-# tests: lint, mypy
-
 APP = Flask(__name__)
 APP.config.from_object(__name__)
 APP.config['args'] = None
