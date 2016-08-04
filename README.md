@@ -16,7 +16,7 @@ building blocks implemented directly in TensorFlow.
 
 ### Usage
 
-`neuralmonkey-train <EXPERIMENT_INI>`
+`nmonkey COMMAND <EXPERIMENT_INI> [OPTION ...]`
 
 ### Package Overview
 
@@ -28,6 +28,7 @@ building blocks implemented directly in TensorFlow.
 
 The `neuralmonkey` package is organized into subpackages as follows:
 
+- `entrypoints`: The entry points (main objects that are executed by Neural Monkey)
 - `encoders`: The encoders (get sequences of data and encode them)
 - `decoders`: The decoders (get outputs of encoders and decode them)
 - `nn`: The NN (as in Neural Network components)
