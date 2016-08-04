@@ -14,11 +14,13 @@ from neuralmonkey.entrypoints.entrypoint import EntryPoint
 from neuralmonkey.exceptions import CheckingException
 
 
-def format_eval_name(name):
-    if hasattr(name, '__call__'):
-        return name.__name__
-    else:
-        return str(name)
+def format_eval_name(func):
+    if hasattr(func, 'name'):
+        return func.name
+    if hasattr(func, '__call__') and hasattr(func, '__name__'):
+        return func.__name__
+
+    return str(func)
 
 
 class TrainingProgress(object):
