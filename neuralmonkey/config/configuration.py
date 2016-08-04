@@ -1,6 +1,5 @@
 #tests: lint
 
-import codecs
 import traceback
 from argparse import Namespace
 

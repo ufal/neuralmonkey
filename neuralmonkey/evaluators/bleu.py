@@ -229,5 +229,5 @@ class BLEUEvaluator(object):
 
 
 def bleu4(decoded, references):
-    ev = BLEUEvaluator(n=4, name="BLEU-4")
-    return ev(decoded, references)
+    func = BLEUEvaluator(n=4, name="BLEU-4")
+    return func(decoded, references)
