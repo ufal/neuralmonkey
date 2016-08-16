@@ -251,7 +251,6 @@ class Decoder(object):
         go_symbols = tf.ones(self.batch_size, dtype=tf.int32)
         go_embeds = tf.nn.embedding_lookup(self.embedding_matrix, go_symbols)
 
-        #inputs = [self.dropout(go_embeds)]
         inputs = [go_embeds]
         inputs += [None for _ in range(self.max_output)]
 
