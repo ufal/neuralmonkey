@@ -53,6 +53,8 @@ class Decoder(object):
         self.project_encoder_outputs = kwargs.get("project_encoder_outputs",
                                                   False)
 
+        log("Initializing decoder, name: '{}'".format(self.name))
+
         if self.project_encoder_outputs or len(self.encoders) == 0:
             self.rnn_size = kwargs.get("rnn_size", 200)
         else:
@@ -62,19 +64,20 @@ class Decoder(object):
         ### Initialize model
 
         self.dropout_placeholder = tf.placeholder_with_default(
-            dropout_keep_prob, [], "decoder_dropout_placeholder")
+            tf.constant(dropout_keep_prob, tf.float32),
+            shape=[], name="decoder_dropout_placeholder")
 
         state = self.initial_state()
 
         self.weights, self.biases = self.state_to_output()
         self.embedding_matrix = self.input_embeddings()
 
-        cell = self.get_rnn_cell()
-        attention_objects = self.collect_attention_objects(self.encoders)
-
         self.train_inputs, self.train_weights = self.training_placeholders()
         self.batch_size = tf.shape(self.train_inputs[0])
         train_targets = self.train_inputs[1:]
+
+        cell = self.get_rnn_cell()
+        attention_objects = self.collect_attention_objects(self.encoders)
 
         ### Perform computation
 
@@ -82,14 +85,17 @@ class Decoder(object):
 
         self.train_rnn_outputs, _ = attention_decoder(
             embedded_train_inputs, state, attention_objects,
-            self.embedding_size, cell, scope="att_train")
+            self.embedding_size, cell)
 
         runtime_inputs = self.runtime_inputs()
         loop_function = self.get_loop_function()
 
+        ### Use the same variables for runtime decoding!
+        tf.get_variable_scope().reuse_variables()
+
         self.runtime_rnn_outputs, _ = attention_decoder(
             runtime_inputs, state, attention_objects, self.embedding_size,
-            cell, loop_function=loop_function, scope="att_runtime")
+            cell, loop_function=loop_function)
 
         ### KONEC decoder scope
 
@@ -113,6 +119,8 @@ class Decoder(object):
         ### Summaries
         self.init_summaries()
 
+        log("Decoder initialized.")
+
 
     @property
     def vocabulary_size(self):
@@ -121,98 +129,6 @@ class Decoder(object):
     @property
     def cost(self):
         return self.train_loss
-
-
-    def init_summaries(self):
-        """Initialize the summaries of the decoder
-
-        TensorBoard summaries are collected into the following
-        collections:
-
-        - summary_train: collects statistics from the train-time
-        - sumarry_val: collects OAstatistics while being tested on the
-                 development data
-        """
-        tf.scalar_summary("train_loss_with_decoded_inputs", self.runtime_loss,
-                          collections=["summary_train"])
-
-        tf.scalar_summary("train_optimization_cost", self.train_loss,
-                          collections=["summary_train"])
-
-
-    def decode(self, rnn_states):
-        """Decodes a sequence from a list of hidden states
-
-        Arguments:
-            rnn_states: hidden states
-        """
-        logits = [self.logit_function(s) for s in rnn_states]
-        decoded = [tf.argmax(l[:, 1:], 1) + 1 for l in logits]
-
-        return decoded, logits
-
-
-    def training_placeholders(self):
-        """Defines data placeholders for training the decoder"""
-
-        inputs = [tf.placeholder(tf.int64, [None], name="decoder_{}".format(i))
-                  for i in range(self.max_output + 2)]
-
-        # one less than inputs
-        weights = [tf.placeholder(tf.float32, [None],
-                                  name="decoder_padding_weights_{}".format(i))
-                   for i in range(self.max_output + 1)]
-
-        return inputs, weights
-
-
-
-    def runtime_inputs(self):
-        """Defines data inputs for running trained decoder"""
-        go_symbols = tf.ones(self.batch_size, dtype=tf.int32)
-        go_embeds = tf.nn.embedding_lookup(self.embedding_matrix, go_symbols)
-
-        inputs = [self.dropout(go_embeds)]
-        inputs += [None for _ in range(self.max_output)]
-
-        return inputs
-
-
-    def state_to_output(self):
-        """Create variables for projection of states to output vectors"""
-
-        weights = tf.get_variable("state_to_word_W", [self.rnn_size,
-                                                      self.vocabulary_size])
-
-        biases = tf.Variable(tf.fill([self.vocabulary_size],
-                                     - math.log(self.vocabulary_size)),
-                             name="state_to_word_b")
-
-        return weights, biases
-
-
-
-    def input_embeddings(self):
-        """Create variables and operations for embedding of input words
-
-        If we are reusing word embeddings, this function takes
-        them from the first encoder
-        """
-        if self.reuse_word_embeddings:
-            return self.encoders[0].word_embeddings
-
-        return tf.get_variable("word_embeddings", [self.vocabulary_size,
-                                                   self.embedding_size])
-
-    def embed_inputs(self, inputs):
-        """Embed inputs using the decoder"s word embedding matrix
-
-        Arguments:
-            inputs: List of (batched) input words to be embedded
-        """
-        embedded = [tf.nn.embedding_lookup(self.embedding_matrix, o)
-                    for o in inputs]
-        return [self.dropout(e) for e in embedded]
 
 
     def initial_state(self):
@@ -234,7 +150,6 @@ class Decoder(object):
         Arguments:
             encoded_states: Tensor of concatenated states of input encoders
                             (batch x sum(states))
-            rnn_size: Size of the projected vector
         """
 
         input_size = encoded_states.get_shape()[1].value
@@ -258,13 +173,88 @@ class Decoder(object):
         return tf.nn.dropout(var, self.dropout_placeholder)
 
 
-    def logit_function(self, state):
-        """Compute logits on the vocabulary given the state
+    def state_to_output(self):
+        """Create variables for projection of states to output vectors"""
+
+        weights = tf.Variable(
+            tf.random_uniform([self.rnn_size, self.vocabulary_size], -0.5, 0.5),
+            name="state_to_word_W")
+
+        biases = tf.Variable(
+            tf.fill([self.vocabulary_size], - math.log(self.vocabulary_size)),
+            name="state_to_word_b")
+
+        return weights, biases
+
+
+    def input_embeddings(self):
+        """Create variables and operations for embedding of input words
+
+        If we are reusing word embeddings, this function takes
+        them from the first encoder
+        """
+        if self.reuse_word_embeddings:
+            return self.encoders[0].word_embeddings
+
+        return tf.Variable(
+            tf.random_uniform([self.vocabulary_size, self.embedding_size],
+                              -0.5, 0.5),
+            name="word_embeddings")
+
+
+    def training_placeholders(self):
+        """Defines data placeholders for training the decoder"""
+
+        inputs = [tf.placeholder(tf.int64, [None], name="decoder_{}".format(i))
+                  for i in range(self.max_output + 2)]
+
+        # one less than inputs
+        weights = [tf.placeholder(tf.float32, [None],
+                                  name="decoder_padding_weights_{}".format(i))
+                   for i in range(self.max_output + 1)]
+
+        return inputs, weights
+
+
+    def get_rnn_cell(self):
+        """Returns a RNNCell object for this decoder"""
+
+        return tf.nn.rnn_cell.GRUCell(self.rnn_size)
+
+
+    def collect_attention_objects(self, encoders):
+        """Collect attention objects of the given encoders
 
         Arguments:
-            state: the state of the decoder
+            encoders: Encoders from which to take attention objects
         """
-        return tf.matmul(self.dropout(state), self.weights) + self.biases
+        if self.use_attention:
+            return [e.attention_object for e in encoders if e.attention_object]
+        else:
+            return []
+
+
+    def embed_inputs(self, inputs):
+        """Embed inputs using the decoder"s word embedding matrix
+
+        Arguments:
+            inputs: List of (batched) input words to be embedded
+        """
+        embedded = [tf.nn.embedding_lookup(self.embedding_matrix, o)
+                    for o in inputs]
+        return [self.dropout(e) for e in embedded]
+
+
+    def runtime_inputs(self):
+        """Defines data inputs for running trained decoder"""
+        go_symbols = tf.ones(self.batch_size, dtype=tf.int32)
+        go_embeds = tf.nn.embedding_lookup(self.embedding_matrix, go_symbols)
+
+        #inputs = [self.dropout(go_embeds)]
+        inputs = [go_embeds]
+        inputs += [None for _ in range(self.max_output)]
+
+        return inputs
 
 
     def get_loop_function(self):
@@ -289,22 +279,45 @@ class Decoder(object):
         return basic_loop
 
 
-    def get_rnn_cell(self):
-        """Returns a RNNCell object for this decoder"""
-
-        return tf.nn.rnn_cell.GRUCell(self.rnn_size)
-
-
-    def collect_attention_objects(self, encoders):
-        """Collect attention objects of the given encoders
+    def logit_function(self, state):
+        """Compute logits on the vocabulary given the state
 
         Arguments:
-            encoders: Encoders from which to take attention objects
+            state: the state of the decoder
         """
-        if self.use_attention:
-            return [e.attention_object for e in encoders if e.attention_object]
-        else:
-            return []
+        return tf.matmul(self.dropout(state), self.weights) + self.biases
+
+
+    def decode(self, rnn_states):
+        """Decodes a sequence from a list of hidden states
+
+        Arguments:
+            rnn_states: hidden states
+        """
+        logits = [self.logit_function(s) for s in rnn_states]
+        decoded = [tf.argmax(l[:, 1:], 1) + 1 for l in logits]
+
+        return decoded, logits
+
+
+
+    def init_summaries(self):
+        """Initialize the summaries of the decoder
+
+        TensorBoard summaries are collected into the following
+        collections:
+
+        - summary_train: collects statistics from the train-time
+        - sumarry_val: collects OAstatistics while being tested on the
+                 development data
+        """
+        tf.scalar_summary("train_loss_with_decoded_inputs", self.runtime_loss,
+                          collections=["summary_train"])
+
+        tf.scalar_summary("train_optimization_cost", self.train_loss,
+                          collections=["summary_train"])
+
+
 
 
     def feed_dict(self, dataset, train=False):
