@@ -4,6 +4,7 @@ import math
 import tensorflow as tf
 
 from neuralmonkey.decoding_function import attention_decoder
+from neuralmonkey.logging import log
 
 class Decoder(object):
     """A class that manages parts of the computation graph that are
