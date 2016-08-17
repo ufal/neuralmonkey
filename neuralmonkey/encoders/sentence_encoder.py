@@ -74,6 +74,7 @@ class SentenceEncoder(object):
                     self.forward_gru = NoisyGRUCell(rnn_size, self.is_training)
                     self.backward_gru = NoisyGRUCell(rnn_size, self.is_training)
                 else:
+                    ### this is used most of the time...
                     self.forward_gru = tf.nn.rnn_cell.GRUCell(rnn_size)
                     self.backward_gru = tf.nn.rnn_cell.GRUCell(rnn_size)
 
@@ -108,6 +109,7 @@ class SentenceEncoder(object):
             self.outputs_bidi = bidi_layer.outputs_bidi
             self.encoded = bidi_layer.encoded
 
+            # attention tensor is of shape batch x time x (2*rnn_size)
             self.attention_tensor = tf.concat(1, [tf.expand_dims(o, 1)
                                                   for o in self.outputs_bidi])
 
