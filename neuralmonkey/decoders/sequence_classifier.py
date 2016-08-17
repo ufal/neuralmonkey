@@ -40,6 +40,19 @@ class SequenceClassifier(object):
             tf.scalar_summary('val_optimization_cost', self.cost, collections=["summary_val"])
             tf.scalar_summary('train_optimization_cost', self.cost, collections=["summary_train"])
 
+
+    @property
+    def train_loss(self):
+        return self.loss_with_gt_ins
+
+    @property
+    def runtime_loss(self):
+        return self.loss_with_decoded_ins
+
+    @property
+    def decoded(self):
+        return self.decoded_seq
+
     def feed_dict(self, dataset, train=False):
         sentences = dataset.get_series(self.data_id, allow_none=True)
         res = {}

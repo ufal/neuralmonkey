@@ -1,12 +1,13 @@
+# tests: lint, mypy
+
 import sys
 import os
 
 from neuralmonkey.logging import log
 from neuralmonkey.config.configuration import Configuration
-from neuralmonkey.learning_utils import initialize_tf, run_on_dataset, print_dataset_evaluation
 from neuralmonkey.checking import check_dataset_and_coders
-
-# tests: lint, mypy
+from neuralmonkey.learning_utils import initialize_tf, run_on_dataset, \
+    print_dataset_evaluation
 
 CONFIG = Configuration()
 CONFIG.add_argument('output', str)
@@ -22,7 +23,6 @@ CONFIG.ignore_argument('val_dataset')
 CONFIG.ignore_argument('trainer')
 CONFIG.ignore_argument('name')
 CONFIG.ignore_argument('train_dataset')
-CONFIG.ignore_argument('epochs')
 CONFIG.ignore_argument('random_seed')
 CONFIG.ignore_argument('epochs')
 CONFIG.ignore_argument('batch_size')
@@ -36,18 +36,14 @@ CONFIG.ignore_argument('overwrite_output_dir')
 
 
 def initialize_for_running(ini_file):
-    """
-    Prepares everything that is necessary for running a model.
+    """Prepares everything that is necessary for running a model.
 
-    Args:
-
+    Arguments:
         ini_file: Path to the configuration file.
 
     Returns:
-
-        A tuple of parsed configuration (inlucding built computation graph) and
-        a TensorFlow session with already loaded model variables.
-
+        A tuple of parsed configuration (inlucding built computation graph)
+        and a TensorFlow session with already loaded model variables.
     """
     # pylint: disable=no-member
     args = CONFIG.load_file(ini_file)
@@ -56,13 +52,15 @@ def initialize_for_running(ini_file):
     cont_index = 1
 
     def continuation_file():
-        return os.path.join(args.output, "variables.data.cont-{}.best".format(cont_index))
+        return os.path.join(args.output,
+                            "variables.data.cont-{}.best".format(cont_index))
     while os.path.exists(continuation_file()):
         variables_file = continuation_file()
         cont_index += 1
 
     if not os.path.exists(variables_file):
-        log("No variables file is stored in {}".format(args.output), color="red")
+        log("No variables file is stored in {}".format(args.output),
+            color="red")
         exit(1)
 
     sess, _ = initialize_tf(variables_file, args.threads)

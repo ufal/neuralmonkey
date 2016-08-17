@@ -1,415 +1,355 @@
-#tests: mypy
+#tests: lint
 
 import math
 import tensorflow as tf
-import numpy as np
 
-from neuralmonkey.logging import log
 from neuralmonkey.decoding_function import attention_decoder
-from neuralmonkey.nn.noisy_gru_cell import NoisyGRUCell
-from neuralmonkey.checking import assert_type
-from neuralmonkey.vocabulary import Vocabulary
+from neuralmonkey.logging import log
 
 class Decoder(object):
-    def __init__(self, encoders, vocabulary, data_id, rnn_size,
-                 embedding_size=128, use_attention=None, max_output_len=20,
-                 scheduled_sampling=None, dropout_keep_p=0.5, copy_net=None,
-                 reused_word_embeddings=None, use_noisy_activations=False,
-                 depth=1, name="decoder"):
+    """A class that manages parts of the computation graph that are
+    used for the decoding.
+    """
 
-        """A class that collects the part of the computation graph that is
-        needed for decoding.
+    # pylint: disable=too-many-instance-attributes,too-many-locals
+    # Big decoder cannot be simpler. Not sure if refactoring
+    # it into smaller units would be helpful
+    # Some locals may be turned to attributes
 
-        TensorBoard summaries are collected in this class into the following
-        collections:
+    def __init__(self, encoders, vocabulary, data_id, **kwargs):
+        """Creates a new instance of the decoder
 
-            * 'summary_train' - collects statistics from the train-time
+        Required arguments:
+            encoders: List of encoders whose outputs will be decoded
+            vocabulary: Output vocabulary
+            data_id: Identifier of the data series fed to this decoder
 
-            * 'sumarry_val' - collects OAstatistics while being tested on the
-                 development data
+        Keyword arguments:
+            embedding_size: Size of embedding vectors. Default 200
+            max_output: Maximum length of the output. Default 20
+            rnn_size: When projection is used or when no encoder is supplied,
+                      this is the size of the projected vector.
+            dropout_keep_prob: Dropout keep probability. Default 1 (no dropout)
 
-        Arguments:
-
-            encoders: List of encoders. If no encoder is provided, the decoder
-                can be used to train a LM.
-
-            vocabulary: Vocabulary used for decoding
-
-            data_id:
-
-            rnn_size: Size of the RNN state.
-
-            embedding_size (int): Dimensionality of the word
-                embeddings used during decoding.
-
-            use_attention (str): The type of attention to use or None. (Refer to
-                cli_options script for allowed types of attention]
-
-            max_output_len (int): Maximum length of the decoder output.
-
-            use_peepholes (bool): Flag whether peephole connections should be
-                used in the GRU decoder.
-
-            scheduled_sampling: Parameter k for inverse sigmoid decay in
-                scheduled sampling. If set to None, linear combination of the
-                decoded and supervised loss is used as a cost function.
-
-            dropoout_keep_p:
-
-            copy_net: Tuple of (i) list of indices to the target vocabulary
-                (most likely input placeholders of a different encoder) and (ii)
-                he tensor over which the copying will be done, and (iii) mask
-                telling which words part of the input
-
-            reused_word_embeddings: The decoder can be given the matrix of word
-                embeddings from outside (if the vocabulary indexing is the
-                same).  If it is None, the decoder creates its own matrix of
-                word embeddings.
-
-            use_noisy_activations: If set to True, the deocder will use the GRU
-                units with noisy activation.
-
-
-        Attributes:
-
-            inputs: List of placeholders for the decoder inputs. The i-th
-                element of the list contains a batch of i-th symbols in the
-                sequence.
-
-            weights_ins: List of placeholders of particular output symbols
-                weights.  The i-th elements of the list contains a vector
-                telling for each string of the batch how much the i-th word
-                should.  contirbute to the loss cumputation. In practice it
-                contains 1's for words which are parts of the decoded strings
-                and 0's for the padding.
-
-            loss_with_gt_ins: Operator computing the sequence loss when the
-                decoder always gets the ground truth input.
-
-            loss_with_decoded_ins: Operator computing the sequence loss when
-                the decoder receives previously computed outputs on its input.
-
-            decoded_seq: List of batches of decoded words. (When the
-                decoder is fed with its own outputs.)
+        Flags:
+            use_attention: Indicates whether to use attention from encoders
+            reuse_word_embeddings: Boolean flag specifying whether to reuse
+                                   word embeddings. If True, word embeddings
+                                   from the first encoder will be used
+            project_encoder_outputs: Boolean flag whether to project output
+                                     states of encoders
 
         """
-
-        log("Initializing decoder, name: \"{}\"".format(name))
         self.encoders = encoders
-        assert_type(self, 'vocabulary', vocabulary, Vocabulary)
         self.vocabulary = vocabulary
         self.data_id = data_id
-        self.rnn_size = rnn_size
-        self.embedding_size = embedding_size
-        self.use_attention = use_attention
-        self.max_output_len = max_output_len
-        self.scheduled_sampling = scheduled_sampling
-        self.dropout_keep_p = dropout_keep_p
-        self.copy_net = copy_net
-        self.reused_word_embeddings = reused_word_embeddings
-        self.use_noisy_activations = use_noisy_activations
-        self.depth = depth
-        self.name = name
 
-        self.dropout_placeholder = tf.placeholder(tf.float32,
-                                                  name="decoder_dropout_plc")
+        self.max_output = kwargs.get("max_output", 20)
+        self.embedding_size = kwargs.get("embedding_size", 200)
+        self.name = kwargs.get("name", "decoder")
+        dropout_keep_prob = kwargs.get("dropout_keep_prob", 1.0)
 
-        self.is_training = tf.placeholder(tf.bool, name="decoder_is_training")
+        self.use_attention = kwargs.get("use_attention", False)
+        self.reuse_word_embeddings = kwargs.get("reuse_word_embeddings", False)
+        self.project_encoder_outputs = kwargs.get("project_encoder_outputs",
+                                                  False)
 
-        if len(encoders) == 1 and (rnn_size ==
-                                   encoders[0].encoded.get_shape()[1].value):
-            encoded = encoders[0].encoded
-            log("Using encoder output wihtout projection.")
-        elif len(encoders) >= 1:
-            with tf.variable_scope("encoders_projection"):
-                encoded_concat = tf.concat(1, [e.encoded for e in encoders])
-                concat_size = encoded_concat.get_shape()[1].value
-                proj = tf.get_variable(name="project_encoders",
-                                       shape=[concat_size, depth * rnn_size])
-                encoded_concat_dropped = tf.nn.dropout(encoded_concat,
-                                                       self.dropout_placeholder)
-                proj_bias = tf.Variable(tf.zeros([depth * rnn_size]))
-                encoded = tf.matmul(encoded_concat_dropped, proj) + proj_bias
-        elif len(encoders) == 0: # if we want to train just LM
-            encoded = tf.zeros([rnn_size])
-            log("No encoder - language model only.")
+        log("Initializing decoder, name: '{}'".format(self.name))
 
-        self.encoded = encoded
+        if self.project_encoder_outputs or len(self.encoders) == 0:
+            self.rnn_size = kwargs.get("rnn_size", 200)
+        else:
+            self.rnn_size = sum(e.encoded.get_shape()[1].value
+                                for e in self.encoders)
+
+        ### Initialize model
+
+        self.dropout_placeholder = tf.placeholder_with_default(
+            tf.constant(dropout_keep_prob, tf.float32),
+            shape=[], name="decoder_dropout_placeholder")
+
+        state = self._initial_state()
+
+        self.weights, self.biases = self._state_to_output()
+        self.embedding_matrix = self._input_embeddings()
+
+        self.train_inputs, self.train_weights = self._training_placeholders()
+        self.batch_size = tf.shape(self.train_inputs[0])
+        train_targets = self.train_inputs[1:]
+
+        cell = self._get_rnn_cell()
+        attention_objects = self._collect_attention_objects(self.encoders)
+
+        ### Construct the computation part of the graph
+
+        embedded_train_inputs = self._embed_inputs(self.train_inputs[:-1])
+
+        self.train_rnn_outputs, _ = attention_decoder(
+            embedded_train_inputs, state, attention_objects,
+            self.embedding_size, cell)
+
+        # runtime methods and objects are used when no ground truth is provided
+        # (such as during testing)
+        runtime_inputs = self._runtime_inputs()
+        loop_function = self._get_loop_function()
+
+        ### Use the same variables for runtime decoding!
+        tf.get_variable_scope().reuse_variables()
+
+        self.runtime_rnn_outputs, _ = attention_decoder(
+            runtime_inputs, state, attention_objects, self.embedding_size,
+            cell, loop_function=loop_function)
+
+        _, train_logits = self._decode(self.train_rnn_outputs)
+        self.decoded, runtime_logits = self._decode(self.runtime_rnn_outputs)
+
+        self.train_loss = tf.nn.seq2seq.sequence_loss(
+            train_logits, train_targets, self.train_weights,
+            self.vocabulary_size)
+
+        self.runtime_loss = tf.nn.seq2seq.sequence_loss(
+            runtime_logits, train_targets, self.train_weights,
+            self.vocabulary_size)
+
+        ### Learning step
+        ### TODO was here only because of scheduled sampling.
+        ### needs to be refactored out
         self.learning_step = tf.Variable(0, name="learning_step",
                                          trainable=False)
-        self.gt_inputs = []
 
-        with tf.variable_scope("decoder_inputs"):
-            for i in range(max_output_len + 2):
-                dec = tf.placeholder(tf.int64, [None],
-                                     name='decoder{0}'.format(i))
-                tf.add_to_collection('dec_encoder_ins', dec)
-                self.gt_inputs.append(dec)
+        ### Summaries
+        self._init_summaries()
 
-        self.targets = self.gt_inputs[1:]
-
-        self.weights_ins = []
-        with tf.variable_scope("input_weights"):
-            for _ in range(len(self.targets)):
-                self.weights_ins.append(tf.placeholder(tf.float32, [None]))
-
-        with tf.variable_scope('decoder'):
-            decoding_w = tf.Variable(
-                tf.random_uniform([rnn_size, len(vocabulary)], -0.5, 0.5),
-                name="state_to_word_W")
-
-            decoding_b = tf.Variable(
-                tf.fill([len(vocabulary)], - math.log(len(vocabulary))),
-                name="state_to_word_b")
-
-            if reused_word_embeddings is None:
-                decoding_em = tf.Variable(
-                    tf.random_uniform([len(vocabulary), embedding_size],
-                                      -0.5, 0.5),
-                    name="word_embeddings")
-            else:
-                decoding_em = reused_word_embeddings.word_embeddings
-
-            embedded_gt_inputs = [tf.nn.embedding_lookup(decoding_em, o)
-                                  for o in self.gt_inputs[:-1]]
-
-            embedded_gt_inputs = [tf.nn.dropout(i, self.dropout_placeholder)
-                                  for i in embedded_gt_inputs]
-
-            def standard_logits(state):
-                state = tf.nn.dropout(state, self.dropout_placeholder)
-                return tf.matmul(state, decoding_w) + decoding_b, None
-
-            logit_function = standard_logits
-
-            if copy_net:
-                # This is implementation of Copy-net
-                # (http://arxiv.org/pdf/1603.06393v2.pdf)
-                encoder_input_indices, copy_states, copy_mask = copy_net
-                copy_tensor_dropped = tf.nn.dropout(copy_states,
-                                                    self.dropout_placeholder)
-                copy_tensors = [tf.squeeze(t, [1])
-                                for t in tf.split(1, max_output_len + 2,
-                                                  copy_tensor_dropped)]
-
-                copy_features_size = copy_states.get_shape()[2].value
-
-                # first we do the learned projection of the ecnoder outputs
-                copy_w = tf.get_variable(name="copy_W",
-                                         shape=[copy_features_size, rnn_size])
-
-                projected_inputs = tf.concat(
-                    1, [tf.expand_dims(tf.matmul(c, copy_w), 1)
-                        for c in copy_tensors])
-
-                batch_size = tf.shape(encoder_input_indices[0])[0]
-
-                # tensor of batch numbers for indexing in a sparse vector
-                batch_range = tf.range(start=0, limit=batch_size)
-                batch_time_vocabulary_shape = tf.concat(
-                    0, [tf.expand_dims(batch_size, 0),
-                        tf.constant(len(vocabulary), shape=[1])])
-
-                ones = tf.ones(tf.expand_dims(batch_size, 0))
-
-                vocabulary_shaped_list = []
-                for slice_indices in encoder_input_indices:
-                    complete_indices = tf.concat(
-                        1, [tf.expand_dims(batch_range, 1),
-                            tf.expand_dims(slice_indices, 1)])
-
-                    vocabulary_shaped = tf.sparse_to_dense(
-                        complete_indices, batch_time_vocabulary_shape, ones)
-
-                    vocabulary_shaped_list.append(vocabulary_shaped)
-
-                vocabulary_shaped_indices = tf.concat(
-                    1, [tf.expand_dims(v, 1) for v in vocabulary_shaped_list])
-
-                def copy_net_logit_function(state):
-                    state = tf.nn.dropout(state, self.dropout_placeholder)
-
-                    # the logits for generating the next word are computed in
-                    # the standard way
-                    generate_logits = tf.matmul(state, decoding_w) + decoding_b
-
-                    # Equation 8 in the paper ... in shape of source sentence
-                    # (batch x time)
-                    copy_logits_in_time = tf.reduce_sum(
-                        projected_inputs * tf.expand_dims(state, 1), [2])
-
-                    # mask out the padding in exponential domain
-                    copy_logits_in_time_exp_masked = tf.exp(
-                        tf.minimum([[80.0]], copy_logits_in_time)) * copy_mask
-
-                    #  ... in shape of vocabulary (batch x time x vocabulary)
-                    copy_logits_in_vocabulary = tf.expand_dims(
-                        copy_logits_in_time_exp_masked,
-                        2) * vocabulary_shaped_indices
-
-                    # Equation 6 without normalization
-                    copy_logits_exp = tf.reduce_sum(copy_logits_in_vocabulary,
-                                                    [1])
-
-                    logits_exp = copy_logits_exp \
-                                 + tf.exp(tf.minimum([[80.0]], generate_logits))
-
-                    return (tf.log(tf.maximum([[1e-40]], logits_exp)),
-                            copy_logits_in_time)
-
-                logit_function = copy_net_logit_function
-
-            def loop(prev_state, _):
-                # it takes the previous hidden state, finds the word and formats
-                # it as input for the next time step ... used in the decoder in
-                # the "real decoding scenario"
-                out_activation, _ = logit_function(prev_state)
-                prev_word_index = tf.argmax(out_activation, 1)
-                next_step_embedding = tf.nn.embedding_lookup(decoding_em,
-                                                             prev_word_index)
-
-                return tf.nn.dropout(next_step_embedding,
-                                     self.dropout_placeholder)
+        log("Decoder initialized.")
 
 
-            def sampling_loop(prev_state, i):
-                """
-                Loop function performing the scheduled sampling
-                (http://arxiv.org/pdf/1506.03099v3.pdf) with the inverse
-                sigmoid decay.
-                """
-                threshold = scheduled_sampling / (scheduled_sampling + tf.exp(
-                    tf.to_float(self.learning_step) / scheduled_sampling))
+    @property
+    def vocabulary_size(self):
+        return len(self.vocabulary)
 
-                condition = tf.less_equal(
-                    tf.random_uniform(tf.shape(embedded_gt_inputs[0])),
-                    threshold)
-
-                return tf.select(condition, embedded_gt_inputs[i],
-                                 loop(prev_state, i))
+    @property
+    def cost(self):
+        return self.train_loss
 
 
-            def get_rnn_cell():
-                if use_noisy_activations:
-                    return NoisyGRUCell(rnn_size, training=self.is_training)
-                else:
-                    return tf.nn.rnn_cell.GRUCell(rnn_size)
+    def _initial_state(self):
+        """Create the initial state of the decoder."""
+        if len(self.encoders) == 0:
+            return tf.zeros([self.rnn_size])
 
-            decoder_cells = [get_rnn_cell()]
+        encoders_out = tf.concat(1, [e.encoded for e in self.encoders])
 
-            for _ in range(1, depth):
-                decoder_cells[-1] = tf.nn.rnn_cell.DropoutWrapper(
-                    decoder_cells[-1],
-                    output_keep_prob=self.dropout_placeholder)
+        if self.project_encoder_outputs:
+            encoders_out = self._encoder_projection(encoders_out)
 
-                decoder_cells.append(get_rnn_cell())
-
-            decoder_cell = tf.nn.rnn_cell.MultiRNNCell(decoder_cells)
-            gt_loop_function = sampling_loop if scheduled_sampling else None
-            encoded = tf.nn.dropout(encoded, self.dropout_placeholder)
-
-            if use_attention:
-                attention_objects = [e.attention_object
-                                     for e in encoders if e.attention_object]
-            else:
-                attention_objects = []
-
-            rnn_outputs_gt_ins, _ = attention_decoder(
-                embedded_gt_inputs, encoded, attention_objects, embedding_size,
-                cell=decoder_cell, loop_function=gt_loop_function)
-
-            tf.get_variable_scope().reuse_variables()
-
-            self.go_symbols = tf.placeholder(tf.int64, [None],
-                                             name="go_symbols_placeholder")
-
-            decoder_inputs = [tf.nn.embedding_lookup(decoding_em,
-                                                     self.go_symbols)]
-
-            decoder_inputs += [None for _ in range(self.max_output_len)]
-
-            rnn_outputs_decoded_ins, _ = attention_decoder(
-                decoder_inputs, encoded, attention_objects, embedding_size,
-                cell=decoder_cell, loop_function=loop)
-
-            self.hidden_states = rnn_outputs_decoded_ins
-
-        def get_decoded(rnn_outputs):
-            logits = []
-            decoded = []
-            copynet_logits = []
-
-            for out in rnn_outputs:
-                out_activation, logits_in_time = logit_function(out)
-
-                if copy_net:
-                    copynet_logits.append(logits_in_time)
-
-                logits.append(out_activation)
-                decoded.append(tf.argmax(out_activation[:, 1:], 1) + 1)
-
-            return decoded, logits, copynet_logits
+        return self._dropout(encoders_out)
 
 
-        _, self.gt_logits, _ = get_decoded(rnn_outputs_gt_ins)
-        self.loss_with_gt_ins = tf.nn.seq2seq.sequence_loss(
-            self.gt_logits, self.targets, self.weights_ins,
-            len(vocabulary))
+    def _encoder_projection(self, encoded_states):
+        """Creates a projection of concatenated encoder states
 
-        tf.scalar_summary('val_loss_with_gt_input',
-                          self.loss_with_gt_ins,
-                          collections=["summary_val"])
+        Arguments:
+            encoded_states: Tensor of concatenated states of input encoders
+                            (batch x sum(states))
+        """
 
-        tf.scalar_summary('train_loss_with_gt_intpus',
-                          self.loss_with_gt_ins,
+        input_size = encoded_states.get_shape()[1].value
+        output_size = self.rnn_size
+
+        weights = tf.get_variable("encoder_projection_W", [input_size,
+                                                           output_size])
+        biases = tf.Variable(tf.zeros([output_size]),
+                             name="encoder_projection_b")
+
+        dropped_input = self._dropout(encoded_states)
+        return tf.matmul(dropped_input, weights) + biases
+
+
+    def _dropout(self, var):
+        """Perform dropout on a variable
+
+        Arguments:
+            var: The variable to perform the dropout on
+        """
+        return tf.nn.dropout(var, self.dropout_placeholder)
+
+
+    def _state_to_output(self):
+        """Create variables for projection of states to output vectors"""
+
+        weights = tf.Variable(
+            tf.random_uniform([self.rnn_size, self.vocabulary_size], -0.5, 0.5),
+            name="state_to_word_W")
+
+        biases = tf.Variable(
+            tf.fill([self.vocabulary_size], - math.log(self.vocabulary_size)),
+            name="state_to_word_b")
+
+        return weights, biases
+
+
+    def _input_embeddings(self):
+        """Create variables and operations for embedding of input words
+
+        If we are reusing word embeddings, this function takes
+        them from the first encoder
+        """
+        if self.reuse_word_embeddings:
+            return self.encoders[0].word_embeddings
+
+        return tf.Variable(
+            tf.random_uniform([self.vocabulary_size, self.embedding_size],
+                              -0.5, 0.5),
+            name="word_embeddings")
+
+
+    def _training_placeholders(self):
+        """Defines data placeholders for training the decoder"""
+
+        inputs = [tf.placeholder(tf.int64, [None], name="decoder_{}".format(i))
+                  for i in range(self.max_output + 2)]
+
+        # one less than inputs
+        weights = [tf.placeholder(tf.float32, [None],
+                                  name="decoder_padding_weights_{}".format(i))
+                   for i in range(self.max_output + 1)]
+
+        return inputs, weights
+
+
+    def _get_rnn_cell(self):
+        """Returns a RNNCell object for this decoder"""
+
+        return tf.nn.rnn_cell.GRUCell(self.rnn_size)
+
+
+    def _collect_attention_objects(self, encoders):
+        """Collect attention objects of the given encoders
+
+        Arguments:
+            encoders: Encoders from which to take attention objects
+        """
+        if self.use_attention:
+            return [e.attention_object for e in encoders if e.attention_object]
+        else:
+            return []
+
+
+    def _embed_inputs(self, inputs):
+        """Embed inputs using the decoder"s word embedding matrix
+
+        Arguments:
+            inputs: List of (batched) input words to be embedded
+        """
+        embedded = [tf.nn.embedding_lookup(self.embedding_matrix, o)
+                    for o in inputs]
+        return [self._dropout(e) for e in embedded]
+
+
+    def _runtime_inputs(self):
+        """Defines data inputs for running trained decoder"""
+        go_symbols = tf.ones(self.batch_size, dtype=tf.int32)
+        go_embeds = tf.nn.embedding_lookup(self.embedding_matrix, go_symbols)
+
+        inputs = [go_embeds]
+        inputs += [None for _ in range(self.max_output)]
+
+        return inputs
+
+
+    def _get_loop_function(self):
+        """Constructs a loop function for the decoder"""
+
+        def basic_loop(previous_state, _):
+            """Basic loop function. Projects state to logits, take the
+            argmax of the logits, embed the word and perform dropout on the
+            embedding vector.
+
+            Arguments:
+                previous_state: The state of the decoder
+                i: Unused argument, number of the time step
+            """
+            output_activation = self._logit_function(previous_state)
+            previous_word = tf.argmax(output_activation, 1)
+            input_embedding = tf.nn.embedding_lookup(self.embedding_matrix,
+                                                     previous_word)
+
+            return self._dropout(input_embedding)
+
+        return basic_loop
+
+
+    def _logit_function(self, state):
+        """Compute logits on the vocabulary given the state
+
+        Arguments:
+            state: the state of the decoder
+        """
+        return tf.matmul(self._dropout(state), self.weights) + self.biases
+
+
+    def _decode(self, rnn_states):
+        """Decodes a sequence from a list of hidden states
+
+        Arguments:
+            rnn_states: hidden states
+        """
+        logits = [self._logit_function(s) for s in rnn_states]
+        decoded = [tf.argmax(l[:, 1:], 1) + 1 for l in logits]
+
+        return decoded, logits
+
+
+
+    def _init_summaries(self):
+        """Initialize the summaries of the decoder
+
+        TensorBoard summaries are collected into the following
+        collections:
+
+        - summary_train: collects statistics from the train-time
+        """
+        tf.scalar_summary("train_loss_with_decoded_inputs", self.runtime_loss,
                           collections=["summary_train"])
 
-        self.decoded_seq, self.decoded_logits, self.copynet_logits = \
-            get_decoded(rnn_outputs_decoded_ins)
-
-        self.loss_with_decoded_ins = tf.nn.seq2seq.sequence_loss(
-            self.decoded_logits, self.targets, self.weights_ins,
-            len(vocabulary))
-
-        tf.scalar_summary('val_loss_with_decoded_inputs',
-                          self.loss_with_decoded_ins,
-                          collections=["summary_val"])
-
-        tf.scalar_summary('train_loss_with_decoded_inputs',
-                          self.loss_with_decoded_ins,
+        tf.scalar_summary("train_optimization_cost", self.train_loss,
                           collections=["summary_train"])
 
-        self.cost = self.loss_with_gt_ins
 
-        tf.scalar_summary('val_optimization_cost', self.cost,
-                          collections=["summary_val"])
-        tf.scalar_summary('train_optimization_cost', self.cost,
-                          collections=["summary_train"])
 
-        log("Decoder initalized.")
 
     def feed_dict(self, dataset, train=False):
+        """Populate the feed dictionary for the decoder object
+
+        Decoder placeholders:
+            decoder_{x} for x in range(max_output+2):
+                Training data placeholders. Starts with <s> and ends with </s>
+
+            decoder_padding_weights{x} for x in range(max_output+1):
+                Weights used for padding. (Float) tensor of ones and zeros.
+                This tensor is one-item shorter than the other one since the
+                decoder does not produce the first <s>.
+
+            dropout_placeholder: Scalar placeholder for dropout probability.
+                Has value 'dropout_keep_prob' from the constructor or 1
+                in case we are decoding at run-time
+        """
+        # pylint: disable=invalid-name
+        # fd is the common name for feed dictionary
+        fd = {}
         sentences = dataset.get_series(self.data_id, allow_none=True)
-        res = {}
 
         if sentences is not None:
-            sentnces_tensors, weights_tensors = \
-                self.vocabulary.sentences_to_tensor(sentences,
-                                                    self.max_output_len)
+            inputs, weights = self.vocabulary.sentences_to_tensor(
+                sentences, self.max_output)
 
-            for weight_plc, weight_tensor in zip(self.weights_ins,
-                                                 weights_tensors):
-                res[weight_plc] = weight_tensor
+            for placeholder, weight in zip(self.train_weights, weights):
+                fd[placeholder] = weight
 
-            for words_plc, words_tensor in zip(self.gt_inputs,
-                                               sentnces_tensors):
-                res[words_plc] = words_tensor
+            for placeholder, tensor in zip(self.train_inputs, inputs):
+                fd[placeholder] = tensor
 
-        res[self.go_symbols] = np.ones(len(dataset))
+        if not train:
+            fd[self.dropout_placeholder] = 1.0
 
-        if train:
-            res[self.dropout_placeholder] = self.dropout_keep_p
-        else:
-            res[self.dropout_placeholder] = 1.0
-
-        return res
+        return fd

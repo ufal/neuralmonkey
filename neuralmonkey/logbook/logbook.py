@@ -1,3 +1,5 @@
+#tests: lint
+
 import argparse
 import os
 import json
@@ -76,7 +78,8 @@ def get_resource(path):  # pragma: no cover
         return Response("'{}' not found.".format(path), status=404)
 
 def main():
-    parser = argparse.ArgumentParser(description="Runs the Experiment LogBook server")
+    parser = argparse.ArgumentParser(
+        description="Runs the Experiment LogBook server")
     parser.add_argument("--port", type=int, default=5050)
     parser.add_argument("--host", type=str, default="127.0.0.1")
     parser.add_argument("--logdir", type=str, required=True)

@@ -26,7 +26,6 @@ class CrossEntropyTrainer(object):
         self.optimize_op = optimizer.apply_gradients(gradients, global_step=decoder.learning_step)
         #self.summary_gradients = tf.merge_summary(tf.get_collection("summary_gradients"))
         self.summary_train = tf.merge_summary(tf.get_collection("summary_train"))
-        self.summary_val = tf.merge_summary(tf.get_collection("summary_val"))
         log("Trainer initialized.")
 
     def run(self, sess, f_dict, summary=False):

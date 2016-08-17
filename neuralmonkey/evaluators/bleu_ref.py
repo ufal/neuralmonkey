@@ -1,5 +1,8 @@
+#tests: lint
+
 import tempfile
 import subprocess
+from neuralmonkey.logging import log
 
 # pylint: disable=too-few-public-methods
 # to be further refactored
@@ -41,10 +44,11 @@ class BLEUReferenceImplWrapper(object):
             bleu_score = float(lines[0])
             return bleu_score
         except IndexError:
-            print("Error: Malformed output from BLEU wrapper:")
-            print(proc_stdout)
-            print("=======")
+            log("Error: Malformed output from BLEU wrapper:", color="red")
+            log(print(proc_stdout), color="red")
+            log(print("======="), color="red")
             return 0.0
         except ValueError:
-            print("Value error - bleu '{}' is not a number.".format(lines[0]))
+            log("Value error - bleu '{}' is not a number.".format(lines[0]),
+                color="red")
             return 0.0

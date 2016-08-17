@@ -3,11 +3,12 @@ This module contains functions that are suppoosed to be called from the
 configuration file because calling the functions or the class constructors
 directly would be inconvinet or impossible.
 """
+#tests: lint
 
 import re
 import os
 
-from neuralmonkey.logging import log
+from neuralmonkey.logging import log, debug
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.vocabulary import Vocabulary
 
@@ -27,13 +28,14 @@ def dataset_from_files(**kwargs):
             a preprocess method you want to apply on the textual data by
             naming the function as <identifier>_preprocess=function
             OR the preprocessor can be specified globally
-
     """
-
-    random_seed = kwargs.get('random_seed', None)
-    preprocess = kwargs.get('preprocessor', lambda x: x)
-
+    random_seed = kwargs.get("random_seed", None)
+    preprocess = kwargs.get("preprocessor", lambda x: x)
+    name = kwargs.get("name", "dataset")
+    series = None
     series_paths = _get_series_paths(kwargs)
+
+    debug("Series paths: {}".format(series_paths), "datasetBuild")
 
     if len(series_paths) > 0:
         log("Initializing dataset with: {}".format(", ".join(series_paths)))
@@ -68,28 +70,20 @@ def _get_name_from_paths(series_paths):
 
 def initialize_vocabulary(directory, name, datasets=None, series_ids=None,
                           max_size=None):
-    """
-
-    This function is supposed to initialize vocabulary when called from the
+    """This function is supposed to initialize vocabulary when called from the
     configuration file. It first checks whether the vocabulary is already
     loaded on the provided path and if not, it tries to generate it from
     the provided dataset.
 
-    Args:
-
+    Arguments:
         directory: Directory where the vocabulary should be stored.
-
         name: Name of the vocabulary which is also the name of the file
-            it is stored it.
-
+              it is stored it.
         datasets: A a list of datasets from which the vocabulary can be
-            created.
-
+                  created.
         series_ids: A list of ids of series of the datasets that should be used
-            for producing the vocabulary.
-
+                    for producing the vocabulary.
     """
-
     file_name = os.path.join(directory, name + ".pickle")
     if os.path.exists(file_name):
         return Vocabulary.from_pickled(file_name)

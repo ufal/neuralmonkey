@@ -1,3 +1,5 @@
+# tests: lint
+
 from difflib import SequenceMatcher
 import numpy as np
 

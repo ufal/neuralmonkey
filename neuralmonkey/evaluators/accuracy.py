@@ -1,3 +1,5 @@
+#tests: lint
+
 import numpy as np
 
 class Accuracy(object):
