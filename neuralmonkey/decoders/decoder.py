@@ -68,21 +68,21 @@ class Decoder(object):
             tf.constant(dropout_keep_prob, tf.float32),
             shape=[], name="decoder_dropout_placeholder")
 
-        state = self.initial_state()
+        state = self._initial_state()
 
-        self.weights, self.biases = self.state_to_output()
-        self.embedding_matrix = self.input_embeddings()
+        self.weights, self.biases = self._state_to_output()
+        self.embedding_matrix = self._input_embeddings()
 
-        self.train_inputs, self.train_weights = self.training_placeholders()
+        self.train_inputs, self.train_weights = self._training_placeholders()
         self.batch_size = tf.shape(self.train_inputs[0])
         train_targets = self.train_inputs[1:]
 
-        cell = self.get_rnn_cell()
-        attention_objects = self.collect_attention_objects(self.encoders)
+        cell = self._get_rnn_cell()
+        attention_objects = self._collect_attention_objects(self.encoders)
 
         ### Construct the computation part of the graph
 
-        embedded_train_inputs = self.embed_inputs(self.train_inputs[:-1])
+        embedded_train_inputs = self._embed_inputs(self.train_inputs[:-1])
 
         self.train_rnn_outputs, _ = attention_decoder(
             embedded_train_inputs, state, attention_objects,
@@ -90,8 +90,8 @@ class Decoder(object):
 
         # runtime methods and objects are used when no ground truth is provided
         # (such as during testing)
-        runtime_inputs = self.runtime_inputs()
-        loop_function = self.get_loop_function()
+        runtime_inputs = self._runtime_inputs()
+        loop_function = self._get_loop_function()
 
         ### Use the same variables for runtime decoding!
         tf.get_variable_scope().reuse_variables()
@@ -100,10 +100,8 @@ class Decoder(object):
             runtime_inputs, state, attention_objects, self.embedding_size,
             cell, loop_function=loop_function)
 
-        ### KONEC decoder scope
-
-        _, train_logits = self.decode(self.train_rnn_outputs)
-        self.decoded, runtime_logits = self.decode(self.runtime_rnn_outputs)
+        _, train_logits = self._decode(self.train_rnn_outputs)
+        self.decoded, runtime_logits = self._decode(self.runtime_rnn_outputs)
 
         self.train_loss = tf.nn.seq2seq.sequence_loss(
             train_logits, train_targets, self.train_weights,
@@ -120,7 +118,7 @@ class Decoder(object):
                                          trainable=False)
 
         ### Summaries
-        self.init_summaries()
+        self._init_summaries()
 
         log("Decoder initialized.")
 
@@ -134,7 +132,7 @@ class Decoder(object):
         return self.train_loss
 
 
-    def initial_state(self):
+    def _initial_state(self):
         """Create the initial state of the decoder."""
         if len(self.encoders) == 0:
             return tf.zeros([self.rnn_size])
@@ -142,12 +140,12 @@ class Decoder(object):
         encoders_out = tf.concat(1, [e.encoded for e in self.encoders])
 
         if self.project_encoder_outputs:
-            encoders_out = self.encoder_projection(encoders_out)
+            encoders_out = self._encoder_projection(encoders_out)
 
-        return self.dropout(encoders_out)
+        return self._dropout(encoders_out)
 
 
-    def encoder_projection(self, encoded_states):
+    def _encoder_projection(self, encoded_states):
         """Creates a projection of concatenated encoder states
 
         Arguments:
@@ -163,11 +161,11 @@ class Decoder(object):
         biases = tf.Variable(tf.zeros([output_size]),
                              name="encoder_projection_b")
 
-        dropped_input = self.dropout(encoded_states)
+        dropped_input = self._dropout(encoded_states)
         return tf.matmul(dropped_input, weights) + biases
 
 
-    def dropout(self, var):
+    def _dropout(self, var):
         """Perform dropout on a variable
 
         Arguments:
@@ -176,7 +174,7 @@ class Decoder(object):
         return tf.nn.dropout(var, self.dropout_placeholder)
 
 
-    def state_to_output(self):
+    def _state_to_output(self):
         """Create variables for projection of states to output vectors"""
 
         weights = tf.Variable(
@@ -190,7 +188,7 @@ class Decoder(object):
         return weights, biases
 
 
-    def input_embeddings(self):
+    def _input_embeddings(self):
         """Create variables and operations for embedding of input words
 
         If we are reusing word embeddings, this function takes
@@ -205,7 +203,7 @@ class Decoder(object):
             name="word_embeddings")
 
 
-    def training_placeholders(self):
+    def _training_placeholders(self):
         """Defines data placeholders for training the decoder"""
 
         inputs = [tf.placeholder(tf.int64, [None], name="decoder_{}".format(i))
@@ -219,13 +217,13 @@ class Decoder(object):
         return inputs, weights
 
 
-    def get_rnn_cell(self):
+    def _get_rnn_cell(self):
         """Returns a RNNCell object for this decoder"""
 
         return tf.nn.rnn_cell.GRUCell(self.rnn_size)
 
 
-    def collect_attention_objects(self, encoders):
+    def _collect_attention_objects(self, encoders):
         """Collect attention objects of the given encoders
 
         Arguments:
@@ -237,7 +235,7 @@ class Decoder(object):
             return []
 
 
-    def embed_inputs(self, inputs):
+    def _embed_inputs(self, inputs):
         """Embed inputs using the decoder"s word embedding matrix
 
         Arguments:
@@ -245,10 +243,10 @@ class Decoder(object):
         """
         embedded = [tf.nn.embedding_lookup(self.embedding_matrix, o)
                     for o in inputs]
-        return [self.dropout(e) for e in embedded]
+        return [self._dropout(e) for e in embedded]
 
 
-    def runtime_inputs(self):
+    def _runtime_inputs(self):
         """Defines data inputs for running trained decoder"""
         go_symbols = tf.ones(self.batch_size, dtype=tf.int32)
         go_embeds = tf.nn.embedding_lookup(self.embedding_matrix, go_symbols)
@@ -259,7 +257,7 @@ class Decoder(object):
         return inputs
 
 
-    def get_loop_function(self):
+    def _get_loop_function(self):
         """Constructs a loop function for the decoder"""
 
         def basic_loop(previous_state, _):
@@ -271,39 +269,39 @@ class Decoder(object):
                 previous_state: The state of the decoder
                 i: Unused argument, number of the time step
             """
-            output_activation = self.logit_function(previous_state)
+            output_activation = self._logit_function(previous_state)
             previous_word = tf.argmax(output_activation, 1)
             input_embedding = tf.nn.embedding_lookup(self.embedding_matrix,
                                                      previous_word)
 
-            return self.dropout(input_embedding)
+            return self._dropout(input_embedding)
 
         return basic_loop
 
 
-    def logit_function(self, state):
+    def _logit_function(self, state):
         """Compute logits on the vocabulary given the state
 
         Arguments:
             state: the state of the decoder
         """
-        return tf.matmul(self.dropout(state), self.weights) + self.biases
+        return tf.matmul(self._dropout(state), self.weights) + self.biases
 
 
-    def decode(self, rnn_states):
+    def _decode(self, rnn_states):
         """Decodes a sequence from a list of hidden states
 
         Arguments:
             rnn_states: hidden states
         """
-        logits = [self.logit_function(s) for s in rnn_states]
+        logits = [self._logit_function(s) for s in rnn_states]
         decoded = [tf.argmax(l[:, 1:], 1) + 1 for l in logits]
 
         return decoded, logits
 
 
 
-    def init_summaries(self):
+    def _init_summaries(self):
         """Initialize the summaries of the decoder
 
         TensorBoard summaries are collected into the following
