@@ -1,3 +1,11 @@
+"""
+Old, deprecated version of the decoder. In time, this will vanish.
+Now it is here for inspiration to young developers who do not wish
+to end up like us.
+Use this module on your own risk. It won't work anyway since the
+API has changed.
+"""
+
 #tests: mypy, lint
 #pylint: skip-file
 

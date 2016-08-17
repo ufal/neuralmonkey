@@ -59,8 +59,8 @@ class Decoder(object):
         if self.project_encoder_outputs or len(self.encoders) == 0:
             self.rnn_size = kwargs.get("rnn_size", 200)
         else:
-            self.rnn_size = sum([e.encoded.get_shape()[1].value
-                                 for e in self.encoders])
+            self.rnn_size = sum(e.encoded.get_shape()[1].value
+                                for e in self.encoders)
 
         ### Initialize model
 
@@ -80,7 +80,7 @@ class Decoder(object):
         cell = self.get_rnn_cell()
         attention_objects = self.collect_attention_objects(self.encoders)
 
-        ### Perform computation
+        ### Construct the computation part of the graph
 
         embedded_train_inputs = self.embed_inputs(self.train_inputs[:-1])
 
@@ -88,6 +88,8 @@ class Decoder(object):
             embedded_train_inputs, state, attention_objects,
             self.embedding_size, cell)
 
+        # runtime methods and objects are used when no ground truth is provided
+        # (such as during testing)
         runtime_inputs = self.runtime_inputs()
         loop_function = self.get_loop_function()
 
@@ -308,8 +310,6 @@ class Decoder(object):
         collections:
 
         - summary_train: collects statistics from the train-time
-        - sumarry_val: collects OAstatistics while being tested on the
-                 development data
         """
         tf.scalar_summary("train_loss_with_decoded_inputs", self.runtime_loss,
                           collections=["summary_train"])

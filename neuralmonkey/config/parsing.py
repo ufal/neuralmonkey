@@ -1,3 +1,4 @@
+""" Module responsible for INI parsing """
 # tests: mypy, lint
 
 import configparser
@@ -31,14 +32,14 @@ def _keyval_parser_dict():
     return {
         INTEGER: int,
         FLOAT: float,
-        CLASS_NAME: parse_class_name,
+        CLASS_NAME: _parse_class_name,
         OBJECT_REF: lambda x: "object:" + OBJECT_REF.match(x).group(1),
-        LIST: parse_list,
-        TUPLE: parse_tuple
+        LIST: _parse_list,
+        TUPLE: _parse_tuple
     }
 
 
-def split_on_commas(string):
+def _split_on_commas(string):
     """Splits a bracketed string by commas, preserving any commas
     inside brackets."""
 
@@ -69,15 +70,15 @@ def split_on_commas(string):
     return items
 
 
-def parse_list(string):
+def _parse_list(string):
     """ Parses the string recursively as a list """
 
     matched_content = LIST.match(string).group(1)
     if matched_content == '':
         return []
 
-    items = split_on_commas(matched_content)
-    values = [parse_value(val) for val in items]
+    items = _split_on_commas(matched_content)
+    values = [_parse_value(val) for val in items]
     types = [type(val) for val in values]
 
     if len(set(types)) > 1:
@@ -86,16 +87,16 @@ def parse_list(string):
     return values
 
 
-def parse_tuple(string):
+def _parse_tuple(string):
     """ Parses the string recursively as a tuple """
 
-    items = split_on_commas(TUPLE.match(string)[1])
-    values = [parse_value(val) for val in items]
+    items = _split_on_commas(TUPLE.match(string)[1])
+    values = [_parse_value(val) for val in items]
 
     return tuple(values)
 
 
-def parse_class_name(string):
+def _parse_class_name(string):
     """ Parse the string as a module or class name.
     Raises Exception when the class (or module) cannot be imported.
     """
@@ -126,7 +127,7 @@ def parse_class_name(string):
     return clazz
 
 
-def parse_value(string):
+def _parse_value(string):
     """ Parses the value recursively according to the Nerualmonkey grammar.
 
     Arguments:
@@ -179,7 +180,7 @@ def parse_file(config_file):
             value_string = re.sub(r"\$TIME", time_stamp, value_string)
 
             try:
-                value = parse_value(value_string)
+                value = _parse_value(value_string)
             except IniError as exc:
                 raise
             except Exception as exc:

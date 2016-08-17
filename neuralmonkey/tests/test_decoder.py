@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-
+""" Unit tests for the decoder. (Tests only initialization so far) """
 # tests: mypy, lint
 
 import unittest
