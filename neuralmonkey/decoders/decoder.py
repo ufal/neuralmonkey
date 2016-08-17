@@ -157,12 +157,12 @@ class Decoder(object):
 
     def _encoder_projection(self, encoded_states):
         """Creates a projection of concatenated encoder states
+        and applies a tanh activation
 
         Arguments:
             encoded_states: Tensor of concatenated states of input encoders
                             (batch x sum(states))
         """
-
         input_size = encoded_states.get_shape()[1].value
         output_size = self.rnn_size
 
@@ -172,7 +172,7 @@ class Decoder(object):
                              name="encoder_projection_b")
 
         dropped_input = self._dropout(encoded_states)
-        return tf.matmul(dropped_input, weights) + biases
+        return tf.tanh(tf.matmul(dropped_input, weights) + biases)
 
 
     def _dropout(self, var):
