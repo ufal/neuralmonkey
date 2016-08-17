@@ -34,9 +34,18 @@ def attention_decoder(decoder_inputs, initial_state, attention_objects,
                     inp = loop_function(prev, i)
             # Merge input and previous attentions into one vector of the right
             # size.
-            x = tf.nn.seq2seq.linear([inp] + attns, embedding_size, True)
+
+            # inp je batch x embedding_size
+            # attns jsou batch x cokoli leze z attention objektu
+
+            #x = tf.nn.seq2seq.linear([inp] + attns, embedding_size, True)
+            x = tf.concat(1, [inp] + attns)
+
             # Run the RNN.
-            cell_output, state = cell(x, state)
+            # When using GRU cells, these two are the same.
+            cell_output, new_state = cell(x, state)
+            state = new_state
+
             states.append(state)
             # Run the attention mechanism.
             attns = [a.attention(state) for a in attention_objects]
