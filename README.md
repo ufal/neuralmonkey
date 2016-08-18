@@ -52,7 +52,7 @@ The `neuralmonkey` package is organized into subpackages as follows:
 
 ### Installation
 
-- You need Python 3 to run _Neural Monkey_.
+- You need Python 3.5 to run _Neural Monkey_.
 - Install Tensorflow by following their installation docs. (Minimum required version is 0.9.)
   [here](https://www.tensorflow.org/versions/r0.9/get_started/os_setup.html#download-and-setup)
 - Clone this repository and follow the installation procedure outlined in
