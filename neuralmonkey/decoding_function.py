@@ -1,57 +1,93 @@
 import tensorflow as tf
 
-def attention_decoder(decoder_inputs, initial_state, attention_objects,
-                      embedding_size, cell, output_size=None,
-                      loop_function=None, dtype=tf.float32, scope=None):
+from neuralmonkey.logging import debug
 
-    if output_size is None:
-        output_size = cell.output_size
+def attention_decoder(decoder_inputs, initial_state, attention_objects,
+                      cell, loop_function=None, dtype=tf.float32, scope=None):
+
+    output_size = cell.output_size
+    maxout_size = 150
+
+    outputs = []
+    states = []
+
+    #### WTF does this do?
+    # do manualy broadcasting of the initial state if we want it
+    # to be the same for all inputs
+    if len(initial_state.get_shape()) == 1:
+        debug("Warning! I am doing this weird job.")
+        state_size = initial_state.get_shape()[0].value
+        initial_state = tf.reshape(tf.tile(initial_state,
+                                           tf.shape(decoder_inputs[0])[:1]),
+                                   [-1, state_size])
 
     with tf.variable_scope(scope or "attention_decoder"):
-        batch_size = tf.shape(decoder_inputs[0])[0]    # Needed for reshaping.
 
-        # do manualy broadcasting of the initial state if we want it
-        # to be the same for all inputs
-        if len(initial_state.get_shape()) == 1:
-            state_size = initial_state.get_shape()[0].value
-            initial_state = tf.reshape(tf.tile(initial_state,
-                                               tf.shape(decoder_inputs[0])[:1]),
-                                       [-1, state_size])
+        output, state = decode_step(decoder_inputs[0], initial_state,
+                                    attention_objects, cell,
+                                    maxout_size, output_size)
+        outputs.append(output)
+        states.append(state)
 
-        state = initial_state
-        states = []
-        outputs = []
-        prev = None
+        for step in range(1, len(decoder_inputs)):
+            tf.get_variable_scope().reuse_variables()
 
-        for i, inp in enumerate(decoder_inputs):
-            if i > 0:
-                tf.get_variable_scope().reuse_variables()
+            if loop_function:
+                decoder_input = loop_function(state, step)
+            else:
+                decoder_input = decoder_inputs[step]
 
-            # If loop_function is set, we use it instead of decoder_inputs.
-            if loop_function is not None and prev is not None:
-                with tf.variable_scope("loop_function", reuse=True):
-                    inp = loop_function(prev, i)
-
-            attns = [a.attention(state) for a in attention_objects]
-            x = tf.concat(1, [inp] + attns)
-
-            # Run the RNN.
-            # When using GRU cells, these two are the same.
-            cell_output, state = cell(x, state)
+            output, state = decode_step(decoder_input, state, attention_objects,
+                                        cell, maxout_size, output_size)
+            outputs.append(output)
             states.append(state)
 
-            if attns:
-                with tf.variable_scope("AttnOutputProjection"):
-                    output = tf.nn.seq2seq.linear(
-                        [cell_output] + attns, output_size, True)
-            else:
-                output = cell_output
-
-            if loop_function is not None:
-                prev = output
-            outputs.append(output)
-
     return outputs, states
+
+
+def decode_step(prev_output, prev_state, attention_objects, rnn_cell,
+                maxout_size, output_size):
+    ## compute c_i:
+    contexts = [a.attention(prev_state) for a in attention_objects]
+
+    ## compute prob(y_i | s_i-1, y_i-1, c_i)
+    output = maxout_projection(prev_state, prev_output, contexts,
+                               maxout_size, output_size)
+
+    ## compute s_i based on y_i-1, c_i and s_i-1
+    _, state = rnn_cell(tf.concat(1, [prev_output] + contexts), prev_state)
+
+    return output, state
+
+
+def linear_projection(states, size):
+    with tf.variable_scope("AttnOutputProjection"):
+        output = tf.nn.seq2seq.linear(states, size, True)
+        return output
+
+
+def maxout_projection(prev_state, prev_output, current_contexts,
+                      maxout_size, output_size):
+    # in Bahdanau: t_i = [max(t'_{i,2j-1}, t'_{i,2j})] ... j = 1,...,l
+    # where: t' is projection
+
+    with tf.variable_scope("AttnMaxoutProjection"):
+        input_ = [prev_state, prev_output] + current_contexts
+        projected = tf.nn.seq2seq.linear(input_, maxout_size * 2, True)
+
+        ## dropouts?!
+
+        # projected je batch x (2*maxout_size)
+        # potreba narezat po dvojicich v dimenzi jedna
+        # aby byl batch x 2 x maxout_size
+
+        maxout_input = tf.reshape(projected, [-1, 1, 2, maxout_size])
+
+        maxpooled = tf.nn.max_pool(
+            maxout_input, [1, 1, 2, 1], [1, 1, 2, 1], "SAME")
+
+        reshaped = tf.reshape(maxpooled, [-1, maxout_size])
+        return linear_projection(reshaped, output_size)
 
 
 class Attention(object):
