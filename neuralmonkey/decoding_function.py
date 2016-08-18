@@ -93,6 +93,9 @@ def maxout_projection(prev_state, prev_output, current_contexts, maxout_size):
     where: t' is linear projection of concatenation of the previous
     state, previous output and current attention contexts.
 
+    More about maxout in Goodfellow et al. (2013)
+    here: https://arxiv.org/pdf/1302.4389.pdf
+
     Arguments:
         prev_state: Previous state (s_i-1 in the paper)
         prev_output: Embedding of previously outputted word (y_i-1)
