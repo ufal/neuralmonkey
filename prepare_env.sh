@@ -26,13 +26,13 @@ source tfpy3/bin/activate
 pip install https://storage.googleapis.com/tensorflow/linux/cpu/$TF_VERSION
 deactivate
 
-rm $TF_VERSION
+rm $TF_VERSION || echo "Failed to remove"
 
 source tfpy3-gpu/bin/activate
 pip install https://storage.googleapis.com/tensorflow/linux/gpu/$TF_VERSION
 deactivate
 
-rm $TF_VERSION
+rm $TF_VERSION || echo "Failed to remove"
 
 for ENV in tfpy3 tfpy3-gpu; do
     source $ENV/bin/activate
