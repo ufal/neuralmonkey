@@ -50,6 +50,7 @@ class Decoder(object):
         dropout_keep_prob = kwargs.get("dropout_keep_prob", 1.0)
 
         self.use_attention = kwargs.get("use_attention", False)
+        attention_maxout_size = kwargs.get("maxout_size", 200)
         self.reuse_word_embeddings = kwargs.get("reuse_word_embeddings", False)
 
         if self.reuse_word_embeddings:
@@ -95,7 +96,8 @@ class Decoder(object):
         embedded_train_inputs = self._embed_inputs(self.train_inputs[:-1])
 
         self.train_rnn_outputs, _ = attention_decoder(
-            embedded_train_inputs, state, attention_objects, cell)
+            embedded_train_inputs, state, attention_objects,
+            cell, attention_maxout_size)
 
         # runtime methods and objects are used when no ground truth is provided
         # (such as during testing)
@@ -107,7 +109,7 @@ class Decoder(object):
 
         self.runtime_rnn_outputs, _ = attention_decoder(
             runtime_inputs, state, attention_objects, cell,
-            loop_function=loop_function)
+            attention_maxout_size, loop_function=loop_function)
 
         _, train_logits = self._decode(self.train_rnn_outputs)
         self.decoded, runtime_logits = self._decode(self.runtime_rnn_outputs)

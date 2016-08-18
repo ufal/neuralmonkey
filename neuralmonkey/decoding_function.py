@@ -3,11 +3,9 @@ import tensorflow as tf
 from neuralmonkey.logging import debug
 
 def attention_decoder(decoder_inputs, initial_state, attention_objects,
-                      cell, loop_function=None, dtype=tf.float32, scope=None):
-
+                      cell, maxout_size, loop_function=None,
+                      dtype=tf.float32, scope=None):
     output_size = cell.output_size
-    maxout_size = 150
-
     outputs = []
     states = []
 
