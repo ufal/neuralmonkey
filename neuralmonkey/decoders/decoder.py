@@ -68,6 +68,10 @@ class Decoder(object):
         if self.project_encoder_outputs or len(self.encoders) == 0:
             self.rnn_size = kwargs.get("rnn_size", 200)
         else:
+            if "rnn_size" in kwargs:
+                log("Warning: rnn_size attribute will not be used "
+                    "without encoder projection!", color="red")
+
             self.rnn_size = sum(e.encoded.get_shape()[1].value
                                 for e in self.encoders)
 
@@ -79,7 +83,7 @@ class Decoder(object):
 
         state = self._initial_state()
 
-        self.weights, self.biases = self._state_to_output()
+        self.weights, self.biases = self._state_to_output(attention_maxout_size)
         self.embedding_matrix = self._input_embeddings()
 
         self.train_inputs, self.train_weights = self._training_placeholders()
@@ -185,11 +189,11 @@ class Decoder(object):
         return tf.nn.dropout(var, self.dropout_placeholder)
 
 
-    def _state_to_output(self):
+    def _state_to_output(self, maxout_size):
         """Create variables for projection of states to output vectors"""
 
         weights = tf.Variable(
-            tf.random_uniform([self.rnn_size, self.vocabulary_size], -0.5, 0.5),
+            tf.random_uniform([maxout_size, self.vocabulary_size], -0.5, 0.5),
             name="state_to_word_W")
 
         biases = tf.Variable(
@@ -302,13 +306,13 @@ class Decoder(object):
         return tf.matmul(self._dropout(state), self.weights) + self.biases
 
 
-    def _decode(self, rnn_states):
-        """Decodes a sequence from a list of hidden states
+    def _decode(self, rnn_outputs):
+        """Decodes a sequence from a list of RNN outputs
 
         Arguments:
-            rnn_states: hidden states
+            rnn_outputs: List of batch x maxout_size tensors
         """
-        logits = [self._logit_function(s) for s in rnn_states]
+        logits = [self._logit_function(s) for s in rnn_outputs]
         decoded = [tf.argmax(l[:, 1:], 1) + 1 for l in logits]
 
         return decoded, logits

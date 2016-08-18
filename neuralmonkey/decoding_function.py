@@ -5,9 +5,10 @@ from neuralmonkey.logging import debug
 def attention_decoder(decoder_inputs, initial_state, attention_objects,
                       cell, maxout_size, loop_function=None,
                       dtype=tf.float32, scope=None):
-    output_size = cell.output_size
     outputs = []
     states = []
+
+    debug("initial state shape: {}".format(initial_state.get_shape()))
 
     #### WTF does this do?
     # do manualy broadcasting of the initial state if we want it
@@ -20,37 +21,49 @@ def attention_decoder(decoder_inputs, initial_state, attention_objects,
                                    [-1, state_size])
 
     with tf.variable_scope(scope or "attention_decoder"):
-
         output, state = decode_step(decoder_inputs[0], initial_state,
-                                    attention_objects, cell,
-                                    maxout_size, output_size)
+                                    attention_objects, cell, maxout_size)
         outputs.append(output)
         states.append(state)
 
         for step in range(1, len(decoder_inputs)):
             tf.get_variable_scope().reuse_variables()
 
+            debug("State shape: {}".format(state.get_shape()))
+
             if loop_function:
-                decoder_input = loop_function(state, step)
+                decoder_input = loop_function(output, step)
             else:
                 decoder_input = decoder_inputs[step]
 
             output, state = decode_step(decoder_input, state, attention_objects,
-                                        cell, maxout_size, output_size)
+                                        cell, maxout_size)
             outputs.append(output)
             states.append(state)
 
     return outputs, states
 
 
-def decode_step(prev_output, prev_state, attention_objects, rnn_cell,
-                maxout_size, output_size):
+def decode_step(prev_output, prev_state, attention_objects,
+                rnn_cell, maxout_size):
+    """This function implements equations in section A.2.2 of the
+    Bahdanau et al. (2015) paper, on pages 13 and 14.
+
+    Arguments:
+        prev_output: Previous decoded output (denoted by y_i-1)
+        prev_state: Previous state (denoted by s_i-1)
+        attention_objects: Objects that do attention
+        rnn_cell: The RNN cell to use (should be GRU)
+        maxout_size: The size of the maxout hidden layer (denoted by l)
+
+    Returns:
+        Tuple of the new output and state
+    """
     ## compute c_i:
     contexts = [a.attention(prev_state) for a in attention_objects]
 
-    ## compute prob(y_i | s_i-1, y_i-1, c_i)
-    output = maxout_projection(prev_state, prev_output, contexts,
-                               maxout_size, output_size)
+    ## compute t_i:
+    output = maxout_projection(prev_state, prev_output, contexts, maxout_size)
 
     ## compute s_i based on y_i-1, c_i and s_i-1
     _, state = rnn_cell(tf.concat(1, [prev_output] + contexts), prev_state)
@@ -59,16 +72,37 @@ def decode_step(prev_output, prev_state, attention_objects, rnn_cell,
 
 
 def linear_projection(states, size):
+    """Adds linear projection on top of a list of vectors.
+
+    Arguments:
+        states: A list of states to project
+        size: Size of the resulting vector
+
+    Returns the projected vector of the specified size.
+    """
     with tf.variable_scope("AttnOutputProjection"):
         output = tf.nn.seq2seq.linear(states, size, True)
         return output
 
 
-def maxout_projection(prev_state, prev_output, current_contexts,
-                      maxout_size, output_size):
-    # in Bahdanau: t_i = [max(t'_{i,2j-1}, t'_{i,2j})] ... j = 1,...,l
-    # where: t' is projection
+def maxout_projection(prev_state, prev_output, current_contexts, maxout_size):
+    """ Adds maxout hidden layer for computation the output
+    distribution.
 
+    In Bahdanau: t_i = [max(t'_{i,2j-1}, t'_{i,2j})] ... j = 1,...,l
+    where: t' is linear projection of concatenation of the previous
+    state, previous output and current attention contexts.
+
+    Arguments:
+        prev_state: Previous state (s_i-1 in the paper)
+        prev_output: Embedding of previously outputted word (y_i-1)
+        current_contexts: List of attention vectors (only one in the paper,
+                          denoted by c_i)
+        maxout_size: The size of the maxout hidden layer (denoted by l)
+
+    Returns:
+        A tensor of shape batch x maxout_size
+    """
     with tf.variable_scope("AttnMaxoutProjection"):
         input_ = [prev_state, prev_output] + current_contexts
         projected = tf.nn.seq2seq.linear(input_, maxout_size * 2, True)
@@ -85,7 +119,7 @@ def maxout_projection(prev_state, prev_output, current_contexts,
             maxout_input, [1, 1, 2, 1], [1, 1, 2, 1], "SAME")
 
         reshaped = tf.reshape(maxpooled, [-1, maxout_size])
-        return linear_projection(reshaped, output_size)
+        return reshaped
 
 
 class Attention(object):
