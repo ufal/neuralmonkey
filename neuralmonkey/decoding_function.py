@@ -19,41 +19,31 @@ def attention_decoder(decoder_inputs, initial_state, attention_objects,
                                        [-1, state_size])
 
         state = initial_state
+        states = []
         outputs = []
         prev = None
 
-        attns = [a.initialize(batch_size, dtype) for a in attention_objects]
-
-        states = []
         for i, inp in enumerate(decoder_inputs):
             if i > 0:
                 tf.get_variable_scope().reuse_variables()
+
             # If loop_function is set, we use it instead of decoder_inputs.
             if loop_function is not None and prev is not None:
                 with tf.variable_scope("loop_function", reuse=True):
                     inp = loop_function(prev, i)
-            # Merge input and previous attentions into one vector of the right
-            # size.
 
-            # inp je batch x embedding_size
-            # attns jsou batch x cokoli leze z attention objektu
-
-            #x = tf.nn.seq2seq.linear([inp] + attns, embedding_size, True)
+            attns = [a.attention(state) for a in attention_objects]
             x = tf.concat(1, [inp] + attns)
 
             # Run the RNN.
             # When using GRU cells, these two are the same.
-            cell_output, new_state = cell(x, state)
-            state = new_state
-
+            cell_output, state = cell(x, state)
             states.append(state)
-            # Run the attention mechanism.
-            attns = [a.attention(state) for a in attention_objects]
 
             if attns:
                 with tf.variable_scope("AttnOutputProjection"):
-                    output = tf.nn.seq2seq.linear([cell_output] + attns, output_size,
-                                             True)
+                    output = tf.nn.seq2seq.linear(
+                        [cell_output] + attns, output_size, True)
             else:
                 output = cell_output
 
@@ -62,6 +52,7 @@ def attention_decoder(decoder_inputs, initial_state, attention_objects,
             outputs.append(output)
 
     return outputs, states
+
 
 class Attention(object):
     def __init__(self, attention_states, scope, dropout_placeholder,
@@ -123,13 +114,6 @@ class Attention(object):
     def get_logits(self, y):
         # Attention mask is a softmax of v^T * tanh(...).
         return tf.reduce_sum(self.v * tf.tanh(self.hidden_features + y), [2, 3])
-
-    def initialize(self, batch_size, dtype):
-        batch_attn_size = tf.pack([batch_size, self.attn_size])
-        initial = tf.zeros(batch_attn_size, dtype=dtype)
-        # Ensure the second shape of attention vectors is set.
-        initial.set_shape([None, self.attn_size])
-        return initial
 
 
 class CoverageAttention(Attention):
