@@ -1,11 +1,20 @@
+"""
+Module which implements decoding functions using multiple attentions
+for RNN decoders.
+
+See http://arxiv.org/abs/1606.07481
+"""
+#tests: lint
+
 import tensorflow as tf
 
 from neuralmonkey.logging import debug
 from neuralmonkey.nn.projection import maxout, linear
 
+# pylint: disable=too-many-arguments
+# Great functions require great number of parameters
 def attention_decoder(decoder_inputs, initial_state, attention_objects,
-                      cell, maxout_size, loop_function=None,
-                      dtype=tf.float32, scope=None):
+                      cell, maxout_size, loop_function=None, scope=None):
     outputs = []
     states = []
 
@@ -71,6 +80,8 @@ def decode_step(prev_output, prev_state, attention_objects,
 
 
 class Attention(object):
+    #pylint: disable=unused-argument,too-many-instance-attributes
+    # For maintaining the same API as in CoverageAttention
     def __init__(self, attention_states, scope, dropout_placeholder,
                  input_weights=None, max_fertility=None):
         self.scope = scope
@@ -99,6 +110,8 @@ class Attention(object):
             self.hidden_features = tf.nn.conv2d(self.att_states_reshaped, k,
                                                 [1, 1, 1, 1], "SAME")
 
+            #pylint: disable=invalid-name
+            # see comments on disabling invalid names below
             self.v = tf.get_variable("AttnV", [self.attention_vec_size])
 
     def attention(self, query_state):
@@ -110,6 +123,9 @@ class Attention(object):
             y = linear(query_state, self.attention_vec_size)
             y = tf.reshape(y, [-1, 1, 1, self.attention_vec_size])
 
+            #pylint: disable=invalid-name
+            # code copied from tensorflow. Suggestion: rename the variables
+            # according to the Bahdanau paper
             s = self.get_logits(y)
 
             if self.input_weights is None:
@@ -133,6 +149,9 @@ class Attention(object):
 
 
 class CoverageAttention(Attention):
+
+    # pylint: disable=too-many-arguments
+    # Great objects require great number of parameters
     def __init__(self, attention_states, scope, dropout_placeholder,
                  input_weights=None, max_fertility=5):
 
