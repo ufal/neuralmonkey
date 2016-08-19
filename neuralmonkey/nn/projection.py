@@ -38,7 +38,7 @@ def maxout(inputs, size, scope="MaxoutProjection"):
         A tensor of shape batch x size
     """
     with tf.variable_scope(scope):
-        projected = linear_projection(inputs, size * 2)
+        projected = linear(inputs, size * 2)
         maxout_input = tf.reshape(projected, [-1, 1, 2, size])
         maxpooled = tf.nn.max_pool(
             maxout_input, [1, 1, 2, 1], [1, 1, 2, 1], "SAME")
