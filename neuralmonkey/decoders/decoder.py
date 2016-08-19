@@ -126,6 +126,10 @@ class Decoder(object):
             runtime_logits, train_targets, self.train_weights,
             self.vocabulary_size)
 
+        self.cross_entropies = tf.nn.seq2seq.sequence_loss_by_example(
+            train_logits, train_targets, self.train_weights,
+            self.vocabulary_size)
+
         ### Learning step
         ### TODO was here only because of scheduled sampling.
         ### needs to be refactored out
