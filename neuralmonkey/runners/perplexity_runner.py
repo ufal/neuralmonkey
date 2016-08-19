@@ -4,8 +4,6 @@ used in case we train a language model. Instead of decoding sentences in
 computes its perplexities given the decoder.
 """
 #tests: lint
-import numpy as np
-import tensorflow as tf
 
 from neuralmonkey.learning_utils import feed_dicts
 
