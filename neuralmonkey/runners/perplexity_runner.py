@@ -7,6 +7,7 @@ computes its perplexities given the decoder.
 
 from neuralmonkey.learning_utils import feed_dicts
 
+#pylint: disable=too-few-public-methods
 class PerplexityRunner(object):
     def __init__(self, decoder, batch_size):
         self.decoder = decoder
@@ -18,21 +19,18 @@ class PerplexityRunner(object):
             raise Exception("Dataset must have the target values ({})"
                             "for computing perplexity."
                             .format(self.decoder.data_id))
-
-        batched_dataset = dataset.batch_dataset(self.batch_size)
-        losses = [self.decoder.train_loss,
-                  self.decoder.runtime_loss]
         perplexities = []
-
         train_loss = 0.0
         runtime_loss = 0.0
-
         batch_count = 0
-        for batch in batched_dataset:
+
+        for batch in dataset.batch_dataset(self.batch_size):
             batch_count += 1
             batch_feed_dict = feed_dicts(batch, coders, train=False)
             cross_entropies, opt_loss, dec_loss = sess.run(
-                [self.decoder.cross_entropies] + losses,
+                [self.decoder.cross_entropies,
+                 self.decoder.train_loss,
+                 self.decoder.runtime_loss],
                 feed_dict=batch_feed_dict)
 
             perplexities.extend([2 ** xent for xent in cross_entropies])
