@@ -2,6 +2,7 @@
 
 import math
 import tensorflow as tf
+import numpy as np
 
 from neuralmonkey.decoding_function import attention_decoder
 from neuralmonkey.logging import log
@@ -74,8 +75,10 @@ class Decoder(object):
         self.embedding_matrix = self._input_embeddings()
 
         self.train_inputs, self.train_weights = self._training_placeholders()
-        self.batch_size = tf.shape(self.train_inputs[0])
         train_targets = self.train_inputs[1:]
+
+        self.go_symbols = tf.placeholder(tf.int32, shape=[None],
+                                         name="decoder_go_symbols")
 
         cell = self._get_rnn_cell()
         attention_objects = self._collect_attention_objects(self.encoders)
@@ -90,7 +93,7 @@ class Decoder(object):
 
         # runtime methods and objects are used when no ground truth is provided
         # (such as during testing)
-        runtime_inputs = self._runtime_inputs()
+        runtime_inputs = self._runtime_inputs(self.go_symbols)
         loop_function = self._get_loop_function()
 
         ### Use the same variables for runtime decoding!
@@ -246,9 +249,12 @@ class Decoder(object):
         return [self._dropout(e) for e in embedded]
 
 
-    def _runtime_inputs(self):
-        """Defines data inputs for running trained decoder"""
-        go_symbols = tf.ones(self.batch_size, dtype=tf.int32)
+    def _runtime_inputs(self, go_symbols):
+        """Defines data inputs for running trained decoder
+
+        Arguments:
+            go_symbols: Tensor of go symbols. (Shape [batch])
+        """
         go_embeds = tf.nn.embedding_lookup(self.embedding_matrix, go_symbols)
 
         inputs = [go_embeds]
@@ -300,7 +306,6 @@ class Decoder(object):
         return decoded, logits
 
 
-
     def _init_summaries(self):
         """Initialize the summaries of the decoder
 
@@ -314,8 +319,6 @@ class Decoder(object):
 
         tf.scalar_summary("train_optimization_cost", self.train_loss,
                           collections=["summary_train"])
-
-
 
 
     def feed_dict(self, dataset, train=False):
@@ -337,6 +340,8 @@ class Decoder(object):
         # pylint: disable=invalid-name
         # fd is the common name for feed dictionary
         fd = {}
+        fd[self.go_symbols] = np.ones(len(dataset))
+
         sentences = dataset.get_series(self.data_id, allow_none=True)
 
         if sentences is not None:
