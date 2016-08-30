@@ -56,6 +56,13 @@ body {
     background: #990000;
 }
 
+
+.noexp {
+    margin-top: 50px;
+    color: red;
+    font-weight: bold;
+}
+
 .topButton {
     background: #990000;
     text-align: center;

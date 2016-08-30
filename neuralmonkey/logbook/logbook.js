@@ -17,6 +17,10 @@ function loadExperiments() {
                 });
             $("#experiments").append(experiment_box)
         }
+
+	if(experiments.length == 0) {
+	    $("#experiments").append($("<div class='noexp'>No experiments found.</div>"))
+	}
     });
 }
 
