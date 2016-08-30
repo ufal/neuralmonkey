@@ -6,7 +6,7 @@ import unittest
 import sys
 import shutil
 
-from neuralmonkey.evaluators.bleu_ref import BLEUReferenceImplWrapper
+from neuralmonkey.evaluators.bleu import BLEUEvaluator
 
 
 CORPUS_DECODED = [
@@ -29,8 +29,7 @@ CORPUS_REFERENCE = [
 DECODED = [d.split() for d in CORPUS_DECODED]
 REFERENCE = [r.split() for r in CORPUS_REFERENCE]
 
-LOCATION = "lib/mteval/wrap-mteval.pl"
-FUNC = BLEUReferenceImplWrapper(LOCATION)
+FUNC = BLEUEvaluator()
 
 def check_perl():
     return shutil.which("perl") is not None
