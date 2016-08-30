@@ -14,33 +14,74 @@ from neuralmonkey.dataset import load_dataset_from_files
 # for backwards compatibility
 dataset_from_files = load_dataset_from_files
 
+def vocabulary_from_file(filename):
+    """Loads vocabulary from a pickled file
+
+    Arguments:
+        filename: File name to load the vocabulary from
+    """
+    if not os.path.exists(filename):
+        raise Exception("Vocabulary file does not exist: {}".format(filename))
+    return Vocabulary.from_pickled(filename)
+
+
+def vocabulary_from_dataset(datasets, series_ids, max_size, save_file=None,
+                            overwrite=False):
+    """Loads vocabulary from a dataset with an option to save it.
+
+    Arguments:
+        datasets:   A list of datasets from which to create the vocabulary
+        series_ids: A list of ids of series of the datasets that should be used
+                    producing the vocabulary
+        max_size:   The maximum size of the vocabulary
+        save_file:  A file to save the vocabulary to. If None (default),
+                    the vocabulary will not be saved.
+    """
+    vocabulary = Vocabulary.from_datasets(datasets, series_ids, max_size)
+
+    if not overwrite and os.path.exists(save_file):
+        raise Exception("Cannot save the vocabulary. File exists: {}"
+                        .format(save_file))
+
+    directory = os.path.dirname(save_file)
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+
+    vocabulary.save_to_file(save_file)
+    return vocabulary
+
+
 def initialize_vocabulary(directory, name, datasets=None, series_ids=None,
                           max_size=None):
-    """This function is supposed to initialize vocabulary when called from the
-    configuration file. It first checks whether the vocabulary is already
+    """This function is supposed to initialize vocabulary when called from
+    the configuration file. It first checks whether the vocabulary is already
     loaded on the provided path and if not, it tries to generate it from
     the provided dataset.
 
-    Arguments:
-        directory: Directory where the vocabulary should be stored.
-        name: Name of the vocabulary which is also the name of the file
-              it is stored it.
-        datasets: A a list of datasets from which the vocabulary can be
-                  created.
+    Args:
+        directory:  Directory where the vocabulary should be stored.
+
+        name:       Name of the vocabulary which is also the name of the file
+                    it is stored it.
+
+        datasets:   A a list of datasets from which the vocabulary can be
+                    created.
+
         series_ids: A list of ids of series of the datasets that should be used
                     for producing the vocabulary.
+
+        max_size:   The maximum size of the vocabulary
     """
+    log("Warning! Use of deprecated initialize_vocabulary method. "
+        "Did you think this through?", color="red")
+
     file_name = os.path.join(directory, name + ".pickle")
     if os.path.exists(file_name):
-        return Vocabulary.from_pickled(file_name)
-    else:
-        if datasets is None or series_ids is None or max_size is None:
-            raise Exception("Vocabulary does not exist in \"{}\","+
-                            "neither dataset and series_id were provided.")
-        vocabulary = Vocabulary.from_datasets(datasets, series_ids, max_size)
+        return vocabulary_from_file(file_name)
 
-        if not os.path.exists(directory):
-            os.makedirs(directory)
+    if datasets is None or series_ids is None or max_size is None:
+        raise Exception("Vocabulary does not exist in \"{}\","+
+                        "neither dataset and series_id were provided.")
 
-        vocabulary.save_to_file(file_name)
-        return vocabulary
+    return vocabulary_from_dataset(datasets, series_ids, max_size,
+                                   save_file=file_name, overwrite=False)
