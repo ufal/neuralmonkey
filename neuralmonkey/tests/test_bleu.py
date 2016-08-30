@@ -3,8 +3,6 @@
 # tests: mypy, lint
 
 import unittest
-import sys
-import shutil
 
 from neuralmonkey.evaluators.bleu import BLEUEvaluator
 
@@ -31,14 +29,6 @@ REFERENCE = [r.split() for r in CORPUS_REFERENCE]
 
 FUNC = BLEUEvaluator()
 
-def check_perl():
-    return shutil.which("perl") is not None
-
-def check_version():
-    return sys.version_info >= (3, 5)
-
-@unittest.skipUnless(check_perl(), "Perl missing. Skipping.")
-@unittest.skipUnless(check_version(), "Old Python. Skipping.")
 class TestBLEU(unittest.TestCase):
 
     def test_empty_decoded(self):
