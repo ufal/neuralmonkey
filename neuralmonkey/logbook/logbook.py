@@ -2,6 +2,7 @@
 
 import argparse
 import os
+import html
 import json
 from flask import Flask, Response
 import ansiconv
@@ -26,10 +27,10 @@ def index():
 @APP.route('/experiments', methods=['GET'])
 def list_experiments():
     logdir = APP.config['logdir']
-    experiment_list = \
-        [dr for dr in os.listdir(logdir)
-         if os.path.isdir(os.path.join(logdir, dr))
-         and os.path.isfile(os.path.join(logdir, dr, 'experiment.ini'))]
+    experiment_list = [dr for dr in os.listdir(logdir)
+                       if os.path.isdir(os.path.join(logdir, dr))
+                       and os.path.isfile(os.path.join(
+                           logdir, dr, 'experiment.ini'))]
     json_response = json.dumps({'experiments': experiment_list})
 
     response = Response(json_response,
@@ -47,11 +48,11 @@ def get_experiment(path):
         if path.endswith(".log"):
             result = ansiconv.to_html(file_content)
         elif path.endswith(".ini"):
-            result = file_content
+            result = html.escape(file_content)
         else:
-            result = "Unknow file type: \"{}\".".format(complete_path)
+            result = "Unknow file type: '{}'.".format(complete_path)
     else:
-        result = "File \"{}\" does not exist.".format(complete_path)
+        result = "File '{}' does not exist.".format(complete_path)
     return Response(result, mimetype='text/html', status=200)
 
 
