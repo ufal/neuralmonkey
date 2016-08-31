@@ -31,6 +31,10 @@ def list_experiments():
                        if os.path.isdir(os.path.join(logdir, dr))
                        and os.path.isfile(os.path.join(
                            logdir, dr, 'experiment.ini'))]
+
+    if os.path.isfile(os.path.join(logdir, 'experiment.ini')):
+        experiment_list.append(".")
+
     json_response = json.dumps({'experiments': experiment_list})
 
     response = Response(json_response,
