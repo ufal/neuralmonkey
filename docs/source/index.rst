@@ -6,17 +6,16 @@
 Welcome to Neural Monkey's documentation!
 =========================================
 
-Contents:
+
+``neuralmonkey`` package
+========================
+
+.. automodule:: neuralmonkey
+   :members:
+
+------------------------
+
+**Sub-modules**
 
 .. toctree::
-   :maxdepth: 2
-
-
-
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
-
+   neuralmonkey.decoders.decoder
