@@ -20,7 +20,7 @@ class Decoder(object):
     def __init__(self, encoders, vocabulary, data_id, **kwargs):
         """Creates a new instance of the decoder
 
-        Required arguments:
+        Arguments:
             encoders: List of encoders whose outputs will be decoded
             vocabulary: Output vocabulary
             data_id: Identifier of the data series fed to this decoder
@@ -29,17 +29,15 @@ class Decoder(object):
             embedding_size: Size of embedding vectors. Default 200
             max_output: Maximum length of the output. Default 20
             rnn_size: When projection is used or when no encoder is supplied,
-                      this is the size of the projected vector.
+                this is the size of the projected vector.
             dropout_keep_prob: Dropout keep probability. Default 1 (no dropout)
-
-        Flags:
-            use_attention: Indicates whether to use attention from encoders
-            reuse_word_embeddings: Boolean flag specifying whether to reuse
-                                   word embeddings. If True, word embeddings
-                                   from the first encoder will be used
+            use_attention: Boolean flag that indicates whether to use attention
+                from encoders
+            reuse_word_embeddings: Boolean flag specifying whether to
+                reuse word embeddings. If True, word embeddings
+                from the first encoder will be used
             project_encoder_outputs: Boolean flag whether to project output
-                                     states of encoders
-
+                states of encoders
         """
         self.encoders = encoders
         self.vocabulary = vocabulary
@@ -325,17 +323,19 @@ class Decoder(object):
         """Populate the feed dictionary for the decoder object
 
         Decoder placeholders:
-            decoder_{x} for x in range(max_output+2):
-                Training data placeholders. Starts with <s> and ends with </s>
 
-            decoder_padding_weights{x} for x in range(max_output+1):
-                Weights used for padding. (Float) tensor of ones and zeros.
-                This tensor is one-item shorter than the other one since the
-                decoder does not produce the first <s>.
+            ``decoder_{x} for x in range(max_output+2)``
+            Training data placeholders. Starts with <s> and ends with </s>
 
-            dropout_placeholder: Scalar placeholder for dropout probability.
-                Has value 'dropout_keep_prob' from the constructor or 1
-                in case we are decoding at run-time
+            ``decoder_padding_weights{x} for x in range(max_output+1)``
+            Weights used for padding. (Float) tensor of ones and zeros.
+            This tensor is one-item shorter than the other one since the
+            decoder does not produce the first <s>.
+
+            ``dropout_placeholder``
+            Scalar placeholder for dropout probability.
+            Has value 'dropout_keep_prob' from the constructor or 1
+            in case we are decoding at run-time
         """
         # pylint: disable=invalid-name
         # fd is the common name for feed dictionary
