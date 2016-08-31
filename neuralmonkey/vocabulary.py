@@ -1,6 +1,7 @@
 # tests: lint, mypy
 
 import re
+import codecs
 import collections
 import random
 import pickle as pickle
@@ -173,3 +174,20 @@ class Vocabulary(collections.Sized):
             vocabulary = pickle.load(f_pickle)
         assert isinstance(vocabulary, Vocabulary)
         return vocabulary
+
+
+    @staticmethod
+    def from_bpe(path, encoding="utf-8"):
+        #type: (str) -> Vocabulary
+        vocab = Vocabuary()
+
+        with codecs.open(path, "r", encoding) as f_bpe:
+            for line in f_bpe:
+                pair = f_bpe.split()
+                assert len(pair) == 2
+
+                vocab.add_word(pair[0])
+                vocab.add_word(pair[1])
+                vocab.add_word("".join(pair))
+
+        return vocab
