@@ -17,5 +17,4 @@ Welcome to Neural Monkey's documentation!
 
 **Sub-modules**
 
-.. toctree::
-   neuralmonkey.decoders.decoder
+.. toctree:: modules
