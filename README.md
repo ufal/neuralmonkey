@@ -1,6 +1,8 @@
 # Neural Monkey
 
 [![Build Status](https://travis-ci.org/ufal/neuralmonkey.svg?branch=master)](https://travis-ci.org/ufal/neuralmonkey)
+[![Documentation Status](https://readthedocs.org/projects/neural-monkey/badge/?version=latest)](http://neural-monkey.readthedocs.io/en/latest/?badge=latest)
+      
 
 __Neural Sequence Learning Using TensorFlow__
 
