@@ -1,7 +1,6 @@
 # tests: lint, mypy
 
 import re
-import codecs
 import collections
 import random
 import pickle as pickle
@@ -181,7 +180,7 @@ class Vocabulary(collections.Sized):
         #type: (str) -> Vocabulary
         vocab = Vocabulary()
 
-        with codecs.open(path, "r", encoding) as f_bpe:
+        with open(path, encoding=encoding) as f_bpe:
             for line in f_bpe:
                 pair = line.split()
                 assert len(pair) == 2
