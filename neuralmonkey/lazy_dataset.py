@@ -16,9 +16,9 @@ class LazyDataset(Dataset):
     return an infinitely looping generator instead of a list.
     """
 
-    #def __init__(self, **kwargs):
-    #    super().__init__(**kwargs)
-
+    def _check_series_lengths(self):
+        """Cannot check series lengths in lazy dataset."""
+        pass
 
     @staticmethod
     def create_series(path, preprocess=lambda x: x):
