@@ -10,6 +10,7 @@ import os
 
 from neuralmonkey.logging import log, debug
 from neuralmonkey.dataset import Dataset
+from neuralmonkey.lazy_dataset import LazyDataset
 from neuralmonkey.vocabulary import Vocabulary
 
 SERIES_SOURCE = re.compile("s_([^_]*)$")
@@ -32,14 +33,17 @@ def dataset_from_files(**kwargs):
     random_seed = kwargs.get("random_seed", None)
     preprocess = kwargs.get("preprocessor", lambda x: x)
     name = kwargs.get("name", "dataset")
+    lazy = kwargs.get("lazy", False)
     series = None
     series_paths = _get_series_paths(kwargs)
 
     debug("Series paths: {}".format(series_paths), "datasetBuild")
 
+    clazz = LazyDataset if lazy else Dataset
+
     if len(series_paths) > 0:
         log("Initializing dataset with: {}".format(", ".join(series_paths)))
-        series = {s: Dataset.create_series(series_paths[s], preprocess)
+        series = {s: clazz.create_series(series_paths[s], preprocess)
                   for s in series_paths}
         name = kwargs.get('name', _get_name_from_paths(series_paths))
 
@@ -47,8 +51,11 @@ def dataset_from_files(**kwargs):
                       for key, value in kwargs.items()
                       if SERIES_OUTPUT.match(key)}
 
-    dataset = Dataset(name, series, series_outputs, random_seed)
-    log("Dataset length: {}".format(len(dataset)))
+    dataset = clazz(name, series, series_outputs, random_seed)
+
+    if not lazy:
+        log("Dataset length: {}".format(len(dataset)))
+
     return dataset
 
 

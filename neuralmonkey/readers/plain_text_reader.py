@@ -1,4 +1,3 @@
-import codecs
 
 class PlainTextFileReader(object):
 
@@ -8,6 +7,6 @@ class PlainTextFileReader(object):
 
     def read(self):
         # type: () -> Iterator[List[str]]
-        with codecs.open(self.path, "r", self.encoding) as f_data:
+        with open(self.path, encoding=self.encoding) as f_data:
             for line in f_data:
                 yield line.strip().split(" ")

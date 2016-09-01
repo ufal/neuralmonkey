@@ -16,25 +16,17 @@ class Dataset(object):
     encoders and decoders in the model. If it is not provided a parent
     dataset, it also manages the vocabularies inferred from the data.
 
-    A data serie is either a list of strings or a numpy array.
-
-    Attributes:
-
-        series: Dictionary from the series name to the actual data.
-
-        series_outputs: Output files for target series.
-
-        random_seed: Random seed used for shuffling.
-
+    A data series is either a list of strings or a numpy array.
     """
 
     def __init__(self, name, series, series_outputs, random_seed=None):
-        """
-        Creates a dataset from the provided already preprocessed series of
-        data.
+        """Creates a dataset from the provided already preprocessed
+        series of data.
 
-        Args:
-
+        Arguments:
+            series: Dictionary from the series name to the actual data.
+            series_outputs: Output files for target series.
+            random_seed: Random seed used for shuffling.
         """
 
         self.name = name
