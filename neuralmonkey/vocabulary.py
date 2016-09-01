@@ -183,7 +183,7 @@ class Vocabulary(collections.Sized):
 
         with codecs.open(path, "r", encoding) as f_bpe:
             for line in f_bpe:
-                pair = f_bpe.split()
+                pair = line.split()
                 assert len(pair) == 2
 
                 vocab.add_word(pair[0])
