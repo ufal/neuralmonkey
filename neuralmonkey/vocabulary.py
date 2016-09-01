@@ -179,7 +179,7 @@ class Vocabulary(collections.Sized):
     @staticmethod
     def from_bpe(path, encoding="utf-8"):
         #type: (str) -> Vocabulary
-        vocab = Vocabuary()
+        vocab = Vocabulary()
 
         with codecs.open(path, "r", encoding) as f_bpe:
             for line in f_bpe:
