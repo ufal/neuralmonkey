@@ -149,7 +149,7 @@ class Vocabulary(collections.Sized):
 
         for dataset in datasets:
             if isinstance(dataset, LazyDataset):
-                raise Exception("Cannot infer vocabulary from lazy dataset.")
+                log("Warning: inferring vocabulary from lazy dataset", color="red")
 
             for series_id in series_ids:
                 series = dataset.get_series(series_id, allow_none=True)
