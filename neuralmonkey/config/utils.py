@@ -24,7 +24,8 @@ def vocabulary_from_file(path):
         raise Exception("Vocabulary file does not exist: {}".format(path))
     return Vocabulary.from_pickled(path)
 
-
+# pylint: disable=too-many-arguments
+# helper function, this number of parameters is needed
 def vocabulary_from_dataset(datasets, series_ids, max_size, save_file=None,
                             overwrite=False, unk_sample_prob=0.5):
     """Loads vocabulary from a dataset with an option to save it.
