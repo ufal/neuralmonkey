@@ -173,7 +173,7 @@ class Vocabulary(collections.Sized):
             self,
             sentences: List[List[str]],
             max_len: int,
-            train: bool=False) -> Tuple[np.array, np.array]:
+            train: bool=False) -> Tuple[np.ndarray, np.ndarray]:
         """Generate the tensor representation for the provided sentences.
 
         Arguments:
@@ -211,7 +211,8 @@ class Vocabulary(collections.Sized):
         return word_indices, weights
 
 
-    def vectors_to_sentences(self, vectors: List[np.array]) -> List[List[str]]:
+    def vectors_to_sentences(self,
+                             vectors: List[np.ndarray]) -> List[List[str]]:
         """Convert vectors of indexes of vocabulary items to lists of words.
 
         Arguments:
@@ -221,6 +222,7 @@ class Vocabulary(collections.Sized):
             List of lists of words.
         """
         sentences = [[] for _ in range(vectors[0].shape[0])]
+        #type: List[List[str]]
 
         for vec in vectors:
             for sentence, word_i in zip(sentences, vec):
