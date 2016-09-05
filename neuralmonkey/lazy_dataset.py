@@ -34,7 +34,8 @@ class LazyDataset(Dataset):
 
         if file_type.startswith("text/"):
             reader = PlainTextFileReader(path)
-            return preprocess(reader.read())
+            for line in reader.read():
+                yield preprocess(line)
         else:
             raise Exception("Unsupported data type for lazy dataset:"
                             " File {}, type {}".format(path, file_type))
