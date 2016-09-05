@@ -142,6 +142,18 @@ class Vocabulary(collections.Sized):
         with open(path, 'wb') as f_pickle:
             pickle.dump(self, f_pickle)
 
+
+    def log_sample(self, size=5):
+        """Logs a sample of the vocabulary
+
+        Arguments:
+            size: How many sample words to log.
+        """
+        log("Sample of the vocabulary: {}"
+            .format([self.index_to_word[i]
+                     for i in np.random.randint(0, len(self), size)]))
+
+
     @staticmethod
     def from_datasets(datasets, series_ids, max_size, random_seed=None):
         # type: (List[Dataset], List[str], int, int) -> Vocabulary
@@ -154,16 +166,15 @@ class Vocabulary(collections.Sized):
             for series_id in series_ids:
                 series = dataset.get_series(series_id, allow_none=True)
                 if series:
-                    vocabulary.add_tokenized_text([token for sent in series for token in sent])
+                    vocabulary.add_tokenized_text(
+                        [token for sent in series for token in sent])
 
         vocabulary.trunkate(max_size)
 
         log("Vocabulary for series {} initialized, containing {} words"
             .format(series_ids, len(vocabulary)))
 
-        log("Sample of the vocabulary: {}"
-            .format([vocabulary.index_to_word[i]
-                     for i in np.random.randint(0, len(vocabulary), 5)]))
+        vocabulary.log_sample()
         return vocabulary
 
     @staticmethod
@@ -172,6 +183,9 @@ class Vocabulary(collections.Sized):
         with open(path, 'rb') as f_pickle:
             vocabulary = pickle.load(f_pickle)
         assert isinstance(vocabulary, Vocabulary)
+
+        log("Pickled vocabulary loaded. Size: {} words".format(len(vocabulary)))
+        vocabulary.log_sample()
         return vocabulary
 
 
@@ -185,8 +199,16 @@ class Vocabulary(collections.Sized):
                 pair = line.split()
                 assert len(pair) == 2
 
-                vocab.add_word(pair[0])
+                if pair[1].endswith("</w>"):
+                    pair[1] = pair[1][:-4]
+                else:
+                    pair[1] += "@@"
+
+                vocab.add_word(pair[0] + "@@")
                 vocab.add_word(pair[1])
                 vocab.add_word("".join(pair))
 
+        log("Vocabulary from BPE merges loaded. Size: {} subwords"
+            .format(len(vocab)))
+        vocab.log_sample()
         return vocab
