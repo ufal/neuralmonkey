@@ -26,7 +26,7 @@ def vocabulary_from_file(path):
 
 
 def vocabulary_from_dataset(datasets, series_ids, max_size, save_file=None,
-                            overwrite=False):
+                            overwrite=False, unk_sample_prob=0.5):
     """Loads vocabulary from a dataset with an option to save it.
 
     Arguments:
@@ -36,18 +36,16 @@ def vocabulary_from_dataset(datasets, series_ids, max_size, save_file=None,
         max_size: The maximum size of the vocabulary
         save_file: A file to save the vocabulary to. If None (default),
                    the vocabulary will not be saved.
+        unk_sample_prob: A probability of sampling UNK tokens out of rare words
     """
-    vocabulary = Vocabulary.from_datasets(datasets, series_ids, max_size)
-
-    if not overwrite and os.path.exists(save_file):
-        raise Exception("Cannot save the vocabulary. File exists: {}"
-                        .format(save_file))
+    vocabulary = Vocabulary.from_datasets(datasets, series_ids, max_size,
+                                          unk_sample_prob)
 
     directory = os.path.dirname(save_file)
     if not os.path.exists(directory):
         os.makedirs(directory)
 
-    vocabulary.save_to_file(save_file)
+    vocabulary.save_to_file(save_file, overwrite)
     return vocabulary
 
 
