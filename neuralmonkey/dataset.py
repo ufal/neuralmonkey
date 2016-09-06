@@ -113,3 +113,43 @@ class Dataset(object):
             dataset = Dataset(self.name + "-batch-{}".format(batch_index), batch_dict, {})
             batch_index += 1
             yield dataset
+
+
+
+class LazyDataset(Dataset):
+    """Implements the lazy dataset by overloading the create_serie method that
+    return an infinitely looping generator instead of a list.
+    """
+
+    def _check_series_lengths(self):
+        """Cannot check series lengths in lazy dataset."""
+        pass
+
+    @staticmethod
+    def create_series(path, preprocess=lambda x: x):
+        """ Loads a data serie from a file
+
+        Arguments:
+            path: The path to the file.
+            preprocess: Function to apply to each line of the file
+        """
+        log("Lazy creation of a data serie from file {}".format(path))
+
+        file_type = magic.from_file(path, mime=True)
+
+        if file_type.startswith("text/"):
+            reader = PlainTextFileReader(path)
+            for line in reader.read():
+                yield preprocess(line)
+        else:
+            raise Exception("Unsupported data type for lazy dataset:"
+                            " File {}, type {}".format(path, file_type))
+
+
+    def __len__(self):
+        raise Exception("Lazy dataset does not know its size")
+
+
+    def shuffle(self):
+        """Does nothing, not in-memory shuffle is impossible."""
+        pass

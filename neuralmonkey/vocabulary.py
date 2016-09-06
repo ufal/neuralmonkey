@@ -7,7 +7,7 @@ import pickle as pickle
 import numpy as np
 
 from neuralmonkey.logging import log
-from neuralmonkey.lazy_dataset import LazyDataset
+from neuralmonkey.dataset import LazyDataset
 
 try:
     #pylint: disable=unused-import,ungrouped-imports,bare-except,import-error,wrong-import-order

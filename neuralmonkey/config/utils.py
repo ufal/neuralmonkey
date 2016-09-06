@@ -9,8 +9,7 @@ import re
 import os
 
 from neuralmonkey.logging import log, debug
-from neuralmonkey.dataset import Dataset
-from neuralmonkey.lazy_dataset import LazyDataset
+from neuralmonkey.dataset import Dataset, LazyDataset
 from neuralmonkey.vocabulary import Vocabulary
 
 SERIES_SOURCE = re.compile("s_([^_]*)$")
