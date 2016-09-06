@@ -61,6 +61,10 @@ The `neuralmonkey` package is organized into subpackages as follows:
 `prepare_env.sh`. If the training crashes on an unknown dependency, just install
 it with pip.
 
+### Documentation
+
+You can find the API documentation of this package [here](http://neural-monkey.readthedocs.io/en/latest). The documentation files are generated from docstrings using [autodoc](http://www.sphinx-doc.org/en/stable/ext/autodoc.html) and [Napoleon](https://sphinxcontrib-napoleon.readthedocs.io/en/latest/) extensions to the Python documentation package [Sphinx](http://www.sphinx-doc.org/en/stable/). The docstrings should follow the recommendations in the [Google Python Style Guide](http://google.github.io/styleguide/pyguide.html?showone=Comments#Comments). Additional details on the docstring formatting can be found in the Napoleon documentation as well.
+
 ### Related projects
 
 - [tflearn](https://github.com/tflearn/tflearn) – a more general and less
