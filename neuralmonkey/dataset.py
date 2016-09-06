@@ -1,8 +1,10 @@
 """ Implementation of the dataset class. """
-
 # tests: lint, mypy
-
 import random
+import re
+import collections
+
+from typing import Callable, Dict, Type #pylint: disable=unused-import
 
 import numpy as np
 import magic
@@ -10,8 +12,112 @@ import magic
 from neuralmonkey.logging import log
 from neuralmonkey.readers.plain_text_reader import PlainTextFileReader
 
+SERIES_SOURCE = re.compile("s_([^_]*)$")
+SERIES_OUTPUT = re.compile("s_(.*)_out")
 
-class Dataset(object):
+def load_dataset_from_files(name: str=None, lazy: bool=False,
+                            preprocessor: Callable[[str], str]=lambda x: x,
+                            **kwargs: str) -> 'Dataset':
+    """Load a dataset from the files specified by the provided arguments.
+    Paths to the data are provided in a form of dictionary.
+
+    Keyword arguments:
+        name: The name of the dataset to use. If None (default), the name will
+              be inferred from the file names.
+        lazy: Boolean flag specifying whether to use lazy loading (useful for
+              large files). Note that the lazy dataset cannot be shuffled.
+              Defaults to False.
+        preprocessor: A callable used for preprocessing of the input sentences.
+        kwargs: Dataset keyword argument specs. These parameters should begin
+                with 's_' prefix and may end with '_out' suffix.
+                For example, a data series 'source' which specify the source
+                sentences should be initialized with the 's_source' parameter,
+                which specifies the path to the source file.
+                If the decoder generate data of the 'target' series, the output
+                file should be initialized with the 's_target_out' parameter.
+                Series identifiers should not contain underscores.
+
+    Returns:
+        The newly created dataset.
+
+    Raises:
+        Exception when no input files are provided.
+    """
+    series_paths = _get_series_paths(kwargs)
+    series_outputs = _get_series_outputs(kwargs)
+
+    if len(series_paths) == 0:
+        raise Exception("No input files are provided.")
+
+    log("Initializing dataset with: {}".format(", ".join(series_paths)))
+
+    clazz = Dataset # type: Type[Dataset]
+    if lazy:
+        clazz = LazyDataset
+
+    series = {s: clazz.create_series(series_paths[s], preprocessor)
+              for s in series_paths}
+
+    if name is None:
+        name = _get_name_from_paths(series_paths)
+
+    dataset = clazz(name, series, series_outputs)
+
+    if not lazy:
+        log("Dataset length: {}".format(len(dataset)))
+
+    return dataset
+
+
+def _get_name_from_paths(series_paths: Dict[str, str]) -> str:
+    """Construct name for a dataset using the paths to its files.
+
+    Arguments:
+        series_paths: A dictionary which maps serie names to the paths
+                      of their input files.
+
+    Returns:
+        The name for the dataset.
+    """
+    name = "dataset"
+    for _, path in series_paths.items():
+        name += "-{}".format(path)
+    return name
+
+
+def _get_series_paths(kwargs: Dict[str, str]) -> Dict[str, str]:
+    """Get paths to files that contain data from the dataset keyword
+    argument specs.
+
+    Input file for a serie named 'xxx' is specified by parameter 's_xxx'
+
+    Arguments:
+        kwargs: A dictionary containing the dataset keyword argument specs.
+
+    Returns:
+        A dictionary which maps serie names to the paths of their input files.
+    """
+    keys = [k for k in list(kwargs.keys()) if SERIES_SOURCE.match(k)]
+    names = [SERIES_SOURCE.match(k).group(1) for k in keys]
+
+    return {name : kwargs[key] for name, key in zip(names, keys)}
+
+
+def _get_series_outputs(kwargs: Dict[str, str]) -> Dict[str, str]:
+    """Get paths to series outputs from the dataset keyword argument specs.
+    Output file for a series named 'xxx' is specified by parameter 's_xxx_out'
+
+    Arguments:
+        kwargs: A dictionary containing the dataset keyword argument specs.
+
+    Returns:
+        A dictionary which maps serie names to the paths for their output files.
+    """
+    return {SERIES_OUTPUT.match(key).group(1): value
+            for key, value in kwargs.items() if SERIES_OUTPUT.match(key)}
+
+
+class Dataset(collections.Sized):
     """ This class serves as collection for data series for particular
     encoders and decoders in the model. If it is not provided a parent
     dataset, it also manages the vocabularies inferred from the data.
@@ -125,6 +231,16 @@ class LazyDataset(Dataset):
         """Cannot check series lengths in lazy dataset."""
         pass
 
+
+    def __len__(self):
+        raise Exception("Lazy dataset does not know its size")
+
+
+    def shuffle(self):
+        """Does nothing, not in-memory shuffle is impossible."""
+        pass
+
+
     @staticmethod
     def create_series(path, preprocess=lambda x: x):
         """ Loads a data serie from a file
@@ -144,12 +260,3 @@ class LazyDataset(Dataset):
         else:
             raise Exception("Unsupported data type for lazy dataset:"
                             " File {}, type {}".format(path, file_type))
-
-
-    def __len__(self):
-        raise Exception("Lazy dataset does not know its size")
-
-
-    def shuffle(self):
-        """Does nothing, not in-memory shuffle is impossible."""
-        pass
