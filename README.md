@@ -1,6 +1,8 @@
 # Neural Monkey
 
 [![Build Status](https://travis-ci.org/ufal/neuralmonkey.svg?branch=master)](https://travis-ci.org/ufal/neuralmonkey)
+[![Documentation Status](https://readthedocs.org/projects/neural-monkey/badge/?version=latest)](http://neural-monkey.readthedocs.io/en/latest/?badge=latest)
+      
 
 __Neural Sequence Learning Using TensorFlow__
 
@@ -58,6 +60,10 @@ The `neuralmonkey` package is organized into subpackages as follows:
 - Clone this repository and follow the installation procedure outlined in
 `prepare_env.sh`. If the training crashes on an unknown dependency, just install
 it with pip.
+
+### Documentation
+
+You can find the API documentation of this package [here](http://neural-monkey.readthedocs.io/en/latest). The documentation files are generated from docstrings using [autodoc](http://www.sphinx-doc.org/en/stable/ext/autodoc.html) and [Napoleon](https://sphinxcontrib-napoleon.readthedocs.io/en/latest/) extensions to the Python documentation package [Sphinx](http://www.sphinx-doc.org/en/stable/). The docstrings should follow the recommendations in the [Google Python Style Guide](http://google.github.io/styleguide/pyguide.html?showone=Comments#Comments). Additional details on the docstring formatting can be found in the Napoleon documentation as well.
 
 ### Related projects
 
