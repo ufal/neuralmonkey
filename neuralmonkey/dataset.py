@@ -4,7 +4,7 @@ import random
 import re
 import collections
 
-from typing import Callable, Dict, Type #pylint: disable=unused-import
+from typing import List, Callable, Iterable, Dict
 
 import numpy as np
 import magic
@@ -51,20 +51,17 @@ def load_dataset_from_files(name: str=None, lazy: bool=False,
 
     log("Initializing dataset with: {}".format(", ".join(series_paths)))
 
-    clazz = Dataset # type: Type[Dataset]
-    if lazy:
-        clazz = LazyDataset
-
-    series = {s: clazz.create_series(series_paths[s], preprocessor)
-              for s in series_paths}
-
     if name is None:
         name = _get_name_from_paths(series_paths)
 
-    dataset = clazz(name, series, series_outputs)
+    if lazy:
+        return LazyDataset(name, series_paths, series_outputs, preprocessor)
 
-    if not lazy:
-        log("Dataset length: {}".format(len(dataset)))
+    series = {key: list(create_dataset_series(path, preprocessor))
+              for key, path in series_paths.items()}
+
+    dataset = Dataset(name, series, series_outputs)
+    log("Dataset length: {}".format(len(dataset)))
 
     return dataset
 
@@ -117,6 +114,32 @@ def _get_series_outputs(kwargs: Dict[str, str]) -> Dict[str, str]:
             for key, value in kwargs.items() if SERIES_OUTPUT.match(key)}
 
 
+def create_dataset_series(path: str,
+                          preprocess: Callable[[str], str]) -> Iterable:
+    """Create dataset series.
+
+    Arguments:
+        path: The path of the file with the data
+        preprocess: Preprocessor function
+
+    Returns:
+        The dataset series.
+    """
+    log("Loading {}".format(path))
+    file_type = magic.from_file(path, mime=True)
+
+    if file_type.startswith('text/'):
+        reader = PlainTextFileReader(path)
+        for line in reader.read():
+            yield preprocess(line)
+    elif file_type == 'application/octet-stream':
+        return np.load(path)
+    else:
+        raise Exception("Unsupported data type: {}, file {}"
+                        .format(file_type, path))
+
+
+
 class Dataset(collections.Sized):
     """ This class serves as collection for data series for particular
     encoders and decoders in the model. If it is not provided a parent
@@ -125,80 +148,104 @@ class Dataset(collections.Sized):
     A data series is either a list of strings or a numpy array.
     """
 
-    def __init__(self, name, series, series_outputs, random_seed=None):
+    def __init__(self, name: str, series: Dict[str, List],
+                 series_outputs: Dict[str, str]) -> None:
         """Creates a dataset from the provided already preprocessed
         series of data.
 
         Arguments:
+            name: The name for the dataset
             series: Dictionary from the series name to the actual data.
             series_outputs: Output files for target series.
-            random_seed: Random seed used for shuffling.
         """
-
         self.name = name
         self._series = series
         self.series_outputs = series_outputs
-        self.random_seed = random_seed
 
         self._check_series_lengths()
 
-    def _check_series_lengths(self):
-        lengths = [len(v) for v in list(self._series.values())
+
+    def _check_series_lengths(self) -> None:
+        """Check lenghts of series in the dataset.
+
+        Raises:
+            Exception when the lengths in the dataset do not match.
+        """
+        lengths = [len(list(v)) for v in self._series.values()
                    if isinstance(v, list) or isinstance(v, np.ndarray)]
 
         if len(set(lengths)) > 1:
-            err_str = ["{}: {}".format(s, len(self._series[s]))
+            err_str = ["{}: {}".format(s, len(list(self._series[s])))
                        for s in self._series]
             raise Exception("Lengths of data series must be equal. Instead: {}"
                             .format(", ".join(err_str)))
 
 
-    @staticmethod
-    def create_series(path, preprocess=lambda x: x):
-        """ Loads a data serie from a file """
-        log("Loading {}".format(path))
-        file_type = magic.from_file(path, mime=True)
+    def __len__(self) -> int:
+        """Get the length of the dataset.
 
-        if file_type.startswith('text/'):
-            reader = PlainTextFileReader(path)
-            return list([preprocess(line) for line in reader.read()])
-
-        elif file_type == 'application/octet-stream':
-            return np.load(path)
-        else:
-            raise Exception("\"{}\" has Unsupported data type: {}"
-                            .format(path, file_type))
-
-
-    def __len__(self):
-        # type: () -> int
+        Returns:
+            The length of the dataset.
+        """
         if not list(self._series.values()):
             return 0
         else:
-            return len(list(self._series.values())[0])
+            first_series = next(iter(self._series.values()))
+            return len(list(first_series))
 
-    def has_series(self, name):
-        # type: (str) -> bool
+
+
+    def has_series(self, name: str) -> bool:
+        """Check if the dataset contains a series of a given name.
+
+        Arguments:
+            name: Series name
+
+        Returns:
+            True if the dataset contains the series, False otherwise.
+        """
         return name in self._series
 
-    def get_series(self, name, allow_none=False):
+
+    def get_series(self, name: str, allow_none: bool=False) -> Iterable:
+        """Get the data series with a given name.
+
+        Arguments:
+            name: The name of the series to fetch.
+            allow_none: If True, return None if the series does not exist.
+
+        Returns:
+            The data series.
+
+        Raises:
+            KeyError if the series does not exists and allow_none is False
+        """
         if allow_none:
             return self._series.get(name)
         else:
             return self._series[name]
 
-    def shuffle(self):
-        # type: () -> None
-        """ Shuffles the dataset randomly """
 
+    def shuffle(self) -> None:
+        """Shuffle the dataset randomly """
         keys = list(self._series.keys())
         zipped = list(zip(*[self._series[k] for k in keys]))
         random.shuffle(zipped)
         for key, serie in zip(keys, list(zip(*zipped))):
             self._series[key] = serie
 
-    def batch_serie(self, serie_name, batch_size):
-        """ Splits a data serie into batches """
+
+    def batch_serie(self, serie_name: str,
+                    batch_size: int) -> Iterable[Iterable]:
+        """Split a data serie into batches.
+
+        Arguments:
+            serie_name: The name of the series
+            batch_size: The size of a batch
+
+        Returns:
+            Generator yielding batches of the data from the serie.
+        """
         buf = []
         for item in self.get_series(serie_name):
             buf.append(item)
@@ -208,55 +255,84 @@ class Dataset(collections.Sized):
         if buf:
             yield buf
 
-    def batch_dataset(self, batch_size):
-        """ Splits the dataset into a list of batched datasets. """
+
+    def batch_dataset(self, batch_size: int) -> Iterable['Dataset']:
+        """Split the dataset into a list of batched datasets.
+
+        Arguments:
+            batch_size: The size of a batch.
+
+        Returns:
+            Generator yielding batched datasets.
+        """
         keys = list(self._series.keys())
         batched_series = [self.batch_serie(key, batch_size) for key in keys]
 
         batch_index = 0
         for next_batches in zip(*batched_series):
             batch_dict = {key:data for key, data in zip(keys, next_batches)}
-            dataset = Dataset(self.name + "-batch-{}".format(batch_index), batch_dict, {})
+            dataset = Dataset(self.name + "-batch-{}".format(batch_index),
+                              batch_dict, {})
             batch_index += 1
             yield dataset
 
 
 
 class LazyDataset(Dataset):
-    """Implements the lazy dataset by overloading the create_serie method that
-    return an infinitely looping generator instead of a list.
-    """
+    """Implements the lazy dataset."""
 
-    def _check_series_lengths(self):
-        """Cannot check series lengths in lazy dataset."""
-        pass
+    def __init__(self, name: str, series_paths: Dict[str, str],
+                 series_outputs: Dict[str, str],
+                 preprocess: Callable[[str], str]=lambda x: x) -> None:
+        """Create a new instance of the lazy dataset.
+
+        Arguments:
+            name: The name of the dataset
+            series_paths: The mapping of series name to its file
+            series_outputs: Dictionary mapping series names to their output file
+            preprocess: The preprocessor to apply to the read lines
+        """
+        super().__init__(name, {s: None for s in series_paths}, series_outputs)
+        self.series_paths = series_paths
+        self.preprocess = preprocess
 
 
     def __len__(self):
         raise Exception("Lazy dataset does not know its size")
 
 
+    def has_series(self, name: str) -> bool:
+        """Check if the dataset contains a series of a given name.
+
+        Arguments:
+            name: Series name
+
+        Returns:
+            True if the dataset contains the series, False otherwise.
+        """
+        return name in self.series_paths
+
+
+    def get_series(self, name: str, allow_none: bool=False) -> Iterable:
+        """Get the data series with a given name.
+
+        Arguments:
+            name: The name of the series to fetch.
+            allow_none: If True, return None if the series does not exist.
+
+        Returns:
+            The data series.
+
+        Raises:
+            KeyError if the series does not exists and allow_none is False
+        """
+        if allow_none and name not in self.series_paths:
+            return None
+
+        path = self.series_paths[name]
+        return create_dataset_series(path, self.preprocess)
+
+
     def shuffle(self):
         """Does nothing, not in-memory shuffle is impossible."""
         pass
-
-
-    @staticmethod
-    def create_series(path, preprocess=lambda x: x):
-        """ Loads a data serie from a file
-
-        Arguments:
-            path: The path to the file.
-            preprocess: Function to apply to each line of the file
-        """
-        log("Lazy creation of a data serie from file {}".format(path))
-
-        file_type = magic.from_file(path, mime=True)
-
-        if file_type.startswith("text/"):
-            reader = PlainTextFileReader(path)
-            for line in reader.read():
-                yield preprocess(line)
-        else:
-            raise Exception("Unsupported data type for lazy dataset:"
-                            " File {}, type {}".format(path, file_type))
