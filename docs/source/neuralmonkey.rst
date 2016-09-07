@@ -52,14 +52,6 @@ neuralmonkey.image_utils module
     :undoc-members:
     :show-inheritance:
 
-neuralmonkey.lazy_dataset module
---------------------------------
-
-.. automodule:: neuralmonkey.lazy_dataset
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
 neuralmonkey.learning_utils module
 ----------------------------------
 

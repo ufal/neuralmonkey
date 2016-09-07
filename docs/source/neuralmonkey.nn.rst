@@ -36,14 +36,6 @@ neuralmonkey.nn.pervasive_dropout_wrapper module
     :undoc-members:
     :show-inheritance:
 
-neuralmonkey.nn.projection module
----------------------------------
-
-.. automodule:: neuralmonkey.nn.projection
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
 
 Module contents
 ---------------
