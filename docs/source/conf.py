@@ -293,7 +293,8 @@ def run_apidoc(_):
 
     cur_dir = os.path.abspath(os.path.dirname(__file__))
     print(cur_dir)
-    module = '../neuralmonkey/'
+    module = os.path.abspath(os.path.join(cur_dir, "..", "..", "neuralmonkey"))
+    print(module)
 
     from sphinx.apidoc import main
     main(['-e', '-o', cur_dir, module, '--force'])
