@@ -279,8 +279,13 @@ class Dataset(collections.Sized):
 
 
 class LazyDataset(Dataset):
-    """Implements the lazy dataset."""
+    """Implements the lazy dataset.
 
+    The main difference between this implementation and the default one is
+    that the contents of the file are not fully loaded to the memory.
+    Instead, everytime the function ``get_series`` is called, a new file handle
+    is created and a generator which yields lines from the file is returned.
+    """
     def __init__(self, name: str, series_paths: Dict[str, str],
                  series_outputs: Dict[str, str],
                  preprocess: Callable[[str], str]=lambda x: x) -> None:
@@ -298,6 +303,15 @@ class LazyDataset(Dataset):
 
 
     def __len__(self):
+        """Length of the lazy dataset is unknown.
+
+        TODO: reconsider the exception raising, maybe just write a warning
+        log message instead and return None or zero. Make the decision
+        consistent with the implementation of the ``shuffle`` function.
+
+        Raises:
+            Exception every time this function is called.
+        """
         raise Exception("Lazy dataset does not know its size")
 
 
@@ -315,6 +329,9 @@ class LazyDataset(Dataset):
 
     def get_series(self, name: str, allow_none: bool=False) -> Iterable:
         """Get the data series with a given name.
+
+        This function opens a new file handle and returns a generator which
+        yields preprocessed lines from the file.
 
         Arguments:
             name: The name of the series to fetch.
@@ -334,5 +351,8 @@ class LazyDataset(Dataset):
 
 
     def shuffle(self):
-        """Does nothing, not in-memory shuffle is impossible."""
+        """Does nothing, not in-memory shuffle is impossible.
+
+        TODO: this is related to the ``__len__`` method.
+        """
         pass
