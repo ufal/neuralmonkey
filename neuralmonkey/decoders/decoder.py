@@ -4,6 +4,7 @@ import math
 import tensorflow as tf
 import numpy as np
 
+from neuralmonkey.vocabulary import START_TOKEN
 from neuralmonkey.decoding_function import attention_decoder
 from neuralmonkey.logging import log
 
@@ -340,7 +341,9 @@ class Decoder(object):
         # pylint: disable=invalid-name
         # fd is the common name for feed dictionary
         fd = {}
-        fd[self.go_symbols] = np.ones(len(dataset))
+
+        start_token_index = self.vocabulary.get_word_index(START_TOKEN)
+        fd[self.go_symbols] = np.repeat(start_token_index, len(dataset))
 
         sentences = dataset.get_series(self.data_id, allow_none=True)
 
