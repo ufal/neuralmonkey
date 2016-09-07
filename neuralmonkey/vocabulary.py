@@ -7,6 +7,7 @@ import pickle as pickle
 import numpy as np
 
 from neuralmonkey.logging import log
+from neuralmonkey.dataset import LazyDataset
 
 try:
     #pylint: disable=unused-import,ungrouped-imports,bare-except,import-error,wrong-import-order
@@ -147,6 +148,9 @@ class Vocabulary(collections.Sized):
         vocabulary = Vocabulary(random_seed=random_seed)
 
         for dataset in datasets:
+            if isinstance(dataset, LazyDataset):
+                log("Warning: inferring vocabulary from lazy dataset", color="red")
+
             for series_id in series_ids:
                 series = dataset.get_series(series_id, allow_none=True)
                 if series:
