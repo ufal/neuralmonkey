@@ -1,1 +1,8 @@
 sphinx_rtd_theme
+termcolor
+python-magic>=0.4.12
+flask
+ansiconv
+
+#### TENSORFLOW FOR CPUS
+https://storage.googleapis.com/tensorflow/linux/cpu/tensorflow-0.10.0-cp35-cp35m-linux_x86_64.whl
