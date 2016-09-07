@@ -31,6 +31,157 @@ def _is_special_token(word: str) -> bool:
             or word == UNK_TOKEN)
 
 
+def from_file(path: str) -> 'Vocabulary':
+    """Loads vocabulary from a pickled file
+
+    Arguments:
+        path: The path to the pickle file
+
+    Returns:
+        The newly created vocabulary.
+    """
+    if not os.path.exists(path):
+        raise Exception("Vocabulary file does not exist: {}".format(path))
+
+    with open(path, 'rb') as f_pickle:
+        vocabulary = pickle.load(f_pickle)
+    assert isinstance(vocabulary, Vocabulary)
+
+    log("Pickled vocabulary loaded. Size: {} words".format(len(vocabulary)))
+    vocabulary.log_sample()
+    return vocabulary
+
+
+# pylint: disable=too-many-arguments
+# helper function, this number of parameters is needed
+def from_dataset(datasets: List[Dataset], series_ids: List[str], max_size: int,
+                 save_file: str=None, overwrite: bool=False,
+                 unk_sample_prob: float=0.5) -> 'Vocabulary':
+    """Loads vocabulary from a dataset with an option to save it.
+
+    Arguments:
+        datasets: A list of datasets from which to create the vocabulary
+        series_ids: A list of ids of series of the datasets that should be used
+                    producing the vocabulary
+        max_size: The maximum size of the vocabulary
+        save_file: A file to save the vocabulary to. If None (default),
+                   the vocabulary will not be saved.
+        unk_sample_prob: The probability with which to sample unks out of
+                         words with frequency 1. Defaults to 0.5.
+
+    Returns:
+        The new Vocabulary instance.
+    """
+    vocabulary = Vocabulary(unk_sample_prob=unk_sample_prob)
+
+    for dataset in datasets:
+        if isinstance(dataset, LazyDataset):
+            log("Warning: inferring vocabulary from lazy dataset", color="red")
+
+        for series_id in series_ids:
+            series = dataset.get_series(series_id, allow_none=True)
+            if series:
+                vocabulary.add_tokenized_text(
+                    [token for sent in series for token in sent])
+
+    vocabulary.trunkate(max_size)
+
+    log("Vocabulary for series {} initialized, containing {} words"
+        .format(series_ids, len(vocabulary)))
+
+    vocabulary.log_sample()
+
+    if save_file is not None:
+        directory = os.path.dirname(save_file)
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+
+        vocabulary.save_to_file(save_file, overwrite)
+
+    return vocabulary
+
+
+def from_bpe(path: str, encoding: str="utf-8") -> 'Vocabulary':
+    """Loads vocabulary from Byte-pair encoding merge list.
+
+    NOTE: The frequencies of words in this vocabulary are not computed from
+    data. Instead, they correspond to the number of times the subword units
+    occurred in the BPE merge list. This means that smaller words will tend to
+    have larger frequencies assigned and therefore the truncation of the
+    vocabulary can be somehow performed (but not without a great deal of
+    thought).
+
+    Arguments:
+        path: File name to load the vocabulary from.
+        encoding: The encoding of the merge file (defaults to UTF-8)
+    """
+    if not os.path.exists(path):
+        raise Exception("BPE file does not exist: {}".format(path))
+
+    vocab = Vocabulary()
+
+    with open(path, encoding=encoding) as f_bpe:
+        for line in f_bpe:
+            pair = line.split()
+            assert len(pair) == 2
+
+            if pair[1].endswith("</w>"):
+                pair[1] = pair[1][:-4]
+            else:
+                pair[1] += "@@"
+
+            vocab.add_word(pair[0] + "@@")
+            vocab.add_word(pair[1])
+            vocab.add_word("".join(pair))
+
+    log("Vocabulary from BPE merges loaded. Size: {} subwords"
+        .format(len(vocab)))
+    vocab.log_sample()
+    return vocab
+
+
+def initialize_vocabulary(directory: str, name: str,
+                          datasets: List[Dataset]=None,
+                          series_ids: List[str]=None,
+                          max_size: int=None) -> 'Vocabulary':
+    """This function is supposed to initialize vocabulary when called from
+    the configuration file. It first checks whether the vocabulary is already
+    loaded on the provided path and if not, it tries to generate it from
+    the provided dataset.
+
+    Args:
+        directory: Directory where the vocabulary should be stored.
+
+        name: Name of the vocabulary which is also the name of the file
+              it is stored it.
+
+        datasets: A a list of datasets from which the vocabulary can be
+                  created.
+
+        series_ids: A list of ids of series of the datasets that should be used
+                    for producing the vocabulary.
+
+        max_size: The maximum size of the vocabulary
+
+    Returns:
+        The new vocabulary
+    """
+    log("Warning! Use of deprecated initialize_vocabulary method. "
+        "Did you think this through?", color="red")
+
+    file_name = os.path.join(directory, name + ".pickle")
+    if os.path.exists(file_name):
+        return from_file(file_name)
+
+    if datasets is None or series_ids is None or max_size is None:
+        raise Exception("Vocabulary does not exist in \"{}\","+
+                        "neither dataset and series_id were provided.")
+
+    return from_dataset(datasets, series_ids, max_size,
+                        save_file=file_name, overwrite=False)
+
+
+
 class Vocabulary(collections.Sized):
     def __init__(self, tokenized_text: List[str]=None,
                  unk_sample_prob: float=0.0) -> None:
@@ -73,8 +224,6 @@ class Vocabulary(collections.Sized):
             True if the word was added to the vocabulary, False otherwise.
         """
         return word in self.word_to_index
-
-
 
 
     def add_word(self, word: str) -> None:
@@ -260,93 +409,3 @@ class Vocabulary(collections.Sized):
         log("Sample of the vocabulary: {}"
             .format([self.index_to_word[i]
                      for i in np.random.randint(0, len(self), size)]))
-
-
-    @staticmethod
-    def from_datasets(
-            datasets: List[Dataset], series_ids: List[str], max_size: int,
-            unk_sample_prob: float=0.5) -> 'Vocabulary':
-        """Create new vocabulary instance from datasets.
-
-        Arguments:
-            datasets: A list of datasets from which to create the vocabulary
-            series_ids: A list of ids of series of the datasets that should be
-                        used producing the vocabulary
-            max_size: The maximum size of the vocabulary
-            unk_sample_prob: The probability with which to sample unks out of
-                             words with frequency 1. Defaults to 0.5.
-
-        Returns:
-            The new Vocabulary instance.
-        """
-        vocabulary = Vocabulary(unk_sample_prob=unk_sample_prob)
-
-        for dataset in datasets:
-            if isinstance(dataset, LazyDataset):
-                log("Warning: inferring vocabulary from lazy dataset", color="red")
-
-            for series_id in series_ids:
-                series = dataset.get_series(series_id, allow_none=True)
-                if series:
-                    vocabulary.add_tokenized_text(
-                        [token for sent in series for token in sent])
-
-        vocabulary.trunkate(max_size)
-
-        log("Vocabulary for series {} initialized, containing {} words"
-            .format(series_ids, len(vocabulary)))
-
-        vocabulary.log_sample()
-        return vocabulary
-
-
-    @staticmethod
-    def from_pickled(path: str) -> 'Vocabulary':
-        """Create new vocabulary instance from a pickle file.
-
-        Arguments:
-            path: The path to the pickle file
-
-        Returns:
-            The newly created vocabulary.
-        """
-        with open(path, 'rb') as f_pickle:
-            vocabulary = pickle.load(f_pickle)
-        assert isinstance(vocabulary, Vocabulary)
-
-        log("Pickled vocabulary loaded. Size: {} words".format(len(vocabulary)))
-        vocabulary.log_sample()
-        return vocabulary
-
-
-    @staticmethod
-    def from_bpe(path: str, encoding: str="utf-8") -> 'Vocabulary':
-        """Create new closed vocabulary instance from BPE merge file.
-
-        Arguments:
-            path: The path to the merge file.
-            encoding: The encoding of the merge file (defaults to UTF-8)
-
-        Returns:
-            The new instance of the Vocabulary
-        """
-        vocab = Vocabulary()
-
-        with open(path, encoding=encoding) as f_bpe:
-            for line in f_bpe:
-                pair = line.split()
-                assert len(pair) == 2
-
-                if pair[1].endswith("</w>"):
-                    pair[1] = pair[1][:-4]
-                else:
-                    pair[1] += "@@"
-
-                vocab.add_word(pair[0] + "@@")
-                vocab.add_word(pair[1])
-                vocab.add_word("".join(pair))
-
-        log("Vocabulary from BPE merges loaded. Size: {} subwords"
-            .format(len(vocab)))
-        vocab.log_sample()
-        return vocab
