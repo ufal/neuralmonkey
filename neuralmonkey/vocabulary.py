@@ -1,3 +1,6 @@
+"""This module implements the Vocabulary class and the helper functions that
+can be used to obtain a Vocabulary instance.
+"""
 # tests: lint, mypy
 
 from typing import List, Tuple
