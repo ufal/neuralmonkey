@@ -1,5 +1,8 @@
 #!/bin/bash
 
+echo "Do not try to run or source this file! :-)"
+exit 1
+
 set -ex
 
 if [ ! -d tfpy3 ]; then
