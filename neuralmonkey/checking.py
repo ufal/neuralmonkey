@@ -7,15 +7,17 @@ constructing the computational graph.
 
 def check_dataset_and_coders(dataset, coders):
     #pylint: disable=protected-access
-    missing = \
-        [(cod.data_id, cod) for cod in coders if not dataset.has_series(cod.data_id)]
-    if missing:
-        formated = ["{} ({}, {}.{})".format(name,
-                                            cod.name,
-                                            cod.__class__.__module__,
-                                            cod.__class__.__name__) for name, cod in missing]
-        raise Exception("Dataset \"{}\" is mising series {}:"\
-                .format(dataset.name, ", ".join(formated)))
+    return
+
+    # missing = \
+    #     [(cod.data_id, cod) for cod in coders if not dataset.has_series(cod.data_id)]
+    # if missing:
+    #     formated = ["{} ({}, {}.{})".format(name,
+    #                                         cod.name,
+    #                                         cod.__class__.__module__,
+    #                                         cod.__class__.__name__) for name, cod in missing]
+    #     raise Exception("Dataset \"{}\" is mising series {}:"\
+    #             .format(dataset.name, ", ".join(formated)))
 
 
 def missing_attributes(obj, attributes):

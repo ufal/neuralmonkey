@@ -31,7 +31,7 @@ class MultiDecoder(object):
         """
 
         self.decoders = decoders
-        self.decoder_costs = tf.concat(0, [d.cost for d in self.decoders])
+        self.decoder_costs = tf.concat(0, [tf.expand_dims(d.cost, 0) for d in self.decoders])
 
         self.scheduled_decoder = 0
         self.input_selector = tf.placeholder(tf.float32,
@@ -51,9 +51,24 @@ class MultiDecoder(object):
         # return len(self.vocabulary)
 
     @property
+    def learning_step(self):
+        return self.decoders[self.scheduled_decoder].learning_step
+
+    @property
     def cost(self):
         # Without specifying dimension, returns a scalar.
         return tf.reduce_sum(self.decoder_costs * self.input_selector)
+
+
+    @property
+    def vocabulary(self):
+        return self.decoders[self.scheduled_decoder].vocabulary
+
+
+    @property
+    def data_id(self):
+        return self.decoders[self.scheduled_decoder].data_id
+
 
     def feed_dict(self, dataset, train=False):
         """TODO: rewrite for multidecoder
