@@ -11,6 +11,8 @@ class SequenceLabeler(Decoder):
         self.vocabulary = vocabulary
         self.data_id = data_id
 
+        dropout_keep_prob = kwargs.get("dropout_keep_p", 1.0)
+
         # rnn_size property is used in _state_to_output
         #self.rnn_size = kwargs.get("hidden_layer_size", 200)
 
@@ -21,6 +23,9 @@ class SequenceLabeler(Decoder):
 
         logits = [tf.tanh(tf.matmul(state, self.weights) + self.biases)
                   for state in self.encoder.outputs_bidi]
+
+
+        self.decoded = [tf.argmax(l[:, 1:], 1) + 1 for l in logits]
 
         self.train_targets = [tf.placeholder(tf.int64, [None],
                                              name="seq_lab_{}".format(i))
@@ -43,6 +48,19 @@ class SequenceLabeler(Decoder):
         summed_losses_in_time = [tf.reduce_sum(l) for l in weighted_losses]
 
         self.train_loss = sum(summed_losses_in_time)
+        self.runtime_loss = self.train_loss
+
+
+
+        ### Learning step
+        ### TODO was here only because of scheduled sampling.
+        ### needs to be refactored out
+        self.learning_step = tf.Variable(0, name="learning_step",
+                                         trainable=False)
+
+        self.dropout_placeholder = tf.placeholder_with_default(
+            tf.constant(dropout_keep_prob, tf.float32),
+            shape=[], name="decoder_dropout_placeholder")
 
 
 
@@ -51,8 +69,6 @@ class SequenceLabeler(Decoder):
         fd = {}
 
         sentences = dataset.get_series(self.data_id, allow_none=True)
-
-        debug(sentences, 'feedDictSeqLab')
 
         if sentences is not None:
             inputs, weights = self.vocabulary.sentences_to_tensor(
@@ -69,3 +85,5 @@ class SequenceLabeler(Decoder):
 
         if not train:
             fd[self.dropout_placeholder] = 1.0
+
+        return fd
