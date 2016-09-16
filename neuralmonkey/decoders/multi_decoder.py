@@ -9,6 +9,7 @@ from neuralmonkey.decoding_function import attention_decoder
 from neuralmonkey.logging import log
 from neuralmonkey.dataset import Dataset
 
+
 class MultiDecoder(object):
     """A class that manages parts of the computation graph that are
     used for the decoding.
@@ -19,66 +20,74 @@ class MultiDecoder(object):
     # it into smaller units would be helpful
     # Some locals may be turned to attributes
 
-    def __init__(self, decoders, **kwargs):
+    def __init__(self, main_decoder, regularization_decoders, **kwargs):
         """Create a new instance of the multi-decoder.
 
         Arguments:
-            decoders: A list of the decoders among which the multidecoder
+            main_decoder: The decoder that corresponds to the output which
+                we want at runtime.
+
+            additional_decoders: A list of the decoders among which the multidecoder
                 will switch.
 
         Keyword arguments:
 
         """
+        self.main_decoder = main_decoder
 
-        self.decoders = decoders
-        self.decoder_costs = tf.concat(0, [tf.expand_dims(d.cost, 0) for d in self.decoders])
+        self.regularization_decoders = regularization_decoders
 
-        self.scheduled_decoder = 0
-        self.input_selector = tf.placeholder(tf.float32,
-                                             [len(decoders)],
-                                             name="input_decoder_selector")
+        self._training_decoders = [main_decoder] + regularization_decoders
+        self._decoder_costs = tf.concat(0, [tf.expand_dims(d.cost, 0)
+                                            for d in self._training_decoders])
+
+        self._scheduled_decoder = 0
+        self._input_selector = tf.placeholder(tf.float32,
+                                              [len(self._training_decoders)],
+                                              name="input_decoder_selector")
 
         log("MultiDecoder initialized.")
 
     def all_decoded(self):
-        return [d.decoded for d in self.decoders]
-
-    @property
-    def vocabulary_size(self):
-        raise NotImplementedError('MultiDecoder does not have a vocabulary.'
-                                  ' If needed, implement looking inside the list'
-                                  ' of decoders according to self.input_selector.')
-        # return len(self.vocabulary)
-
-    @property
-    def learning_step(self):
-        return self.decoders[self.scheduled_decoder].learning_step
+        return [d.decoded for d in self._training_decoders]
 
     @property
     def cost(self):
         # Without specifying dimension, returns a scalar.
-        return tf.reduce_sum(self.decoder_costs * self.input_selector)
+        return tf.reduce_sum(self._decoder_costs * self._input_selector)
 
     @property
     def train_loss(self):
         return self.cost
 
+    # The other @properties transparently point to self.main_encoder, because
+    # they are only used when we want to get the decoded outputs.
+
+    @property
+    def vocabulary_size(self):
+        return self.main_decoder.vocabulary_size
+
+    @property
+    def learning_step(self):
+        # Maybe this should come from the current training decoder?
+        # return self._training_decoders[self._scheduled_decoder].learning_step
+        return self.main_decoder.learning_step
+
     @property
     def runtime_loss(self):
-        return self.cost
+        return self.main_decoder.runtime_loss
 
     @property
     def decoded(self):
-        return {d.data_id: d.decoded for d in self.decoders}
+        return self.main_decoder.decoded
 
     @property
     def vocabulary(self):
-        return self.decoders[self.scheduled_decoder].vocabulary
-
+        return self.main_decoder.vocabulary
 
     @property
     def data_id(self):
-        return self.decoders[self.scheduled_decoder].data_id
+        return self.main_decoder.data_id
 
 
     def feed_dict(self, dataset, train=False):
@@ -103,24 +112,25 @@ class MultiDecoder(object):
         #  through self.input_selector.)
         #
         fd = {}
-        for i, d in enumerate(self.decoders):
+        for i, d in enumerate(self._training_decoders):
             if i == self.scheduled_decoder:
                 fd_i = d.feed_dict(dataset, train=train)
             else:
                 # serie je generator seznamu slov (vet)
-                serie = [["<s>", "</s>"] for _ in range(len(dataset))]
+                # <pad> is PAD_TOKEN
+                serie = [["<pad>"] for _ in range(len(dataset))]
                 dummy_dataset = Dataset("dummy", {d.data_id: serie}, {})
                 fd_i = d.feed_dict(dummy_dataset, train=train)
             fd.update(fd_i)
 
         # We now need to set the value of our input_selector placeholder
         # as well.
-        input_selector_value = np.zeros(len(self.decoders))
-        input_selector_value[self.scheduled_decoder] = 1
-        fd[self.input_selector] = input_selector_value
+        input_selector_value = np.zeros(len(self._training_decoders))
+        input_selector_value[self._scheduled_decoder] = 1
+        fd[self._input_selector] = input_selector_value
 
         # Schedule update
-        self.scheduled_decoder = ((self.scheduled_decoder + 1)
-                                  % len(self.decoders))
+        self._scheduled_decoder = ((self._scheduled_decoder + 1)
+                                   % len(self._training_decoders))
 
         return fd
