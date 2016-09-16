@@ -24,7 +24,17 @@ class SequenceLabeler(Decoder):
         logits = [tf.tanh(tf.matmul(state, self.weights) + self.biases)
                   for state in self.encoder.outputs_bidi]
 
-
+        # ??? Do we need the technical start/end of sequence symbols
+        # in the encoder?
+        #
+        # [:, 1:] -- bans generating the start symbol (index 0 in
+        #            the vocabulary; The start symbol is automatically
+        #            prepended in the sentences_to_tensor()).
+        #
+        # tf.argmax(l[:, 1:], 1) -- argmax along the vertical dimension
+        #
+        # +1 -- because the [:, 1:] removed a symbol from argmax consideration,
+        #       we need to compensate for the shortened array.
         self.decoded = [tf.argmax(l[:, 1:], 1) + 1 for l in logits]
 
         self.train_targets = [tf.placeholder(tf.int64, [None],
@@ -49,7 +59,6 @@ class SequenceLabeler(Decoder):
 
         self.train_loss = sum(summed_losses_in_time)
         self.runtime_loss = self.train_loss
-
 
 
         ### Learning step

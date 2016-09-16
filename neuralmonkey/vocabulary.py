@@ -343,9 +343,10 @@ class Vocabulary(collections.Sized):
         start_indices = [np.repeat(self.get_word_index(START_TOKEN),
                                    len(sentences))]
         pad_indices = [np.repeat(self.get_word_index(PAD_TOKEN), len(sentences))
-                       for _ in range(max_len + 1)]
+                       for _ in range(max_len)]
+        end_indices = [np.repeat(self.get_word_index(PAD_TOKEN), len(sentences))]
 
-        word_indices = np.stack(start_indices + pad_indices)
+        word_indices = np.stack(start_indices + pad_indices + end_indices)
         weights = [np.zeros([len(sentences)]) for _ in range(max_len + 1)]
 
         for i in range(max_len + 1):
@@ -358,6 +359,43 @@ class Vocabulary(collections.Sized):
 
                 elif i == len(sent):
                     word_indices[i + 1][j] = self.get_word_index(END_TOKEN)
+                    weights[i][j] = 1.0
+
+        return word_indices, weights
+
+
+    def sentences_to_bare_tensor(
+            self,
+            sentences: List[List[str]],
+            max_len: int,
+            train: bool=False,
+            add_technical_symbols: bool=True) -> Tuple[np.ndarray, np.ndarray]:
+        """Generate the tensor representation for the provided sentences.
+
+        Arguments:
+            sentences: List of sentences as lists of tokens.
+            max_len: Maximum lengh of a sentence toward which they will be
+                     padded to.
+            train: Flag whether we are training or not
+                   (enables/disables unk sampling).
+
+        Returns:
+            A tensor representing the sentences ((max_length + 2) x batch)
+            and a weight tensor ((max_length + 1) x batch) that inidicates
+            padding.
+        """
+        pad_indices = [np.repeat(self.get_word_index(PAD_TOKEN), len(sentences))
+                       for _ in range(max_len)]
+
+        word_indices = np.stack(pad_indices)
+        weights = [np.zeros([len(sentences)]) for _ in range(max_len)]
+
+        for i in range(max_len):
+            for j, sent in enumerate(sentences):
+                if i < len(sent):
+                    word_indices[i][j] = (
+                        self.get_unk_sampled_word_index(sent[i])
+                        if train else self.get_word_index(sent[i]))
                     weights[i][j] = 1.0
 
         return word_indices, weights
