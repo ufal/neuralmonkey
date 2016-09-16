@@ -95,7 +95,7 @@ def initialize_tf(initial_variables, threads):
     return sess, saver
 
 def training_loop(sess, saver,
-                  epochs, trainer, all_coders, decoder, batch_size,
+                  epochs, trainer, encoders, decoder, batch_size,
                   train_dataset, val_dataset,
                   log_directory,
                   evaluators,
@@ -148,6 +148,7 @@ def training_loop(sess, saver,
             Training then starts from the point the loaded values.
 
     """
+    all_coders = encoders + [decoder]
 
     if not postprocess:
         postprocess = lambda x: x
@@ -188,9 +189,11 @@ def training_loop(sess, saver,
         log("Initializing TensorBoard summary writer.")
         tb_writer = tf.train.SummaryWriter(log_directory, sess.graph)
         log("TesorBoard writer initialized.")
-
     best_score_epoch = 0
     best_score_batch_no = 0
+
+    val_src_sentences = [val_dataset.get_series(e.data_id) for e in encoders]
+    val_src_sentences_by_sentidx = zip(*val_src_sentences)
 
     val_raw_tgt_sentences = val_dataset.get_series(decoder.data_id)
     val_tgt_sentences = postprocess(val_raw_tgt_sentences)
@@ -285,29 +288,37 @@ def training_loop(sess, saver,
 
                     log_print("")
                     log_print("Examples:")
-                    for sent, sent_raw, ref_sent, ref_sent_raw in zip(
+                    for sent, sent_raw, ref_sent, ref_sent_raw, src_sents in zip(
                             decoded_val_sentences[:15],
                             decoded_raw_val_sentences,
                             val_tgt_sentences,
-                            val_raw_tgt_sentences):
+                            val_raw_tgt_sentences,
+                            val_src_sentences_by_sentidx):
+
+
+                        for src_sent in src_sents:
+                            log_print(colored(
+                                "      src: {}".format(" ".join(src_sent)),
+                                color="grey"))
+
 
                         if isinstance(sent, list):
-                            log_print("      raw: {}"
-                                      .format(" ".join(sent_raw)))
+                            #log_print("      raw: {}"
+                            #          .format(" ".join(sent_raw)))
                             log_print("      out: {}".format(" ".join(sent)))
                         else:
                             # TODO does this code ever execute?
-                            log_print(sent_raw)
+                            #log_print(sent_raw)
                             log_print(sent)
 
+                        #log_print(colored(
+                        #    " raw ref.: {}".format(" ".join(ref_sent_raw)),
+                        #    color="magenta"))
                         log_print(colored(
-                            " raw ref.: {}".format(" ".join(ref_sent_raw)),
-                            color="magenta"))
-                        log_print(colored(
-                            "     ref.: {}".format(" ".join(ref_sent)),
+                            "      ref: {}".format(" ".join(ref_sent)),
                             color="magenta"))
 
-                    log_print("")
+                        log_print("")
 
     except KeyboardInterrupt:
         log("Training interrupted by user.")
