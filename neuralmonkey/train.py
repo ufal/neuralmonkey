@@ -76,7 +76,7 @@ def main():
         for test in args.test_datasets:
             check_dataset_and_coders(test, args.encoders)
     except Exception as exc:
-        log(exc.message, color='red')
+        log(str(exc), color='red')
         exit(1)
 
     if not os.path.isdir(args.output):
