@@ -59,6 +59,17 @@ class MultiDecoder(object):
         # Without specifying dimension, returns a scalar.
         return tf.reduce_sum(self.decoder_costs * self.input_selector)
 
+    @property
+    def train_loss(self):
+        return self.cost
+
+    @property
+    def runtime_loss(self):
+        return self.cost
+
+    @property
+    def decoded(self):
+        return {d.data_id: d.decoded for d in self.decoders}
 
     @property
     def vocabulary(self):
