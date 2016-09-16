@@ -12,8 +12,10 @@ from neuralmonkey.vocabulary import Vocabulary
 class VanillaSentenceEncoder(object):
     """Like the SentenceEncoder, but ignores the start/end tokens."""
     def __init__(self, max_input_len, vocabulary, data_id, embedding_size,
-                 rnn_size, dropout_keep_p=0.5,
-                 name="sentence_encoder"):
+                 rnn_size,
+                 dropout_keep_p=0.5,
+                 name="sentence_encoder",
+                 **kwargs):
 
         self.name = name
         self.max_input_len = max_input_len
