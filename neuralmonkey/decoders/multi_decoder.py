@@ -7,7 +7,7 @@ import numpy as np
 from neuralmonkey.vocabulary import START_TOKEN
 from neuralmonkey.decoding_function import attention_decoder
 from neuralmonkey.logging import log
-
+from neuralmonkey.dataset import Dataset
 
 class MultiDecoder(object):
     """A class that manages parts of the computation graph that are
@@ -84,20 +84,23 @@ class MultiDecoder(object):
         #  - call feed_dict preventatively everywhere (with dummy data)
 
         # First option:
-        fd = self.decoders[self.scheduled_decoder].feed_dict(dataset, train=train)
+        # fd = self.decoders[self.scheduled_decoder].feed_dict(dataset, train=train)
 
         # Second option:
         # (This is a fallback plan in canse TensorFlow requires us to fill in
         #  the data placeholders for the nodes that are hidden behind a zero
         #  through self.input_selector.)
         #
-        # fd = {}
-        # for i, d in enumerate(self.decoders):
-        #     if i == self.scheduled_decoder:
-        #         fd_i = self.decoders[self.scheduled_decoder].feed_dict(dataset, train=train)
-        #     else:
-        #         fd_i = d.feed_dict([], train=train)
-        #     fd.update(fd)
+        fd = {}
+        for i, d in enumerate(self.decoders):
+            if i == self.scheduled_decoder:
+                fd_i = d.feed_dict(dataset, train=train)
+            else:
+                # serie je generator seznamu slov (vet)
+                serie = [["<s>", "</s>"] for _ in range(len(dataset))]
+                dummy_dataset = Dataset("dummy", {d.data_id: serie}, {})
+                fd_i = d.feed_dict(dummy_dataset, train=train)
+            fd.update(fd_i)
 
         # We now need to set the value of our input_selector placeholder
         # as well.
