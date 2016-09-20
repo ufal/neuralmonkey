@@ -40,13 +40,13 @@ fix this error.
 
 In theory (and in practice), we regard the machine translation task as searching
 for a target sentence ``e*`` that has the highest probability of being the
-translation given the source sentence ``f``. You can put it to a formula:
+translation given the source sentence ``f``. You can put it to a formula::
 
-``e* = argmax_e p(e|f)``
+  e* = argmax_e p(e|f)
 
-In the post-editing task, the formula is slightly different:
+In the post-editing task, the formula is slightly different::
 
-``e* = argmax_e p(e|f, e')``
+  e* = argmax_e p(e|f, e')
 
 If you think about this a little, there are two ways one can look at this
 task. One is that we are translating the machine-translated sentence from a kind
@@ -71,8 +71,8 @@ sequence of this operations. If we consider a sequence of edit operations a
 function ``R`` (as in *rewrite*), which transforms one sequence to another, we
 can adapt the formulas above to suit our needs more::
 
-   R* = argmax_R p(R(e')|f, e')
-   e* = R*(e')
+  R* = argmax_R p(R(e')|f, e')
+  e* = R*(e')
 
 Another question that arises is what the class of all possible edit functions
 should look like.
