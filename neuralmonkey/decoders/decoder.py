@@ -51,6 +51,14 @@ class Decoder(object):
 
         self.use_attention = kwargs.get("use_attention", False)
         self.reuse_word_embeddings = kwargs.get("reuse_word_embeddings", False)
+
+        if self.reuse_word_embeddings:
+            self.embedding_size = self.encoders[0].embedding_size
+
+            if kwargs.has_key("embedding_size"):
+                log("Warning: Overriding embedding_size parameter with reused"
+                    " embeddings from the encoder.", color="red")
+
         self.project_encoder_outputs = kwargs.get("project_encoder_outputs",
                                                   False)
 
