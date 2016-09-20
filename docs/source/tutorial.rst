@@ -105,3 +105,90 @@ The word "cat" on the second line is an INSERT operation parameterized by the
 word "cat". If we apply all the edit operations to the input (i.e. keep the
 words "Bärbel", "has", "a", and ".", delete the word "dog" and put the word
 "cat" in its place), we get the corrected target sentence.
+
+
+Part III. - The Data
+--------------------
+
+We are going to use the data for WMT 16 shared APE task. You can get them at the
+`WMT 16 website <http://www.statmt.org/wmt16/ape-task.html>` or directly at the
+`Lindat repository <http://hdl.handle.net/11372/LRT-1632>`. There are three
+files in the repository:
+
+1. TrainDev.zip - contains training and development data set
+2. Test.zip - contains source and translated test data
+3. test_pe.zip - contains the post-edited test data
+
+Now - before we start, let's make our experiment directory, in which we will
+place all our work. We shall call it for example ``exp-nm-ape`` (feel free to
+choose another weird string).
+
+Extract all the files in the ``exp-nm-ape/data`` directory. Rename the files and
+direcotries so you get this directory structure::
+
+  exp-nm-ape
+  |
+  \== data
+      |
+      |== train
+      |   |
+      |   |== train.src
+      |   |== train.mt
+      |   \== train.pe
+      |
+      |== dev
+      |   |
+      |   |== dev.src
+      |   |== dev.mt
+      |   \== dev.pe
+      |
+      \== test
+          |
+          |== test.src
+          |== test.mt
+          \== test.pe
+
+The data is already tokenized so we don't need to run any preprocessing
+tools. The format of the data is plain text with one sentence per line.  There
+is 12k training triplets of sentences, 1k development triplets and 2k of
+evaluation triplets.
+
+Preprocessing of the data
+*************************
+
+The next phase is to prepare the post editing sequences that we should learn
+during training. We apply the Levenshtein algorithm to find the shortest edit
+path from the translated sentence to the post-edited sentence. You can implement
+your own script that does the job, or you may want to use our preprocessing
+script from the neuralmonkey pakage. For this, in the neuralmonkey root
+directory, run::
+
+  bin/postedit_prepare_data.py \
+    --translated-sentences=exp-nm-ape/data/train/train.mt \
+    --target-sentences=exp-nm-ape/data/train.train.pe \
+        > exp-nm-ape/data/train/train.edits
+
+TODO check if this still works
+
+NOTE: You may have to change the path to the exp-nm-ape directory if it is not
+located inside the repository root directory.
+
+NOTE 2: There is a hidden option of the preparation script
+(``--target-german=True``), which if used, it performs some preprocessing steps
+tailored for better processing of German text. In this tutorial, we are not
+going to use it.
+
+Congratulations! Now, you should have train.edits, dev.edits and test.edits files all in their
+respective data directories. We can now move to work with Neural Monkey configurations!
+
+Part IV. - The Model Configuration
+----------------------------------
+
+Part V. - Running an Experiment
+-------------------------------
+
+Part VI. - Evaluation of the Trained Model
+------------------------------------------
+
+Part VII. - Conclusions
+-----------------------
