@@ -18,10 +18,12 @@ building blocks implemented directly in TensorFlow.
 
 ### Usage
 
-`neuralmonkey-train <EXPERIMENT_INI>`
-`neuralmonkey-run <EXPERIMENT_INI> <DATASETS_INI>`
-`neuralmonkey-server <EXPERIMENT_INI> [OPTION] ...`
-`neuralmonkey-logbook --logdir <EXPERIMENTS_DIR> [OPTION] ...`
+```
+neuralmonkey-train <EXPERIMENT_INI>
+neuralmonkey-run <EXPERIMENT_INI> <DATASETS_INI>
+neuralmonkey-server <EXPERIMENT_INI> [OPTION] ...
+neuralmonkey-logbook --logdir <EXPERIMENTS_DIR> [OPTION] ...
+```
 
 ### Package Overview
 
