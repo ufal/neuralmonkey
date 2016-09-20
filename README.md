@@ -2,7 +2,7 @@
 
 [![Build Status](https://travis-ci.org/ufal/neuralmonkey.svg?branch=master)](https://travis-ci.org/ufal/neuralmonkey)
 [![Documentation Status](https://readthedocs.org/projects/neural-monkey/badge/?version=latest)](http://neural-monkey.readthedocs.io/en/latest/?badge=latest)
-      
+
 
 __Neural Sequence Learning Using TensorFlow__
 
@@ -19,6 +19,9 @@ building blocks implemented directly in TensorFlow.
 ### Usage
 
 `neuralmonkey-train <EXPERIMENT_INI>`
+`neuralmonkey-run <EXPERIMENT_INI> <DATASETS_INI>`
+`neuralmonkey-server <EXPERIMENT_INI> [OPTION] ...`
+`neuralmonkey-logbook --logdir <EXPERIMENTS_DIR> [OPTION] ...`
 
 ### Package Overview
 
@@ -55,10 +58,13 @@ The `neuralmonkey` package is organized into subpackages as follows:
 ### Installation
 
 - You need Python 3.5 to run _Neural Monkey_.
-- Install Tensorflow by following their installation docs. (Minimum required version is 0.9.)
-  [here](https://www.tensorflow.org/versions/r0.9/get_started/os_setup.html#download-and-setup)
-- Install dependencies by typing `pip install -r requirements.txt`. If the training crashes on an unknown dependency, just install
-it with pip.
+- For GPU version: Install dependencies by typing `pip install -r requirements-gpu.txt`.
+- For CPU version, run `pip install -r requirements.txt` instead.
+- If you are using the GPU version, make sure that the `LD_LIBRARY_PATH`
+  environment variable points to `lib` and `lib64` directories of your CUDA and
+  CuDNN installations. Similarly, your `PATH` variable should point to the `bin`
+  subdirectory of the CUDA installation directory.
+- If the training crashes on an unknown dependency, just install it with pip.
 
 ### Documentation
 
@@ -72,6 +78,8 @@ abstract deep learning toolkit built over TensorFlow
 tagging and parsing
 - [NNBlocks](https://github.com/brmson/NNBlocks) – a library build over Theano
 containing NLP specific models
+- [Nematus](https://github.com/rsennrich/nematus) - A tool for training and
+  running Neural Machine Translation models
 
 ### License
 
