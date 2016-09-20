@@ -55,7 +55,7 @@ class Decoder(object):
         if self.reuse_word_embeddings:
             self.embedding_size = self.encoders[0].embedding_size
 
-            if kwargs.has_key("embedding_size"):
+            if "embedding_size" in kwargs:
                 log("Warning: Overriding embedding_size parameter with reused"
                     " embeddings from the encoder.", color="red")
 
