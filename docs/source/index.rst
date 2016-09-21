@@ -15,6 +15,6 @@ Getting Started
 .. toctree::
    :maxdepth: 1
 
-   installation
+   install
    tutorial
    api
