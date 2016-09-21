@@ -193,6 +193,10 @@ configuration file is structured into a set of sections, each describing a part
 of the training. In this section, we will go through all of them and write our
 configuration file needed for the training of the post-editing task.
 
+First of all, create a file called ``post-edit.ini`` and put it inside the
+``exp-nm-ape`` directory. Put all the snippets that we will describe in the
+following paragraphs into the file.
+
 
 1 - Datasets
 ************
@@ -429,6 +433,35 @@ model files are discarded.
 
 Part V. - Running an Experiment
 -------------------------------
+
+Now that we have prepred the data and the experiment INI file, we can run the
+training. If your Neural Monkey installation is OK, you can just run this
+command from the root directory of the Neural Monkey repository::
+
+  bin/neuralmonkey-train exp-nm-ape/post-edit.ini
+
+Again, you may want to adapt the path to the experiment directory.
+
+You should see the training program logging the parsing of the configuration
+file, initializing the model, and eventually the training process. If everything
+goes well, the training should run for 100 epochs. You should see a new line
+with the status of the model's performance on the current batch every few
+seconds, and there should be validation report printed every few minutes.
+
+The training script creates a subdirectory called ``training`` in our experiment
+directory. The contents of the directory are:
+
+- ``git_commit`` - the Git hash of the current Neural Monkey revision.
+- ``git_diff`` - the diff between the clean checkout and the working copy.
+- ``experiment.ini`` - the INI file used for running the training (copied).
+- ``experiment.log`` - the output log of the training script.
+- ``checkpoint`` - file created by Tensorflow, keeps track of saved variables.
+- ``events.out.tfevents.<TIME>.<HOST>`` - file created by Tensorflow, keeps the
+  summaries for TensorBoard visualisation
+- ``variables.data[.<N>]`` - a set of files with N best saved models.
+- ``variables.data.best`` - a symbolic link that points to the variable file
+  with the best model.
+
 
 Part VI. - Evaluation of the Trained Model
 ------------------------------------------
