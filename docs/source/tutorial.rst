@@ -528,3 +528,22 @@ reference evaluation dataset.
 
 Part VII. - Conclusions
 -----------------------
+
+This tutorial gave you the basic notion of how to design your experiments using
+Neural Monkey. We designed the experiment on the task of automatic
+post-editing. We got the data from the WMT 16 APE shared task and preprocessed
+them to fit our needs. We have written the configuration file and run the
+training. At the end, we evaluated the model on the test dataset.
+
+If you want to learn more, the next step is perhaps to browse the ``examples``
+directory in the repository and try to see what's going on there. If you are
+planning to just design an experiment using existing modules, you can start by
+editing one of those examples as well.
+
+If you want to dig in the code, you can browse the `repository
+<https://github.com/ufal/neuralmonkey>`_ Please feel free to fork the repository
+and to send us pull requests. The `API
+manual<http://neural-monkey.readthedocs.io/>`_ is currently under construction,
+but it should contain something very soon.
+
+Have fun!
