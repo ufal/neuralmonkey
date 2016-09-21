@@ -466,5 +466,65 @@ directory. The contents of the directory are:
 Part VI. - Evaluation of the Trained Model
 ------------------------------------------
 
+If you have reached this point, you have nearly everything this tutorial
+offers. The last step of this tutorial is to take the trained model and to
+evaluate it on previously unseen dataset. For this you will need additional two
+configuration files. But fear not - it's not going to be that difficult. The
+first configuration file is the specification of the model. We have this from
+the Part III. It will only require a small alteration (optional). The second
+configuration file tells the run script which datasets to process.
+
+The optional alteration of the model INI file prevents the training dataset from
+loading. This is a flaw in the present design and it's subject to change. The
+procedure is simple:
+
+1. Copy the file ``post-edit.ini`` into e.g. ``post-edit.test.ini``
+2. Open the ``post-edit.test.ini`` file and remove the ``train_dataset`` and
+   ``val_dataset`` sections, as well as the ``train_dataset`` and
+   ``val_dataset`` configuration from the ``[main]`` section.
+
+Now we have to make another file specifying the testing dataset
+configuration. We will call this file ``test_datasets.ini``::
+
+  [main]
+  test_datasets=[<eval_data>]
+
+  [eval_data]
+  class=config.utils.dataset_from_files
+  s_source=nm-exp-ape/data/test/test.src
+  s_translated=nm-exp-ape/data/test/test.mt
+  s_edits_out=nm-exp-ape/test_output.edits
+
+Please note the ``s_edits`` data series is **not** present in the evaluation
+dataset. That is simply because we do not want to use the reference edits to
+compute loss at this point. Usually, we don't even *know* the correct output.
+Instead, we will provide the output series ``s_edits_out``, which points to a
+file to which the output of the model gets stored. Also note that you may want
+to alter the path to the ``nm-exp-ape`` directory if it is not located inside
+the Neural Monkey package root dir.
+
+We have all that we need to run the trained model on the evaluation
+dataset. From the root directory of the Neural Monkey repository, run::
+
+ bin/neuralmonkey-run nm-exp-ape/post-edit.test.ini nm-exp-ape/test_datasets.ini
+
+At the end, you should see a new file in ``nm-exp-ape``, called
+``test_output.edits``. As you notice, the contents of this file are the
+sequences of edit operations, which if applied to the machine translated
+sentences, generate the output that we want. So the final step is to call the
+provided postprocessing script. Again, feel free to write your own as a little
+excercise::
+
+  bin/postedit_reconstruct_data.py \
+    --edits=nm-exp-ape/test_output.edits \
+    --translated-sentences=nm-exp-ape/data/test/test.mt \
+      > test_output.pe
+
+Now, you can run the official tools (like mteval or the tercom software
+available on the `WMT 16 website <http://www.statmt.org/wmt16/ape-task.html>`_)
+to measure the score of ``test_output.pe`` on the ``data/test/test.pe``
+reference evaluation dataset.
+
+
 Part VII. - Conclusions
 -----------------------
