@@ -543,7 +543,7 @@ editing one of those examples as well.
 If you want to dig in the code, you can browse the `repository
 <https://github.com/ufal/neuralmonkey>`_ Please feel free to fork the repository
 and to send us pull requests. The `API
-manual<http://neural-monkey.readthedocs.io/>`_ is currently under construction,
+manual <http://neural-monkey.readthedocs.io/>`_ is currently under construction,
 but it should contain something very soon.
 
 Have fun!
