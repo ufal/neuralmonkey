@@ -25,6 +25,22 @@ neuralmonkey-server <EXPERIMENT_INI> [OPTION] ...
 neuralmonkey-logbook --logdir <EXPERIMENTS_DIR> [OPTION] ...
 ```
 
+### Installation
+
+- You need Python 3.5 to run _Neural Monkey_.
+- For GPU version: Install dependencies by typing `pip install -r requirements-gpu.txt`.
+- For CPU version, run `pip install -r requirements.txt` instead.
+- If you are using the GPU version, make sure that the `LD_LIBRARY_PATH`
+  environment variable points to `lib` and `lib64` directories of your CUDA and
+  CuDNN installations. Similarly, your `PATH` variable should point to the `bin`
+  subdirectory of the CUDA installation directory.
+- If the training crashes on an unknown dependency, just install it with pip.
+
+### Getting Started
+
+There is a [tutorial](http://neural-monkey.readthedocs.io/en/latest/tutorial.html) that you can follow, which gives you the overwiev 
+of how to design your experiments with Neural Monkey.
+
 ### Package Overview
 
 - `bin`: Directory with executables and tools
@@ -56,17 +72,6 @@ The `neuralmonkey` package is organized into subpackages as follows:
 - `tokenize_data.py` tokenizes data
 - `tokenize_persistable.sh` manages the tokenize_data script
 
-
-### Installation
-
-- You need Python 3.5 to run _Neural Monkey_.
-- For GPU version: Install dependencies by typing `pip install -r requirements-gpu.txt`.
-- For CPU version, run `pip install -r requirements.txt` instead.
-- If you are using the GPU version, make sure that the `LD_LIBRARY_PATH`
-  environment variable points to `lib` and `lib64` directories of your CUDA and
-  CuDNN installations. Similarly, your `PATH` variable should point to the `bin`
-  subdirectory of the CUDA installation directory.
-- If the training crashes on an unknown dependency, just install it with pip.
 
 ### Documentation
 
