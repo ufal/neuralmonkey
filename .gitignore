@@ -18,3 +18,4 @@ checkpoint
 experiments
 tests/*.en
 tests/*.de
+.idea
