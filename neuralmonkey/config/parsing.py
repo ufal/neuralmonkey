@@ -184,7 +184,9 @@ def parse_file(config_file):
             except IniError as exc:
                 raise
             except Exception as exc:
-                raise IniError(lineno, "Error", exc) from None
+                raise IniError(
+                    lineno, "Cannot parse value: '{}'".format(value_string),
+                    exc) from None
 
             parsed_dicts[section][key] = value
 
