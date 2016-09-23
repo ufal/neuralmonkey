@@ -28,7 +28,7 @@ class Decoder(object):
 
         Keyword arguments:
             embedding_size: Size of embedding vectors. Default 200
-            max_output: Maximum length of the output. Default 20
+            max_output_len: Maximum length of the output. Default 20
             rnn_size: When projection is used or when no encoder is supplied,
                 this is the size of the projected vector.
             dropout_keep_prob: Dropout keep probability. Default 1 (no dropout)
@@ -44,7 +44,7 @@ class Decoder(object):
         self.vocabulary = vocabulary
         self.data_id = data_id
 
-        self.max_output = kwargs.get("max_output", 20)
+        self.max_output = kwargs.get("max_output_len", 20)
         self.embedding_size = kwargs.get("embedding_size", 200)
         self.name = kwargs.get("name", "decoder")
         dropout_keep_prob = kwargs.get("dropout_keep_prob", 1.0)
