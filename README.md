@@ -43,10 +43,11 @@ of how to design your experiments with Neural Monkey.
 
 ### Package Overview
 
-- `bin`: Directory with executables and tools
+- `bin`: Directory with neuralmonkey executables
 - `examples`: Example configuration files for ready-made experiments
 - `lib`: Third party software
 - `neuralmonkey`: Python package files
+- `scripts`: Directory with tools that may come in handy. Note dependencies for these tools may not be listed in the project requirements.
 - `tests`: Test files
 
 The `neuralmonkey` package is organized into subpackages as follows:
