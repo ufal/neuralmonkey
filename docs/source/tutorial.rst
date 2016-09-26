@@ -158,17 +158,15 @@ Preprocessing of the data
 
 The next phase is to prepare the post editing sequences that we should learn
 during training. We apply the Levenshtein algorithm to find the shortest edit
-path from the translated sentence to the post-edited sentence. You can implement
-your own script that does the job, or you may want to use our preprocessing
-script from the neuralmonkey package. For this, in the neuralmonkey root
-directory, run::
+path from the translated sentence to the post-edited sentence. As a little
+coding excercise, you can implement your own script that does the job, or you
+may use our preprocessing script from the neuralmonkey package. For this, in the
+neuralmonkey root directory, run::
 
-  bin/postedit_prepare_data.py \
+  scripts/postedit_prepare_data.py \
     --translated-sentences=exp-nm-ape/data/train/train.mt \
     --target-sentences=exp-nm-ape/data/train.train.pe \
         > exp-nm-ape/data/train/train.edits
-
-TODO check if this still works
 
 NOTE: You may have to change the path to the exp-nm-ape directory if it is not
 located inside the repository root directory.
@@ -512,10 +510,10 @@ At the end, you should see a new file in ``nm-exp-ape``, called
 ``test_output.edits``. As you notice, the contents of this file are the
 sequences of edit operations, which if applied to the machine translated
 sentences, generate the output that we want. So the final step is to call the
-provided postprocessing script. Again, feel free to write your own as a little
+provided postprocessing script. Again, feel free to write your own as a simple
 excercise::
 
-  bin/postedit_reconstruct_data.py \
+  scripts/postedit_reconstruct_data.py \
     --edits=nm-exp-ape/test_output.edits \
     --translated-sentences=nm-exp-ape/data/test/test.mt \
       > test_output.pe

@@ -5,7 +5,7 @@ This a script that takes the result of automatic postediting encoded as a
 sequence of <keep>, <delete> and insert operations and applies them on the
 original text being post-edited.
 
-The inverse script to this one is 'post_edit_prepare_data.py'.
+The inverse script to this one is 'postedit_prepare_data.py'.
 """
 
 # tests: lint, mypy
