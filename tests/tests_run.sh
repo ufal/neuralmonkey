@@ -6,6 +6,8 @@ if [ ! -f tests/data/train.tc.en ]; then
 	wget -P tests/data http://ufallab.ms.mff.cuni.cz/~musil/{train,val}.tc.{en,de}
 fi
 
+bin/nmonkey run tests/vocab.ini
+
 bin/nmonkey train tests/small.ini
 bin/nmonkey run tests/small.ini tests/test_data.ini
 

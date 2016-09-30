@@ -1,5 +1,6 @@
 """
-This module is responsible for loading training configuration.
+This module is responsible for instantiating objects
+specified by the experiment configuration
 """
 #tests: lint
 
@@ -97,7 +98,7 @@ def instantiate_class(name, all_dicts, existing_objects, depth):
     except TypeError as exc:
         raise ConfigBuildException(clazz, exc)
 
-    debug("Instatiating class {} with arguments {}".format(clazz, arguments),
+    debug("Instantiating class {} with arguments {}".format(clazz, arguments),
           "configBuild")
 
     ## call the function with the arguments

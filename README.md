@@ -1,6 +1,8 @@
 # Neural Monkey
 
 [![Build Status](https://travis-ci.org/ufal/neuralmonkey.svg?branch=master)](https://travis-ci.org/ufal/neuralmonkey)
+[![Documentation Status](https://readthedocs.org/projects/neural-monkey/badge/?version=latest)](http://neural-monkey.readthedocs.io/en/latest/?badge=latest)
+
 
 __Neural Sequence Learning Using TensorFlow__
 
@@ -16,14 +18,35 @@ building blocks implemented directly in TensorFlow.
 
 ### Usage
 
-`nmonkey COMMAND <EXPERIMENT_INI> [OPTION ...]`
+```
+nmonkey COMMAND <EXPERIMENT_INI> [OPTION] ...
+neuralmonkey-server <EXPERIMENT_INI> [OPTION] ...
+neuralmonkey-logbook --logdir <EXPERIMENTS_DIR> [OPTION] ...
+```
+
+### Installation
+
+- You need Python 3.5 to run _Neural Monkey_.
+- For GPU version: Install dependencies by typing `pip install -r requirements-gpu.txt`.
+- For CPU version, run `pip install -r requirements.txt` instead.
+- If you are using the GPU version, make sure that the `LD_LIBRARY_PATH`
+  environment variable points to `lib` and `lib64` directories of your CUDA and
+  CuDNN installations. Similarly, your `PATH` variable should point to the `bin`
+  subdirectory of the CUDA installation directory.
+- If the training crashes on an unknown dependency, just install it with pip.
+
+### Getting Started
+
+There is a [tutorial](http://neural-monkey.readthedocs.io/en/latest/tutorial.html) that you can follow, which gives you the overwiev
+of how to design your experiments with Neural Monkey.
 
 ### Package Overview
 
-- `bin`: Directory with executables and tools
+- `bin`: Directory with neuralmonkey executables
 - `examples`: Example configuration files for ready-made experiments
 - `lib`: Third party software
 - `neuralmonkey`: Python package files
+- `scripts`: Directory with tools that may come in handy. Note dependencies for these tools may not be listed in the project requirements.
 - `tests`: Test files
 
 The `neuralmonkey` package is organized into subpackages as follows:
@@ -44,21 +67,15 @@ The `neuralmonkey` package is organized into subpackages as follows:
 ### Additional Scripts
 
 - `caffe_image_features.py` extracts features from images using pre-trained network
-- `install_caffe.sh` installs caffe including prerequisites
-- `precompute_image_features.py` deprecated
-- `reformat_downloaded_image_features.py` deprecated
 - `tokenize_data.py` tokenizes data
-- `tokenize_persistable.sh` manages the tokenize_data script
+- `postedit_prepare_data.py` compute edit operations from two sets of sentences
+- `postedit_reconstruct_data.py` applies edit operations to a set of sentences
+- `postedit_rule_based_fixes.py` some rule-based fixes for post-editing task
 
 
-### Installation
+### Documentation
 
-- You need Python 3 to run _Neural Monkey_.
-- Install Tensorflow by following their installation docs
-  [here](https://www.tensorflow.org/versions/r0.9/get_started/os_setup.html#download-and-setup)
-- Clone this repository and follow the installation procedure outlined in
-`prepare_env.sh`. If the training crashes on an unknown dependency, just install
-it with pip.
+You can find the API documentation of this package [here](http://neural-monkey.readthedocs.io/en/latest). The documentation files are generated from docstrings using [autodoc](http://www.sphinx-doc.org/en/stable/ext/autodoc.html) and [Napoleon](https://sphinxcontrib-napoleon.readthedocs.io/en/latest/) extensions to the Python documentation package [Sphinx](http://www.sphinx-doc.org/en/stable/). The docstrings should follow the recommendations in the [Google Python Style Guide](http://google.github.io/styleguide/pyguide.html?showone=Comments#Comments). Additional details on the docstring formatting can be found in the Napoleon documentation as well.
 
 ### Related projects
 
@@ -68,6 +85,8 @@ abstract deep learning toolkit built over TensorFlow
 tagging and parsing
 - [NNBlocks](https://github.com/brmson/NNBlocks) – a library build over Theano
 containing NLP specific models
+- [Nematus](https://github.com/rsennrich/nematus) - A tool for training and
+  running Neural Machine Translation models
 
 ### License
 

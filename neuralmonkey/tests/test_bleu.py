@@ -4,7 +4,7 @@
 
 import unittest
 
-from neuralmonkey.evaluators.bleu_ref import BLEUReferenceImplWrapper
+from neuralmonkey.evaluators.bleu import BLEUEvaluator
 
 
 CORPUS_DECODED = [
@@ -27,10 +27,8 @@ CORPUS_REFERENCE = [
 DECODED = [d.split() for d in CORPUS_DECODED]
 REFERENCE = [r.split() for r in CORPUS_REFERENCE]
 
-LOCATION = "lib/mteval/wrap-mteval.pl"
-FUNC = BLEUReferenceImplWrapper(LOCATION)
+FUNC = BLEUEvaluator()
 
-@unittest.skip("not working on travis")
 class TestBLEU(unittest.TestCase):
 
     def test_empty_decoded(self):

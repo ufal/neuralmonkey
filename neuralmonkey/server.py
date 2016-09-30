@@ -52,6 +52,7 @@ def post_request():
 def main():
     parser = argparse.ArgumentParser(description="Runs Neural Monkey as a web server.")
     parser.add_argument("--port", type=int, default=5000)
+    parser.add_argument("--host", type=str, default="127.0.0.1")
     parser.add_argument("--configuration", type=str)
     cli_args = parser.parse_args()
 
@@ -60,4 +61,4 @@ def main():
     args, sess = initialize_for_running(cli_args.configuration)
     APP.config['args'] = args
     APP.config['sess'] = sess
-    APP.run(port=cli_args.port)
+    APP.run(port=cli_args.port, host=cli_args.host)

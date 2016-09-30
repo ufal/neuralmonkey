@@ -1,7 +1,6 @@
-import tensorflow as tf
-from tensorflow.python.ops import array_ops
-
 # tests: lint, mypy
+
+import tensorflow as tf
 
 class BidirectionalRNNLayer(object):
     """Bidirectional RNN Layer class - forward and backward RNN layers in one.
@@ -66,10 +65,10 @@ def _reverse_seq(input_seq, lengths):
         input_.set_shape(input_.get_shape().with_rank(2))
 
     # Join into (time, batch_size, depth)
-    s_joined = array_ops.pack(input_seq)
+    s_joined = tf.pack(input_seq)
 
     # Reverse along dimension 0
-    s_reversed = array_ops.reverse_sequence(s_joined, lengths, 0, 1)
+    s_reversed = tf.reverse_sequence(s_joined, lengths, 0, 1)
     # Split again into list
-    result = array_ops.unpack(s_reversed)
+    result = tf.unpack(s_reversed)
     return result
