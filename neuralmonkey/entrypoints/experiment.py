@@ -112,8 +112,9 @@ class Experiment(EntryPoint):
         Returns: tuple of evaluation (dict of evaluation metrics)
                  and the postprocessed decoded data
         """
+        ## TODO refactor this
         decoded, opt_loss, dec_loss = self.model.run_on_dataset(
-            session, dataset, save_output=save_output)
+            [session], dataset, save_output=save_output)
 
         evaluation = {}
         if dataset.has_series(self.model.decoder.data_id):

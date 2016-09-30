@@ -7,6 +7,7 @@ from neuralmonkey.logging import log, Logging, debug
 from neuralmonkey.checking import check_dataset_and_model, CheckingException
 from neuralmonkey.config.configuration import Configuration
 from neuralmonkey.entrypoints.entrypoint import EntryPoint
+from neuralmonkey.runners.ensemble_runner import EnsembleRunner
 
 class Model(EntryPoint):
     """This class represents a sequence-to-sequence model.
@@ -56,7 +57,7 @@ class Model(EntryPoint):
         return fd
 
 
-    def run_on_dataset(self, sess, dataset, save_output=False):
+    def run_on_dataset(self, sessions, dataset, save_output=False):
         """Runs the model on a dataset, performs postprocessing
 
         Arguments:
@@ -68,8 +69,13 @@ class Model(EntryPoint):
         Returns:
             Tuple of the postprocessed and raw outputs.
         """
-        result_raw, opt_loss, dec_loss = self.runner(sess, dataset,
-                                                     self.feed_dicts)
+        if isinstance(self.runner, EnsembleRunner):
+            result_raw, opt_loss, dec_loss = self.runner(sessions, dataset,
+                                                         self.feed_dicts)
+        else:
+            result_raw, opt_loss, dec_loss = self.runner(sessions[0], dataset,
+                                                         self.feed_dicts)
+
         result = self.postprocess(result_raw)
         debug("Raw result: {}".format(result_raw[0]), "rawResults")
 
@@ -115,21 +121,18 @@ class Model(EntryPoint):
 
         #pylint: disable=no-member
         #these are added programmatically
-        variables_file = run_args.variables
+        variables_files = run_args.variables
         datasets = run_args.test_datasets
 
-        if not os.path.exists(variables_file):
-            log("Variables file does not exist: {}".format(variables_file),
-                color="red")
-            exit(1)
+        for variables_file in variables_files:
+            if not os.path.exists(variables_file):
+                log("Variables file does not exist: {}".format(variables_file),
+                    color="red")
+                exit(1)
 
-        log("Initializing TensorFlow session.")
-        sess = self.create_session()
-
-        log("Loading variables from {}".format(variables_file))
-        saver = tf.train.Saver()
-        saver.restore(sess, variables_file)
-        print("")
+        log("Initializing TensorFlow session(s).")
+        sessions = [self.create_session_from_variables(v)
+                    for v in variables_files]
 
         try:
             for dataset in datasets:
@@ -139,7 +142,7 @@ class Model(EntryPoint):
             exit(1)
 
         for dataset in datasets:
-            result, _, _ = self.run_on_dataset(sess, dataset,
+            result, _, _ = self.run_on_dataset(sessions, dataset,
                                                save_output=True)
             # TODO if we have reference, show also reference
             Logging.show_sample(result, randomized=True)
