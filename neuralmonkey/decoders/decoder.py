@@ -121,6 +121,8 @@ class Decoder(object):
             runtime_logits, train_targets, self.train_weights,
             self.vocabulary_size)
 
+        self.runtime_logprobs = [tf.nn.log_softmax(l) for l in runtime_logits]
+
         ### Learning step
         ### TODO was here only because of scheduled sampling.
         ### needs to be refactored out
