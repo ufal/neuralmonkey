@@ -86,7 +86,7 @@ def main():
         for dataset in datasets_args.test_datasets:
             check_dataset_and_coders(dataset, args.encoders)
     except Exception as exc:
-        log(exc.message, color='red')
+        log(str(exc), color='red')
         exit(1)
 
     for dataset in datasets_args.test_datasets:
