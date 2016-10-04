@@ -1,6 +1,7 @@
 #tests: lint
 
 import os
+import time
 
 import tensorflow as tf
 import numpy as np
@@ -258,8 +259,12 @@ class Experiment(EntryPoint):
                                          evaluation, tb_writer)
 
                 if (training_step + 1) % self.validation_period == 0:
+
+                    time_val_start = time.clock()
                     evaluation, decoded = self.evaluate(
                         session, self.val_dataset)
+                    time_val_end = time.clock()
+                    time_val = time_val_end - time_val_start
 
                     score = evaluation[self.evaluators[-1]]
 
@@ -289,8 +294,8 @@ class Experiment(EntryPoint):
                         log("Best scores saved so far: {}".
                             format(progress.saved_scores), color="blue")
 
-                    log("Validation (epoch {}, batch_number {}):"
-                        .format(epoch, batch_number + 1), color="blue")
+                    log("Validation (epoch {}, batch_number {}, elapsed time {:.2f}s):"
+                        .format(epoch, batch_number + 1, time_val), color="blue")
 
                     self.log_evaluation(evaluation, validation=True)
                     self.write_summaries(training_seen_instances,
