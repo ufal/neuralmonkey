@@ -76,7 +76,7 @@ class Decoder(object):
             tf.constant(dropout_keep_prob, tf.float32),
             shape=[], name="decoder_dropout_placeholder")
 
-        state = self._initial_state()
+        self.initial_state = self._initial_state()
 
         self.weights, self.biases = self._state_to_output()
         self.embedding_matrix = self._input_embeddings()
@@ -95,7 +95,7 @@ class Decoder(object):
         embedded_train_inputs = self._embed_inputs(self.train_inputs[:-1])
 
         self.train_rnn_outputs, _ = attention_decoder(
-            embedded_train_inputs, state, attention_objects,
+            embedded_train_inputs, self.initial_state, attention_objects,
             self.embedding_size, cell)
 
         # runtime methods and objects are used when no ground truth is provided
@@ -107,8 +107,8 @@ class Decoder(object):
         tf.get_variable_scope().reuse_variables()
 
         self.runtime_rnn_outputs, _ = attention_decoder(
-            runtime_inputs, state, attention_objects, self.embedding_size,
-            cell, loop_function=loop_function)
+            runtime_inputs, self.initial_state, attention_objects,
+            self.embedding_size, cell, loop_function=loop_function)
 
         _, train_logits = self._decode(self.train_rnn_outputs)
         self.decoded, runtime_logits = self._decode(self.runtime_rnn_outputs)
