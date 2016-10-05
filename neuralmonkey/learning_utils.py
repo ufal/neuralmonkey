@@ -192,8 +192,9 @@ def training_loop(sess, saver,
     best_score_epoch = 0
     best_score_batch_no = 0
 
+    # list of lists of src sentences dataset for each encoder
     val_src_sentences = [val_dataset.get_series(e.data_id) for e in encoders]
-    val_src_sentences_by_sentidx = zip(*val_src_sentences)
+    val_src_sentences_by_sentidx = list(zip(*val_src_sentences))
 
     val_raw_tgt_sentences = val_dataset.get_series(decoder.data_id)
     val_tgt_sentences = postprocess(val_raw_tgt_sentences)
