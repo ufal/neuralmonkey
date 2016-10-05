@@ -139,8 +139,8 @@ def create_dataset_series(path: str,
         for line in reader.read():
             yield preprocess(line)
     elif file_type == 'application/gzip':
-        reader = GZipReader(path)
-        for line in reader.read():
+        gzreader = GZipReader(path)
+        for line in gzreader.read():
             yield preprocess(line)
     elif file_type == 'application/octet-stream':
         return np.load(path)
