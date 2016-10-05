@@ -126,8 +126,13 @@ def create_dataset_series(path: str,
     Returns:
         The dataset series.
     """
+    filetyper = magic.Magic(mime=True)
+    filetyper.flags |= magic.MAGIC_SYMLINK
+    filetyper.cookie = magic.magic_open(filetyper.flags)
+    magic.magic_load(filetyper.cookie, None)
+
     log("Loading {}".format(path))
-    file_type = magic.from_file(path, mime=True)
+    file_type = filetyper.from_file(path)
 
     if file_type.startswith('text/'):
         reader = PlainTextFileReader(path)
@@ -137,7 +142,6 @@ def create_dataset_series(path: str,
         reader = GZipReader(path)
         for line in reader.read():
             yield preprocess(line)
-
     elif file_type == 'application/octet-stream':
         return np.load(path)
     else:
