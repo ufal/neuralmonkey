@@ -38,15 +38,16 @@ neuralmonkey-logbook --logdir <EXPERIMENTS_DIR> [OPTION] ...
 
 ### Getting Started
 
-There is a [tutorial](http://neural-monkey.readthedocs.io/en/latest/tutorial.html) that you can follow, which gives you the overwiev 
+There is a [tutorial](http://neural-monkey.readthedocs.io/en/latest/tutorial.html) that you can follow, which gives you the overwiev
 of how to design your experiments with Neural Monkey.
 
 ### Package Overview
 
-- `bin`: Directory with executables and tools
+- `bin`: Directory with neuralmonkey executables
 - `examples`: Example configuration files for ready-made experiments
 - `lib`: Third party software
 - `neuralmonkey`: Python package files
+- `scripts`: Directory with tools that may come in handy. Note dependencies for these tools may not be listed in the project requirements.
 - `tests`: Test files
 
 The `neuralmonkey` package is organized into subpackages as follows:
@@ -66,11 +67,10 @@ The `neuralmonkey` package is organized into subpackages as follows:
 ### Additional Scripts
 
 - `caffe_image_features.py` extracts features from images using pre-trained network
-- `install_caffe.sh` installs caffe including prerequisites
-- `precompute_image_features.py` deprecated
-- `reformat_downloaded_image_features.py` deprecated
 - `tokenize_data.py` tokenizes data
-- `tokenize_persistable.sh` manages the tokenize_data script
+- `postedit_prepare_data.py` compute edit operations from two sets of sentences
+- `postedit_reconstruct_data.py` applies edit operations to a set of sentences
+- `postedit_rule_based_fixes.py` some rule-based fixes for post-editing task
 
 
 ### Documentation
