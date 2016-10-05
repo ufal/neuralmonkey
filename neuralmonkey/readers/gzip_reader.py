@@ -7,6 +7,6 @@ class GZipReader(object):
         self.encoding = encoding
 
     def read(self):
-        with gzip.open(self.path, "r", encoding=self.encoding) as f_data:
+        with gzip.open(self.path, "rt", encoding=self.encoding) as f_data:
             for line in f_data:
                 yield line.strip().split(" ")

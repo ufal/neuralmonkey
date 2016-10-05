@@ -11,6 +11,7 @@ import magic
 
 from neuralmonkey.logging import log
 from neuralmonkey.readers.plain_text_reader import PlainTextFileReader
+from neuralmonkey.readers.gzip_reader import GZipReader
 
 SERIES_SOURCE = re.compile("s_([^_]*)$")
 SERIES_OUTPUT = re.compile("s_(.*)_out")
@@ -132,6 +133,11 @@ def create_dataset_series(path: str,
         reader = PlainTextFileReader(path)
         for line in reader.read():
             yield preprocess(line)
+    elif file_type == 'application/gzip':
+        reader = GZipReader(path)
+        for line in reader.read():
+            yield preprocess(line)
+
     elif file_type == 'application/octet-stream':
         return np.load(path)
     else:
