@@ -368,9 +368,11 @@ class Vocabulary(collections.Sized):
             self,
             sentences: List[List[str]],
             max_len: int,
-            train: bool=False,
-            add_technical_symbols: bool=True) -> Tuple[np.ndarray, np.ndarray]:
+            train: bool=False) -> Tuple[np.ndarray, np.ndarray]:
         """Generate the tensor representation for the provided sentences.
+
+        Difference from sentences_to_tensor is that it does not insert the
+        technical symbols, like <s> or </s> to the tensor.
 
         Arguments:
             sentences: List of sentences as lists of tokens.
@@ -383,6 +385,7 @@ class Vocabulary(collections.Sized):
             A tensor representing the sentences ((max_length + 2) x batch)
             and a weight tensor ((max_length + 1) x batch) that inidicates
             padding.
+
         """
         pad_indices = [np.repeat(self.get_word_index(PAD_TOKEN), len(sentences))
                        for _ in range(max_len)]

@@ -10,11 +10,11 @@ from neuralmonkey.vocabulary import Vocabulary
 # tests: mypy
 
 class VanillaSentenceEncoder(object):
-    """Like the SentenceEncoder, but ignores the start/end tokens."""
+    """Like the SentenceEncoder, but ignores the start/end tokens.
+    Warning: use of this class is highly experimental
+    """
     def __init__(self, max_input_len, vocabulary, data_id, embedding_size,
-                 rnn_size,
-                 dropout_keep_p=0.5,
-                 name="sentence_encoder",
+                 rnn_size, dropout_keep_p=0.5, name="sentence_encoder",
                  **kwargs):
 
         self.name = name
