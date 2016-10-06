@@ -115,8 +115,15 @@ def main():
     Logging.set_log_file(log_file)
     Logging.print_header(args.name)
 
-    os.system("git log -1 --format=%H > {}".format(git_commit_file))
-    os.system("git --no-pager diff --color=always > {}".format(git_diff_file))
+    # this points inside the neuralmonkey/ dir inside the repo, but
+    # it does not matter for git.
+    repodir = os.path.dirname(os.path.realpath(__file__))
+
+    os.system("cd {}; git log -1 --format=%H > {}"
+              .format(repodir, git_commit_file))
+
+    os.system("cd {}; git --no-pager diff --color=always > {}"
+              .format(repodir, git_diff_file))
 
     link_best_vars = "{}.best".format(variables_file_prefix)
 
