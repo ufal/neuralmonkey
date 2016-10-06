@@ -102,7 +102,7 @@ class MultiDecoder(object):
         #  - call feed_dict preventatively everywhere (with dummy data)
 
         # First option:
-        # fd = self.decoders[self.scheduled_decoder].feed_dict(dataset, train=train)
+        # fd = self.decoders[self._scheduled_decoder].feed_dict(dataset, train=train)
 
         # Second option:
         # (This is a fallback plan in canse TensorFlow requires us to fill in
@@ -111,7 +111,7 @@ class MultiDecoder(object):
         #
         fd = {}
         for i, d in enumerate(self._training_decoders):
-            if i == self.scheduled_decoder:
+            if i == self._scheduled_decoder:
                 fd_i = d.feed_dict(dataset, train=train)
             else:
                 # serie je generator seznamu slov (vet)

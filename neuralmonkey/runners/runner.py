@@ -17,6 +17,7 @@ class GreedyRunner(object):
         loss_with_decoded_ins = 0.0
         batch_count = 0
         for batch in batched_dataset:
+            decoded = self.decoder.decoded
             vocab = self.decoder.vocabulary
             batch_feed_dict = feed_dicts(batch, coders, train=False)
             batch_count += 1
