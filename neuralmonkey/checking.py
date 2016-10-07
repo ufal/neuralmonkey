@@ -5,19 +5,36 @@ constructing the computational graph.
 
 # tests: lint
 
+from neuralmonkey.logging import log
+
 def check_dataset_and_coders(dataset, coders):
     #pylint: disable=protected-access
-    return
 
-    # missing = \
-    #     [(cod.data_id, cod) for cod in coders if not dataset.has_series(cod.data_id)]
-    # if missing:
-    #     formated = ["{} ({}, {}.{})".format(name,
-    #                                         cod.name,
-    #                                         cod.__class__.__module__,
-    #                                         cod.__class__.__name__) for name, cod in missing]
-    #     raise Exception("Dataset \"{}\" is mising series {}:"\
-    #             .format(dataset.name, ", ".join(formated)))
+    data_list = []
+
+    for c in coders:
+        if c.hasattr("data_id"):
+            data_list.append((c.data_id, c))
+        elif c.hasattr("data_ids"):
+            data_list.extend([(d, c) for d in c.data_ids])
+        else:
+            log("Warning: Coder: {} does not have a data attribute".format(c))
+
+
+    missing = []
+
+    for (coder, serie) in data_list:
+        if not dataset.has_series(serie):
+            missing.append((coder, serie))
+
+    if len(missing) > 0:
+        formated = ["{} ({}, {}.{})" .format(name, cod.name,
+                                             cod.__class__.__module__,
+                                             cod.__class__.__name__)
+                    for name, cod in missing]
+
+        raise Exception("Dataset '{}' is mising series {}:"
+                        .format(dataset.name, ", ".join(formated)))
 
 
 def missing_attributes(obj, attributes):
