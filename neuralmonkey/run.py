@@ -8,6 +8,7 @@ from neuralmonkey.config.configuration import Configuration
 from neuralmonkey.checking import check_dataset_and_coders
 from neuralmonkey.learning_utils import initialize_tf, run_on_dataset, \
     print_dataset_evaluation
+from neuralmonkey.runners.ensemble_runner import EnsembleRunner
 
 CONFIG = Configuration()
 CONFIG.add_argument('output', str)
@@ -35,7 +36,21 @@ CONFIG.ignore_argument('save_n_best')
 CONFIG.ignore_argument('overwrite_output_dir')
 
 
-def initialize_for_running(ini_file):
+def default_variable_file(args):
+    variables_file = os.path.join(args.output, "variables.data.best")
+    cont_index = 1
+
+    def continuation_file():
+        return os.path.join(args.output,
+                            "variables.data.cont-{}.best".format(cont_index))
+    while os.path.exists(continuation_file()):
+        variables_file = continuation_file()
+        cont_index += 1
+
+    return variables_file
+
+
+def initialize_for_running(ini_file, variable_files):
     """Prepares everything that is necessary for running a model.
 
     Arguments:
@@ -48,25 +63,32 @@ def initialize_for_running(ini_file):
     # pylint: disable=no-member
     args = CONFIG.load_file(ini_file)
     print("")
-    variables_file = os.path.join(args.output, "variables.data.best")
-    cont_index = 1
 
-    def continuation_file():
-        return os.path.join(args.output,
-                            "variables.data.cont-{}.best".format(cont_index))
-    while os.path.exists(continuation_file()):
-        variables_file = continuation_file()
-        cont_index += 1
+    if variable_files is None:
+        default_varfile = default_variable_file(args)
 
-    if not os.path.exists(variables_file):
-        log("No variables file is stored in {}".format(args.output),
+        log("Default variable file '{}' will be used for loading variables."
+            .format(default_varfile))
+
+        variable_files = [default_varfile]
+
+    if len(variable_files) == 1 and not isinstance(args.runner, EnsembleRunner):
+        log("Warning: useless more variable files without ensemble runner",
             color="red")
-        exit(1)
 
-    sess, _ = initialize_tf(variables_file, args.threads)
+    sessions = []
+
+    for vfile in variable_files:
+        if not os.path.exists(vfile):
+            log("Variable file {} does not exist".format(vfile),
+                color="red")
+            exit(1)
+
+        sess, _ = initialize_tf(vfile, args.threads)
+        sessions.append(sess)
+
     print("")
-
-    return args, sess
+    return args, sessions
 
 def main():
     # pylint: disable=no-member,broad-except
@@ -76,10 +98,12 @@ def main():
 
     test_datasets = Configuration()
     test_datasets.add_argument('test_datasets')
-
-    args, sess = initialize_for_running(sys.argv[1])
+    test_datasets.add_argument('variables')
 
     datasets_args = test_datasets.load_file(sys.argv[2])
+    args, sessions = initialize_for_running(
+        sys.argv[1], datasets_args.variables)
+
     print("")
 
     try:
@@ -91,7 +115,7 @@ def main():
 
     for dataset in datasets_args.test_datasets:
         _, _, evaluation = run_on_dataset(
-            sess, args.runner, args.encoders + [args.decoder], args.decoder,
+            sessions, args.runner, args.encoders + [args.decoder], args.decoder,
             dataset, args.evaluation, args.postprocess, write_out=True)
         if evaluation:
             print_dataset_evaluation(dataset.name, evaluation)

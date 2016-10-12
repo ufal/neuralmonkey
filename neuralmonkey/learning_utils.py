@@ -213,7 +213,7 @@ def training_loop(sess, saver,
                 if step % logging_period == logging_period - 1:
                     summary_str = trainer.run(sess, batch_feed_dict, summary=True)
                     _, _, train_evaluation = \
-                            run_on_dataset(sess, runner, all_coders, decoder, batch_dataset,
+                            run_on_dataset([sess], runner, all_coders, decoder, batch_dataset,
                                            evaluators, postprocess, write_out=False)
 
                     process_evaluation(evaluators, tb_writer, train_evaluation,
@@ -224,7 +224,7 @@ def training_loop(sess, saver,
                 if step % validation_period == validation_period - 1:
                     decoded_val_sentences, decoded_raw_val_sentences, \
                         val_evaluation = run_on_dataset(
-                            sess, runner, all_coders, decoder, val_dataset,
+                            [sess], runner, all_coders, decoder, val_dataset,
                             evaluators, postprocess, write_out=False)
 
                     this_score = val_evaluation[evaluators[-1].name]
@@ -319,7 +319,7 @@ def training_loop(sess, saver,
         .format(evaluation_labels[-1], best_score, best_score_epoch))
 
     for dataset in test_datasets:
-        _, _, evaluation = run_on_dataset(sess, runner, all_coders, decoder,
+        _, _, evaluation = run_on_dataset([sess], runner, all_coders, decoder,
                                           dataset, evaluators,
                                           postprocess, write_out=True)
         if evaluation:
@@ -328,7 +328,7 @@ def training_loop(sess, saver,
     log("Finished.")
 
 
-def run_on_dataset(sess, runner, all_coders, decoder, dataset,
+def run_on_dataset(sessions, runner, all_coders, decoder, dataset,
                    evaluators, postprocess, write_out=False):
     """
     Applies the model on a dataset and optionally writes outpus into a file.
@@ -359,7 +359,12 @@ def run_on_dataset(sess, runner, all_coders, decoder, dataset,
             they are available which are dictionary function -> value.
 
     """
-    result_raw, opt_loss, dec_loss = runner(sess, dataset, all_coders)
+    from neuralmonkey.runners.ensemble_runner import EnsembleRunner
+    if isinstance(runner, EnsembleRunner):
+        result_raw, opt_loss, dec_loss = runner(sessions, dataset, all_coders)
+    else:
+        result_raw, opt_loss, dec_loss = runner(sessions[0], dataset, all_coders)
+
     if postprocess is not None:
         result = postprocess(result_raw)
     else:
