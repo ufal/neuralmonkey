@@ -18,7 +18,7 @@ def l2_cost(l2_parameter):
 
 class CrossEntropyTrainer(object):
     def __init__(self, decoder, l2_regularization, optimizer=None,
-                 clip_norm=1.0):
+                 clip_norm=None):
         log("Initializing Cross-entropy trainer.")
         self.decoder = decoder
 
@@ -30,6 +30,10 @@ class CrossEntropyTrainer(object):
             cost += l2_cost(l2_regularization)
 
         gradients = optimizer.compute_gradients(cost)
+
+        if clip_norm is not None:
+            gradients = [(tf.clip_by_norm(grad, clip_norm), var)
+                         for grad, var in gradients]
 
         #for (g, v) in gradients:
         #    if g is not None:
