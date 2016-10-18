@@ -5,7 +5,7 @@ from neuralmonkey.logging import log
 # tests: mypy
 
 class CrossEntropyTrainer(object):
-    def __init__(self, decoder, l2_regularization):
+    def __init__(self, decoder, l2_regularization, optimizer=None):
         log("Initializing Cross-entropy trainer.")
         self.decoder = decoder
 
@@ -18,7 +18,9 @@ class CrossEntropyTrainer(object):
 
             tf.scalar_summary('train_l2_cost', l2_value, collections=["summary_train"])
 
-        optimizer = tf.train.AdamOptimizer(1e-4)
+        if optimizer is None:
+            optimizer = tf.train.AdamOptimizer(1e-4)
+
         gradients = optimizer.compute_gradients(decoder.cost + l2_cost)
         #for (g, v) in gradients:
         #    if g is not None:
