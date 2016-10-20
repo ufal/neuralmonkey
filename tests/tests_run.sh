@@ -2,7 +2,7 @@
 
 set -ex
 
-make data
+make -C tests
 
 bin/neuralmonkey-train tests/vocab.ini
 
