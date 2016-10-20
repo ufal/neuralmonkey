@@ -43,6 +43,10 @@ class SentenceEncoder(object):
             self.inputs = tf.placeholder(tf.int32, shape=[None, max_input_len + 2], name="encoder_inputs")
             self.sentence_lengths = tf.placeholder(tf.int32, shape=[None], name="encoder_input_lengths")
 
+            # TODO remove this placeholder and refactor attention to work
+            # with sentence_lengths
+            self.weight_tensor = tf.placeholder(tf.float32, name="encoder_padding_weights")
+
             if parent_encoder:
                 self.word_embeddings = parent_encoder.word_embeddings
             else:
@@ -109,12 +113,18 @@ class SentenceEncoder(object):
         res[self.sentence_lengths] = np.array(
             [min(self.max_input_len, len(s)) + 2 for s in sentences])
 
-        vectors, _ = self.vocabulary.sentences_to_tensor(
+        vectors, weights = self.vocabulary.sentences_to_tensor(
             sentences, self.max_input_len, train=train)
 
         # as sentences_to_tensor returns list of shape (max-len+2) x batch,
         # we need to transpose
-        res[self.inputs] = zip(*vectors)
+        res[self.inputs] = list(zip(*vectors))
+
+        begin_weights = np.ones(len(sentences))
+
+        # shape of weights: (max-len+1) x batch
+        # shape of weight tensor should be (max-len+2) x batch
+        res[self.weight_tensor] = np.vstack((begin_weights, weights)).T
 
         if train:
             res[self.dropout_placeholder] = self.dropout_keep_p
