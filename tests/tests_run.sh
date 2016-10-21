@@ -2,8 +2,6 @@
 
 set -ex
 
-make -C tests
-
 bin/neuralmonkey-train tests/vocab.ini
 
 bin/neuralmonkey-train tests/small.ini
