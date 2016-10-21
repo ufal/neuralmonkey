@@ -1,3 +1,4 @@
+
 """
 This module servers as a library of API checks used as assertions during
 constructing the computational graph.
@@ -5,7 +6,7 @@ constructing the computational graph.
 
 # tests: lint
 
-from neuralmonkey.logging import log
+from neuralmonkey.logging import log, debug
 
 def check_dataset_and_coders(dataset, coders):
     #pylint: disable=protected-access
@@ -13,18 +14,19 @@ def check_dataset_and_coders(dataset, coders):
     data_list = []
 
     for c in coders:
-        if c.hasattr("data_id"):
+        if hasattr(c, "data_id"):
             data_list.append((c.data_id, c))
-        elif c.hasattr("data_ids"):
+        elif hasattr(c, "data_ids"):
             data_list.extend([(d, c) for d in c.data_ids])
         else:
             log("Warning: Coder: {} does not have a data attribute".format(c))
 
-
+    debug("Found series: {}".format(str(data_list)), "checking")
     missing = []
 
-    for (coder, serie) in data_list:
+    for (serie, coder) in data_list:
         if not dataset.has_series(serie):
+            log("dataset {} does not have serie {}".format(dataset.name, serie))
             missing.append((coder, serie))
 
     if len(missing) > 0:
