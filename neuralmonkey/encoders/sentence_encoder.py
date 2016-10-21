@@ -41,7 +41,7 @@ class SentenceEncoder(object):
             self.is_training = tf.placeholder(tf.bool, name="is_training")
 
             self.inputs = tf.placeholder(tf.int32, shape=[None, max_input_len + 2], name="encoder_inputs")
-            self.sentence_lengths = tf.placeholder(tf.int32, shape=[None], name="encoder_input_lengths")
+            self.sentence_lengths = tf.placeholder(tf.int64, shape=[None], name="encoder_input_lengths")
 
             # TODO remove this placeholder and refactor attention to work
             # with sentence_lengths
