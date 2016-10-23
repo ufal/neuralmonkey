@@ -7,6 +7,7 @@ See http://arxiv.org/abs/1606.07481
 #tests: lint
 
 import tensorflow as tf
+import traceback
 
 from neuralmonkey.logging import debug
 from neuralmonkey.nn.projection import maxout, linear
@@ -14,7 +15,8 @@ from neuralmonkey.nn.projection import maxout, linear
 # pylint: disable=too-many-arguments
 # Great functions require great number of parameters
 def attention_decoder(decoder_inputs, initial_state, attention_objects,
-                      cell, maxout_size, loop_function=None, scope=None):
+                      cell, maxout_size, loop_function=None, scope=None,
+                      summary_collections=None):
     outputs = []
     states = []
 
@@ -46,6 +48,12 @@ def attention_decoder(decoder_inputs, initial_state, attention_objects,
                                         cell, maxout_size)
             outputs.append(output)
             states.append(state)
+
+    if summary_collections:
+        for i, a in enumerate(attention_objects):
+            tf.image_summary("attention_{}".format(i),
+                             [tf.expand_dims(v, -1) for v in a.attentions_in_time],
+                             collections=summary_collections, max_images=1000)
 
     return outputs, states
 
