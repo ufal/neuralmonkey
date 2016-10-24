@@ -101,7 +101,7 @@ class Decoder(object):
 
         self.train_rnn_outputs, _ = attention_decoder(
             embedded_train_inputs, state, attention_objects,
-            cell, attention_maxout_size, summary_collections=["summary_train"])
+            cell, attention_maxout_size)
 
         # runtime methods and objects are used when no ground truth is provided
         # (such as during testing)

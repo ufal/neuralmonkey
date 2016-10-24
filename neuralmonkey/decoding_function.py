@@ -51,8 +51,8 @@ def attention_decoder(decoder_inputs, initial_state, attention_objects,
 
     if summary_collections:
         for i, a in enumerate(attention_objects):
-            tf.image_summary("attention_{}".format(i),
-                             [tf.expand_dims(v, -1) for v in a.attentions_in_time],
+            alignments = tf.expand_dims(tf.transpose(tf.pack(a.attentions_in_time), perm=[1, 2, 0]), -1)
+            tf.image_summary("attention_{}".format(i), alignments,
                              collections=summary_collections, max_images=1000)
 
     return outputs, states
