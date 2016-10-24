@@ -62,11 +62,11 @@ class FactoredEncoder(object):
         attention_fertility = kwargs.get("attention_fertility", 3)
 
         log("Building encoder graph, name: '{}'.".format(self.name))
-        with tf.variable_scope(name):
+        with tf.variable_scope(self.name):
             self._create_encoder_graph()
 
             ## Attention mechanism
-            if self.attention_type is not None:
+            if attention_type is not None:
                 weight_tensor = tf.concat(
                     1, [tf.expand_dims(w, 1) for w in self.padding_weights])
 
@@ -121,12 +121,12 @@ class FactoredEncoder(object):
         self.factor_inputs = {}
         factors = []
 
-        for data_id, vocabulary, embedding_size in zip(data_ids, vocabularies,
-                                                       embedding_sizes):
+        for data_id, vocabulary, embedding_size in zip(
+                self.data_ids, self.vocabularies, self.embedding_sizes):
             ## Create data placehoders. The tensors' length is max_input_len+2
             ## because we add explicit start and end symbols.
             prefix = ""
-            if len(data_ids) > 1:
+            if len(self.data_ids) > 1:
                 prefix = "{}_".format(data_id)
 
             names = ["{}input_{}".format(prefix, i)
@@ -185,6 +185,10 @@ class FactoredEncoder(object):
         # res[self.sentence_lengths] = np.array(
         #     [min(self.max_input_len, len(s)) + 2 for s in factors[self.data_ids[0]]])
 
+        batch_size = None
+        for data_id in factors:
+            batch_size = len(factors[data_id])
+
         factor_vectors_and_weights = {
             data_id: vocabulary.sentences_to_tensor(factors[data_id],
                                                     self.max_input_len,
@@ -213,7 +217,7 @@ class FactoredEncoder(object):
             for words_plc, words_tensor in zip(inputs, vectors):
                 res[words_plc] = words_tensor
 
-        res[self.padding_weights[0]] = np.ones(len(sentences))
+        res[self.padding_weights[0]] = np.ones(batch_size)
 
         for plc, padding in zip(self.padding_weights[1:], paddings):
             res[plc] = padding

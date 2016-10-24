@@ -85,8 +85,9 @@ class VanillaSentenceEncoder(object):
         fd[self.sentence_lengths] = np.array(
             [min(self.max_input_len, len(s)) for s in sentences])
 
-        vectors, weights = self.vocabulary.sentences_to_bare_tensor(
-            sentences, self.max_input_len, train=train)
+        vectors, weights = self.vocabulary.sentences_to_tensor(
+            sentences, self.max_input_len, train=train,
+            add_technical_symbols=False)
 
         for words_plc, words_tensor in zip(self.inputs, vectors):
             fd[words_plc] = words_tensor

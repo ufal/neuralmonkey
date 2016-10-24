@@ -192,8 +192,17 @@ def training_loop(sess, saver,
     best_score_epoch = 0
     best_score_batch_no = 0
 
-    # list of lists of src sentences dataset for each encoder
-    val_src_sentences = [val_dataset.get_series(e.data_id) for e in encoders]
+    ## this list shall have this structure:
+    ## [encoder, {data_id: [batch_index, word_index]}]
+    ## However, we only use it for logging the validation, so we can merge
+    ## the data_id and encoder coordinates.
+    val_src_sentences = [val_dataset.get_series(e.data_id) for e in encoders
+                         if hasattr(e, "data_id")]
+
+    val_src_sentences.extend([val_dataset.get_series(d)
+                              for e in encoders if hasattr(e, "data_ids")
+                              for d in e.data_ids])
+
     val_src_sentences_by_sentidx = list(zip(*val_src_sentences))
 
     val_raw_tgt_sentences = val_dataset.get_series(decoder.data_id)
