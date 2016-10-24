@@ -4,7 +4,7 @@ tf-gpu
 caffe
 caffe-env
 **/.history*
-data
+/data
 logs
 *.log
 *.o[0-9]*
