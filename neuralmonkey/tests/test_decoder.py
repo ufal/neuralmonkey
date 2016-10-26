@@ -11,7 +11,7 @@ from neuralmonkey.vocabulary import Vocabulary
 class TestDecoder(unittest.TestCase):
 
     def test_init(self):
-        decoder = Decoder([], Vocabulary(), "foo")
+        decoder = Decoder([], Vocabulary(), "foo", "test-decoder")
         self.assertIsNotNone(decoder)
 
 if __name__ == "__main__":
