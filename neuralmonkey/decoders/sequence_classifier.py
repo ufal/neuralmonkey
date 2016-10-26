@@ -11,8 +11,8 @@ class SequenceClassifier(object):
     exactly one.
     """
 
-    def __init__(self, encoders, vocabulary, data_id,
-                 layers=[], activation=tf.tanh, dropout_keep_p=0.5, name='seq_classifier'):
+    def __init__(self, encoders, vocabulary, data_id, name,
+                 layers=[], activation=tf.tanh, dropout_keep_p=0.5):
         self.encoders = encoders
         self.vocabulary = vocabulary
         self.data_id = data_id

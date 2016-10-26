@@ -39,12 +39,11 @@ class CNNEncoder(object):
 
     def __init__(self, data_id, convolutions, rnn_layers,
                  image_height, image_width, pixel_dim,
-                 concatenate_rnns=False,
+                 name, concatenate_rnns=False,
                  bidirectional=True,
                  batch_normalization=True,
                  local_response_normalization=True,
-                 dropout_keep_p=0.5,
-                 name="cnn_encoder"):
+                 dropout_keep_p=0.5):
 
         """
         Initilizes and configures the computational graph creator.

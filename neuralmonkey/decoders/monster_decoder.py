@@ -21,11 +21,11 @@ from neuralmonkey.checking import assert_type
 from neuralmonkey.vocabulary import Vocabulary, START_TOKEN
 
 class Decoder(object):
-    def __init__(self, encoders, vocabulary, data_id, rnn_size,
+    def __init__(self, encoders, vocabulary, data_id, rnn_size, name,
                  embedding_size=128, use_attention=None, max_output_len=20,
                  scheduled_sampling=None, dropout_keep_p=0.5, copy_net=None,
                  reused_word_embeddings=None, use_noisy_activations=False,
-                 depth=1, name="decoder"):
+                 depth=1):
 
         """A class that collects the part of the computation graph that is
         needed for decoding.
