@@ -106,9 +106,13 @@ class Decoder(object):
         ### Use the same variables for runtime decoding!
         tf.get_variable_scope().reuse_variables()
 
-        self.runtime_rnn_outputs, _ = attention_decoder(
+        self.runtime_rnn_states = [state]
+
+        self.runtime_rnn_outputs, rnn_states = attention_decoder(
             runtime_inputs, state, attention_objects, self.embedding_size,
             cell, loop_function=loop_function)
+
+        self.runtime_rnn_states += rnn_states
 
         _, train_logits = self._decode(self.train_rnn_outputs)
         self.decoded, runtime_logits = self._decode(self.runtime_rnn_outputs)
@@ -121,6 +125,8 @@ class Decoder(object):
             runtime_logits, train_targets, self.train_weights,
             self.vocabulary_size)
 
+        # TODO [refactor] put runtime logits to self from the beginning
+        self.runtime_logits = runtime_logits
         self.runtime_logprobs = [tf.nn.log_softmax(l) for l in runtime_logits]
 
         ### Learning step
@@ -142,6 +148,18 @@ class Decoder(object):
     @property
     def cost(self):
         return self.train_loss
+
+
+    def top_k_runtime_logprobs(self, k_best):
+        """Return the top runtime log probabilities calculated from runtime
+        logits.
+
+        Arguments:
+            k_best: How many output items to return
+        """
+        ## the array is of tuples ([values], [indices])
+        return [tf.nn.top_k(p, k_best) for p in self.runtime_logprobs]
+
 
 
     def _initial_state(self):
