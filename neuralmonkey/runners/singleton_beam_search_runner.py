@@ -6,8 +6,8 @@ from neuralmonkey.learning_utils import feed_dicts
 from neuralmonkey.encoders.sentence_encoder import SentenceEncoder
 #from neuralmonkey.vocabulary import START_TOKEN, END_TOKEN
 
-START_TOKEN_INDEX=1
-END_TOKEN_INDEX=2
+START_TOKEN_INDEX = 1
+END_TOKEN_INDEX = 2
 
 def sort_hypotheses(hyps, normalize_by_length=True):
     """Sort hypotheses based on log probs and length.
