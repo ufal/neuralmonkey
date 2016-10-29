@@ -18,7 +18,7 @@ class Decoder(object):
     # it into smaller units would be helpful
     # Some locals may be turned to attributes
 
-    def __init__(self, encoders, vocabulary, data_id, **kwargs):
+    def __init__(self, encoders, vocabulary, data_id, name, **kwargs):
         """Creates a new instance of the decoder
 
         Arguments:
@@ -43,10 +43,10 @@ class Decoder(object):
         self.encoders = encoders
         self.vocabulary = vocabulary
         self.data_id = data_id
+        self.name = name
 
         self.max_output = kwargs.get("max_output_len", 20)
         self.embedding_size = kwargs.get("embedding_size", 200)
-        self.name = kwargs.get("name", "decoder")
         dropout_keep_prob = kwargs.get("dropout_keep_prob", 1.0)
 
         self.use_attention = kwargs.get("use_attention", False)
