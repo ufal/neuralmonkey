@@ -86,8 +86,8 @@ class Hypothesis(object):
         return self._logits
 
     def __str__(self):
-         return ("Hypothesis(log prob = {:.4f}, tokens = {})".format(
-             self.log_prob, self.tokens))
+        return ("Hypothesis(log prob = {:.4f}, tokens = {})".format(
+            self.log_prob, self.tokens))
 
 # pylint: disable=too-few-public-methods
 # Subject to issue #9
