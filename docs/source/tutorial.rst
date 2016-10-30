@@ -288,7 +288,8 @@ embedding matrix. The size of the embedding vector used for each word from the
 source vocabulary is set to 300. The source data series is fed to this
 encoder. 20% of the weights is dropped out during training from the word
 embeddings and from the attention vectors computed over the hidden states of
-this encoder.
+this encoder. Note the ``name`` attribute must be set in each encoder and
+decoder in order to prevent collisions of the names of Tensorflow graph nodes.
 
 The configuration of the second encoder follows::
 
@@ -316,6 +317,7 @@ decoder. Without furhter ado, here it goes::
 
   [decoder]
   class=decoders.decoder.Decoder
+  name=decoder
   encoders=[<trans_encoder>, <src_encoder>]
   rnn_size=300
   max_output_len=50
