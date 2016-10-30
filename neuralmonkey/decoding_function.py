@@ -7,7 +7,6 @@ See http://arxiv.org/abs/1606.07481
 #tests: lint
 
 import tensorflow as tf
-import traceback
 
 from neuralmonkey.logging import debug
 from neuralmonkey.nn.projection import maxout, linear
@@ -53,7 +52,7 @@ def attention_decoder(decoder_inputs, initial_state, attention_objects,
         for i, a in enumerate(attention_objects):
             alignments = tf.expand_dims(tf.transpose(tf.pack(a.attentions_in_time), perm=[1, 2, 0]), -1)
             tf.image_summary("attention_{}".format(i), alignments,
-                             collections=summary_collections, max_images=1000)
+                             collections=summary_collections, max_images=batch_size)
 
     return outputs, states
 
