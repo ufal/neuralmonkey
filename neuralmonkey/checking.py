@@ -5,6 +5,9 @@ constructing the computational graph.
 
 # tests: lint
 
+class CheckingException(Exception):
+    pass
+
 def check_dataset_and_coders(dataset, coders):
     #pylint: disable=protected-access
     missing = \
@@ -14,7 +17,7 @@ def check_dataset_and_coders(dataset, coders):
                                             cod.name,
                                             cod.__class__.__module__,
                                             cod.__class__.__name__) for name, cod in missing]
-        raise Exception("Dataset \"{}\" is mising series {}:"\
+        raise CheckingException("Dataset \"{}\" is mising series {}:"\
                 .format(dataset.name, ", ".join(formated)))
 
 
@@ -33,5 +36,5 @@ def assert_type(obj, name, value, expected_type, can_be_none=False):
         caller_type_str = type_to_str(type(obj))
         exptected_str = type_to_str(expected_type)
         real_type_str = type_to_str(type(value))
-        raise Exception("Value of \"{}\" in \"{}\" should be \"{}\" but was \"{}\"{}".\
+        raise CheckingException("Value of \"{}\" in \"{}\" should be \"{}\" but was \"{}\"{}".\
                 format(name, caller_type_str, exptected_str, real_type_str, value))
