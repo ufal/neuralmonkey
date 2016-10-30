@@ -17,4 +17,5 @@ Getting Started
 
    install
    tutorial
+   development
    api
