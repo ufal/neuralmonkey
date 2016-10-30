@@ -114,7 +114,9 @@ class Decoder(object):
         self.runtime_rnn_outputs, _ = attention_decoder(
             runtime_inputs, state, attention_objects, cell,
             attention_maxout_size, loop_function=loop_function,
-            summary_collections=["summary_val"])
+            summary_collections=["summary_val_img"])
+
+        self.summary_val_img = tf.merge_summary(tf.get_collection("summary_val_img"))
 
         _, train_logits = self._decode(self.train_rnn_outputs)
         self.decoded, runtime_logits = self._decode(self.runtime_rnn_outputs)
