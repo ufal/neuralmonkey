@@ -4,7 +4,10 @@ import numpy as np
 
 from neuralmonkey.learning_utils import feed_dicts
 from neuralmonkey.encoders.sentence_encoder import SentenceEncoder
+from neuralmonkey.logging import Logging, debug
 #from neuralmonkey.vocabulary import START_TOKEN, END_TOKEN
+
+Logging.debug_disabled.append("beamSearch")
 
 START_TOKEN_INDEX = 1
 END_TOKEN_INDEX = 2
@@ -82,6 +85,9 @@ class Hypothesis(object):
             raise Exception("Getting logit sequence from empty hypothesis")
         return self._logits
 
+    def __str__(self):
+         return ("Hypothesis(log prob = {:.4f}, tokens = {})".format(
+             self.log_prob, self.tokens))
 
 # pylint: disable=too-few-public-methods
 # Subject to issue #9
@@ -263,10 +269,19 @@ class BeamSearchRunner(object):
             results_sorted = sort_hypotheses(results, normalize_by_length=True)
             best_hyp = results_sorted[0]
 
-            # Decode the sentence from indices to vocabulary
-            sent = self.vocabulary.vectors_to_sentences(
-                [np.array(best_hyp.tokens)])[0]
-            decoded_sentences.append(sent)
+            # For debugging, list all result hypotheses in the original order
+            debug("Hypotheses:", "beamSearch")
+            for i, res in enumerate(results):
+                debug("    {}: {}".format(i, str(res)), "beamSearch")
+
+            debug("    best: {}".format(str(best_hyp)), "beamSearch")
+
+            # Decode the sentence from indices to vocabulary. Remember, the
+            # conversion vocabulary method wants a time x batch-shaped list
+            sent_vecs = [np.array([w]) for w in best_hyp.tokens[1:]]
+            sent = self.vocabulary.vectors_to_sentences(sent_vecs)
+
+            decoded_sentences.append(sent[0])
 
             # Now, compute the loss for the best hypothesis (if we have the
             # target data)
