@@ -37,17 +37,6 @@ def load_tokenized(text_file, preprocess=None):
     return [preprocess(re.split(r"[ ]", l.rstrip())) for l in text_file]
 
 
-def feed_dicts(dataset, coders, train=False):
-    """
-    This function ensures all encoder and decoder objects feed their the data
-    they need from the dataset.
-    """
-    res = {}
-
-    for coder in coders:
-        res.update(coder.feed_dict(dataset, train=train))
-
-    return res
 
 
 def get_eval_string(evaluators, evaluation_res):
@@ -67,44 +56,12 @@ def get_eval_string(evaluators, evaluation_res):
     return eval_string
 
 
-def initialize_tf(initial_variables, threads, gpu_allow_growth=True):
-    """
-    Initializes the TensorFlow session after the graph is built.
-
-    Args:
-
-        initial_variables: File with the saved TF variables.
-
-    Returns:
-
-        A tuple of the TF session and the the TF saver object.
-
-    """
-    log("Initializing the TensorFlow session.")
-    cfg = tf.ConfigProto()
-    cfg.inter_op_parallelism_threads = threads
-    cfg.intra_op_parallelism_threads = threads
-    cfg.allow_soft_placement = True # needed for multiple GPUs
-    # cfg.log_device_placement = True # not yet, too verbose logs
-    cfg.gpu_options.allow_growth = gpu_allow_growth
-    sess = tf.Session(config=cfg)
-    sess.run(tf.initialize_all_variables())
-
-    saver = tf.train.Saver()
-    if initial_variables:
-        log("Loading variables from {}".format(initial_variables))
-        saver.restore(sess, initial_variables)
-
-    log("Session initialization done.")
-
-    return sess, saver
-
-def training_loop(sess, saver,
-                  epochs, trainer, encoders, decoder, batch_size,
+def training_loop(tf_manager,
+                  epochs, trainer, batch_size,
                   train_dataset, val_dataset,
                   log_directory,
                   evaluators,
-                  runner,
+                  runners,
                   test_datasets=[],
                   save_n_best_vars=1,
                   link_best_vars="/tmp/variables.data.best",
@@ -120,16 +77,12 @@ def training_loop(sess, saver,
 
     Args:
 
-        sess: TF Session.
-
-        saver: TF saver object.
+        tf_manager: TensorFlowManager with initialized sessions.
 
         epochs: Number of epochs for which the algoritm will learn.
 
         trainer: The trainer object containg the TensorFlow code for computing
             the loss and optimization operation.
-
-        decoder: The decoder object.
 
         train_dataset:
 
@@ -144,10 +97,6 @@ def training_loop(sess, saver,
         evaluators: List of evaluators. The last evaluator
             is used as the main. Each function accepts list of decoded sequences
             and list of reference sequences and returns a float.
-
-        use_copynet: Flag whether the copying mechanism is used.
-
-        use_beamsearch:
 
         initial_variables: Either None or file where the variables are stored.
             Training then starts from the point the loaded values.
@@ -235,7 +184,7 @@ def training_loop(sess, saver,
                             run_on_dataset([sess], runner, all_coders, decoder, batch_dataset,
                                            evaluators, postprocess, write_out=False)
 
-                    process_evaluation(evaluators, tb_writer, train_evaluation,
+                    _log_evaluation(evaluators, tb_writer, train_evaluation,
                                        seen_instances, summary_str, None, train=True)
                 else:
                     trainer.run(sess, batch_feed_dict, summary=False)
@@ -286,7 +235,7 @@ def training_loop(sess, saver,
                     log("Validation (epoch {}, batch number {}):"
                         .format(i + 1, batch_n), color='blue')
 
-                    process_evaluation(evaluators, tb_writer,
+                    _log_evaluation(evaluators, tb_writer,
                                        val_evaluation, seen_instances,
                                        summary_str, None, train=False)
 
@@ -353,7 +302,7 @@ def training_loop(sess, saver,
                                           dataset, evaluators,
                                           postprocess, write_out=True)
         if evaluation:
-            print_dataset_evaluation(dataset.name, evaluation)
+            _print_dataset_evaluation(dataset.name, evaluation)
 
     log("Finished.")
 
@@ -366,13 +315,9 @@ def run_on_dataset(sessions, runner, all_coders, decoder, dataset,
 
     Args:
 
-        session: TF session the model parameters are in.
+        tf_manager: TensorFlow manager with initialized sessions.
 
-        runner: A function that runs the code
-
-        all_coders: List of all encoders and decoders in the model.
-
-        decoder: The decoder used to generate outputs.
+        runners: A function that runs the code
 
         dataset: The dataset on which the model will be executed.
 
@@ -432,13 +377,11 @@ def run_on_dataset(sessions, runner, all_coders, decoder, dataset,
     else:
         return result, result_raw, evaluation
 
-
-def process_evaluation(evaluators, tb_writer, eval_result,
-                       seen_instances,
-                       summary_str, histograms_str, train=False):
-    """
-    Logs the evaluation results and writes the summaries to the TensorBoard.
-    """
+# pylint: disable=too-many-arguments
+def _log_evaluation(evaluators, tb_writer, eval_result,
+                    seen_instances,
+                    summary_str, histograms_str, train=False):
+    """Log the evaluation results and the TensorBoard summaries."""
 
     def format_eval_name(name):
         if hasattr(name, '__call__'):
@@ -473,7 +416,7 @@ def process_evaluation(evaluators, tb_writer, eval_result,
         tb_writer.add_summary(external_str, seen_instances)
 
 
-def print_dataset_evaluation(name, evaluation):
+def _print_dataset_evaluation(name, evaluation):
     line_len = 22
     log("Evaluating model on \"{}\"".format(name))
 
