@@ -11,7 +11,7 @@ import tensorflow as tf
 from neuralmonkey.logging import debug
 from neuralmonkey.nn.projection import maxout, linear
 
-# pylint: disable=too-many-arguments
+# pylint: disable=too-many-arguments,too-many-locals
 # Great functions require great number of parameters
 def attention_decoder(decoder_inputs, initial_state, attention_objects,
                       cell, maxout_size, loop_function=None, scope=None,
@@ -50,7 +50,8 @@ def attention_decoder(decoder_inputs, initial_state, attention_objects,
 
         if summary_collections:
             for i, a in enumerate(attention_objects):
-                alignments = tf.expand_dims(tf.transpose(tf.pack(a.attentions_in_time), perm=[1, 2, 0]), -1)
+                alignments = tf.expand_dims(tf.transpose(tf.pack(a.attentions_in_time),
+                                                         perm=[1, 2, 0]), -1)
                 tf.image_summary("attention_{}".format(i), alignments,
                                  collections=summary_collections, max_images=128)
 
