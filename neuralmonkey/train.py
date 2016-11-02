@@ -7,6 +7,7 @@ import sys
 import os
 from shutil import copyfile
 
+import numpy as np
 import tensorflow as tf
 
 from neuralmonkey.checking import check_dataset_and_coders
@@ -46,6 +47,10 @@ def main():
     if len(sys.argv) != 2:
         print("Usage: train.py <ini_file>")
         exit(1)
+
+    # random seeds have to be set before anything is created in the graph
+    np.random.seed(1)
+    tf.set_random_seed(1)
 
     args = create_config(sys.argv[1])
 
