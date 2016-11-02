@@ -5,12 +5,18 @@ execution in existing sessions.
 
 """
 
+from typing import List, Union
+
+import numpy as np
 import tensorflow as tf
 from neuralmonkey.logging import log
 
+# tests: pylint,mypy
+
+# pylint: disable=invalid-name
+RunResult = Union[float, np.Array, tf.Summary]
+
 # pylint: disable=too-few-public-methods
-
-
 class TensorFlowManager(object):
     """Inteface between computational graph, data and TF sessions.
 
@@ -51,14 +57,16 @@ class TensorFlowManager(object):
             log("Loading variables from {}".format(var_file))
             self.saver.restore(sess, var_file)
 
+    # pylint: disable=too-many-locals
     def execute(self, dataset, execution_scripts, train=False, batch_size=None):
         if batch_size is None:
             batch_size = len(dataset)
         batched_dataset = dataset.batch_dataset(batch_size)
-        executables = [s.get_executable(train=train)
-                       for s in execution_scripts]
 
+        batch_results = [[] for _ in execution_scripts]
         for batch in batched_dataset:
+            executables = [s.get_executable(train=train)
+                           for s in execution_scripts]
             while not all(ex.is_finished for ex in executables):
                 all_feedables = set()
                 all_tensors_to_execute = []
@@ -84,13 +92,38 @@ class TensorFlowManager(object):
                 for executable, results in zip(executables, results_by_executable):
                     executable.collect(results)
 
-        for executable in executables:
-            executable.finalize()
+            for script_list, executable in zip(batch_results, executables):
+                script_list.append(executable.results)
 
-        return executables
+        results = []
+        for result_list, script in zip(executables, execution_scripts):
+            results.append(script.collect_finished(result_list))
+
+        return results
+
+    def save(self, variable_files: Union[str, List[str]]):
+        if isinstance(variable_files, str):
+            variable_files = ["{}.{}".format(
+                variable_files, i) for i in range(len(self.sessions()))]
+
+        if len(variable_files) != len(self.sessions):
+            raise Exception("Provided {} files for restoring {} sessions.".format(
+                len(variable_files), len(self.sessions)))
+
+        for sess, file_name in zip(self.sessions, variable_files):
+            self.saver.save(sess, file_name)
+
+    def restore(self, variable_files: List[str]) -> None:
+        if len(variable_files) != len(self.sessions):
+            raise Exception("Provided {} files for restoring {} sessions.".format(
+                len(variable_files), len(self.sessions)))
+
+        for sess, file_name in zip(self.sessions, variable_files):
+            self.saver.restore(sess, file_name)
 
 
-def _partition_results(session_results, tensor_list_lengths):
+def _partition_results(session_results: List[RunResult],
+                       tensor_list_lengths: List[int]) -> List[RunResult]:
     """Split the session run results back for their executables."""
     results_by_executable = []
     res_start = 0

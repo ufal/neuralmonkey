@@ -1,18 +1,16 @@
+from typing import List, Tuple
 import tensorflow as tf
 
-# tests: mypy,pylint
+from neuralmonkey.tf_manager import RunResult
+from neuralmonkey.runners.base_runner import BaseRunner, Executable
 
+# tests: mypy,pylint
 # pylint: disable=too-few-public-methods
 
+class GreedyRunner(BaseRunner):
 
-class GreedyRunner(object):
-
-    def __init__(self, decoder, evaluators):
-        self.decoder = decoder
-        self.evaluators = evaluators
-        # TODO this needs to be done recursively - encoders can have encoders
-        self.all_coders = set([decoder] + decoder.encoders)
-        self.loss_names = ["train_loss", "runtime_loss"]
+    def __init__(self, output_series, decoder, evaluators):
+        super(GreedyRunner, self).__init__(output_series, decoder, evaluators)
 
     def get_executable(self, train=False):
         if train:
@@ -23,23 +21,8 @@ class GreedyRunner(object):
         to_run = losses + self.decoder.decoded
         return GreedyRunExecutable(self.all_coders, to_run, self.decoder.vocabulary)
 
-    def collect_finished(self, execution_results):
-        outputs = []
-        losses_sum = [0. for _ in self.loss_names]
-        for result in execution_results:
-            outputs.extend(result.outputs)
-            for i, loss in enumerate(result.losses):
-                losses_sum[i] += loss
-        losses = [l / len(outputs) for l in losses_sum]
-        return outputs, losses
 
-    def evaluate(self):
-        pass
-
-# pylint: disable=too-few-public-methods
-
-
-class GreedyRunExecutable(object):
+class GreedyRunExecutable(Executable):
 
     def __init__(self, all_coders, to_run, vocabulary):
         self.all_coders = all_coders
@@ -51,16 +34,16 @@ class GreedyRunExecutable(object):
         self.decoded_sentences = []
         self.result = None
 
-    def next_to_execute(self):
+    def next_to_execute(self) -> Tuple[List[object], List[tf.Tensor]]:
         """Get the feedables and tensors to run."""
         return self.all_coders, self.to_run
 
-    def collect_results(self, results):
-        decoded_sentences_batch = \
-            self.vocabulary.vectors_to_sentences(results[2:])
-        self.result = ExecutionResult(decoded_sentences_batch,
-                                      results[:2])
+    def collect_results(self, results: List[List[RunResult]]) -> None:
+        # TODO do ensembles
+        if len(results) > 1:
+            raise Exception('Does not support ensembling of multiple sessions')
 
+        sess_results = results[0]
 
 class ExecutionResult(object):
 

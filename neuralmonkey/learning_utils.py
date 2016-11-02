@@ -66,7 +66,6 @@ def training_loop(tf_manager,
                   save_n_best_vars=1,
                   link_best_vars="/tmp/variables.data.best",
                   vars_prefix="/tmp/variables.data",
-                  initial_variables=None,
                   logging_period=20,
                   validation_period=500,
                   postprocess=None,
@@ -98,9 +97,6 @@ def training_loop(tf_manager,
             is used as the main. Each function accepts list of decoded sequences
             and list of reference sequences and returns a float.
 
-        initial_variables: Either None or file where the variables are stored.
-            Training then starts from the point the loaded values.
-
     """
     all_coders = encoders + [decoder]
 
@@ -110,11 +106,6 @@ def training_loop(tf_manager,
     evaluation_labels = [f.name for f in evaluators]
     step = 0
     seen_instances = 0
-
-    saver = tf.train.Saver()
-
-    if initial_variables:
-        saver.restore(sess, initial_variables)
 
     if save_n_best_vars < 1:
         raise Exception('save_n_best_vars must be greater than zero')
@@ -141,25 +132,13 @@ def training_loop(tf_manager,
 
     if log_directory:
         log("Initializing TensorBoard summary writer.")
-        tb_writer = tf.train.SummaryWriter(log_directory, sess.graph)
-        log("TensorBoard writer initialized.")
+        tb_writer = tf.train.SummaryWriter(log_directory, tf_manager.session[0].graph)
+        log("TesorBoard writer initialized.")
 
     best_score_epoch = 0
     best_score_batch_no = 0
 
-    ## this list shall have this structure:
-    ## [encoder, {data_id: [batch_index, word_index]}]
-    ## However, we only use it for logging the validation, so we can merge
-    ## the data_id and encoder coordinates.
-    val_src_sentences = [val_dataset.get_series(e.data_id) for e in encoders
-                         if hasattr(e, "data_id")]
-
-    val_src_sentences.extend([val_dataset.get_series(d)
-                              for e in encoders if hasattr(e, "data_ids")
-                              for d in e.data_ids])
-
-    val_src_sentences_by_sentidx = list(zip(*val_src_sentences))
-
+    # TODO collect all output series for all runners
     val_raw_tgt_sentences = val_dataset.get_series(decoder.data_id)
     val_tgt_sentences = postprocess(val_raw_tgt_sentences)
 
@@ -174,27 +153,25 @@ def training_loop(tf_manager,
 
             for batch_n, batch_dataset in enumerate(train_batched_datasets):
 
-                batch_feed_dict = feed_dicts(batch_dataset, all_coders, train=True)
                 step += 1
                 batch_sentences = batch_dataset.get_series(decoder.data_id)
                 seen_instances += len(batch_sentences)
                 if step % logging_period == logging_period - 1:
                     summary_str = trainer.run(sess, batch_feed_dict, summary=True)
                     _, _, train_evaluation = \
-                            run_on_dataset([sess], runner, all_coders, decoder, batch_dataset,
+                            run_on_dataset(tf_manager, runners, batch_dataset,
                                            evaluators, postprocess, write_out=False)
 
                     _log_evaluation(evaluators, tb_writer, train_evaluation,
-                                       seen_instances, summary_str, None, train=True)
+                                    seen_instances, summary_str, None, train=True)
                 else:
                     trainer.run(sess, batch_feed_dict, summary=False)
 
                 if step % validation_period == validation_period - 1:
                     decoded_val_sentences, decoded_raw_val_sentences, \
-                        val_evaluation, val_plots = run_on_dataset(
-                            [sess], runner, all_coders, decoder, val_dataset,
-                            evaluators, postprocess, write_out=False,
-                            extra_fetches=decoder.summary_val_plots)
+                        val_evaluation = run_on_dataset(
+                            tf_manager, runners, val_dataset,
+                            evaluators, postprocess, write_out=False)
 
                     this_score = val_evaluation[evaluators[-1].name]
 
@@ -221,7 +198,7 @@ def training_loop(tf_manager,
                     if is_better(this_score, worst_score, minimize_metric):
                         # we need to save this score instead the worst score
                         worst_var_file = variables_files[worst_index]
-                        saver.save(sess, worst_var_file)
+                        tf_manager.save(worst_var_file)
                         saved_scores[worst_index] = this_score
                         log("Variable file saved in {}".format(worst_var_file))
 
@@ -236,8 +213,8 @@ def training_loop(tf_manager,
                         .format(i + 1, batch_n), color='blue')
 
                     _log_evaluation(evaluators, tb_writer,
-                                       val_evaluation, seen_instances,
-                                       summary_str, None, train=False)
+                                    val_evaluation, seen_instances,
+                                    summary_str, None, train=False)
 
                     if this_score == best_score:
                         best_score_str = colored("{:.2f}".format(best_score),
@@ -292,13 +269,13 @@ def training_loop(tf_manager,
         log("Training interrupted by user.")
 
     if os.path.islink(link_best_vars):
-        saver.restore(sess, link_best_vars)
+        tf_manager.restore(link_best_vars)
 
     log("Training finished. Maximum {} on validation data: {:.2f}, epoch {}"
         .format(evaluation_labels[-1], best_score, best_score_epoch))
 
     for dataset in test_datasets:
-        _, _, evaluation = run_on_dataset([sess], runner, all_coders, decoder,
+        _, _, evaluation = run_on_dataset(tf_manager, runners,
                                           dataset, evaluators,
                                           postprocess, write_out=True)
         if evaluation:
@@ -337,13 +314,9 @@ def run_on_dataset(sessions, runner, all_coders, decoder, dataset,
             they are available which are dictionary function -> value.
 
     """
-    from neuralmonkey.runners.ensemble_runner import EnsembleRunner
-    if isinstance(runner, EnsembleRunner):
-        result_raw, opt_loss, dec_loss, evaluated_fetches = runner(
-            sessions, dataset, all_coders, extra_fetches=extra_fetches)
-    else:
-        result_raw, opt_loss, dec_loss, evaluated_fetches = runner(
-            sessions[0], dataset, all_coders, extra_fetches=extra_fetches)
+    # TODO runner should know which series it produces and not decoder
+    # TODO evaluators should be dict: series_name -> list of evaluators
+    all_results = tf_manager.execute(dataset, runners, train=train, batch_size=batch_size)
 
     if postprocess is not None:
         result = postprocess(result_raw)
