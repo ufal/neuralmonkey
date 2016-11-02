@@ -223,10 +223,10 @@ def training_loop(sess, saver,
 
                 if step % validation_period == validation_period - 1:
                     decoded_val_sentences, decoded_raw_val_sentences, \
-                        val_evaluation, val_images = run_on_dataset(
+                        val_evaluation, val_plots = run_on_dataset(
                             sess, runner, all_coders, decoder, val_dataset,
                             evaluators, postprocess, write_out=False,
-                            extra_fetches=decoder.summary_val_img)
+                            extra_fetches=decoder.summary_val_plots)
 
                     this_score = val_evaluation[evaluators[-1].name]
 
@@ -310,7 +310,7 @@ def training_loop(sess, saver,
 
                     log_print("")
 
-                    tb_writer.add_summary(val_images[0], step)
+                    tb_writer.add_summary(val_plots[0], step)
 
     except KeyboardInterrupt:
         log("Training interrupted by user.")
