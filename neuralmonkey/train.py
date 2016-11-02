@@ -36,6 +36,7 @@ def create_config(config_file):
     config.add_argument('validation_period', int, required=False, default=500)
     config.add_argument('logging_period', int, required=False, default=20)
     config.add_argument('threads', int, required=False, default=4)
+    config.add_argument('gpu_allow_growth', int, required=False, default=True)
     config.add_argument('minimize', bool, required=False, default=False)
     config.add_argument('save_n_best', int, required=False, default=1)
     config.add_argument('overwrite_output_dir', bool, required=False,
@@ -132,7 +133,7 @@ def main():
 
     link_best_vars = "{}.best".format(variables_file_prefix)
 
-    sess, saver = initialize_tf(args.initial_variables, args.threads)
+    sess, saver = initialize_tf(args.initial_variables, args.threads, args.gpu_allow_growth)
     training_loop(sess, saver, args.epochs, args.trainer,
                   args.encoders + [args.decoder], args.decoder,
                   args.batch_size, args.train_dataset, args.val_dataset,
