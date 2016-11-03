@@ -44,7 +44,7 @@ def create_config():
     config.add_argument('overwrite_output_dir', bool, required=False,
                         default=False)
 
-    return config
+        return config
 
 def main():
     if len(sys.argv) != 2:
@@ -58,7 +58,7 @@ def main():
     ## various things like randseed or summarywriter should be set up here
     ## so that graph building can be recorded
     # build all the objects specified in the config
-    cfg.build_model
+    cfg.build_model()
 
     #pylint: disable=no-member,broad-except
     if args.random_seed is not None:

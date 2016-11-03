@@ -31,15 +31,6 @@ class Configuration(object):
         if cond is not None:
             self.conditions[name] = cond
 
-    def add_section(self, name):
-        # most sections are already consumed by arguments, e.g.
-        #   decoder=<decoder>
-        # but the config can contain other sections and we don't want
-        # _check_loaded_conf to complain about them
-        if name not in self.data_types:
-            self.data_types[name] = object
-            self.defaults[name] = {}
-
     def ignore_argument(self, name):
         self.ignored.add(name)
 
@@ -50,7 +41,6 @@ class Configuration(object):
             arguments = Namespace()
             self.config_dict = load_config_file(path)
 
-            self._check_loaded_conf(self.config_dict)
 
             for name, value in self.config_dict.items():
                 if name in self.conditions and not self.conditions[name](value):
@@ -77,7 +67,7 @@ class Configuration(object):
 
         return arguments
 
-    def build_model():
+    def build_model(self):
         log("Building model based on the config.")
         try:
             build_config(self.config_dict, self.ignored)
@@ -86,7 +76,7 @@ class Configuration(object):
             traceback.print_exc()
             exit(1)
         log("Model built.")
-
+        self._check_loaded_conf(self.config_dict)
 
     def _check_loaded_conf(self, config_dict):
         """ Checks whether there are unexpected or missing fields """
@@ -99,7 +89,6 @@ class Configuration(object):
         if expected_missing:
             raise Exception("Missing mandatory fields: {}"
                             .format(", ".join(expected_missing)))
-
         unexpected = []
         for name in config_dict:
             if name not in expected_fields:
