@@ -12,7 +12,7 @@ from neuralmonkey.logging import log, log_print
 try:
     #pylint: disable=unused-import,bare-except,invalid-name,import-error,no-member
     from typing import Dict, List, Union, Tuple
-    from decoder import Decoder
+    from neuralmonkey.decoders.decoder import Decoder
     Hypothesis = Tuple[float, List[int]]
     Feed_dict = Dict[tf.Tensor, np.Array]
 except:
@@ -82,8 +82,8 @@ def initialize_tf(initial_variables, threads, gpu_allow_growth=True):
     """
     log("Initializing the TensorFlow session.")
     cfg = tf.ConfigProto()
-    cfg.inter_op_parallelism_threads=threads
-    cfg.intra_op_parallelism_threads=threads
+    cfg.inter_op_parallelism_threads = threads
+    cfg.intra_op_parallelism_threads = threads
     cfg.allow_soft_placement = True # needed for multiple GPUs
     # cfg.log_device_placement = True # not yet, too verbose logs
     cfg.gpu_options.allow_growth = gpu_allow_growth
