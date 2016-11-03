@@ -85,7 +85,7 @@ def initialize_tf(initial_variables, threads, gpu_allow_growth=True):
     cfg.inter_op_parallelism_threads=threads
     cfg.intra_op_parallelism_threads=threads
     cfg.allow_soft_placement = True # needed for multiple GPUs
-    cfg.log_device_placement = True
+    # cfg.log_device_placement = True # not yet, too verbose logs
     cfg.gpu_options.allow_growth = gpu_allow_growth
     sess = tf.Session(config=cfg)
     sess.run(tf.initialize_all_variables())
