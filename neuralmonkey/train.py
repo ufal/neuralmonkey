@@ -18,7 +18,7 @@ from neuralmonkey.learning_utils import training_loop
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.tf_manager import TensorFlowManager
 
-def create_config(config_file):
+def create_config():
     config = Configuration()
 
     # training loop arguments
@@ -39,25 +39,30 @@ def create_config(config_file):
     config.add_argument('minimize', bool, required=False, default=False)
     config.add_argument('postprocess')
     config.add_argument('name', str)
+    config.add_argument('random_seed', int, required=False)
     config.add_argument('initial_variables', str, required=False, default=[])
     config.add_argument('overwrite_output_dir', bool, required=False,
                         default=False)
 
-    return config.load_file(config_file)
+    return config
 
 def main():
     if len(sys.argv) != 2:
         print("Usage: train.py <ini_file>")
         exit(1)
 
-    # random seeds have to be set before anything is created in the graph
-    random.seed(2574600)
-    np.random.seed(2574600)
-    tf.set_random_seed(2574600)
+    # define valid parameters and defaults
+    cfg = create_config()
+    # load the params from the config file, getting also the simple arguments
+    args = cfg.load_file(sys.argv[1])
+    ## various things like randseed or summarywriter should be set up here
+    ## so that graph building can be recorded
+    # build all the objects specified in the config
+    cfg.build_model
 
-    args = create_config(sys.argv[1])
-
-    print("")
+    #pylint: disable=no-member,broad-except
+    if args.random_seed is not None:
+        tf.set_random_seed(args.random_seed)
 
     #pylint: disable=no-member
     if os.path.isdir(args.output) and \

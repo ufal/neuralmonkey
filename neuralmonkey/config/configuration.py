@@ -1,11 +1,10 @@
 #tests: lint
 
-import codecs
 import traceback
 from argparse import Namespace
 
 from neuralmonkey.logging import log
-from neuralmonkey.config.config_loader import load_config_file
+from neuralmonkey.config.config_loader import load_config_file, build_config
 
 class Configuration(object):
     """
@@ -18,6 +17,7 @@ class Configuration(object):
         self.defaults = {}
         self.conditions = {}
         self.ignored = set()
+        self.config_dict = {}
 
     #pylint: disable=too-many-arguments
     def add_argument(self, name, arg_type=object, required=False, default=None,
@@ -31,6 +31,15 @@ class Configuration(object):
         if cond is not None:
             self.conditions[name] = cond
 
+    def add_section(self, name):
+        # most sections are already consumed by arguments, e.g.
+        #   decoder=<decoder>
+        # but the config can contain other sections and we don't want
+        # _check_loaded_conf to complain about them
+        if name not in self.data_types:
+            self.data_types[name] = object
+            self.defaults[name] = {}
+
     def ignore_argument(self, name):
         self.ignored.add(name)
 
@@ -38,14 +47,12 @@ class Configuration(object):
         log("Loading INI file: '{}'".format(path), color='blue')
 
         try:
-            config_f = codecs.open(path, 'r', 'utf-8')
             arguments = Namespace()
+            self.config_dict = load_config_file(path)
 
-            config_dict = load_config_file(config_f, self.ignored)
+            self._check_loaded_conf(self.config_dict)
 
-            self._check_loaded_conf(config_dict)
-
-            for name, value in config_dict.items():
+            for name, value in self.config_dict.items():
                 if name in self.conditions and not self.conditions[name](value):
                     cond_code = self.conditions[name].__code__
                     cond_filename = cond_code.co_filename
@@ -67,10 +74,19 @@ class Configuration(object):
             log("Failed to load INI file: {}".format(exc), color='red')
             traceback.print_exc()
             exit(1)
-        finally:
-            config_f.close()
 
         return arguments
+
+    def build_model():
+        log("Building model based on the config.")
+        try:
+            build_config(self.config_dict, self.ignored)
+        except Exception as exc:
+            log("Failed to build model: {}".format(exc), color='red')
+            traceback.print_exc()
+            exit(1)
+        log("Model built.")
+
 
     def _check_loaded_conf(self, config_dict):
         """ Checks whether there are unexpected or missing fields """
@@ -81,7 +97,7 @@ class Configuration(object):
             if name not in self.defaults:
                 expected_missing.append(name)
         if expected_missing:
-            raise Exception("Missing mandatory fileds: {}"
+            raise Exception("Missing mandatory fields: {}"
                             .format(", ".join(expected_missing)))
 
         unexpected = []
