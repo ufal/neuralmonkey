@@ -41,7 +41,6 @@ class Configuration(object):
             arguments = Namespace()
             self.config_dict = load_config_file(path)
 
-
             for name, value in self.config_dict.items():
                 if name in self.conditions and not self.conditions[name](value):
                     cond_code = self.conditions[name].__code__
@@ -70,13 +69,32 @@ class Configuration(object):
     def build_model(self):
         log("Building model based on the config.")
         try:
-            build_config(self.config_dict, self.ignored)
+            model = build_config(self.config_dict, self.ignored)
         except Exception as exc:
             log("Failed to build model: {}".format(exc), color='red')
             traceback.print_exc()
             exit(1)
         log("Model built.")
-        self._check_loaded_conf(self.config_dict)
+        self._check_loaded_conf(model)
+        model_n = Namespace()
+        for name, value in model.items():
+            if name in self.conditions and not self.conditions[name](value):
+                cond_code = self.conditions[name].__code__
+                cond_filename = cond_code.co_filename
+                cond_line_number = cond_code.co_firstlineno
+                raise Exception(
+                        "Value of field '{}' does not satisfy "
+                        "condition defined at {}:{}."
+                        .format(name, cond_filename, cond_line_number))
+
+            setattr(model_n, name, value)
+            #arguments.__dict__[name] = value
+
+        for name, value in self.defaults.items():
+            if name not in model_n.__dict__:
+                model_n.__dict__[name] = value
+
+        return model_n
 
     def _check_loaded_conf(self, config_dict):
         """ Checks whether there are unexpected or missing fields """
