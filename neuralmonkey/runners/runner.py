@@ -9,8 +9,8 @@ from neuralmonkey.runners.base_runner import BaseRunner, Executable
 
 class GreedyRunner(BaseRunner):
 
-    def __init__(self, output_series, decoder, evaluators):
-        super(GreedyRunner, self).__init__(output_series, decoder, evaluators)
+    def __init__(self, output_series, decoder):
+        super(GreedyRunner, self).__init__(output_series, decoder)
 
     def get_executable(self, train=False):
         if train:

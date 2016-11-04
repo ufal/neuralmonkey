@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, NamedTuple, Optional, Tuple
+from typing import Any, List, NamedTuple, Optional, Tuple
 import re
 
 import tensorflow as tf
@@ -9,12 +9,12 @@ from neuralmonkey.runners.base_runner import collect_encoders, Executable, Execu
 # tests: pylint, mypy
 
 # pylint: disable=invalid-name
+Gradients = List[Tuple[tf.Tensor, tf.Variable]]
 Objective = NamedTuple('Objective',
                        [('name', str),
                         ('decoder', Any),
                         ('loss', tf.Tensor),
-                        ('gradients', Optional[Dict[tf.Variable, tf.Tensor]])])
-Gradients = List[Tuple[tf.Tensor, tf.Variable]]
+                        ('gradients', Optional[Gradients])])
 
 BIAS_REGEX = re.compile(r'[Bb]ias')
 
@@ -23,9 +23,12 @@ BIAS_REGEX = re.compile(r'[Bb]ias')
 class GenericTrainer(object):
 
     def __init__(self, objectives: List[Objective],
-                 l1_weight=0.0, l2_weight=0.0) -> None:
+                 l1_weight=0.0, l2_weight=0.0,
+                 clip_norm=False, optimizer=None) -> None:
 
-        self.optimizer = tf.train.AdamOptimizer(1e-4)
+        if optimizer is None:
+            optimizer = tf.train.AdamOptimizer(1e-4)
+
         with tf.variable_scope('regularization'):
             regularizable = [tf.reduce_sum(
                 v ** 2) for v in tf.trainable_variables() if BIAS_REGEX.findall(v.name)]
@@ -41,15 +44,20 @@ class GenericTrainer(object):
 
         partial_gradients = []  # type: List[Gradients]
         for objective in objectives:
-            if objective.gradients is not None:
-                gradient_dict = self._get_gradients(objective.loss)
-                partial_gradients.append(gradient_dict)
+            if objective.gradients is None:
+                gradients = self._get_gradients(objective.loss)
+                partial_gradients.append(gradients)
             else:
                 partial_gradients.append(objective.gradients)
         partial_gradients += [self._get_gradients(l)
-                              for l in [l1_cost, l2_cost]]
+                              for l in [l1_cost, l2_cost] if l != 0.]
 
         gradients = _sum_gradients(partial_gradients)
+
+        if clip_norm is not None:
+            gradients = [(tf.clip_by_norm(grad, clip_norm), var)
+                         for grad, var in gradients]
+
         self.all_coders = set.union(collect_encoders(
             obj.decoder for obj in objectives))
         self.train_op = self.optimizer.apply_gradients(gradients)
@@ -59,9 +67,9 @@ class GenericTrainer(object):
                 tf.histogram_summary('gr_' + var.name,
                                      grad, collections=["summary_gradients"])
 
-        self.summary_gradients = tf.merge_summary(
+        self.histogram_summaries = tf.merge_summary(
             tf.get_collection("summary_gradients"))
-        self.summary_train = tf.merge_summary(
+        self.scalar_summaries = tf.merge_summary(
             tf.get_collection("summary_train"))
 
         # TODO option of detailed histograms
@@ -71,17 +79,23 @@ class GenericTrainer(object):
         gradient_list = self.optimizer.compute_gradients(tensor)
         return gradient_list
 
-    def get_executable(self, train=False) -> Executable:
-        raise NotImplementedError()
+    def get_executable(self, _=False) -> Executable:
+        return TrainExecutable(self.all_coders,
+                               self.train_op,
+                               self.losses,
+                               self.scalar_summaries,
+                               self.histogram_summaries)
 
 
 def _sum_gradients(gradients_list: List[Gradients]) -> Gradients:
     summed_dict = {}
-    for tensor, var in gradients_list:
-        if not var in summed_dict:
-            summed_dict[var] = tensor
-        else:
-            summed_dict[var] += tensor
+    for gradients in gradients_list:
+        for tensor, var in gradients:
+            if tensor is not None:
+                if not var in summed_dict:
+                    summed_dict[var] = tensor
+                else:
+                    summed_dict[var] += tensor
     return [(tensor, var) for var, tensor in summed_dict.items()]
 
 

@@ -13,32 +13,33 @@ import tensorflow as tf
 from neuralmonkey.checking import CheckingException, check_dataset_and_coders
 from neuralmonkey.logging import Logging, log
 from neuralmonkey.config.configuration import Configuration
-from neuralmonkey.learning_utils import training_loop, initialize_tf
+from neuralmonkey.learning_utils import training_loop
 from neuralmonkey.dataset import Dataset
+from neuralmonkey.tf_manager import TensorFlowManager
 
 def create_config(config_file):
     config = Configuration()
-    config.add_argument('name', str)
-    config.add_argument('random_seed', int, required=False)
-    config.add_argument('output', str)
+
+    # training loop arguments
+    config.add_argument('tf_manager', TensorFlowManager)
     config.add_argument('epochs', int, cond=lambda x: x >= 0)
     config.add_argument('trainer')
-    config.add_argument('encoders', list)
-    config.add_argument('decoder')
     config.add_argument('batch_size', int, cond=lambda x: x > 0)
     config.add_argument('train_dataset', Dataset)
     config.add_argument('val_dataset', Dataset)
-    config.add_argument('postprocess')
+    config.add_argument('output', str)
     config.add_argument('evaluation', cond=list)
-    config.add_argument('runner')
+    config.add_argument('runners', list)
     config.add_argument('test_datasets', list, required=False, default=[])
-    config.add_argument('initial_variables', str, required=False, default=[])
-    config.add_argument('validation_period', int, required=False, default=500)
-    config.add_argument('logging_period', int, required=False, default=20)
-    config.add_argument('threads', int, required=False, default=4)
-    config.add_argument('gpu_allow_growth', bool, required=False, default=True)
-    config.add_argument('minimize', bool, required=False, default=False)
     config.add_argument('save_n_best', int, required=False, default=1)
+    config.add_argument('logging_period', int, required=False, default=20)
+    config.add_argument('validation_period', int, required=False, default=500)
+    config.add_argument('minimize', bool, required=False, default=False)
+    config.add_argument('postprocess')
+
+    config.add_argument('name', str)
+    config.add_argument('random_seed', int, required=False)
+    config.add_argument('initial_variables', str, required=False, default=[])
     config.add_argument('overwrite_output_dir', bool, required=False,
                         default=False)
 
@@ -133,11 +134,15 @@ def main():
 
     link_best_vars = "{}.best".format(variables_file_prefix)
 
-    sess, saver = initialize_tf(args.initial_variables, args.threads, args.gpu_allow_growth)
-    training_loop(sess, saver, args.epochs, args.trainer,
-                  args.encoders, args.decoder,
-                  args.batch_size, args.train_dataset, args.val_dataset,
-                  args.output, args.evaluation, args.runner,
+    training_loop(tf_manager=args.tf_manager,
+                  epochs=args.epochs,
+                  trainer=args.trainer,
+                  batch_size=args.batch_size,
+                  train_dataset=args.train_dataset,
+                  val_dataset=args.val_dataset,
+                  log_directory=args.output,
+                  evaluators=args.evaluation,
+                  runners=args.runners,
                   test_datasets=args.test_datasets,
                   save_n_best_vars=args.save_n_best,
                   link_best_vars=link_best_vars,

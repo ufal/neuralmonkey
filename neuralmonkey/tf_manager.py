@@ -14,7 +14,7 @@ from neuralmonkey.logging import log
 # tests: pylint,mypy
 
 # pylint: disable=invalid-name
-RunResult = Union[float, np.Array, tf.Summary]
+RunResult = Union[float, np.array, tf.Summary]
 
 # pylint: disable=too-few-public-methods
 class TensorFlowManager(object):
@@ -46,6 +46,9 @@ class TensorFlowManager(object):
 
         self.sessions = [tf.Session(config=session_cfg)
                          for _ in range(num_sessions)]
+        init_op = tf.initialize_all_variables()
+        for sess in self.sessions:
+            sess.run(init_op)
         self.saver = tf.train.Saver()
 
         if variable_files:
@@ -53,9 +56,7 @@ class TensorFlowManager(object):
                 raise Exception(("The number of provided variable files ({}) "
                                  "is different than a number sessions ({})")
                                 .format(len(variable_files), num_sessions))
-        for sess, var_file in zip(self.sessions, variable_files):
-            log("Loading variables from {}".format(var_file))
-            self.saver.restore(sess, var_file)
+            self.restore(variable_files)
 
     # pylint: disable=too-many-locals
     def execute(self, dataset, execution_scripts, train=False, batch_size=None):
@@ -119,6 +120,7 @@ class TensorFlowManager(object):
                 len(variable_files), len(self.sessions)))
 
         for sess, file_name in zip(self.sessions, variable_files):
+            log("Loading variables from {}".format(file_name))
             self.saver.restore(sess, file_name)
 
 

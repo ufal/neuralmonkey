@@ -25,9 +25,9 @@ class Executable(object):
 
 def collect_encoders(coder):
     """Collect recusively all encoders and decoders."""
-    if coder.hasattr('encoders'):
-        return set([coder]) | set.union(collect_encoders(enc)
-                                        for enc in coder.encoders)
+    if hasattr(coder, 'encoders'):
+        return set([coder]).union(*(collect_encoders(enc)
+                                    for enc in coder.encoders))
     else:
         return set([coder])
 
