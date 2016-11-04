@@ -90,7 +90,7 @@ def _parse_list(string):
 def _parse_tuple(string):
     """ Parses the string recursively as a tuple """
 
-    items = _split_on_commas(TUPLE.match(string)[1])
+    items = _split_on_commas(TUPLE.match(string).group(1))
     values = [_parse_value(val) for val in items]
 
     return tuple(values)
