@@ -1,13 +1,14 @@
-from typing import Any, Tuple, List, NamedTuple
+from typing import Any, Tuple, List, NamedTuple, Union
+import numpy as np
 import tensorflow as tf
-
-from neuralmonkey.tf_manager import RunResult
 
 # tests: pylint, mypy
 
 # pylint: disable=invalid-name
+RunResult = Union[float, np.array, tf.Summary]
 ExecutionResult = NamedTuple('ExecutionResult',
                              [('outputs', List[Any]),
+                              # ('loss_names', List[str]),
                               ('losses', List[float]),
                               ('scalar_summaries', tf.Summary),
                               ('histogram_summaries', tf.Summary),
@@ -31,6 +32,7 @@ def collect_encoders(coder):
     else:
         return set([coder])
 
+
 class BaseRunner(object):
 
     def __init__(self, output_series: str, decoder) -> None:
@@ -42,16 +44,18 @@ class BaseRunner(object):
     def get_executable(self, train=False) -> Executable:
         raise NotImplementedError()
 
-    def collect_finished(self, execution_results: List[ExecutionResult]) -> ExecutionResult:
-        outputs = []  # type: List[Any]
-        losses_sum = [0. for _ in self.loss_names]
-        for result in execution_results:
-            outputs.extend(result.outputs)
-            for i, loss in enumerate(result.losses):
-                losses_sum[i] += loss
-            # TODO aggregate TensorBoard summaries
-        losses = [l / len(outputs) for l in losses_sum]
-        return ExecutionResult(outputs, losses,
-                               execution_results[0].plot_summaries,
-                               execution_results[0].histogram_summaries,
-                               execution_results[0].image_summaries)
+def reduce_execution_results(execution_results: List[ExecutionResult]) \
+                                                           -> ExecutionResult:
+    """Aggregate execution results into one."""
+    outputs = []  # type: List[Any]
+    losses_sum = [0. for _ in execution_results[0].losses]
+    for result in execution_results:
+        outputs.extend(result.outputs)
+        for i, loss in enumerate(result.losses):
+            losses_sum[i] += loss
+        # TODO aggregate TensorBoard summaries
+    losses = [l / len(outputs) for l in losses_sum]
+    return ExecutionResult(outputs, losses,
+                           execution_results[0].scalar_summaries,
+                           execution_results[0].histogram_summaries,
+                           execution_results[0].image_summaries)

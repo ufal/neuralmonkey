@@ -75,16 +75,17 @@ def main():
                 .format(args.output), color='red')
             exit(1)
 
-    try:
-        check_dataset_and_coders(args.train_dataset,
-                                 args.encoders + [args.decoder])
-        check_dataset_and_coders(args.val_dataset,
-                                 args.encoders + [args.decoder])
-        for test in args.test_datasets:
-            check_dataset_and_coders(test, args.encoders)
-    except CheckingException as exc:
-        log(str(exc), color='red')
-        exit(1)
+# TODO do the checking of datasets in a different way
+#    try:
+#        check_dataset_and_coders(args.train_dataset,
+#                                 args.encoders + [args.decoder])
+#        check_dataset_and_coders(args.val_dataset,
+#                                 args.encoders + [args.decoder])
+#        for test in args.test_datasets:
+#            check_dataset_and_coders(test, args.encoders)
+#    except CheckingException as exc:
+#        log(str(exc), color='red')
+#        exit(1)
 
     if not os.path.isdir(args.output):
         try:

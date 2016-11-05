@@ -5,18 +5,20 @@ execution in existing sessions.
 
 """
 
-from typing import List, Union
+# pylint: disable=unused-import
+from typing import Any, List, Union
 
 import numpy as np
 import tensorflow as tf
 from neuralmonkey.logging import log
+from neuralmonkey.dataset import Dataset
+
+from neuralmonkey.runners.base_runner import ExecutionResult, \
+        RunResult, reduce_execution_results
 
 # tests: pylint,mypy
 
-# pylint: disable=invalid-name
-RunResult = Union[float, np.array, tf.Summary]
 
-# pylint: disable=too-few-public-methods
 class TensorFlowManager(object):
     """Inteface between computational graph, data and TF sessions.
 
@@ -59,23 +61,30 @@ class TensorFlowManager(object):
             self.restore(variable_files)
 
     # pylint: disable=too-many-locals
-    def execute(self, dataset, execution_scripts, train=False, batch_size=None):
+    def execute(self,
+                dataset: Dataset,
+                execution_scripts,
+                train=False,
+                summaries=True,
+                batch_size=None) -> List[ExecutionResult]:
         if batch_size is None:
             batch_size = len(dataset)
         batched_dataset = dataset.batch_dataset(batch_size)
 
-        batch_results = [[] for _ in execution_scripts]
+        batch_results = [[] for _ in
+                         execution_scripts]  # type: List[List[ExecutionResult]]
         for batch in batched_dataset:
-            executables = [s.get_executable(train=train)
+            executables = [s.get_executable(train=train, summaries=summaries)
                            for s in execution_scripts]
-            while not all(ex.is_finished for ex in executables):
-                all_feedables = set()
-                all_tensors_to_execute = []
-                tensor_list_lengths = []
+            while not all(ex.result is not None for ex in executables):
+                all_feedables = set()   # type: Set[Any]
+                all_tensors_to_execute = []  # type: List[tf.Tensor]
+                tensor_list_lengths = []  # type: List[int]
 
                 for executable in executables:
-                    if not executable.is_finished():
-                        feedables, tensors_to_execute = executable.next_to_execute()
+                    if executable.result is None:
+                        (feedables,
+                         tensors_to_execute) = executable.next_to_execute()
                         all_feedables = all_feedables.union(feedables)
                         all_tensors_to_execute.extend(tensors_to_execute)
                         tensor_list_lengths.append(len(tensors_to_execute))
@@ -85,55 +94,66 @@ class TensorFlowManager(object):
                 feed_dict = _feed_dicts(batch, all_feedables, train=train)
 
                 session_results = [sess.run(all_tensors_to_execute,
-                                            feed_dict=feed_dict) for sess in self.sessions]
+                                            feed_dict=feed_dict)
+                                   for sess in self.sessions]
 
                 results_by_executable = _partition_results(
                     session_results, tensor_list_lengths)
 
-                for executable, results in zip(executables, results_by_executable):
-                    executable.collect(results)
+                for executable, results in zip(executables,
+                                               results_by_executable):
+                    if executable.result is None:
+                        executable.collect_results(results)
 
             for script_list, executable in zip(batch_results, executables):
-                script_list.append(executable.results)
+                script_list.append(executable.result)
 
-        results = []
-        for result_list, script in zip(executables, execution_scripts):
-            results.append(script.collect_finished(result_list))
+        collected_results = []  # type: List[ExecutionResult]
+        for result_list in batch_results:
+            collected_results.append(reduce_execution_results(result_list))
 
-        return results
+        return collected_results
 
-    def save(self, variable_files: Union[str, List[str]]):
+    def save(self, variable_files: Union[str, List[str]]) -> None:
+        if isinstance(variable_files, str) and len(self.sessions) == 1:
+            self.saver.save(self.sessions[0], variable_files)
+            return
+
         if isinstance(variable_files, str):
             variable_files = ["{}.{}".format(
-                variable_files, i) for i in range(len(self.sessions()))]
+                variable_files, i) for i in range(len(self.sessions))]
 
         if len(variable_files) != len(self.sessions):
-            raise Exception("Provided {} files for restoring {} sessions.".format(
-                len(variable_files), len(self.sessions)))
+            raise Exception(
+                "Provided {} files for restoring {} sessions.".format(
+                    len(variable_files), len(self.sessions)))
 
         for sess, file_name in zip(self.sessions, variable_files):
             self.saver.save(sess, file_name)
 
-    def restore(self, variable_files: List[str]) -> None:
+    def restore(self, variable_files: Union[str, List[str]]) -> None:
+        if isinstance(variable_files, str):
+            variable_files = [variable_files]
         if len(variable_files) != len(self.sessions):
-            raise Exception("Provided {} files for restoring {} sessions.".format(
-                len(variable_files), len(self.sessions)))
+            raise Exception(
+                "Provided {} files for restoring {} sessions.".format(
+                    len(variable_files), len(self.sessions)))
 
         for sess, file_name in zip(self.sessions, variable_files):
             log("Loading variables from {}".format(file_name))
             self.saver.restore(sess, file_name)
 
 
-def _partition_results(session_results: List[RunResult],
-                       tensor_list_lengths: List[int]) -> List[RunResult]:
+def _partition_results(session_results: List[List[RunResult]],
+                       tensor_list_lengths: List[int]) \
+                                                 -> List[List[List[RunResult]]]:
     """Split the session run results back for their executables."""
     results_by_executable = []
     res_start = 0
     for length in tensor_list_lengths:
-        this_executable_results = []
-        for results in session_results:
-            this_executable_results.append(
-                results[res_start:res_start + length])
+        this_executable_results = [
+            one_session_results[res_start:res_start + length]
+            for one_session_results in session_results]
         res_start += length
         results_by_executable.append(this_executable_results)
     return results_by_executable
