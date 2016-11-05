@@ -292,7 +292,7 @@ def _evaluation(evaluators, dataset, runners, execution_results, result_data):
     # losses
     for runner, result in zip(runners, execution_results):
         for name, value in zip(runner.loss_names, result.losses):
-            evaluation["{}/{}".format(runner.name, name)] = value
+            evaluation["{}/{}".format(runner.output_series, name)] = value
 
     # evaluation metrics
     for series_id, function in evaluators:

@@ -8,7 +8,6 @@ import tensorflow as tf
 RunResult = Union[float, np.array, tf.Summary]
 ExecutionResult = NamedTuple('ExecutionResult',
                              [('outputs', List[Any]),
-                              # ('loss_names', List[str]),
                               ('losses', List[float]),
                               ('scalar_summaries', tf.Summary),
                               ('histogram_summaries', tf.Summary),
@@ -34,14 +33,16 @@ def collect_encoders(coder):
 
 
 class BaseRunner(object):
-
     def __init__(self, output_series: str, decoder) -> None:
         self.output_series = output_series
-        self.decoder = decoder
-        self.all_coders = collect_encoders(decoder)
-        self.loss_names = []  # type: List[str]
+        self._decoder = decoder
+        self._all_coders = collect_encoders(decoder)
 
-    def get_executable(self, train=False) -> Executable:
+    def get_executable(self, train=False, summaries=True) -> Executable:
+        raise NotImplementedError()
+
+    @property
+    def loss_names(self) -> List[str]:
         raise NotImplementedError()
 
 def reduce_execution_results(execution_results: List[ExecutionResult]) \

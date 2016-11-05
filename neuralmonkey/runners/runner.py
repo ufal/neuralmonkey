@@ -15,14 +15,17 @@ class GreedyRunner(BaseRunner):
 
     def get_executable(self, train=False, summaries=True):
         if train:
-            losses = [self.decoder.train_loss,
-                      self.decoder.runtime_loss]
+            losses = [self._decoder.train_loss,
+                      self._decoder.runtime_loss]
         else:
             losses = [tf.zeros([]), tf.zeros([])]
-        to_run = losses + self.decoder.decoded
-        return GreedyRunExecutable(self.all_coders, to_run,
-                                   self.decoder.vocabulary)
+        to_run = losses + self._decoder.decoded
+        return GreedyRunExecutable(self._all_coders, to_run,
+                                   self._decoder.vocabulary)
 
+    @property
+    def loss_names(self) -> List[str]:
+        return ["train_xent", "runtime_xent"]
 
 class GreedyRunExecutable(Executable):
 
