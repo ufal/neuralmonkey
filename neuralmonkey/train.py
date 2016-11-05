@@ -10,7 +10,7 @@ from shutil import copyfile
 import numpy as np
 import tensorflow as tf
 
-from neuralmonkey.checking import check_dataset_and_coders
+from neuralmonkey.checking import CheckingException, check_dataset_and_coders
 from neuralmonkey.logging import Logging, log
 from neuralmonkey.config.configuration import Configuration
 from neuralmonkey.learning_utils import training_loop, initialize_tf
@@ -81,8 +81,8 @@ def main():
                                  args.encoders + [args.decoder])
         for test in args.test_datasets:
             check_dataset_and_coders(test, args.encoders)
-    except Exception as exc:
-        log(exc.message, color='red')
+    except CheckingException as exc:
+        log(str(exc), color='red')
         exit(1)
 
     if not os.path.isdir(args.output):
