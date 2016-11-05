@@ -235,6 +235,10 @@ class Dataset(collections.Sized):
         else:
             return self._series[name]
 
+    @property
+    def series_ids(self) -> Iterable[str]:
+        return self._series.keys()
+
 
     def shuffle(self) -> None:
         """Shuffle the dataset randomly """

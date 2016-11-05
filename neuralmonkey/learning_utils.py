@@ -190,7 +190,6 @@ def training_loop(tf_manager: TensorFlowManager,
 
                     log_print("")
                     _print_examples(val_dataset, val_outputs)
-                    log_print("")
 
                     tb_writer.add_summary(val_plots[0], step)
 
@@ -380,23 +379,32 @@ def _print_examples(dataset: Dataset,
                     outputs: Dict[str, List[Any]],
                     num_examples=15) -> None:
     """Print examples of the model output."""
-    log_print("Examples:")
+    log_print(colored("Examples:", attrs=['bold']))
 
     # for further indexing we need to make sure, all relevant
     # dataset series are lists
-    dataset_series = {series_id: list(dataset.get_series(series_id))
-                      for series_id in outputs.keys()}
+    target_series = {series_id: list(dataset.get_series(series_id))
+                     for series_id in outputs.keys()}
+    source_series = {series_id: list(dataset.get_series(series_id))
+                     for series_id in dataset.series_ids
+                     if series_id not in outputs}
 
     for i in range(num_examples):
-        log_print("    [{}]".format(i + 1))
+        log_print(colored("  [{}]".format(i + 1), color='magenta',
+                          attrs=['bold']))
+
+        def print_line(prefix, color, content):
+            colored_prefix = colored(prefix, color=color)
+            formated = _data_item_to_str(content)
+            log_print("  {}: {}".format(colored_prefix, formated))
+
+        for series_id, data in source_series.items():
+            print_line(series_id, 'yellow', data[i])
+
         for series_id, data in outputs.items():
             model_output = data[i]
-            desired_output = dataset_series[series_id][i]
+            desired_output = target_series[series_id][i]
 
-            # TODO: add some fancy colors
-            log_print("    {}      :{}".format(
-                series_id, _data_item_to_str(model_output)))
-            log_print("    {} (ref):{}".format(
-                series_id, _data_item_to_str(desired_output)))
-            log_print("")
+            print_line(series_id, 'magenta', model_output)
+            print_line(series_id + " (ref)", "red", desired_output)
         log_print("")
