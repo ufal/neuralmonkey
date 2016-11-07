@@ -44,6 +44,7 @@ class TensorFlowManager(object):
         session_cfg.inter_op_parallelism_threads = num_threads
         session_cfg.intra_op_parallelism_threads = num_threads
         session_cfg.allow_soft_placement = True # needed for multiple GPUs
+        # pylint: disable=no-member
         session_cfg.gpu_options.allow_growth = gpu_allow_growth
 
         self.sessions = [tf.Session(config=session_cfg)

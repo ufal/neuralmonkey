@@ -111,7 +111,7 @@ def training_loop(tf_manager: TensorFlowManager,
                     train_results, train_outputs = run_on_dataset(
                         tf_manager, runners, batch_dataset,
                         postprocess, write_out=False)
-                    train_evaluation = _evaluation(
+                    train_evaluation = evaluation(
                         evaluators, batch_dataset, runners,
                         train_results, train_outputs)
 
@@ -128,7 +128,7 @@ def training_loop(tf_manager: TensorFlowManager,
                     val_results, val_outputs = run_on_dataset(
                         tf_manager, runners, val_dataset,
                         postprocess, write_out=False)
-                    val_evaluation = _evaluation(
+                    val_evaluation = evaluation(
                         evaluators, val_dataset, runners, val_results,
                         val_outputs)
 
@@ -206,9 +206,9 @@ def training_loop(tf_manager: TensorFlowManager,
         test_results, test_outputs = run_on_dataset(
             tf_manager, runners, dataset, postprocess,
             write_out=True)
-        evaluation = _evaluation(evaluators, dataset, runners,
+        eval_result = evaluation(evaluators, dataset, runners,
                                  test_results, test_outputs)
-        _print_final_evaluation(dataset.name, evaluation)
+        print_final_evaluation(dataset.name, eval_result)
 
     log("Finished.")
 
@@ -272,7 +272,7 @@ def run_on_dataset(tf_manager: TensorFlowManager,
     return all_results, result_data
 
 
-def _evaluation(evaluators, dataset, runners, execution_results, result_data):
+def evaluation(evaluators, dataset, runners, execution_results, result_data):
     """Evaluate the model outputs.
 
     Args:
@@ -286,12 +286,12 @@ def _evaluation(evaluators, dataset, runners, execution_results, result_data):
         Dictionary of evaluation names and their values which includes the
         metrics applied on respective series loss and loss values from the run.
     """
-    evaluation = {}
+    eval_result = {}
 
     # losses
     for runner, result in zip(runners, execution_results):
         for name, value in zip(runner.loss_names, result.losses):
-            evaluation["{}/{}".format(runner.output_series, name)] = value
+            eval_result["{}/{}".format(runner.output_series, name)] = value
 
     # evaluation metrics
     for series_id, function in evaluators:
@@ -300,10 +300,10 @@ def _evaluation(evaluators, dataset, runners, execution_results, result_data):
 
         desired_output = dataset.get_series(series_id)
         model_output = result_data[series_id]
-        evaluation["{}/{}".format(series_id, function.name)] = function(
+        eval_result["{}/{}".format(series_id, function.name)] = function(
             model_output, desired_output)
 
-    return evaluation
+    return eval_result
 
 
 def _log_continuons_evaluation(tb_writer: tf.train.SummaryWriter,
@@ -352,12 +352,12 @@ def _format_evaluation_line(evaluation_res: Evaluation,
     return eval_string
 
 
-def _print_final_evaluation(name: str, evaluation: Evaluation) -> None:
+def print_final_evaluation(name: str, eval_result: Evaluation) -> None:
     """Print final evaluation from a test dataset."""
     line_len = 22
     log("Evaluating model on \"{}\"".format(name))
 
-    for name, value in evaluation.items():
+    for name, value in eval_result.items():
         space = "".join([" " for _ in range(line_len - len(name))])
         log("... {}:{} {:.4f}".format(name, space, value))
 

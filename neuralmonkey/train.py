@@ -28,7 +28,7 @@ def create_config(config_file):
     config.add_argument('train_dataset', Dataset)
     config.add_argument('val_dataset', Dataset)
     config.add_argument('output', str)
-    config.add_argument('evaluation', cond=list)
+    config.add_argument('evaluation', list)
     config.add_argument('runners', list)
     config.add_argument('test_datasets', list, required=False, default=[])
     config.add_argument('save_n_best', int, required=False, default=1)
