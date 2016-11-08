@@ -113,7 +113,14 @@ class Decoder(object):
 
         self.runtime_rnn_outputs, _ = attention_decoder(
             runtime_inputs, state, attention_objects, cell,
-            attention_maxout_size, loop_function=loop_function)
+            attention_maxout_size, loop_function=loop_function,
+            summary_collections=["summary_val_plots"])
+
+        val_plots_collection = tf.get_collection("summary_val_plots")
+        self.summary_val_plots = (
+            tf.merge_summary(val_plots_collection)
+            if val_plots_collection else None
+        )
 
         _, train_logits = self._decode(self.train_rnn_outputs)
         self.decoded, runtime_logits = self._decode(self.runtime_rnn_outputs)
