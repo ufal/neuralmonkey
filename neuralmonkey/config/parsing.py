@@ -146,8 +146,6 @@ def _parse_value(string):
 def parse_config(config_file, filename=""):
     """ Parses an INI file into a dictionary """
 
-    # TODO read the file here, not three layers above
-
     line_numbers = (line.strip() + " " + str(i + 1)
                     if line.strip() != "" else ""
                     for i, line in
@@ -155,9 +153,11 @@ def parse_config(config_file, filename=""):
                    )
     config = configparser.ConfigParser()
     config.read_file(line_numbers, source=filename)
-    new_config = {}
+
+    new_config = dict()
     for section in config.sections():
-        new_config[section] = {}
+        new_config[section] = dict()
+
         for key in config[section]:
             match = LINE_NUM.match(config[section][key])
             new_config[section][key] = match.group(2), match.group(1)

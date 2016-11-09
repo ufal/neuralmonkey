@@ -133,7 +133,7 @@ def load_config_file(config_file, ignore_names):
     main_config = config_dicts['main']
 
     configuration = dict()
-    for key, value in main_config.items():
+    for key, value in sorted(main_config.items(), key=lambda t: t[0]):
         if key not in ignore_names:
             try:
                 configuration[key] = build_object(
