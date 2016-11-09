@@ -236,13 +236,13 @@ language embeddings by share vocabularies for these datasets. Therefore, we need
 to create only two vocabulary objects::
 
   [source_vocabulary]
-  class=Vocabulary.from_dataset
+  class=vocabulary.from_dataset
   datasets=[<train_dataset>]
   series_ids=[source]
   max_size=50000
 
   [target_vocabulary]
-  class=Vocabulary.from_dataset
+  class=vocabulary.from_dataset
   datasets=[<train_dataset>]
   series_ids=[edits, translated]
   max_size=50000
