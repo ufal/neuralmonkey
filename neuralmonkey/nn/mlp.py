@@ -1,9 +1,7 @@
 #tests: lint
 
-import numpy as np
 import tensorflow as tf
-
-from neuralmonkey.projection import linear
+from neuralmonkey.nn.projection import linear
 
 class MultilayerPerceptron(object):
     """
