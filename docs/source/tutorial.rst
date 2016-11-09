@@ -393,8 +393,8 @@ parameters::
   decoder=<decoder>
   runner=<runner>
   trainer=<trainer>
-  train_dataset=<train_data>
-  val_dataset=<val_data>
+  train_dataset=<train_dataset>
+  val_dataset=<val_dataset>
   evaluation=[<bleu>, <ter>]
   minimize=True
   batch_size=128
