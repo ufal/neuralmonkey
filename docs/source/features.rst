@@ -37,11 +37,11 @@ Now that you have merge_file you can implement the BPE into your model. First yo
 Second you need to redefine the vocabulary sections in the following way::
 
   [source_vocabulary]
-  class=config.utils.vocabulary_from_bpe
+  class=vocabulary.from_bpe
   path=merge_file.bpe
 
   [target_vocabulary]
-  class=config.utils.vocabulary_from_bpe
+  class=vocabulary.from_bpe
   path=merge_file.bpe
 
 To each of the datasets, you need to add a preprocessor::
@@ -62,9 +62,9 @@ Dropout
 
 Neural networks with a large number of parameters have a serious problem with an overfitting. 
 Dropout is a technique for addressing this problem. The key idea is to randomly drop units (along with their connections) from the neural
-network during training. This prevents units from co-adapting too much. But during the test time, the dropout is turned off.
+network during training. This prevents units from co-adapting too much. But during the test time, the dropout is turned off. More information in https://www.cs.toronto.edu/~hinton/absps/JMLRdropout.pdf
 
-If you want to add dropout to embedding layer of your encoder/decoder, you can simply add dropout_keep_p to the particular section::
+If you want to enable dropout on an encoder or on the decoder, you can simply add dropout_keep_p to the particular section::
   
   [encoder]
   class=encoders.sentence_encoder.SentenceEncoder
@@ -81,10 +81,13 @@ or::
 Pervasive dropout
 -----------------
 
-If you want allow dropout on the Recurrent layer of your encoder, you can add use_pervasive_dropout parameter into it and then the dropout probability will be used::
+Detailed information in https://arxiv.org/abs/1512.05287
+
+If you want allow dropout on the recurrent layer of your encoder, you can add use_pervasive_dropout parameter into it and then the dropout probability will be used::
 
   [encoder]
   class=encoders.sentence_encoder.SentenceEncoder
   dropout_keep_p=0.8
   use_pervasive_dropout=True
+  ...
 
