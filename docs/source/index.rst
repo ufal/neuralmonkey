@@ -19,3 +19,4 @@ Getting Started
    tutorial
    development
    api
+   features
