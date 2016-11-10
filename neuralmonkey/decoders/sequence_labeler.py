@@ -3,7 +3,9 @@ import tensorflow as tf
 from neuralmonkey.logging import log, debug
 from neuralmonkey.decoders.decoder import Decoder
 
+
 class SequenceLabeler(Decoder):
+    """Classifier assing a label to each encoder's state."""
 
     def __init__(self, encoder, vocabulary, data_id, **kwargs):
 
@@ -13,9 +15,6 @@ class SequenceLabeler(Decoder):
 
         dropout_keep_prob = kwargs.get("dropout_keep_p", 1.0)
 
-        # rnn_size property is used in _state_to_output
-        #self.rnn_size = kwargs.get("hidden_layer_size", 200)
-
         self.rnn_size = self.encoder.rnn_size * 2
         self.max_output = self.encoder.max_input_len
 
@@ -24,9 +23,6 @@ class SequenceLabeler(Decoder):
         logits = [tf.tanh(tf.matmul(state, self.weights) + self.biases)
                   for state in self.encoder.outputs_bidi]
 
-        # ??? Do we need the technical start/end of sequence symbols
-        # in the encoder?
-        #
         # [:, 1:] -- bans generating the start symbol (index 0 in
         #            the vocabulary; The start symbol is automatically
         #            prepended in the sentences_to_tensor()).
@@ -46,9 +42,8 @@ class SequenceLabeler(Decoder):
 
         # one less than inputs
         self.train_weights = [tf.placeholder(tf.float32, [None],
-                                  name="seq_lab_padding_weights_{}".format(i))
+                                             name="seq_lab_padding_weights_{}".format(i))
                               for i in range(self.max_output)]
-
 
         losses = [tf.nn.softmax_cross_entropy_with_logits(l, t)
                   for l, t in zip(logits, train_onehots)]
@@ -60,18 +55,15 @@ class SequenceLabeler(Decoder):
         self.train_loss = sum(summed_losses_in_time)
         self.runtime_loss = self.train_loss
 
-
-        ### Learning step
-        ### TODO was here only because of scheduled sampling.
-        ### needs to be refactored out
+        # Learning step
+        # TODO was here only because of scheduled sampling.
+        # needs to be refactored out
         self.learning_step = tf.Variable(0, name="learning_step",
                                          trainable=False)
 
         self.dropout_placeholder = tf.placeholder_with_default(
             tf.constant(dropout_keep_prob, tf.float32),
             shape=[], name="decoder_dropout_placeholder")
-
-
 
     def feed_dict(self, dataset, train=False):
 
