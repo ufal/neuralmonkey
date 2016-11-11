@@ -16,5 +16,7 @@ logs-postedit
 *.tmp
 *.tmp.meta
 checkpoint
+tests/*.en
+tests/*.de
 .idea
 tmp-*

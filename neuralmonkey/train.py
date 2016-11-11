@@ -135,7 +135,7 @@ def main():
 
     sess, saver = initialize_tf(args.initial_variables, args.threads, args.gpu_allow_growth)
     training_loop(sess, saver, args.epochs, args.trainer,
-                  args.encoders + [args.decoder], args.decoder,
+                  args.encoders, args.decoder,
                   args.batch_size, args.train_dataset, args.val_dataset,
                   args.output, args.evaluation, args.runner,
                   test_datasets=args.test_datasets,
