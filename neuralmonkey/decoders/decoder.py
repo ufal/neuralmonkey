@@ -18,7 +18,7 @@ class Decoder(object):
     # it into smaller units would be helpful
     # Some locals may be turned to attributes
 
-    def __init__(self, encoders, vocabulary, data_id, **kwargs):
+    def __init__(self, encoders, vocabulary, data_id, name, **kwargs):
         """Creates a new instance of the decoder
 
         Arguments:
@@ -28,7 +28,7 @@ class Decoder(object):
 
         Keyword arguments:
             embedding_size: Size of embedding vectors. Default 200
-            max_output: Maximum length of the output. Default 20
+            max_output_len: Maximum length of the output. Default 20
             rnn_size: When projection is used or when no encoder is supplied,
                 this is the size of the projected vector.
             dropout_keep_prob: Dropout keep probability. Default 1 (no dropout)
@@ -43,14 +43,22 @@ class Decoder(object):
         self.encoders = encoders
         self.vocabulary = vocabulary
         self.data_id = data_id
+        self.name = name
 
-        self.max_output = kwargs.get("max_output", 20)
+        self.max_output = kwargs.get("max_output_len", 20)
         self.embedding_size = kwargs.get("embedding_size", 200)
-        self.name = kwargs.get("name", "decoder")
         dropout_keep_prob = kwargs.get("dropout_keep_prob", 1.0)
 
         self.use_attention = kwargs.get("use_attention", False)
         self.reuse_word_embeddings = kwargs.get("reuse_word_embeddings", False)
+
+        if self.reuse_word_embeddings:
+            self.embedding_size = self.encoders[0].embedding_size
+
+            if "embedding_size" in kwargs:
+                log("Warning: Overriding embedding_size parameter with reused"
+                    " embeddings from the encoder.", color="red")
+
         self.project_encoder_outputs = kwargs.get("project_encoder_outputs",
                                                   False)
 
@@ -98,9 +106,13 @@ class Decoder(object):
         ### Use the same variables for runtime decoding!
         tf.get_variable_scope().reuse_variables()
 
-        self.runtime_rnn_outputs, _ = attention_decoder(
+        self.runtime_rnn_states = [state]
+
+        self.runtime_rnn_outputs, rnn_states = attention_decoder(
             runtime_inputs, state, attention_objects, self.embedding_size,
             cell, loop_function=loop_function)
+
+        self.runtime_rnn_states += rnn_states
 
         _, train_logits = self._decode(self.train_rnn_outputs)
         self.decoded, runtime_logits = self._decode(self.runtime_rnn_outputs)
@@ -112,6 +124,10 @@ class Decoder(object):
         self.runtime_loss = tf.nn.seq2seq.sequence_loss(
             runtime_logits, train_targets, self.train_weights,
             self.vocabulary_size)
+
+        # TODO [refactor] put runtime logits to self from the beginning
+        self.runtime_logits = runtime_logits
+        self.runtime_logprobs = [tf.nn.log_softmax(l) for l in runtime_logits]
 
         ### Learning step
         ### TODO was here only because of scheduled sampling.
@@ -132,6 +148,18 @@ class Decoder(object):
     @property
     def cost(self):
         return self.train_loss
+
+
+    def top_k_runtime_logprobs(self, k_best):
+        """Return the top runtime log probabilities calculated from runtime
+        logits.
+
+        Arguments:
+            k_best: How many output items to return
+        """
+        ## the array is of tuples ([values], [indices])
+        return [tf.nn.top_k(p, k_best) for p in self.runtime_logprobs]
+
 
 
     def _initial_state(self):

@@ -12,7 +12,7 @@ from neuralmonkey.logging import log, log_print
 try:
     #pylint: disable=unused-import,bare-except,invalid-name,import-error,no-member
     from typing import Dict, List, Union, Tuple
-    from decoder import Decoder
+    from neuralmonkey.decoders.decoder import Decoder
     Hypothesis = Tuple[float, List[int]]
     Feed_dict = Dict[tf.Tensor, np.Array]
 except:
@@ -67,7 +67,7 @@ def get_eval_string(evaluators, evaluation_res):
     return eval_string
 
 
-def initialize_tf(initial_variables, threads):
+def initialize_tf(initial_variables, threads, gpu_allow_growth=True):
     """
     Initializes the TensorFlow session after the graph is built.
 
@@ -81,8 +81,13 @@ def initialize_tf(initial_variables, threads):
 
     """
     log("Initializing the TensorFlow session.")
-    sess = tf.Session(config=tf.ConfigProto(inter_op_parallelism_threads=threads,
-                                            intra_op_parallelism_threads=threads))
+    cfg = tf.ConfigProto()
+    cfg.inter_op_parallelism_threads = threads
+    cfg.intra_op_parallelism_threads = threads
+    cfg.allow_soft_placement = True # needed for multiple GPUs
+    # cfg.log_device_placement = True # not yet, too verbose logs
+    cfg.gpu_options.allow_growth = gpu_allow_growth
+    sess = tf.Session(config=cfg)
     sess.run(tf.initialize_all_variables())
 
     saver = tf.train.Saver()
@@ -188,7 +193,8 @@ def training_loop(sess, saver,
     if log_directory:
         log("Initializing TensorBoard summary writer.")
         tb_writer = tf.train.SummaryWriter(log_directory, sess.graph)
-        log("TesorBoard writer initialized.")
+        log("TensorBoard writer initialized.")
+
     best_score_epoch = 0
     best_score_batch_no = 0
 
@@ -226,7 +232,7 @@ def training_loop(sess, saver,
                 if step % logging_period == logging_period - 1:
                     summary_str = trainer.run(sess, batch_feed_dict, summary=True)
                     _, _, train_evaluation = \
-                            run_on_dataset(sess, runner, all_coders, decoder, batch_dataset,
+                            run_on_dataset([sess], runner, all_coders, decoder, batch_dataset,
                                            evaluators, postprocess, write_out=False)
 
                     process_evaluation(evaluators, tb_writer, train_evaluation,
@@ -237,7 +243,7 @@ def training_loop(sess, saver,
                 if step % validation_period == validation_period - 1:
                     decoded_val_sentences, decoded_raw_val_sentences, \
                         val_evaluation = run_on_dataset(
-                            sess, runner, all_coders, decoder, val_dataset,
+                            [sess], runner, all_coders, decoder, val_dataset,
                             evaluators, postprocess, write_out=False)
 
                     this_score = val_evaluation[evaluators[-1].name]
@@ -340,7 +346,7 @@ def training_loop(sess, saver,
         .format(evaluation_labels[-1], best_score, best_score_epoch))
 
     for dataset in test_datasets:
-        _, _, evaluation = run_on_dataset(sess, runner, all_coders, decoder,
+        _, _, evaluation = run_on_dataset([sess], runner, all_coders, decoder,
                                           dataset, evaluators,
                                           postprocess, write_out=True)
         if evaluation:
@@ -349,7 +355,7 @@ def training_loop(sess, saver,
     log("Finished.")
 
 
-def run_on_dataset(sess, runner, all_coders, decoder, dataset,
+def run_on_dataset(sessions, runner, all_coders, decoder, dataset,
                    evaluators, postprocess, write_out=False):
     """
     Applies the model on a dataset and optionally writes outpus into a file.
@@ -380,7 +386,12 @@ def run_on_dataset(sess, runner, all_coders, decoder, dataset,
             they are available which are dictionary function -> value.
 
     """
-    result_raw, opt_loss, dec_loss = runner(sess, dataset, all_coders)
+    from neuralmonkey.runners.ensemble_runner import EnsembleRunner
+    if isinstance(runner, EnsembleRunner):
+        result_raw, opt_loss, dec_loss = runner(sessions, dataset, all_coders)
+    else:
+        result_raw, opt_loss, dec_loss = runner(sessions[0], dataset, all_coders)
+
     if postprocess is not None:
         result = postprocess(result_raw)
     else:

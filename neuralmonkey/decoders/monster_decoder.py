@@ -1,3 +1,4 @@
+
 """
 Old, deprecated version of the decoder. In time, this will vanish.
 Now it is here for inspiration to young developers who do not wish
@@ -17,14 +18,14 @@ from neuralmonkey.logging import log
 from neuralmonkey.decoding_function import attention_decoder
 from neuralmonkey.nn.noisy_gru_cell import NoisyGRUCell
 from neuralmonkey.checking import assert_type
-from neuralmonkey.vocabulary import Vocabulary
+from neuralmonkey.vocabulary import Vocabulary, START_TOKEN
 
 class Decoder(object):
-    def __init__(self, encoders, vocabulary, data_id, rnn_size,
+    def __init__(self, encoders, vocabulary, data_id, rnn_size, name,
                  embedding_size=128, use_attention=None, max_output_len=20,
                  scheduled_sampling=None, dropout_keep_p=0.5, copy_net=None,
                  reused_word_embeddings=None, use_noisy_activations=False,
-                 depth=1, name="decoder"):
+                 depth=1):
 
         """A class that collects the part of the computation graph that is
         needed for decoding.
@@ -412,10 +413,10 @@ class Decoder(object):
             ### s pouzitim loop functioně
             ### Proc je to placeholder? Proc to neni konstanta?
 
-            self.go_symbols = tf.ones(tf.shape(embedded_gt_inputs[0]),
-                                      name="go_symbols")
+            self.go_symbols = tf.placeholder(tf.int32, shape=[None],
+                                         name="decoder_go_symbols")
 
-            decoder_inputs = [tf.nn.embepdding_lookup(decoding_em,
+            decoder_inputs = [tf.nn.embedding_lookup(decoding_em,
                                                      self.go_symbols)]
 
             decoder_inputs += [None for _ in range(self.max_output_len)]
@@ -484,6 +485,10 @@ class Decoder(object):
     def feed_dict(self, dataset, train=False):
         sentences = dataset.get_series(self.data_id, allow_none=True)
         res = {}
+
+        start_token_index = self.vocabulary.get_word_index(START_TOKEN)
+        res[self.go_symbols] = np.repeat(start_token_index, len(dataset))
+
 
         if sentences is not None:
             sentnces_tensors, weights_tensors = \

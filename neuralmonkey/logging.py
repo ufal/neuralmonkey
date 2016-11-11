@@ -11,7 +11,7 @@ class Logging(object):
     ## 'all' and 'none' are special symbols,
     ## others are filtered according the labels
     debug_enabled = ['all']
-
+    debug_disabled = []
 
     @staticmethod
     def set_log_file(path):
@@ -56,6 +56,9 @@ class Logging(object):
 
         if (label not in Logging.debug_enabled and
                 'all' not in Logging.debug_enabled):
+            return
+
+        if label in Logging.debug_disabled:
             return
 
         if label:

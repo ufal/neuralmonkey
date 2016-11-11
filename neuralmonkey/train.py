@@ -7,9 +7,10 @@ import sys
 import os
 from shutil import copyfile
 
+import numpy as np
 import tensorflow as tf
 
-from neuralmonkey.checking import check_dataset_and_coders
+from neuralmonkey.checking import CheckingException, check_dataset_and_coders
 from neuralmonkey.logging import Logging, log
 from neuralmonkey.config.configuration import Configuration
 from neuralmonkey.learning_utils import training_loop, initialize_tf
@@ -35,6 +36,7 @@ def create_config(config_file):
     config.add_argument('validation_period', int, required=False, default=500)
     config.add_argument('logging_period', int, required=False, default=20)
     config.add_argument('threads', int, required=False, default=4)
+    config.add_argument('gpu_allow_growth', bool, required=False, default=True)
     config.add_argument('minimize', bool, required=False, default=False)
     config.add_argument('save_n_best', int, required=False, default=1)
     config.add_argument('overwrite_output_dir', bool, required=False,
@@ -46,6 +48,10 @@ def main():
     if len(sys.argv) != 2:
         print("Usage: train.py <ini_file>")
         exit(1)
+
+    # random seeds have to be set before anything is created in the graph
+    np.random.seed(1)
+    tf.set_random_seed(1)
 
     args = create_config(sys.argv[1])
 
@@ -75,7 +81,7 @@ def main():
                                  args.encoders + [args.decoder])
         for test in args.test_datasets:
             check_dataset_and_coders(test, args.encoders)
-    except Exception as exc:
+    except CheckingException as exc:
         log(str(exc), color='red')
         exit(1)
 
@@ -115,12 +121,19 @@ def main():
     Logging.set_log_file(log_file)
     Logging.print_header(args.name)
 
-    os.system("git log -1 --format=%H > {}".format(git_commit_file))
-    os.system("git --no-pager diff --color=always > {}".format(git_diff_file))
+    # this points inside the neuralmonkey/ dir inside the repo, but
+    # it does not matter for git.
+    repodir = os.path.dirname(os.path.realpath(__file__))
+
+    os.system("cd {}; git log -1 --format=%H > {}"
+              .format(repodir, git_commit_file))
+
+    os.system("cd {}; git --no-pager diff --color=always > {}"
+              .format(repodir, git_diff_file))
 
     link_best_vars = "{}.best".format(variables_file_prefix)
 
-    sess, saver = initialize_tf(args.initial_variables, args.threads)
+    sess, saver = initialize_tf(args.initial_variables, args.threads, args.gpu_allow_growth)
     training_loop(sess, saver, args.epochs, args.trainer,
                   args.encoders, args.decoder,
                   args.batch_size, args.train_dataset, args.val_dataset,

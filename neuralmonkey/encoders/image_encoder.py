@@ -25,7 +25,7 @@ class VectorEncoder(object):
 
 
 class PostCNNImageEncoder(object):
-    def __init__(self, input_shape, output_shape, data_id,
+    def __init__(self, input_shape, output_shape, data_id, name,
                  dropout_keep_p=1.0, attention_type=None):
         assert len(input_shape) == 3
 
@@ -34,9 +34,10 @@ class PostCNNImageEncoder(object):
         self.data_id = data_id
         self.dropout_keep_p = dropout_keep_p
         self.attention_type = attention_type
+        self.name = name
 
 
-        with tf.variable_scope("image_encoder"):
+        with tf.variable_scope(self.name):
             self.dropout_placeholder = tf.placeholder(tf.float32)
             self.image_features = tf.placeholder(tf.float32,
                                                  shape=[None] + input_shape,
@@ -71,4 +72,3 @@ class PostCNNImageEncoder(object):
             res[self.dropout_placeholder] = 1.0
 
         return res
-

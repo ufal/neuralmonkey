@@ -34,7 +34,7 @@ def post_request():
             check_dataset_and_coders(dataset, args.encoders)
 
             result, _, _ = run_on_dataset(
-                sess, args.runner, args.encoders + [args.decoder], args.decoder,
+                [sess], args.runner, args.encoders + [args.decoder], args.decoder,
                 dataset, args.evaluation, args.postprocess, write_out=True)
             response_data = {args.decoder.data_id: result}
             code = 200
@@ -60,7 +60,7 @@ def main():
 
     print("")
 
-    args, sess = initialize_for_running(cli_args.configuration)
+    args, sess = initialize_for_running(cli_args.configuration, None)
     APP.config['args'] = args
-    APP.config['sess'] = sess
+    APP.config['sess'] = sess[0]
     APP.run(port=cli_args.port, host=cli_args.host)

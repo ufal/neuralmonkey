@@ -6,15 +6,17 @@
 Welcome to Neural Monkey's documentation!
 =========================================
 
+Neural Monkey is an open-source toolkit for sequence learning using Tensorflow.
 
-``neuralmonkey`` package
-========================
 
-.. automodule:: neuralmonkey
-   :members:
+Getting Started
+---------------
 
-------------------------
+.. toctree::
+   :maxdepth: 1
 
-**Sub-modules**
-
-.. toctree:: modules
+   install
+   tutorial
+   development
+   api
+   features
