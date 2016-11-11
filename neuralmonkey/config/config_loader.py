@@ -2,7 +2,7 @@
 This module is responsible for instantiating objects
 specified by the experiment configuration
 """
-#tests: lint
+# tests: lint
 
 import collections
 from inspect import signature, isclass, isfunction
@@ -13,6 +13,7 @@ from neuralmonkey.config.exceptions import ConfigInvalidValueException, \
     ConfigBuildException
 
 
+# pylint: disable=too-many-return-statements
 def build_object(value, all_dicts, existing_objects, depth):
     """Builds an object from config dictionary of its arguments.
     It works recursively.
@@ -27,17 +28,17 @@ def build_object(value, all_dicts, existing_objects, depth):
         depth: The current depth of recursion. Used to prevent an infinite
         recursion.
     """
-    ### TODO detect infinite recursion by other means than depth argument
-    ### TODO as soon as config is run from an entrypoint, remove the
-    ###      ignore_names feature
+    # TODO detect infinite recursion by other means than depth argument
+    # TODO as soon as config is run from an entrypoint, remove the
+    # ignore_names feature
     if depth > 20:
         raise AssertionError("Config recursion should not be deeper that 20.")
 
     debug("Building value on depth {}: {}".format(depth, value), "configBuild")
 
-    #if isinstance(value, str) and value in ignore_names:
-        # TODO zapisovani do argumentu
-     #   existing_objects[value] = None
+    # if isinstance(value, str) and value in ignore_names:
+    # TODO zapisovani do argumentu
+    #   existing_objects[value] = None
 
     if isinstance(value, collections.Iterable) and not isinstance(value, str):
         return [build_object(val, all_dicts, existing_objects, depth + 1)
@@ -79,7 +80,7 @@ def instantiate_class(name, all_dicts, existing_objects, depth):
         raise ConfigInvalidValueException(
             name, "Cannot instantiate object with '{}'".format(clazz))
 
-    ## prepare the arguments for the constructor
+    # prepare the arguments for the constructor
     arguments = dict()
 
     for key, value in this_dict.items():
@@ -89,11 +90,11 @@ def instantiate_class(name, all_dicts, existing_objects, depth):
         arguments[key] = build_object(value, all_dicts, existing_objects,
                                       depth + 1)
 
-    ## get a signature of the constructing function
+    # get a signature of the constructing function
     construct_sig = signature(clazz)
 
     try:
-        ## try to bound the arguments to the signature
+        # try to bound the arguments to the signature
         bounded_params = construct_sig.bind(**arguments)
     except TypeError as exc:
         raise ConfigBuildException(clazz, exc)
@@ -101,9 +102,9 @@ def instantiate_class(name, all_dicts, existing_objects, depth):
     debug("Instantiating class {} with arguments {}".format(clazz, arguments),
           "configBuild")
 
-    ## call the function with the arguments
-    ## NOTE: any exception thrown from the body of the constructor is
-    ##       not worth catching here
+    # call the function with the arguments
+    # NOTE: any exception thrown from the body of the constructor is
+    # not worth catching here
     obj = clazz(*bounded_params.args, **bounded_params.kwargs)
 
     debug("Class {} initialized into object {}".format(clazz, obj),
@@ -133,7 +134,10 @@ def load_config_file(config_file, ignore_names):
     main_config = config_dicts['main']
 
     configuration = dict()
-    for key, value in sorted(main_config.items(), key=lambda t: t[0]):
+    # TODO ensure tf_manager goes last in a better way
+    for key, value in sorted(main_config.items(),
+                             key=lambda t: t[0] if t[0] != 'tf_manager'
+                             else 'zzz'):
         if key not in ignore_names:
             try:
                 configuration[key] = build_object(

@@ -58,9 +58,3 @@ class GreedyRunExecutable(Executable):
             histogram_summaries=None,
             image_summaries=None
         )
-
-class ExecutionResult(object):
-
-    def __init__(self, outputs, losses):
-        self.outputs = outputs
-        self.losses = losses

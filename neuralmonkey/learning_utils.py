@@ -53,7 +53,6 @@ def training_loop(tf_manager: TensorFlowManager,
             and list of reference sequences and returns a float.
 
     """
-    all_coders = encoders + [decoder]
 
     main_metric = "{}/{}".format(evaluators[-1][0], evaluators[-1][1].name)
     step = 0
