@@ -312,22 +312,22 @@ class Decoder(object):
         return basic_loop
 
 
-    def _logit_function(self, state):
+    def _logit_function(self, rnn_output):
         """Compute logits on the vocabulary given the state
 
         Arguments:
             state: the state of the decoder
         """
-        return tf.matmul(self._dropout(state), self.weights) + self.biases
+        return tf.matmul(self._dropout(rnn_output), self.weights) + self.biases
 
 
-    def _decode(self, rnn_states):
+    def _decode(self, rnn_outputs):
         """Decodes a sequence from a list of hidden states
 
         Arguments:
             rnn_states: hidden states
         """
-        logits = [self._logit_function(s) for s in rnn_states]
+        logits = [self._logit_function(o) for o in rnn_outputs]
         decoded = [tf.argmax(l[:, 1:], 1) + 1 for l in logits]
 
         return decoded, logits
