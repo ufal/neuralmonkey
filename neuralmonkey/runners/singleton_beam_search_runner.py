@@ -1,5 +1,4 @@
 """This module implements single-sentence-wise beam search."""
-# tests: lint
 import numpy as np
 
 from neuralmonkey.learning_utils import feed_dicts

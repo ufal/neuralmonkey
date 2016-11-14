@@ -5,7 +5,7 @@ import tensorflow as tf
 # tests: pylint, mypy
 
 # pylint: disable=invalid-name
-RunResult = Union[float, np.array, tf.Summary]
+RunResult = Union[float, np.ndarray, tf.Summary]
 ExecutionResult = NamedTuple('ExecutionResult',
                              [('outputs', List[Any]),
                               ('losses', List[float]),
