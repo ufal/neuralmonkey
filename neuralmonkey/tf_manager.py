@@ -80,19 +80,24 @@ class TensorFlowManager(object):
             while not all(ex.result is not None for ex in executables):
                 all_feedables = set()   # type: Set[Any]
                 all_tensors_to_execute = []  # type: List[tf.Tensor]
+                additional_feed_dicts = []
                 tensor_list_lengths = []  # type: List[int]
 
                 for executable in executables:
                     if executable.result is None:
                         (feedables,
-                         tensors_to_execute) = executable.next_to_execute()
+                         tensors_to_execute,
+                         add_feed_dict) = executable.next_to_execute()
                         all_feedables = all_feedables.union(feedables)
                         all_tensors_to_execute.extend(tensors_to_execute)
+                        additional_feed_dicts.append(add_feed_dict)
                         tensor_list_lengths.append(len(tensors_to_execute))
                     else:
                         tensor_list_lengths.append(0)
 
                 feed_dict = _feed_dicts(batch, all_feedables, train=train)
+                for fdict in additional_feed_dicts:
+                    feed_dict.update(fdict)
 
                 session_results = [sess.run(all_tensors_to_execute,
                                             feed_dict=feed_dict)

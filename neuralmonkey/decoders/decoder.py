@@ -452,6 +452,7 @@ class Decoder(object):
 
         start_token_index = self.vocabulary.get_word_index(START_TOKEN)
         fd[self.go_symbols] = np.repeat(start_token_index, len(dataset))
+        fd[self.train_inputs[0]] = np.repeat(start_token_index, len(dataset))
 
         sentences = dataset.get_series(self.data_id, allow_none=True)
 

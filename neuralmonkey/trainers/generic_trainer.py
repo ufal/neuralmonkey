@@ -5,7 +5,7 @@ import tensorflow as tf
 
 from neuralmonkey.tf_manager import RunResult
 from neuralmonkey.runners.base_runner import collect_encoders, \
-        Executable, ExecutionResult
+        Executable, ExecutionResult, NextExecute
 
 # tests: pylint, mypy
 
@@ -113,13 +113,13 @@ class TrainExecutable(Executable):
 
         self.result = None
 
-    def next_to_execute(self) -> Tuple[List[object], List[tf.Tensor]]:
+    def next_to_execute(self) -> NextExecute:
         fetches = [self.train_op]
         if self.scalar_summaries is not None:
             fetches += [self.scalar_summaries, self.histogram_summaries]
         fetches += self.losses
 
-        return (self.all_coders, fetches)
+        return self.all_coders, fetches, {}
 
     def collect_results(self, results: List[List[RunResult]]) -> None:
         if self.scalar_summaries is None:

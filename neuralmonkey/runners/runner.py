@@ -1,10 +1,10 @@
-from typing import List, Tuple
+from typing import List
 import numpy as np
 import tensorflow as tf
 
 from neuralmonkey.tf_manager import RunResult
 from neuralmonkey.runners.base_runner import BaseRunner, \
-    Executable, ExecutionResult
+    Executable, ExecutionResult, NextExecute
 
 # tests: mypy,pylint
 # pylint: disable=too-few-public-methods
@@ -40,9 +40,9 @@ class GreedyRunExecutable(Executable):
         self.decoded_sentences = []
         self.result = None  # type: Option[ExecutionResult]
 
-    def next_to_execute(self) -> Tuple[List[object], List[tf.Tensor]]:
+    def next_to_execute(self) -> NextExecute:
         """Get the feedables and tensors to run."""
-        return self.all_coders, self.to_run
+        return self.all_coders, self.to_run, {}
 
     def collect_results(self, results: List[List[RunResult]]) -> None:
         train_loss = 0.

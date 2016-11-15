@@ -1,10 +1,12 @@
-from typing import Any, Tuple, List, NamedTuple, Union
+from typing import Any, Dict, Tuple, List, NamedTuple, Union
 import numpy as np
 import tensorflow as tf
 
 # tests: pylint, mypy
 
 # pylint: disable=invalid-name
+FeedDict = Dict[tf.Tensor, Union[int, float, np.ndarray]]
+NextExecute = Tuple[List[Any], List[tf.Tensor], FeedDict]
 RunResult = Union[float, np.ndarray, tf.Summary]
 ExecutionResult = NamedTuple('ExecutionResult',
                              [('outputs', List[Any]),
@@ -16,7 +18,7 @@ ExecutionResult = NamedTuple('ExecutionResult',
 
 class Executable(object):
 
-    def next_to_execute(self) -> Tuple[List[Any], List[tf.Tensor]]:
+    def next_to_execute(self) -> NextExecute:
         raise NotImplementedError()
 
     def collect_results(self, results: List[List[RunResult]]) -> None:
