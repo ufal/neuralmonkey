@@ -48,13 +48,18 @@ def training_loop(tf_manager: TensorFlowManager,
             decoder and transforms into tokenized sentence.
         log_directory: Directory where the TensordBoard log will be generated.
             If None, nothing will be done.
-        evaluators: List of evaluators. The last evaluator
-            is used as the main. Each function accepts list of decoded sequences
-            and list of reference sequences and returns a float.
-
+        evaluators: List of evaluators. The last evaluator is used as the main.
+            An evaluator is a tuple of the name of the generated series, the
+            name of the dataset series the generated one is evaluated with and
+            the evaluation function. If only one series names is provided, it
+            means the generated and dataset series have the same name.
     """
 
-    main_metric = "{}/{}".format(evaluators[-1][0], evaluators[-1][1].name)
+
+    evaluators = [(e[0], e[0], e[1]) if len(e) == 2 else e
+                  for e in evaluators]
+
+    main_metric = "{}/{}".format(evaluators[-1][0], evaluators[-1][-1].name)
     step = 0
     seen_instances = 0
 
@@ -293,13 +298,14 @@ def evaluation(evaluators, dataset, runners, execution_results, result_data):
             eval_result["{}/{}".format(runner.output_series, name)] = value
 
     # evaluation metrics
-    for series_id, function in evaluators:
-        if not dataset.has_series(series_id) or series_id not in result_data:
+    for generated_id, dataset_id, function in evaluators:
+        if (not dataset.has_series(dataset_id) or
+                generated_id not in result_data):
             continue
 
-        desired_output = dataset.get_series(series_id)
-        model_output = result_data[series_id]
-        eval_result["{}/{}".format(series_id, function.name)] = function(
+        desired_output = dataset.get_series(dataset_id)
+        model_output = result_data[generated_id]
+        eval_result["{}/{}".format(generated_id, function.name)] = function(
             model_output, desired_output)
 
     return eval_result
@@ -383,7 +389,8 @@ def _print_examples(dataset: Dataset,
     # for further indexing we need to make sure, all relevant
     # dataset series are lists
     target_series = {series_id: list(dataset.get_series(series_id))
-                     for series_id in outputs.keys()}
+                     for series_id in outputs.keys()
+                     if dataset.has_series(series_id)}
     source_series = {series_id: list(dataset.get_series(series_id))
                      for series_id in dataset.series_ids
                      if series_id not in outputs}
@@ -402,8 +409,9 @@ def _print_examples(dataset: Dataset,
 
         for series_id, data in outputs.items():
             model_output = data[i]
-            desired_output = target_series[series_id][i]
-
             print_line(series_id, 'magenta', model_output)
-            print_line(series_id + " (ref)", "red", desired_output)
+
+            if series_id in target_series:
+                desired_output = target_series[series_id][i]
+                print_line(series_id + " (ref)", "red", desired_output)
         log_print("")

@@ -24,7 +24,7 @@ CONFIG.ignore_argument('train_dataset')
 CONFIG.ignore_argument('random_seed')
 CONFIG.ignore_argument('epochs')
 CONFIG.ignore_argument('batch_size')
-CONFIG.ignore_argument('tests_datasets')
+CONFIG.ignore_argument('test_datasets')
 CONFIG.ignore_argument('initial_variables')
 CONFIG.ignore_argument('validation_period')
 CONFIG.ignore_argument('logging_period')
@@ -95,6 +95,8 @@ def main():
 
     print("")
 
+    evaluators = [(e[0], e[0], e[1]) if len(e) == 2 else e
+                  for e in args.evaluation]
 # TODO do the dataset checking
 #    try:
 #        for dataset in datasets_args.test_datasets:
@@ -108,7 +110,7 @@ def main():
             args.tf_manager, args.runners,
             dataset, args.postprocess, write_out=True)
         # TODO what if there is no ground truth
-        eval_result = evaluation(args.evaluation, dataset, args.runners,
+        eval_result = evaluation(evaluators, dataset, args.runners,
                                  execution_results, output_data)
         if eval_result:
             print_final_evaluation(dataset.name, eval_result)

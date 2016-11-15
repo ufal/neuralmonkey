@@ -1,5 +1,6 @@
 from typing import List
 import numpy as np
+import tensorflow as tf
 
 from neuralmonkey.tf_manager import RunResult
 from neuralmonkey.runners.base_runner import BaseRunner, \
@@ -24,7 +25,8 @@ class RuntimeRnnRunner(BaseRunner):
 
         return RuntimeRnnExecutable(self._all_coders, self._decoder,
                                     self._initial_fetches,
-                                    self._decoder.vocabulary)
+                                    self._decoder.vocabulary,
+                                    compute_loss=train)
 
     @property
     def loss_names(self) -> List[str]:
@@ -34,11 +36,13 @@ class RuntimeRnnRunner(BaseRunner):
 class RuntimeRnnExecutable(Executable):
     """Run and ensemble the RNN decoder step by step."""
 
-    def __init__(self, all_coders, decoder, initial_fetches, vocabulary):
+    def __init__(self, all_coders, decoder, initial_fetches, vocabulary,
+                 compute_loss=True):
         self._all_coders = all_coders
         self._decoder = decoder
         self._vocabulary = vocabulary
         self._initial_fetches = initial_fetches
+        self._compute_loss = compute_loss
 
         self._decoded = []
         self._time_step = 0
@@ -54,7 +58,10 @@ class RuntimeRnnExecutable(Executable):
 
         # at the end, we should compute loss
         if self._time_step == self._decoder.max_output - 1:
-            to_run.append(self._decoder.train_loss)
+            if self._compute_loss:
+                to_run.append(self._decoder.train_loss)
+            else:
+                to_run.append(tf.zeros([]))
 
         return self._all_coders, to_run, additional_feed_dict
 
