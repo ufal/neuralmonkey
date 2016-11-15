@@ -117,6 +117,7 @@ class Decoder(object):
 
         _, train_logits = self._decode(self.train_rnn_outputs)
         self.decoded, runtime_logits = self._decode(self.runtime_rnn_outputs)
+        self.train_logprobs = [tf.nn.log_softmax(l) for l in train_logits]
 
         self.train_loss = tf.nn.seq2seq.sequence_loss(
             train_logits, train_targets, self.train_weights,
@@ -452,7 +453,6 @@ class Decoder(object):
 
         start_token_index = self.vocabulary.get_word_index(START_TOKEN)
         fd[self.go_symbols] = np.repeat(start_token_index, len(dataset))
-        fd[self.train_inputs[0]] = np.repeat(start_token_index, len(dataset))
 
         sentences = dataset.get_series(self.data_id, allow_none=True)
 
@@ -465,6 +465,11 @@ class Decoder(object):
 
             for placeholder, tensor in zip(self.train_inputs, inputs):
                 fd[placeholder] = tensor
+        else:
+            fd[self.train_inputs[0]] = np.repeat(start_token_index,
+                                                 len(dataset))
+            for placeholder in self.train_weights:
+                fd[placeholder] = np.ones(len(dataset))
 
         if not train:
             fd[self.dropout_placeholder] = 1.0
