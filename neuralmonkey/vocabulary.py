@@ -19,6 +19,13 @@ START_TOKEN = "<s>"
 END_TOKEN = "</s>"
 UNK_TOKEN = "<unk>"
 
+_SPECIAL_TOKENS = [PAD_TOKEN, START_TOKEN, END_TOKEN, UNK_TOKEN]
+
+PAD_TOKEN_INDEX = 0
+START_TOKEN_INDEX = 1
+END_TOKEN_INDEX = 2
+UNK_TOKEN_INDEX = 3
+
 def _is_special_token(word: str) -> bool:
     """Check whether word is a special token (such as <pad> or <s>).
 
