@@ -34,6 +34,16 @@ ExpandedBeamBatch = NamedTuple('ExpandedBeamBatch',
 # pylint: disable=too-many-locals
 
 
+def _n_best_indices(scores: np.ndarray, n: int) -> np.ndarray:
+    if scores.shape[0] <= n:
+        unsorted_n_best_indices = np.arange(scores.shape[0])
+    else:
+        unsorted_n_best_indices = np.argpartition(-scores, n)[:n]
+    n_best_indices = unsorted_n_best_indices[
+        np.argsort(scores[unsorted_n_best_indices])]
+    return n_best_indices
+
+
 def _score_expanded(n: int,
                     batch_size: int,
                     expanded: List[ExpandedBeamBatch],
@@ -65,7 +75,7 @@ def _score_expanded(n: int,
                      for logprob in next_distribution])
 
             scores = scoring_function(expanded_hypotheses, expanded_logprobs)
-            n_best_indices = np.argsort(scores)[-n:]
+            n_best_indices = _n_best_indices(scores, n)
             candidate_scores = _try_append(
                 candidate_scores, scores[n_best_indices])
             candidate_hypotheses = _try_append(
@@ -73,7 +83,7 @@ def _score_expanded(n: int,
             candidate_logprobs = _try_append(
                 candidate_logprobs, expanded_logprobs[n_best_indices])
 
-        n_best_indices = np.argsort(candidate_scores)[-n:]
+        n_best_indices = _n_best_indices(candidate_scores, n)
         n_best_hypotheses = candidate_hypotheses[n_best_indices]
         n_best_logprobs = candidate_logprobs[n_best_indices]
 
