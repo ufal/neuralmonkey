@@ -42,21 +42,20 @@ def _score_expanded(n: int,
     next_beam_hypotheses = []
     next_beam_logprobs = []
     # agregate the expanded hypotheses hypothsis-wise
-    for i in range(batch_size):
+    for rank in range(batch_size):
         candidate_scores = None
         candidate_hypotheses = None
         candidate_logprobs = None
 
         for expanded_batch in expanded:
-            next_distribution = expanded_batch.next_logprobs[i]
+            next_distribution = expanded_batch.next_logprobs[rank]
             if expanded_batch.beam_batch is None:
                 expanded_hypotheses = np.expand_dims(np.arange(
-                    len(next_distribution)), axis=0)
-                expanded_logprobs = np.expand_dims(next_distribution, 0)
+                    len(next_distribution)), axis=1)
+                expanded_logprobs = np.expand_dims(next_distribution, 1)
             else:
-                import ipdb; ipdb.set_trace()
-                hypothesis = expanded_batch.beam_batch.decoded[i]
-                prev_logprobs = expanded_batch.beam_batch.log_probs[i]
+                hypothesis = expanded_batch.beam_batch.decoded[rank]
+                prev_logprobs = expanded_batch.beam_batch.logprobs[rank]
 
                 expanded_hypotheses = np.array(
                     [np.append(hypothesis, index)
@@ -211,7 +210,7 @@ class RuntimeRnnExecutable(Executable):
         if self._current_beam_batch is not None:
             additional_feed_dict = {t: index for t, index in zip(
                 self._decoder.train_inputs[1:],
-                self._current_beam_batch.decoded)}
+                self._current_beam_batch.decoded.T)}
         else:
             additional_feed_dict = {}
 
@@ -248,7 +247,7 @@ class RuntimeRnnExecutable(Executable):
             self._expanded = []
 
         if self._time_step == self._decoder.max_output:
-            top_batch = self._to_exapand[-1].decoded
+            top_batch = self._to_exapand[-1].decoded.T
             decoded_tokens = self._vocabulary.vectors_to_sentences(top_batch)
             # loss = np.average([res[1] for res in results])
             self.result = ExecutionResult(
