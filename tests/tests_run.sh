@@ -15,6 +15,3 @@ curl 127.0.0.1:5000 -H "Content-Type: application/json" -X POST -d '{"source": [
 kill $SERVER_PID
 
 rm -r tests/tmp-test-output
-
-bin/neuralmonkey-train tests/ensemble.ini
-bin/neuralmonkey-run tests/ensemble.ini tests/test_ensemble_data.ini
