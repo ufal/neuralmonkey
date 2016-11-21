@@ -195,7 +195,6 @@ def training_loop(tf_manager: TensorFlowManager,
                     log_print("")
                     _print_examples(val_dataset, val_outputs)
 
-                    tb_writer.add_summary(val_plots[0], step)
 
     except KeyboardInterrupt:
         log("Training interrupted by user.")
