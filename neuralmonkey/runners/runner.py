@@ -8,7 +8,6 @@ class GreedyRunner(object):
     def __init__(self, decoder, batch_size):
         self.decoder = decoder
         self.batch_size = batch_size
-        self.vocabulary = decoder.vocabulary
 
     def __call__(self, sess, dataset, coders, extra_fetches=None):
         batched_dataset = dataset.batch_dataset(self.batch_size)
@@ -22,6 +21,8 @@ class GreedyRunner(object):
         loss_with_decoded_ins = 0.0
         batch_count = 0
         for batch in batched_dataset:
+            decoded = self.decoder.decoded
+            vocab = self.decoder.vocabulary
             batch_feed_dict = feed_dicts(batch, coders, train=False)
             batch_count += 1
 
@@ -38,7 +39,8 @@ class GreedyRunner(object):
                     sess.run((losses, self.decoder.decoded, extra_fetches),
                              feed_dict=batch_feed_dict)
             decoded_sentences_batch = \
-                    self.vocabulary.vectors_to_sentences(decoded)
+                    vocab.vectors_to_sentences(decoded)
+
             decoded_sentences += decoded_sentences_batch
             evaluated_fetches += [fetches_batch]
 

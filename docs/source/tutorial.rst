@@ -236,13 +236,13 @@ language embeddings by share vocabularies for these datasets. Therefore, we need
 to create only two vocabulary objects::
 
   [source_vocabulary]
-  class=Vocabulary.from_dataset
+  class=vocabulary.from_dataset
   datasets=[<train_dataset>]
   series_ids=[source]
   max_size=50000
 
   [target_vocabulary]
-  class=Vocabulary.from_dataset
+  class=vocabulary.from_dataset
   datasets=[<train_dataset>]
   series_ids=[edits, translated]
   max_size=50000
@@ -278,6 +278,7 @@ the source sentences::
   dropout_keep_p=0.8
   attention_type=decoding_function.Attention
   data_id=source
+  name=src_encoder
   vocabulary=<source_vocabulary>
 
 This configuration initializes a new instance of sentence encoder with the
@@ -287,7 +288,8 @@ embedding matrix. The size of the embedding vector used for each word from the
 source vocabulary is set to 300. The source data series is fed to this
 encoder. 20% of the weights is dropped out during training from the word
 embeddings and from the attention vectors computed over the hidden states of
-this encoder.
+this encoder. Note the ``name`` attribute must be set in each encoder and
+decoder in order to prevent collisions of the names of Tensorflow graph nodes.
 
 The configuration of the second encoder follows::
 
@@ -299,6 +301,7 @@ The configuration of the second encoder follows::
   dropout_keep_p=0.8
   attention_type=decoding_function.Attention
   data_id=translated
+  name=trans_encoder
   vocabulary=<target_vocabulary>
 
 This config creates a second encoder for the ``translated`` data series. The
@@ -314,6 +317,7 @@ decoder. Without furhter ado, here it goes::
 
   [decoder]
   class=decoders.decoder.Decoder
+  name=decoder
   encoders=[<trans_encoder>, <src_encoder>]
   rnn_size=300
   max_output_len=50
@@ -389,8 +393,8 @@ parameters::
   decoder=<decoder>
   runner=<runner>
   trainer=<trainer>
-  train_dataset=<train_data>
-  val_dataset=<val_data>
+  train_dataset=<train_dataset>
+  val_dataset=<val_dataset>
   evaluation=[<bleu>, <ter>]
   minimize=True
   batch_size=128
@@ -489,24 +493,24 @@ configuration. We will call this file ``test_datasets.ini``::
 
   [eval_data]
   class=config.utils.dataset_from_files
-  s_source=nm-exp-ape/data/test/test.src
-  s_translated=nm-exp-ape/data/test/test.mt
-  s_edits_out=nm-exp-ape/test_output.edits
+  s_source=exp-nm-ape/data/test/test.src
+  s_translated=exp-nm-ape/data/test/test.mt
+  s_edits_out=exp-nm-ape/test_output.edits
 
 Please note the ``s_edits`` data series is **not** present in the evaluation
 dataset. That is simply because we do not want to use the reference edits to
 compute loss at this point. Usually, we don't even *know* the correct output.
 Instead, we will provide the output series ``s_edits_out``, which points to a
 file to which the output of the model gets stored. Also note that you may want
-to alter the path to the ``nm-exp-ape`` directory if it is not located inside
+to alter the path to the ``exp-nm-ape`` directory if it is not located inside
 the Neural Monkey package root dir.
 
 We have all that we need to run the trained model on the evaluation
 dataset. From the root directory of the Neural Monkey repository, run::
 
- bin/neuralmonkey-run nm-exp-ape/post-edit.test.ini nm-exp-ape/test_datasets.ini
+ bin/neuralmonkey-run exp-nm-ape/post-edit.test.ini exp-nm-ape/test_datasets.ini
 
-At the end, you should see a new file in ``nm-exp-ape``, called
+At the end, you should see a new file in ``exp-nm-ape``, called
 ``test_output.edits``. As you notice, the contents of this file are the
 sequences of edit operations, which if applied to the machine translated
 sentences, generate the output that we want. So the final step is to call the
@@ -514,8 +518,8 @@ provided postprocessing script. Again, feel free to write your own as a simple
 excercise::
 
   scripts/postedit_reconstruct_data.py \
-    --edits=nm-exp-ape/test_output.edits \
-    --translated-sentences=nm-exp-ape/data/test/test.mt \
+    --edits=exp-nm-ape/test_output.edits \
+    --translated-sentences=exp-nm-ape/data/test/test.mt \
       > test_output.pe
 
 Now, you can run the official tools (like mteval or the tercom software

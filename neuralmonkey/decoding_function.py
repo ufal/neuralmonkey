@@ -95,6 +95,19 @@ class Attention(object):
     # For maintaining the same API as in CoverageAttention
     def __init__(self, attention_states, scope, dropout_placeholder,
                  input_weights=None, max_fertility=None):
+        """Create the attention object.
+
+        Args:
+            attention_states: A Tensor of shape (batch x time x state_size)
+                              with the output states of the encoder.
+            scope: The name of the variable scope in the graph used by this
+                   attention object.
+            dropout_placeholder: A Tensor that contains the value of the dropout
+                                 keep probability
+            input_weights: (Optional) The padding weights on the input.
+            max_fertility: (Optional) For the Coverage attention compatibilty,
+                           maximum fertility of one word.
+        """
         self.scope = scope
         self.attentions_in_time = []
         self.attention_states = tf.nn.dropout(attention_states,

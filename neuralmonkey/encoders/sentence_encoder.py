@@ -11,9 +11,9 @@ from neuralmonkey.vocabulary import Vocabulary
 
 class SentenceEncoder(object):
     def __init__(self, max_input_len, vocabulary, data_id, embedding_size,
-                 rnn_size, dropout_keep_p=0.5, use_noisy_activations=False,
-                 use_pervasive_dropout=False, attention_type=None,
-                 attention_fertility=3, name="sentence_encoder",
+                 rnn_size, name, dropout_keep_p=0.5,
+                 use_noisy_activations=False, use_pervasive_dropout=False,
+                 attention_type=None, attention_fertility=3,
                  parent_encoder=None):
 
         self.name = name

@@ -18,7 +18,7 @@ class Decoder(object):
     # it into smaller units would be helpful
     # Some locals may be turned to attributes
 
-    def __init__(self, encoders, vocabulary, data_id, **kwargs):
+    def __init__(self, encoders, vocabulary, data_id, name, **kwargs):
         """Creates a new instance of the decoder
 
         Arguments:
@@ -43,10 +43,10 @@ class Decoder(object):
         self.encoders = encoders
         self.vocabulary = vocabulary
         self.data_id = data_id
+        self.name = name
 
         self.max_output = kwargs.get("max_output_len", 20)
         self.embedding_size = kwargs.get("embedding_size", 200)
-        self.name = kwargs.get("name", "decoder")
         dropout_keep_prob = kwargs.get("dropout_keep_prob", 1.0)
 
         self.use_attention = kwargs.get("use_attention", False)
@@ -111,7 +111,8 @@ class Decoder(object):
         ### Use the same variables for runtime decoding!
         tf.get_variable_scope().reuse_variables()
 
-        self.runtime_rnn_outputs, _ = attention_decoder(
+        self.runtime_rnn_states = [state]
+        self.runtime_rnn_outputs, rnn_states = attention_decoder(
             runtime_inputs, state, attention_objects, cell,
             attention_maxout_size, loop_function=loop_function,
             summary_collections=["summary_val_plots"])
@@ -121,6 +122,8 @@ class Decoder(object):
             tf.merge_summary(val_plots_collection)
             if val_plots_collection else None
         )
+
+        self.runtime_rnn_states += rnn_states
 
         _, train_logits = self._decode(self.train_rnn_outputs)
         self.decoded, runtime_logits = self._decode(self.runtime_rnn_outputs)
@@ -136,6 +139,10 @@ class Decoder(object):
         self.cross_entropies = tf.nn.seq2seq.sequence_loss_by_example(
             train_logits, train_targets, self.train_weights,
             self.vocabulary_size)
+
+        # TODO [refactor] put runtime logits to self from the beginning
+        self.runtime_logits = runtime_logits
+        self.runtime_logprobs = [tf.nn.log_softmax(l) for l in runtime_logits]
 
         ### Learning step
         ### TODO was here only because of scheduled sampling.
@@ -156,6 +163,18 @@ class Decoder(object):
     @property
     def cost(self):
         return self.train_loss
+
+
+    def top_k_runtime_logprobs(self, k_best):
+        """Return the top runtime log probabilities calculated from runtime
+        logits.
+
+        Arguments:
+            k_best: How many output items to return
+        """
+        ## the array is of tuples ([values], [indices])
+        return [tf.nn.top_k(p, k_best) for p in self.runtime_logprobs]
+
 
 
     def _initial_state(self):
@@ -308,17 +327,17 @@ class Decoder(object):
         return basic_loop
 
 
-    def _logit_function(self, state):
+    def _logit_function(self, rnn_output):
         """Compute logits on the vocabulary given the state
 
         Arguments:
             state: the state of the decoder
         """
-        return tf.matmul(self._dropout(state), self.weights) + self.biases
+        return tf.matmul(self._dropout(rnn_output), self.weights) + self.biases
 
 
     def _decode(self, rnn_outputs):
-        """Decodes a sequence from a list of RNN outputs
+        """Decodes a sequence from a list of hidden states
 
         Arguments:
             rnn_outputs: List of batch x maxout_size tensors

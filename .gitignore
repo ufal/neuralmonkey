@@ -4,7 +4,8 @@ tf-gpu
 caffe
 caffe-env
 **/.history*
-data
+/data
+/experiments
 logs
 *.log
 *.o[0-9]*
@@ -15,7 +16,7 @@ logs-postedit
 *.tmp
 *.tmp.meta
 checkpoint
-experiments
 tests/*.en
 tests/*.de
 .idea
+tmp-*
