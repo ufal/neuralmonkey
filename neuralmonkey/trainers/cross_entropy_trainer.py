@@ -4,28 +4,48 @@ from neuralmonkey.logging import log
 
 # tests: mypy
 
+
+def l2_cost(l2_parameter):
+    with tf.variable_scope("l2_regularization"):
+        l2_value = sum([tf.reduce_sum(v ** 2)
+                        for v in tf.trainable_variables()])
+
+        l2_cost = l2_parameter * l2_value
+        tf.scalar_summary('train_l2_cost', l2_value,
+                          collections=["summary_train"])
+    return l2_cost
+
+
 class CrossEntropyTrainer(object):
-    def __init__(self, decoder, l2_regularization):
+    def __init__(self, decoder, l2_regularization, optimizer=None,
+                 clip_norm=None):
         log("Initializing Cross-entropy trainer.")
         self.decoder = decoder
 
-        with tf.variable_scope("l2_regularization"):
-            l2_value = sum([tf.reduce_sum(v ** 2) for v in tf.trainable_variables()])
-            if l2_regularization > 0:
-                l2_cost = l2_regularization * l2_value
-            else:
-                l2_cost = 0.0
+        if optimizer is None:
+            optimizer = tf.train.AdamOptimizer(1e-4)
 
-            tf.scalar_summary('train_l2_cost', l2_value, collections=["summary_train"])
+        cost = decoder.cost
+        if l2_regularization > 0:
+            cost += l2_cost(l2_regularization)
 
-        optimizer = tf.train.AdamOptimizer(1e-4)
-        gradients = optimizer.compute_gradients(decoder.cost + l2_cost)
+        gradients = optimizer.compute_gradients(cost)
+
+        if clip_norm is not None:
+            gradients = [(tf.clip_by_norm(grad, clip_norm), var)
+                         for grad, var in gradients]
+
         #for (g, v) in gradients:
         #    if g is not None:
         #        tf.histogram_summary('gr_' + v.name, g, collections=["summary_gradients"])
-        self.optimize_op = optimizer.apply_gradients(gradients, global_step=decoder.learning_step)
+
+        self.optimize_op = optimizer.apply_gradients(
+            gradients, global_step=decoder.learning_step)
+
         #self.summary_gradients = tf.merge_summary(tf.get_collection("summary_gradients"))
-        self.summary_train = tf.merge_summary(tf.get_collection("summary_train"))
+
+        self.summary_train = tf.merge_summary(
+            tf.get_collection("summary_train"))
         log("Trainer initialized.")
 
     def run(self, sess, f_dict, summary=False):

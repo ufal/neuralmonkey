@@ -9,9 +9,13 @@ class GreedyRunner(object):
         self.decoder = decoder
         self.batch_size = batch_size
 
-    def __call__(self, sess, dataset, coders):
+    def __call__(self, sess, dataset, coders, extra_fetches=None):
         batched_dataset = dataset.batch_dataset(self.batch_size)
         decoded_sentences = []
+        evaluated_fetches = []
+
+        if extra_fetches is None:
+            extra_fetches = []
 
         loss_with_gt_ins = 0.0
         loss_with_decoded_ins = 0.0
@@ -30,14 +34,17 @@ class GreedyRunner(object):
             else:
                 losses = [tf.zeros([]), tf.zeros([])]
 
-            computation = sess.run(losses + self.decoder.decoded,
-                                   feed_dict=batch_feed_dict)
-            loss_with_gt_ins += computation[0]
-            loss_with_decoded_ins += computation[1]
+            (loss_with_gt_ins, loss_with_decoded_ins), \
+                    decoded, fetches_batch = \
+                    sess.run((losses, self.decoder.decoded, extra_fetches),
+                             feed_dict=batch_feed_dict)
             decoded_sentences_batch = \
-                    vocab.vectors_to_sentences(computation[len(losses):])
+                    vocab.vectors_to_sentences(decoded)
+
             decoded_sentences += decoded_sentences_batch
+            evaluated_fetches += [fetches_batch]
 
         return decoded_sentences, \
                loss_with_gt_ins / batch_count, \
-               loss_with_decoded_ins / batch_count
+               loss_with_decoded_ins / batch_count, \
+               evaluated_fetches

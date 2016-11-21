@@ -1,17 +1,7 @@
 #tests: lint
 
-import numpy as np
 import tensorflow as tf
-
-def dense(last_layer, last_layer_size, size, i, activation=tf.tanh):
-    with tf.variable_scope("dense_layer_{}".format(i)):
-        init = np.sqrt(6.0 / (last_layer_size + size))
-
-        weights = tf.Variable(tf.random_uniform([last_layer_size, size],
-                                                minval=-init, maxval=init),
-                              name="W_{}".format(i))
-        biases = tf.Variable(tf.fill([size], 0.1), name="b_{}".format(i))
-        return activation(tf.matmul(last_layer, weights) + biases)
+from neuralmonkey.nn.projection import linear
 
 class MultilayerPerceptron(object):
     """
@@ -28,7 +18,9 @@ class MultilayerPerceptron(object):
 
             self.n_params = 0
             for i, size in enumerate(layer_configuration):
-                last_layer = dense(last_layer, last_layer_size, size, i + 1)
+                last_layer = tf.tanh(
+                    linear(last_layer, size,
+                           scope="dense_layer_{}".format(i + 1)))
                 last_layer = tf.nn.dropout(last_layer, dropout_plc)
                 self.n_params += last_layer_size * size
                 last_layer_size = size

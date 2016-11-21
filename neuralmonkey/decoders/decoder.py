@@ -50,6 +50,7 @@ class Decoder(object):
         dropout_keep_prob = kwargs.get("dropout_keep_prob", 1.0)
 
         self.use_attention = kwargs.get("use_attention", False)
+        attention_maxout_size = kwargs.get("maxout_size", 200)
         self.reuse_word_embeddings = kwargs.get("reuse_word_embeddings", False)
 
         if self.reuse_word_embeddings:
@@ -67,6 +68,10 @@ class Decoder(object):
         if self.project_encoder_outputs or len(self.encoders) == 0:
             self.rnn_size = kwargs.get("rnn_size", 200)
         else:
+            if "rnn_size" in kwargs:
+                log("Warning: rnn_size attribute will not be used "
+                    "without encoder projection!", color="red")
+
             self.rnn_size = sum(e.encoded.get_shape()[1].value
                                 for e in self.encoders)
 
@@ -78,7 +83,7 @@ class Decoder(object):
 
         state = self._initial_state()
 
-        self.weights, self.biases = self._state_to_output()
+        self.weights, self.biases = self._state_to_output(attention_maxout_size)
         self.embedding_matrix = self._input_embeddings()
 
         self.train_inputs, self.train_weights = self._training_placeholders()
@@ -96,7 +101,7 @@ class Decoder(object):
 
         self.train_rnn_outputs, _ = attention_decoder(
             embedded_train_inputs, state, attention_objects,
-            self.embedding_size, cell)
+            cell, attention_maxout_size)
 
         # runtime methods and objects are used when no ground truth is provided
         # (such as during testing)
@@ -107,10 +112,16 @@ class Decoder(object):
         tf.get_variable_scope().reuse_variables()
 
         self.runtime_rnn_states = [state]
-
         self.runtime_rnn_outputs, rnn_states = attention_decoder(
-            runtime_inputs, state, attention_objects, self.embedding_size,
-            cell, loop_function=loop_function)
+            runtime_inputs, state, attention_objects, cell,
+            attention_maxout_size, loop_function=loop_function,
+            summary_collections=["summary_val_plots"])
+
+        val_plots_collection = tf.get_collection("summary_val_plots")
+        self.summary_val_plots = (
+            tf.merge_summary(val_plots_collection)
+            if val_plots_collection else None
+        )
 
         self.runtime_rnn_states += rnn_states
 
@@ -123,6 +134,10 @@ class Decoder(object):
 
         self.runtime_loss = tf.nn.seq2seq.sequence_loss(
             runtime_logits, train_targets, self.train_weights,
+            self.vocabulary_size)
+
+        self.cross_entropies = tf.nn.seq2seq.sequence_loss_by_example(
+            train_logits, train_targets, self.train_weights,
             self.vocabulary_size)
 
         # TODO [refactor] put runtime logits to self from the beginning
@@ -177,12 +192,12 @@ class Decoder(object):
 
     def _encoder_projection(self, encoded_states):
         """Creates a projection of concatenated encoder states
+        and applies a tanh activation
 
         Arguments:
             encoded_states: Tensor of concatenated states of input encoders
                             (batch x sum(states))
         """
-
         input_size = encoded_states.get_shape()[1].value
         output_size = self.rnn_size
 
@@ -192,7 +207,7 @@ class Decoder(object):
                              name="encoder_projection_b")
 
         dropped_input = self._dropout(encoded_states)
-        return tf.matmul(dropped_input, weights) + biases
+        return tf.tanh(tf.matmul(dropped_input, weights) + biases)
 
 
     def _dropout(self, var):
@@ -204,11 +219,11 @@ class Decoder(object):
         return tf.nn.dropout(var, self.dropout_placeholder)
 
 
-    def _state_to_output(self):
+    def _state_to_output(self, maxout_size):
         """Create variables for projection of states to output vectors"""
 
         weights = tf.Variable(
-            tf.random_uniform([self.rnn_size, self.vocabulary_size], -0.5, 0.5),
+            tf.random_uniform([maxout_size, self.vocabulary_size], -0.5, 0.5),
             name="state_to_word_W")
 
         biases = tf.Variable(
@@ -325,9 +340,9 @@ class Decoder(object):
         """Decodes a sequence from a list of hidden states
 
         Arguments:
-            rnn_states: hidden states
+            rnn_outputs: List of batch x maxout_size tensors
         """
-        logits = [self._logit_function(o) for o in rnn_outputs]
+        logits = [self._logit_function(s) for s in rnn_outputs]
         decoded = [tf.argmax(l[:, 1:], 1) + 1 for l in logits]
 
         return decoded, logits

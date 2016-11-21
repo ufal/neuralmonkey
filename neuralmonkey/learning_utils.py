@@ -242,9 +242,10 @@ def training_loop(sess, saver,
 
                 if step % validation_period == validation_period - 1:
                     decoded_val_sentences, decoded_raw_val_sentences, \
-                        val_evaluation = run_on_dataset(
+                        val_evaluation, val_plots = run_on_dataset(
                             [sess], runner, all_coders, decoder, val_dataset,
-                            evaluators, postprocess, write_out=False)
+                            evaluators, postprocess, write_out=False,
+                            extra_fetches=decoder.summary_val_plots)
 
                     this_score = val_evaluation[evaluators[-1].name]
 
@@ -336,6 +337,8 @@ def training_loop(sess, saver,
 
                         log_print("")
 
+                    tb_writer.add_summary(val_plots[0], step)
+
     except KeyboardInterrupt:
         log("Training interrupted by user.")
 
@@ -356,7 +359,8 @@ def training_loop(sess, saver,
 
 
 def run_on_dataset(sessions, runner, all_coders, decoder, dataset,
-                   evaluators, postprocess, write_out=False):
+                   evaluators, postprocess, write_out=False,
+                   extra_fetches=None):
     """
     Applies the model on a dataset and optionally writes outpus into a file.
 
@@ -380,6 +384,8 @@ def run_on_dataset(sessions, runner, all_coders, decoder, dataset,
         write_out: Flag whether the outputs should be printed to a file defined
             in the dataset object.
 
+        extra_fetches: Extra tensors to evaluate for each batch.
+
     Returns:
 
         Tuple of resulting sentences/numpy arrays, and evaluation results if
@@ -388,9 +394,11 @@ def run_on_dataset(sessions, runner, all_coders, decoder, dataset,
     """
     from neuralmonkey.runners.ensemble_runner import EnsembleRunner
     if isinstance(runner, EnsembleRunner):
-        result_raw, opt_loss, dec_loss = runner(sessions, dataset, all_coders)
+        result_raw, opt_loss, dec_loss, evaluated_fetches = runner(
+            sessions, dataset, all_coders, extra_fetches=extra_fetches)
     else:
-        result_raw, opt_loss, dec_loss = runner(sessions[0], dataset, all_coders)
+        result_raw, opt_loss, dec_loss, evaluated_fetches = runner(
+            sessions[0], dataset, all_coders, extra_fetches=extra_fetches)
 
     if postprocess is not None:
         result = postprocess(result_raw)
@@ -419,7 +427,10 @@ def run_on_dataset(sessions, runner, all_coders, decoder, dataset,
         for func in evaluators:
             evaluation[func.name] = func(result, test_targets)
 
-    return result, result_raw, evaluation
+    if extra_fetches is not None:
+        return result, result_raw, evaluation, evaluated_fetches
+    else:
+        return result, result_raw, evaluation
 
 
 def process_evaluation(evaluators, tb_writer, eval_result,

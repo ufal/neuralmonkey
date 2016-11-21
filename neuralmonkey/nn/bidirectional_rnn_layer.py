@@ -37,6 +37,9 @@ class BidirectionalRNNLayer(object):
     @property
     def outputs_bidi(self):
         """Outputs of the bidirectional layer"""
+
+        ## outputs and outputs_rev, both lists in time of shape batch x rnn_size
+        ## concatenations have shape batch x (2 * rnn_size)
         return [tf.concat(1, [o1, o2]) for o1, o2 in zip(self._outputs,
                                                          self._outputs_rev)]
 
