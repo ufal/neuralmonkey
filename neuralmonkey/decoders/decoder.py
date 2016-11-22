@@ -169,7 +169,6 @@ class Decoder(object):
         return [tf.nn.top_k(p, k_best) for p in self.runtime_logprobs]
 
 
-
     def _initial_state(self):
         """Create the initial state of the decoder."""
         if len(self.encoders) == 0:
@@ -194,10 +193,11 @@ class Decoder(object):
         input_size = encoded_states.get_shape()[1].value
         output_size = self.rnn_size
 
-        weights = tf.get_variable("encoder_projection_W", [input_size,
-                                                           output_size])
-        biases = tf.Variable(tf.zeros([output_size]),
-                             name="encoder_projection_b")
+        weights = tf.get_variable(
+            "encoder_projection_W", [input_size, output_size])
+        biases = tf.get_variable(
+            "encoder_projection_b",
+            initializer=tf.zeros_initializer([output_size]))
 
         dropped_input = self._dropout(encoded_states)
         return tf.tanh(tf.matmul(dropped_input, weights) + biases)
@@ -212,22 +212,6 @@ class Decoder(object):
         return tf.nn.dropout(var, self.dropout_placeholder)
 
 
-    def _rnn_output_proj_params(self, rnn_size, embedding_size, ctx_sizes):
-        """Create parameters for projection of RNN outputs to vocabulary
-        indices.
-
-        Arguments:
-            rnn_size: The size of the hidden state
-            embedding_size: The length of the embedding vector
-            ctx_sizes: A list of the attention vector sizes from encoders
-        """
-        state_size = rnn_size + embedding_size + sum(ctx_sizes)
-        weights = tf.get_variable("state_to_word_W", [state_size,
-                                                      self.vocabulary_size])
-        biases = tf.get_variable("state_to_word_b", [self.vocabulary_size])
-        return weights, biases
-
-
     def _input_embeddings(self):
         """Create variables and operations for embedding of input words
 
@@ -237,10 +221,8 @@ class Decoder(object):
         if self.reuse_word_embeddings:
             return self.encoders[0].word_embeddings
 
-        return tf.Variable(
-            tf.random_uniform([self.vocabulary_size, self.embedding_size],
-                              -0.5, 0.5),
-            name="word_embeddings")
+        return tf.get_variable(
+            "word_embeddings", [self.vocabulary_size, self.embedding_size])
 
 
     def _training_placeholders(self):
@@ -255,6 +237,26 @@ class Decoder(object):
                    for i in range(self.max_output + 1)]
 
         return inputs, weights
+
+
+    def _rnn_output_proj_params(self, rnn_size, embedding_size, ctx_sizes):
+        """Create parameters for projection of RNN outputs to vocabulary
+        indices.
+
+        Arguments:
+            rnn_size: The size of the hidden state
+            embedding_size: The length of the embedding vector
+            ctx_sizes: A list of the attention vector sizes from encoders
+        """
+        state_size = rnn_size + embedding_size + sum(ctx_sizes)
+
+        weights = tf.get_variable(
+            "state_to_word_W", [state_size, self.vocabulary_size])
+        biases = tf.get_variable(
+            "state_to_word_b",
+            initializer=tf.zeros_initializer([self.vocabulary_size]))
+
+        return weights, biases
 
 
     def _get_rnn_cell(self):
