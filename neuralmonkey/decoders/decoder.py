@@ -84,7 +84,7 @@ class Decoder(object):
 
         self.weights, self.biases = self._rnn_output_proj_params(
             self.rnn_size, self.embedding_size,
-            [a.attn_size for a in self._collect_attention_objects(self.encoders)])
+            [a.attn_size for a in self._collect_attention_objects()])
         self.embedding_matrix = self._input_embeddings()
 
         self.train_inputs, self.train_weights = self._training_placeholders()
@@ -93,29 +93,23 @@ class Decoder(object):
         self.go_symbols = tf.placeholder(tf.int32, shape=[None],
                                          name="decoder_go_symbols")
 
-        cell = self._get_rnn_cell()
-        attention_objects = self._collect_attention_objects(self.encoders)
-
         ### Construct the computation part of the graph
 
         embedded_train_inputs = self._embed_inputs(self.train_inputs[:-1])
 
         self.train_rnn_outputs, _ = self._attention_decoder(
-            embedded_train_inputs, state, attention_objects,
-            cell)
+            embedded_train_inputs, state)
 
         # runtime methods and objects are used when no ground truth is provided
         # (such as during testing)
         runtime_inputs = self._runtime_inputs(self.go_symbols)
-        loop_function = self._get_loop_function()
 
         ### Use the same variables for runtime decoding!
         tf.get_variable_scope().reuse_variables()
 
         self.runtime_rnn_states = [state]
         self.runtime_rnn_outputs, rnn_states = self._attention_decoder(
-            runtime_inputs, state, attention_objects, cell,
-            loop_function=loop_function,
+            runtime_inputs, state, runtime_mode=True,
             summary_collections=["summary_val_plots"])
 
         val_plots_collection = tf.get_collection("summary_val_plots")
@@ -271,16 +265,12 @@ class Decoder(object):
         return tf.nn.rnn_cell.GRUCell(self.rnn_size)
 
 
-    def _collect_attention_objects(self, encoders):
-        """Collect attention objects of the given encoders
-
-        Arguments:
-            encoders: Encoders from which to take attention objects
-        """
-        if self.use_attention:
-            return [e.attention_object for e in encoders if e.attention_object]
-        else:
+    def _collect_attention_objects(self):
+        """Collect attention objects from encoders."""
+        if not self.use_attention:
             return []
+
+        return [e.attention_object for e in self.encoders if e.attention_object]
 
 
     def _embed_inputs(self, inputs):
@@ -308,26 +298,21 @@ class Decoder(object):
         return inputs
 
 
-    def _get_loop_function(self):
-        """Constructs a loop function for the decoder"""
+    def _loop_function(self, previous_state, i):
+        """Basic loop function. Projects state to logits, take the
+        argmax of the logits, embed the word and perform dropout on the
+        embedding vector.
 
-        def basic_loop(previous_state, _):
-            """Basic loop function. Projects state to logits, take the
-            argmax of the logits, embed the word and perform dropout on the
-            embedding vector.
-
-            Arguments:
-                previous_state: The state of the decoder
-                i: Unused argument, number of the time step
-            """
-            output_activation = self._logit_function(previous_state)
-            previous_word = tf.argmax(output_activation, 1)
-            input_embedding = tf.nn.embedding_lookup(self.embedding_matrix,
+        Arguments:
+            previous_state: The state of the decoder
+            i: Unused argument, number of the time step
+        """
+        output_activation = self._logit_function(previous_state)
+        previous_word = tf.argmax(output_activation, 1)
+        input_embedding = tf.nn.embedding_lookup(self.embedding_matrix,
                                                      previous_word)
 
-            return self._dropout(input_embedding)
-
-        return basic_loop
+        return self._dropout(input_embedding)
 
 
     def _logit_function(self, rnn_output):
@@ -341,16 +326,19 @@ class Decoder(object):
     #pylint: disable=too-many-arguments
     # TODO reduce the number of arguments
     def _attention_decoder(self, decoder_inputs, initial_state,
-                           attention_objects, cell, loop_function=None,
+                           runtime_mode=False,
                            scope=None, summary_collections=None):
 
-        def decode_step_nomaxout(prev_output, prev_state, attention_objects,
+        def decode_step_nomaxout(prev_output, prev_state, att_objects,
                                  rnn_cell):
-            contexts = [a.attention(prev_state) for a in attention_objects]
+            contexts = [a.attention(prev_state) for a in att_objects]
             output = tf.concat(1, [prev_output, prev_state] + contexts)
             _, state = rnn_cell(tf.concat(1, [prev_output] + contexts), prev_state)
 
             return output, state
+
+        cell = self._get_rnn_cell()
+        att_objects = self._collect_attention_objects()
 
         outputs = []
         states = []
@@ -367,25 +355,25 @@ class Decoder(object):
 
         with tf.variable_scope(scope or "attention_decoder"):
             output, state = decode_step_nomaxout(decoder_inputs[0], initial_state,
-                                                 attention_objects, cell)
+                                                 att_objects, cell)
             outputs.append(output)
             states.append(state)
 
             for step in range(1, len(decoder_inputs)):
                 tf.get_variable_scope().reuse_variables()
 
-                if loop_function:
-                    decoder_input = loop_function(output, step)
+                if runtime_mode:
+                    decoder_input = self._loop_function(output, step)
                 else:
                     decoder_input = decoder_inputs[step]
 
                 output, state = decode_step_nomaxout(decoder_input, state,
-                                                     attention_objects, cell)
+                                                     att_objects, cell)
                 outputs.append(output)
                 states.append(state)
 
             if summary_collections:
-                for i, a in enumerate(attention_objects):
+                for i, a in enumerate(att_objects):
                     attentions = a.attentions_in_time[-len(decoder_inputs):]
                     alignments = tf.expand_dims(tf.transpose(
                         tf.pack(attentions), perm=[1, 2, 0]), -1)
