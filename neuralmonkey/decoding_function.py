@@ -9,12 +9,12 @@ See http://arxiv.org/abs/1606.07481
 import tensorflow as tf
 
 from neuralmonkey.logging import debug
-from neuralmonkey.nn.projection import maxout, linear
+from neuralmonkey.nn.projection import linear
 
 # pylint: disable=too-many-arguments,too-many-locals
 # Great functions require great number of parameters
 def attention_decoder(decoder_inputs, initial_state, attention_objects,
-                      cell, maxout_size, loop_function=None, scope=None,
+                      cell, loop_function=None, scope=None,
                       summary_collections=None):
     outputs = []
     states = []
@@ -30,8 +30,8 @@ def attention_decoder(decoder_inputs, initial_state, attention_objects,
                                    [-1, state_size])
 
     with tf.variable_scope(scope or "attention_decoder"):
-        output, state = decode_step(decoder_inputs[0], initial_state,
-                                    attention_objects, cell, maxout_size)
+        output, state = decode_step_nomaxout(decoder_inputs[0], initial_state,
+                                    attention_objects, cell)
         outputs.append(output)
         states.append(state)
 
@@ -43,8 +43,8 @@ def attention_decoder(decoder_inputs, initial_state, attention_objects,
             else:
                 decoder_input = decoder_inputs[step]
 
-            output, state = decode_step(decoder_input, state, attention_objects,
-                                        cell, maxout_size)
+            output, state = decode_step_nomaxout(decoder_input, state,
+                                                 attention_objects, cell)
             outputs.append(output)
             states.append(state)
 
@@ -61,33 +61,42 @@ def attention_decoder(decoder_inputs, initial_state, attention_objects,
     return outputs, states
 
 
-def decode_step(prev_output, prev_state, attention_objects,
-                rnn_cell, maxout_size):
-    """This function implements equations in section A.2.2 of the
-    Bahdanau et al. (2015) paper, on pages 13 and 14.
-
-    Arguments:
-        prev_output: Previous decoded output (denoted by y_i-1)
-        prev_state: Previous state (denoted by s_i-1)
-        attention_objects: Objects that do attention
-        rnn_cell: The RNN cell to use (should be GRU)
-        maxout_size: The size of the maxout hidden layer (denoted by l)
-
-    Returns:
-        Tuple of the new output and state
-    """
-    ## compute c_i:
+def decode_step_nomaxout(prev_output, prev_state, attention_objects,
+                         rnn_cell):
     contexts = [a.attention(prev_state) for a in attention_objects]
-
-    # TODO dropouts??
-
-    ## compute t_i:
-    output = maxout([prev_state, prev_output] + contexts, maxout_size)
-
-    ## compute s_i based on y_i-1, c_i and s_i-1
+    output = tf.concat(1, [prev_output, prev_state] + contexts)
     _, state = rnn_cell(tf.concat(1, [prev_output] + contexts), prev_state)
 
     return output, state
+
+
+# def decode_step(prev_output, prev_state, attention_objects,
+#                 rnn_cell, maxout_size):
+#     """This function implements equations in section A.2.2 of the
+#     Bahdanau et al. (2015) paper, on pages 13 and 14.
+
+#     Arguments:
+#         prev_output: Previous decoded output (denoted by y_i-1)
+#         prev_state: Previous state (denoted by s_i-1)
+#         attention_objects: Objects that do attention
+#         rnn_cell: The RNN cell to use (should be GRU)
+#         maxout_size: The size of the maxout hidden layer (denoted by l)
+
+#     Returns:
+#         Tuple of the new output and state
+#     """
+#     ## compute c_i:
+#     contexts = [a.attention(prev_state) for a in attention_objects]
+
+#     # TODO dropouts??
+
+#     ## compute t_i:
+#     output = maxout([prev_state, prev_output] + contexts, maxout_size)
+
+#     ## compute s_i based on y_i-1, c_i and s_i-1
+#     _, state = rnn_cell(tf.concat(1, [prev_output] + contexts), prev_state)
+
+#     return output, state
 
 
 class Attention(object):

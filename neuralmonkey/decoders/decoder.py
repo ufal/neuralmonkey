@@ -50,7 +50,6 @@ class Decoder(object):
         dropout_keep_prob = kwargs.get("dropout_keep_prob", 1.0)
 
         self.use_attention = kwargs.get("use_attention", False)
-        attention_maxout_size = kwargs.get("maxout_size", 200)
         self.reuse_word_embeddings = kwargs.get("reuse_word_embeddings", False)
 
         if self.reuse_word_embeddings:
@@ -83,7 +82,9 @@ class Decoder(object):
 
         state = self._initial_state()
 
-        self.weights, self.biases = self._state_to_output(attention_maxout_size)
+        self.weights, self.biases = self._rnn_output_proj_params(
+            self.rnn_size, self.embedding_size,
+            [a.attn_size for a in self._collect_attention_objects(self.encoders)])
         self.embedding_matrix = self._input_embeddings()
 
         self.train_inputs, self.train_weights = self._training_placeholders()
@@ -101,7 +102,7 @@ class Decoder(object):
 
         self.train_rnn_outputs, _ = attention_decoder(
             embedded_train_inputs, state, attention_objects,
-            cell, attention_maxout_size)
+            cell)
 
         # runtime methods and objects are used when no ground truth is provided
         # (such as during testing)
@@ -114,7 +115,7 @@ class Decoder(object):
         self.runtime_rnn_states = [state]
         self.runtime_rnn_outputs, rnn_states = attention_decoder(
             runtime_inputs, state, attention_objects, cell,
-            attention_maxout_size, loop_function=loop_function,
+            loop_function=loop_function,
             summary_collections=["summary_val_plots"])
 
         val_plots_collection = tf.get_collection("summary_val_plots")
@@ -219,17 +220,19 @@ class Decoder(object):
         return tf.nn.dropout(var, self.dropout_placeholder)
 
 
-    def _state_to_output(self, maxout_size):
-        """Create variables for projection of states to output vectors"""
+    def _rnn_output_proj_params(self, rnn_size, embedding_size, ctx_sizes):
+        """Create parameters for projection of RNN outputs to vocabulary
+        indices.
 
-        weights = tf.Variable(
-            tf.random_uniform([maxout_size, self.vocabulary_size], -0.5, 0.5),
-            name="state_to_word_W")
-
-        biases = tf.Variable(
-            tf.fill([self.vocabulary_size], - math.log(self.vocabulary_size)),
-            name="state_to_word_b")
-
+        Arguments:
+            rnn_size: The size of the hidden state
+            embedding_size: The length of the embedding vector
+            ctx_sizes: A list of the attention vector sizes from encoders
+        """
+        state_size = rnn_size + embedding_size + sum(ctx_sizes)
+        weights = tf.get_variable("state_to_word_W", [state_size,
+                                                      self.vocabulary_size])
+        biases = tf.get_variable("state_to_word_b", [self.vocabulary_size])
         return weights, biases
 
 
