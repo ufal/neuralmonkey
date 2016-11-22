@@ -107,18 +107,16 @@ class Decoder(object):
         ### Use the same variables for runtime decoding!
         tf.get_variable_scope().reuse_variables()
 
-        self.runtime_rnn_states = [state]
-        self.runtime_rnn_outputs, rnn_states = self._attention_decoder(
-            runtime_inputs, state, runtime_mode=True,
-            summary_collections=["summary_val_plots"])
+        self.runtime_rnn_outputs, self.runtime_rnn_states = \
+            self._attention_decoder(
+                runtime_inputs, state, runtime_mode=True,
+                summary_collections=["summary_val_plots"])
 
         val_plots_collection = tf.get_collection("summary_val_plots")
         self.summary_val_plots = (
             tf.merge_summary(val_plots_collection)
             if val_plots_collection else None
         )
-
-        self.runtime_rnn_states += rnn_states
 
         _, train_logits = self._decode(self.train_rnn_outputs)
         self.decoded, runtime_logits = self._decode(self.runtime_rnn_outputs)
@@ -339,9 +337,6 @@ class Decoder(object):
         cell = self._get_rnn_cell()
         att_objects = self._collect_attention_objects()
 
-        outputs = []
-        states = []
-
         ## Broadcast the initial state to the whole batch if needed
         if len(initial_state.get_shape()) == 1:
             assert initial_state.get_shape()[0].value == self.rnn_size
@@ -352,8 +347,8 @@ class Decoder(object):
         with tf.variable_scope(scope):
             output, state = decode_step_nomaxout(inputs[0], initial_state,
                                                  att_objects, cell)
-            outputs.append(output)
-            states.append(state)
+            rnn_outputs = [output]
+            rnn_states = [initial_state, state]
 
             for step in range(1, len(inputs)):
                 tf.get_variable_scope().reuse_variables()
@@ -365,8 +360,8 @@ class Decoder(object):
 
                 output, state = decode_step_nomaxout(current_input, state,
                                                      att_objects, cell)
-                outputs.append(output)
-                states.append(state)
+                rnn_outputs.append(output)
+                rnn_states.append(state)
 
             if summary_collections:
                 for i, a in enumerate(att_objects):
@@ -378,7 +373,7 @@ class Decoder(object):
                                      collections=summary_collections,
                                      max_images=256)
 
-        return outputs, states
+        return rnn_outputs, rnn_states
 
 
     def _decode(self, rnn_outputs):
