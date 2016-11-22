@@ -13,7 +13,7 @@ class Decoder(object):
     used for the decoding.
     """
 
-    # pylint: disable=too-many-instance-attributes,too-many-locals
+    # pylint: disable=too-many-instance-attributes,too-many-locals,too-many-statements
     # Big decoder cannot be simpler. Not sure if refactoring
     # it into smaller units would be helpful
     # Some locals may be turned to attributes
