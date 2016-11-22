@@ -5,7 +5,7 @@ import tensorflow as tf
 import numpy as np
 
 from neuralmonkey.vocabulary import START_TOKEN
-from neuralmonkey.decoding_function import attention_decoder
+from neuralmonkey.nn.projection import linear
 from neuralmonkey.logging import log
 
 class Decoder(object):
@@ -100,7 +100,7 @@ class Decoder(object):
 
         embedded_train_inputs = self._embed_inputs(self.train_inputs[:-1])
 
-        self.train_rnn_outputs, _ = attention_decoder(
+        self.train_rnn_outputs, _ = self._attention_decoder(
             embedded_train_inputs, state, attention_objects,
             cell)
 
@@ -113,7 +113,7 @@ class Decoder(object):
         tf.get_variable_scope().reuse_variables()
 
         self.runtime_rnn_states = [state]
-        self.runtime_rnn_outputs, rnn_states = attention_decoder(
+        self.runtime_rnn_outputs, rnn_states = self._attention_decoder(
             runtime_inputs, state, attention_objects, cell,
             loop_function=loop_function,
             summary_collections=["summary_val_plots"])
@@ -337,6 +337,66 @@ class Decoder(object):
             state: the state of the decoder
         """
         return tf.matmul(self._dropout(rnn_output), self.weights) + self.biases
+
+    #pylint: disable=too-many-arguments
+    # TODO reduce the number of arguments
+    def _attention_decoder(self, decoder_inputs, initial_state,
+                           attention_objects, cell, loop_function=None,
+                           scope=None, summary_collections=None):
+
+        def decode_step_nomaxout(prev_output, prev_state, attention_objects,
+                                 rnn_cell):
+            contexts = [a.attention(prev_state) for a in attention_objects]
+            output = tf.concat(1, [prev_output, prev_state] + contexts)
+            _, state = rnn_cell(tf.concat(1, [prev_output] + contexts), prev_state)
+
+            return output, state
+
+        outputs = []
+        states = []
+
+        #### WTF does this do?
+        # do manualy broadcasting of the initial state if we want it
+        # to be the same for all inputs
+        if len(initial_state.get_shape()) == 1:
+            debug("Warning! I am doing this weird job.")
+            state_size = initial_state.get_shape()[0].value
+            initial_state = tf.reshape(tf.tile(initial_state,
+                                               tf.shape(decoder_inputs[0])[:1]),
+                                       [-1, state_size])
+
+        with tf.variable_scope(scope or "attention_decoder"):
+            output, state = decode_step_nomaxout(decoder_inputs[0], initial_state,
+                                                 attention_objects, cell)
+            outputs.append(output)
+            states.append(state)
+
+            for step in range(1, len(decoder_inputs)):
+                tf.get_variable_scope().reuse_variables()
+
+                if loop_function:
+                    decoder_input = loop_function(output, step)
+                else:
+                    decoder_input = decoder_inputs[step]
+
+                output, state = decode_step_nomaxout(decoder_input, state,
+                                                     attention_objects, cell)
+                outputs.append(output)
+                states.append(state)
+
+            if summary_collections:
+                for i, a in enumerate(attention_objects):
+                    attentions = a.attentions_in_time[-len(decoder_inputs):]
+                    alignments = tf.expand_dims(tf.transpose(
+                        tf.pack(attentions), perm=[1, 2, 0]), -1)
+
+                    tf.image_summary("attention_{}".format(i), alignments,
+                                     collections=summary_collections,
+                                     max_images=256)
+
+        return outputs, states
+
+
 
 
     def _decode(self, rnn_outputs):
