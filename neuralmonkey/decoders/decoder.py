@@ -323,15 +323,18 @@ class Decoder(object):
     # TODO reduce the number of arguments
     def _attention_decoder(self, inputs, initial_state, runtime_mode=False,
                            summary_collections=None, scope="attention_decoder"):
+        """Run the decoder RNN.
 
-        def decode_step_nomaxout(prev_output, prev_state, att_objects,
-                                 rnn_cell):
-            contexts = [a.attention(prev_state) for a in att_objects]
-            output = tf.concat(1, [prev_output, prev_state] + contexts)
-            _, state = rnn_cell(tf.concat(1, [prev_output] + contexts), prev_state)
-
-            return output, state
-
+        Arguments:
+            inputs: The decoder inputs. If runtime_mode=True, only the first
+                    input is used.
+            initial_state: The initial state of the decoder.
+            runtime_mode: Boolean flag whether the decoder is running in
+                          runtime mode (with loop function).
+            summary_collections: The list of summary collections to which
+                                 the alignments are logged.
+            scope: The variable scope to use with this function.
+        """
         cell = self._get_rnn_cell()
         att_objects = self._collect_attention_objects()
 
@@ -343,8 +346,12 @@ class Decoder(object):
                 [-1, self.rnn_size])
 
         with tf.variable_scope(scope):
-            output, state = decode_step_nomaxout(inputs[0], initial_state,
-                                                 att_objects, cell)
+
+            ## First decoding step
+            contexts = [a.attention(initial_state) for a in att_objects]
+            output = self._get_rnn_output(inputs[0], initial_state, contexts)
+            _, state = cell(tf.concat(1, [inputs[0]] + contexts), initial_state)
+
             rnn_outputs = [output]
             rnn_states = [initial_state, state]
 
@@ -356,8 +363,11 @@ class Decoder(object):
                 else:
                     current_input = inputs[step]
 
-                output, state = decode_step_nomaxout(current_input, state,
-                                                     att_objects, cell)
+                ## N-th decoding step
+                contexts = [a.attention(state) for a in att_objects]
+                output = self._get_rnn_output(current_input, state, contexts)
+                _, state = cell(tf.concat(1, [current_input] + contexts), state)
+
                 rnn_outputs.append(output)
                 rnn_states.append(state)
 
@@ -372,6 +382,27 @@ class Decoder(object):
                                      max_images=256)
 
         return rnn_outputs, rnn_states
+
+
+    # pylint: disable=no-self-use
+    # TODO refactor out of this class to a helper module
+    def _get_rnn_output(self, prev_state, prev_output, ctx_tensors):
+        """Compute RNN output out of the previous state and output, and the
+        context tensors returned from attention mechanisms.
+
+        This function corresponds to the equations for computation the
+        t_tilde in the Bahdanau et al. (2015) paper, on page 14,
+        **before** the linear projection.
+
+        Arguments:
+            prev_state: Previous decoder RNN state. (Denoted s_i-1)
+            prev_output: Embedded output of the previous step. (y_i-1)
+            ctx_tensors: Context tensors computed by the attentions. (c_i)
+
+        Returns:
+            In this decoder, this function just concatenates all the inputs.
+        """
+        return tf.concat(1, [prev_state, prev_output] + ctx_tensors)
 
 
     def _decode(self, rnn_outputs):
