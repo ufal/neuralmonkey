@@ -261,7 +261,6 @@ class Decoder(object):
 
     def _get_rnn_cell(self):
         """Returns a RNNCell object for this decoder"""
-
         return tf.nn.rnn_cell.GRUCell(self.rnn_size)
 
 
@@ -269,7 +268,6 @@ class Decoder(object):
         """Collect attention objects from encoders."""
         if not self.use_attention:
             return []
-
         return [e.attention_object for e in self.encoders if e.attention_object]
 
 
@@ -298,20 +296,18 @@ class Decoder(object):
         return inputs
 
 
-    def _loop_function(self, previous_state, i):
+    def _loop_function(self, rnn_output):
         """Basic loop function. Projects state to logits, take the
         argmax of the logits, embed the word and perform dropout on the
         embedding vector.
 
         Arguments:
-            previous_state: The state of the decoder
-            i: Unused argument, number of the time step
+            rnn_output: The output of the decoder RNN
         """
-        output_activation = self._logit_function(previous_state)
+        output_activation = self._logit_function(rnn_output)
         previous_word = tf.argmax(output_activation, 1)
         input_embedding = tf.nn.embedding_lookup(self.embedding_matrix,
                                                      previous_word)
-
         return self._dropout(input_embedding)
 
 
@@ -319,7 +315,7 @@ class Decoder(object):
         """Compute logits on the vocabulary given the state
 
         Arguments:
-            state: the state of the decoder
+            rnn_output: the output of the decoder RNN
         """
         return tf.matmul(self._dropout(rnn_output), self.weights) + self.biases
 
@@ -356,7 +352,7 @@ class Decoder(object):
                 tf.get_variable_scope().reuse_variables()
 
                 if runtime_mode:
-                    current_input = self._loop_function(output, step)
+                    current_input = self._loop_function(output)
                 else:
                     current_input = inputs[step]
 
