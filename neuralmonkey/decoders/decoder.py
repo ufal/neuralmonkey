@@ -1,11 +1,9 @@
 #tests: lint
 
-import math
 import tensorflow as tf
 import numpy as np
 
 from neuralmonkey.vocabulary import START_TOKEN
-from neuralmonkey.nn.projection import linear
 from neuralmonkey.logging import log
 
 class Decoder(object):
@@ -82,9 +80,8 @@ class Decoder(object):
 
         state = self._initial_state()
 
-        self.weights, self.biases = self._rnn_output_proj_params(
-            self.rnn_size, self.embedding_size,
-            [a.attn_size for a in self._collect_attention_objects()])
+        self.weights, self.biases = self._rnn_output_proj_params()
+
         self.embedding_matrix = self._input_embeddings()
 
         self.train_inputs, self.train_weights = self._training_placeholders()
@@ -239,16 +236,15 @@ class Decoder(object):
         return inputs, weights
 
 
-    def _rnn_output_proj_params(self, rnn_size, embedding_size, ctx_sizes):
+    def _rnn_output_proj_params(self):
         """Create parameters for projection of RNN outputs to vocabulary
         indices.
 
-        Arguments:
-            rnn_size: The size of the hidden state
-            embedding_size: The length of the embedding vector
-            ctx_sizes: A list of the attention vector sizes from encoders
+        This method should provide parameter shapes compatible with whatever
+        the _get_rnn_output method is returning.
         """
-        state_size = rnn_size + embedding_size + sum(ctx_sizes)
+        ctx_sizes = [a.attn_size for a in self._collect_attention_objects()]
+        state_size = self.rnn_size + self.embedding_size + sum(ctx_sizes)
 
         weights = tf.get_variable(
             "state_to_word_W", [state_size, self.vocabulary_size])
@@ -307,7 +303,7 @@ class Decoder(object):
         output_activation = self._logit_function(rnn_output)
         previous_word = tf.argmax(output_activation, 1)
         input_embedding = tf.nn.embedding_lookup(self.embedding_matrix,
-                                                     previous_word)
+                                                 previous_word)
         return self._dropout(input_embedding)
 
 
