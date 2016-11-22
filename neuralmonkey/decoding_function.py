@@ -7,91 +7,11 @@ See http://arxiv.org/abs/1606.07481
 #tests: lint
 
 import tensorflow as tf
-
-from neuralmonkey.logging import debug
-from neuralmonkey.nn.projection import maxout, linear
-
-# pylint: disable=too-many-arguments,too-many-locals
-# Great functions require great number of parameters
-def attention_decoder(decoder_inputs, initial_state, attention_objects,
-                      cell, maxout_size, loop_function=None, scope=None,
-                      summary_collections=None):
-    outputs = []
-    states = []
-
-    #### WTF does this do?
-    # do manualy broadcasting of the initial state if we want it
-    # to be the same for all inputs
-    if len(initial_state.get_shape()) == 1:
-        debug("Warning! I am doing this weird job.")
-        state_size = initial_state.get_shape()[0].value
-        initial_state = tf.reshape(tf.tile(initial_state,
-                                           tf.shape(decoder_inputs[0])[:1]),
-                                   [-1, state_size])
-
-    with tf.variable_scope(scope or "attention_decoder"):
-        output, state = decode_step(decoder_inputs[0], initial_state,
-                                    attention_objects, cell, maxout_size)
-        outputs.append(output)
-        states.append(state)
-
-        for step in range(1, len(decoder_inputs)):
-            tf.get_variable_scope().reuse_variables()
-
-            if loop_function:
-                decoder_input = loop_function(output, step)
-            else:
-                decoder_input = decoder_inputs[step]
-
-            output, state = decode_step(decoder_input, state, attention_objects,
-                                        cell, maxout_size)
-            outputs.append(output)
-            states.append(state)
-
-        if summary_collections:
-            for i, a in enumerate(attention_objects):
-                attentions = a.attentions_in_time[-len(decoder_inputs):]
-                alignments = tf.expand_dims(tf.transpose(
-                    tf.pack(attentions), perm=[1, 2, 0]), -1)
-
-                tf.image_summary("attention_{}".format(i), alignments,
-                                 collections=summary_collections,
-                                 max_images=256)
-
-    return outputs, states
-
-
-def decode_step(prev_output, prev_state, attention_objects,
-                rnn_cell, maxout_size):
-    """This function implements equations in section A.2.2 of the
-    Bahdanau et al. (2015) paper, on pages 13 and 14.
-
-    Arguments:
-        prev_output: Previous decoded output (denoted by y_i-1)
-        prev_state: Previous state (denoted by s_i-1)
-        attention_objects: Objects that do attention
-        rnn_cell: The RNN cell to use (should be GRU)
-        maxout_size: The size of the maxout hidden layer (denoted by l)
-
-    Returns:
-        Tuple of the new output and state
-    """
-    ## compute c_i:
-    contexts = [a.attention(prev_state) for a in attention_objects]
-
-    # TODO dropouts??
-
-    ## compute t_i:
-    output = maxout([prev_state, prev_output] + contexts, maxout_size)
-
-    ## compute s_i based on y_i-1, c_i and s_i-1
-    _, state = rnn_cell(tf.concat(1, [prev_output] + contexts), prev_state)
-
-    return output, state
+from neuralmonkey.nn.projection import linear
 
 
 class Attention(object):
-    #pylint: disable=unused-argument,too-many-instance-attributes
+    #pylint: disable=unused-argument,too-many-instance-attributes,too-many-arguments
     # For maintaining the same API as in CoverageAttention
     def __init__(self, attention_states, scope, dropout_placeholder,
                  input_weights=None, max_fertility=None):
