@@ -325,9 +325,8 @@ class Decoder(object):
 
     #pylint: disable=too-many-arguments
     # TODO reduce the number of arguments
-    def _attention_decoder(self, decoder_inputs, initial_state,
-                           runtime_mode=False,
-                           scope=None, summary_collections=None):
+    def _attention_decoder(self, inputs, initial_state, runtime_mode=False,
+                           summary_collections=None, scope="attention_decoder"):
 
         def decode_step_nomaxout(prev_output, prev_state, att_objects,
                                  rnn_cell):
@@ -343,38 +342,35 @@ class Decoder(object):
         outputs = []
         states = []
 
-        #### WTF does this do?
-        # do manualy broadcasting of the initial state if we want it
-        # to be the same for all inputs
+        ## Broadcast the initial state to the whole batch if needed
         if len(initial_state.get_shape()) == 1:
-            debug("Warning! I am doing this weird job.")
-            state_size = initial_state.get_shape()[0].value
-            initial_state = tf.reshape(tf.tile(initial_state,
-                                               tf.shape(decoder_inputs[0])[:1]),
-                                       [-1, state_size])
+            assert initial_state.get_shape()[0].value == self.rnn_size
+            initial_state = tf.reshape(
+                tf.tile(initial_state, tf.shape(inputs[0])[:1]),
+                [-1, self.rnn_size])
 
-        with tf.variable_scope(scope or "attention_decoder"):
-            output, state = decode_step_nomaxout(decoder_inputs[0], initial_state,
+        with tf.variable_scope(scope):
+            output, state = decode_step_nomaxout(inputs[0], initial_state,
                                                  att_objects, cell)
             outputs.append(output)
             states.append(state)
 
-            for step in range(1, len(decoder_inputs)):
+            for step in range(1, len(inputs)):
                 tf.get_variable_scope().reuse_variables()
 
                 if runtime_mode:
-                    decoder_input = self._loop_function(output, step)
+                    current_input = self._loop_function(output, step)
                 else:
-                    decoder_input = decoder_inputs[step]
+                    current_input = inputs[step]
 
-                output, state = decode_step_nomaxout(decoder_input, state,
+                output, state = decode_step_nomaxout(current_input, state,
                                                      att_objects, cell)
                 outputs.append(output)
                 states.append(state)
 
             if summary_collections:
                 for i, a in enumerate(att_objects):
-                    attentions = a.attentions_in_time[-len(decoder_inputs):]
+                    attentions = a.attentions_in_time[-len(inputs):]
                     alignments = tf.expand_dims(tf.transpose(
                         tf.pack(attentions), perm=[1, 2, 0]), -1)
 
@@ -383,8 +379,6 @@ class Decoder(object):
                                      max_images=256)
 
         return outputs, states
-
-
 
 
     def _decode(self, rnn_outputs):
