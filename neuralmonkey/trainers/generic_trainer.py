@@ -20,7 +20,7 @@ Objective = NamedTuple('Objective',
 BIAS_REGEX = re.compile(r'[Bb]ias')
 
 
-# pylint: disable=too-few-public-methods
+# pylint: disable=too-few-public-methods,too-many-locals
 class GenericTrainer(object):
 
     def __init__(self, objectives: List[Objective],

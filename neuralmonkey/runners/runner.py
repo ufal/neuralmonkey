@@ -22,7 +22,7 @@ class GreedyRunner(BaseRunner):
         else:
             losses = [tf.zeros([]), tf.zeros([])]
         to_run = losses + self._decoder.runtime_logprobs
-        return GreedyRunExecutable(self._all_coders, to_run,
+        return GreedyRunExecutable(self.all_coders, to_run,
                                    self._decoder.vocabulary)
 
     @property

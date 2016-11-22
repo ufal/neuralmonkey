@@ -11,18 +11,20 @@ from neuralmonkey.logging import log, debug
 class CheckingException(Exception):
     pass
 
-def check_dataset_and_coders(dataset, coders):
+def check_dataset_and_coders(dataset, runners):
     #pylint: disable=protected-access
 
     data_list = []
 
-    for c in coders:
-        if hasattr(c, "data_id"):
-            data_list.append((c.data_id, c))
-        elif hasattr(c, "data_ids"):
-            data_list.extend([(d, c) for d in c.data_ids])
-        else:
-            log("Warning: Coder: {} does not have a data attribute".format(c))
+    for runner in runners:
+        for c in runner.all_coders:
+            if hasattr(c, "data_id"):
+                data_list.append((c.data_id, c))
+            elif hasattr(c, "data_ids"):
+                data_list.extend([(d, c) for d in c.data_ids])
+            else:
+                log(("Warning: Coder: {} does not have"
+                     "a data attribute").format(c))
 
     debug("Found series: {}".format(str(data_list)), "checking")
     missing = []
@@ -56,5 +58,6 @@ def assert_type(obj, name, value, expected_type, can_be_none=False):
         caller_type_str = type_to_str(type(obj))
         exptected_str = type_to_str(expected_type)
         real_type_str = type_to_str(type(value))
-        raise CheckingException("Value of \"{}\" in \"{}\" should be \"{}\" but was \"{}\"{}".\
-                format(name, caller_type_str, exptected_str, real_type_str, value))
+        raise CheckingException(
+            'Value of "{}" in "{}"should be "{}" but was "{}" {}'.format(
+                name, caller_type_str, exptected_str, real_type_str, value))

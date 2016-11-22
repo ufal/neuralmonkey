@@ -97,13 +97,6 @@ def main():
 
     evaluators = [(e[0], e[0], e[1]) if len(e) == 2 else e
                   for e in args.evaluation]
-# TODO do the dataset checking
-#    try:
-#        for dataset in datasets_args.test_datasets:
-#            check_dataset_and_coders(dataset, args.encoders)
-#    except Exception as exc:
-#        log(str(exc), color='red')
-#        exit(1)
 
     for dataset in datasets_args.test_datasets:
         execution_results, output_data = run_on_dataset(

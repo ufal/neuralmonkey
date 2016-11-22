@@ -162,14 +162,14 @@ class RuntimeRnnRunner(BaseRunner):
         super(RuntimeRnnRunner, self).__init__(output_series, decoder)
 
         self._initial_fetches = [decoder.runtime_rnn_states[0]]
-        self._initial_fetches += [e.encoded for e in self._all_coders
+        self._initial_fetches += [e.encoded for e in self.all_coders
                                   if hasattr(e, 'encoded')]
         self._beam_size = beam_size
         self._beam_scoring_f = beam_scoring_f
 
     def get_executable(self, train=False, summaries=True):
 
-        return RuntimeRnnExecutable(self._all_coders, self._decoder,
+        return RuntimeRnnExecutable(self.all_coders, self._decoder,
                                     self._initial_fetches,
                                     self._decoder.vocabulary,
                                     beam_size=self._beam_size,

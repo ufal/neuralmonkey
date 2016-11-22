@@ -38,7 +38,7 @@ class BaseRunner(object):
     def __init__(self, output_series: str, decoder) -> None:
         self.output_series = output_series
         self._decoder = decoder
-        self._all_coders = collect_encoders(decoder)
+        self.all_coders = collect_encoders(decoder)
 
     def get_executable(self, train=False, summaries=True) -> Executable:
         raise NotImplementedError()

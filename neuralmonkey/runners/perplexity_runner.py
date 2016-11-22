@@ -1,3 +1,4 @@
+# TODO needs to be rewriteen with TF manager
 """
 This module contains an implementation of a runner that is supposed to be
 used in case we train a language model. Instead of decoding sentences in
