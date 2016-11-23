@@ -195,7 +195,7 @@ class RuntimeRnnExecutable(Executable):
         self._beam_size = beam_size
         self._beam_scoring_f = beam_scoring_f
 
-        self._to_exapand = [None]  # type: List[Option[BeamBatch]
+        self._to_exapand = [None]  # type: List[Option[BeamBatch]]
         self._current_beam_batch = None
         self._expanded = []  # type: List[ExpandedBeamBatch]
         self._time_step = 0

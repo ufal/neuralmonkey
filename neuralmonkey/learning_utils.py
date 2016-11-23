@@ -1,6 +1,6 @@
 # tests: mypy
 
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Tuple, Union
 import os
 import numpy as np
 import tensorflow as tf
@@ -13,6 +13,7 @@ from neuralmonkey.runners.base_runner import BaseRunner, ExecutionResult
 
 # pylint: disable=invalid-name
 Evaluation = Dict[str, float]
+EvalConfiguration = List[Union[Tuple[str, Any], Tuple[str, str, Any]]]
 
 
 def training_loop(tf_manager: TensorFlowManager,
@@ -22,8 +23,8 @@ def training_loop(tf_manager: TensorFlowManager,
                   train_dataset: Dataset,
                   val_dataset: Dataset,
                   log_directory: str,
-                  evaluators: List[Tuple[str, Any]],
-                  runners: List[Any],
+                  evaluators: EvalConfiguration,
+                  runners: List[BaseRunner],
                   test_datasets=None,
                   save_n_best_vars=1,
                   link_best_vars="/tmp/variables.data.best",
@@ -54,7 +55,6 @@ def training_loop(tf_manager: TensorFlowManager,
             the evaluation function. If only one series names is provided, it
             means the generated and dataset series have the same name.
     """
-
 
     evaluators = [(e[0], e[0], e[1]) if len(e) == 2 else e
                   for e in evaluators]
@@ -194,7 +194,6 @@ def training_loop(tf_manager: TensorFlowManager,
 
                     log_print("")
                     _print_examples(val_dataset, val_outputs)
-
 
     except KeyboardInterrupt:
         log("Training interrupted by user.")
