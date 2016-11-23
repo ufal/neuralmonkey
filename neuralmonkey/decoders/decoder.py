@@ -258,7 +258,7 @@ class Decoder(object):
 
         weights = tf.get_variable(
             "state_to_word_W", [state_size, self.vocabulary_size],
-            initializer=tf.random_normal_initializer(stddev=0.01)
+            initializer=tf.random_normal_initializer(stddev=0.01))
 
         biases = tf.get_variable(
             "state_to_word_b",
