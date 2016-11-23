@@ -3,6 +3,7 @@
 import tensorflow as tf
 import numpy as np
 
+from neuralmonkey.nn.ortho_gru_cell import OrthoGRUCell
 from neuralmonkey.vocabulary import START_TOKEN
 from neuralmonkey.logging import log
 
@@ -269,7 +270,7 @@ class Decoder(object):
 
     def _get_rnn_cell(self):
         """Returns a RNNCell object for this decoder"""
-        return tf.nn.rnn_cell.GRUCell(self.rnn_size)
+        return OrthoGRUCell(self.rnn_size)
 
 
     def _collect_attention_objects(self):
