@@ -62,6 +62,13 @@ class Decoder(object):
 
         log("Initializing decoder, name: '{}'".format(self.name))
 
+        ### Learning step
+        ### TODO was here only because of scheduled sampling.
+        ### needs to be refactored out
+        self.learning_step = tf.get_variable(
+            "learning_step", [], initializer=tf.constant_initializer(0),
+            trainable=False)
+
         if self.project_encoder_outputs or len(self.encoders) == 0:
             self.rnn_size = kwargs.get("rnn_size", 200)
         else:
@@ -135,12 +142,6 @@ class Decoder(object):
         self.runtime_logits = runtime_logits
         self.runtime_logprobs = [tf.nn.log_softmax(l) for l in runtime_logits]
 
-        ### Learning step
-        ### TODO was here only because of scheduled sampling.
-        ### needs to be refactored out
-        self.learning_step = tf.Variable(0, name="learning_step",
-                                         trainable=False)
-
         ### Summaries
         self._init_summaries()
 
@@ -192,7 +193,9 @@ class Decoder(object):
         output_size = self.rnn_size
 
         weights = tf.get_variable(
-            "encoder_projection_W", [input_size, output_size])
+            "encoder_projection_W", [input_size, output_size],
+            initializer=tf.random_normal_initializer(stddev=0.01))
+
         biases = tf.get_variable(
             "encoder_projection_b",
             initializer=tf.zeros_initializer([output_size]))
@@ -219,8 +222,14 @@ class Decoder(object):
         if self.reuse_word_embeddings:
             return self.encoders[0].word_embeddings
 
+        # NOTE In the Bahdanau paper, they say they initialized some weights
+        # as orthogonal matrices, some by sampling from gauss distro with
+        # stddev=0.001 and all other weight matrices as gaussian with
+        # stddev=0.01. Embeddings were not among any of the special cases so
+        # I assume that they initialized them as any other weight matrix.
         return tf.get_variable(
-            "word_embeddings", [self.vocabulary_size, self.embedding_size])
+            "word_embeddings", [self.vocabulary_size, self.embedding_size],
+            initializer=tf.random_normal_initializer(stddev=0.01))
 
 
     def _training_placeholders(self):
@@ -248,7 +257,9 @@ class Decoder(object):
         state_size = self.rnn_size + self.embedding_size + sum(ctx_sizes)
 
         weights = tf.get_variable(
-            "state_to_word_W", [state_size, self.vocabulary_size])
+            "state_to_word_W", [state_size, self.vocabulary_size],
+            initializer=tf.random_normal_initializer(stddev=0.01)
+
         biases = tf.get_variable(
             "state_to_word_b",
             initializer=tf.zeros_initializer([self.vocabulary_size]))

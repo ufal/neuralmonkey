@@ -23,7 +23,9 @@ class SequenceClassifier(object):
         self.max_output_len = 1
 
         with tf.variable_scope(name):
-            self.learning_step = tf.Variable(0, name="learning_step", trainable=False)
+            self.learning_step = tf.get_variable("learning_step", [], trainable=False,
+                                                 initializer=tf.constant_initializer(0))
+
             self.dropout_placeholder = tf.placeholder(tf.float32, name="dropout_plc")
             self.gt_inputs = [tf.placeholder(tf.int32, shape=[None], name="targets")]
             mlp_input = tf.concat(1, [enc.encoded for enc in encoders])

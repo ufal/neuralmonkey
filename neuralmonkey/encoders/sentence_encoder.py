@@ -50,8 +50,10 @@ class SentenceEncoder(object):
             if parent_encoder:
                 self.word_embeddings = parent_encoder.word_embeddings
             else:
-                self.word_embeddings = tf.Variable(tf.random_uniform(
-                    [len(vocabulary), embedding_size], -1.0, 1.0))
+                # NOTE the same note as in decoder when initializing embeddings
+                self.word_embeddings = tf.get_variable(
+                    "word_embeddings", shape=[len(vocabulary), embedding_size],
+                    initializer=tf.random_normal_initializer(stddev=0.01))
 
             embedded_inputs = tf.nn.embedding_lookup(self.word_embeddings, self.inputs)
             dropped_embedded_inputs = tf.nn.dropout(embedded_inputs, self.dropout_placeholder)

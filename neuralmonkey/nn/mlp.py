@@ -4,9 +4,7 @@ import tensorflow as tf
 from neuralmonkey.nn.projection import linear
 
 class MultilayerPerceptron(object):
-    """
-    General implementation of the multilayer perceptron.
-    """
+    """ General implementation of the multilayer perceptron. """
 
     #pylint: disable=too-many-arguments
     def __init__(self, mlp_input, layer_configuration, dropout_plc,
@@ -27,9 +25,12 @@ class MultilayerPerceptron(object):
 
             with tf.variable_scope("classification_layer"):
                 self.n_params += last_layer_size * output_size
-                w_out = tf.get_variable("W_out",
-                                        shape=[last_layer_size, output_size])
-                b_out = tf.Variable(tf.fill([output_size], 0.0), name="b_out")
+                w_out = tf.get_variable(
+                    "W_out", shape=[last_layer_size, output_size])
+
+                b_out = tf.get_variable(
+                    "b_out", tf.zeros_initializer([output_size]))
+
                 self.logits = tf.matmul(last_layer, w_out) + b_out
 
 

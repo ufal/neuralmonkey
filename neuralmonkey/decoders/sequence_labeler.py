@@ -58,8 +58,9 @@ class SequenceLabeler(Decoder):
         # Learning step
         # TODO was here only because of scheduled sampling.
         # needs to be refactored out
-        self.learning_step = tf.Variable(0, name="learning_step",
-                                         trainable=False)
+        self.learning_step = tf.get_variable(
+            "learning_step", [], initializer=tf.constant_initializer(0),
+            trainable=False)
 
         self.dropout_placeholder = tf.placeholder_with_default(
             tf.constant(dropout_keep_prob, tf.float32),
