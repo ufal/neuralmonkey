@@ -47,24 +47,31 @@ class Attention(object):
             self.attention_vec_size = self.attn_size    # Size of query vectors
                                                         # for attention.
 
+            # This variable corresponds to Bahdanau's U_a in the paper
             k = tf.get_variable(
-                "AttnW",
-                [1, 1, self.attn_size, self.attention_vec_size])
+                "AttnW", [1, 1, self.attn_size, self.attention_vec_size],
+                initializer=tf.random_normal_initializer(stddev=0.001))
 
             self.hidden_features = tf.nn.conv2d(self.att_states_reshaped, k,
                                                 [1, 1, 1, 1], "SAME")
 
             #pylint: disable=invalid-name
             # see comments on disabling invalid names below
-            self.v = tf.get_variable("AttnV", [self.attention_vec_size])
+            self.v = tf.get_variable(
+                "AttnV",
+                initializer=tf.zeros_initializer([self.attention_vec_size]))
 
     def attention(self, query_state):
         """Put attention masks on att_states_reshaped
            using hidden_features and query.
         """
 
-        with tf.variable_scope(self.scope+"/Attention"):
-            y = linear(query_state, self.attention_vec_size)
+        with tf.variable_scope(self.scope+"/Attention") as varscope:
+            # Sort-of a hack to get the matrix (bahdanau's W_a) in the linear
+            # projection to be initialized this way. The biases are initialized
+            # as zeros
+            varscope.set_initializer(tf.random_normal_initializer(stddev=0.001))
+            y = linear(query_state, self.attention_vec_size, scope=varscope)
             y = tf.reshape(y, [-1, 1, 1, self.attention_vec_size])
 
             #pylint: disable=invalid-name
