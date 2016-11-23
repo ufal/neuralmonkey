@@ -4,7 +4,6 @@ This module contains an implementation of a runner that is supposed to be
 used in case we train a language model. Instead of decoding sentences in
 computes its perplexities given the decoder.
 """
-#tests: lint
 
 from neuralmonkey.learning_utils import feed_dicts
 

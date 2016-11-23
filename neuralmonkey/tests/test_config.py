@@ -20,7 +20,8 @@ SPLITTER_TESTS = [
 class TestParsing(unittest.TestCase):
 
     def test_splitter_bad_brackets(self):
-        self.assertRaises(Exception, parsing._split_on_commas, "(omg,brac],kets")
+        self.assertRaises(Exception, parsing._split_on_commas,
+                          "(omg,brac],kets")
 
 
 

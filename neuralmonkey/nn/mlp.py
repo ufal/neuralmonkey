@@ -27,7 +27,8 @@ class MultilayerPerceptron(object):
 
             with tf.variable_scope("classification_layer"):
                 self.n_params += last_layer_size * output_size
-                w_out = tf.get_variable("W_out", shape=[last_layer_size, output_size])
+                w_out = tf.get_variable("W_out",
+                                        shape=[last_layer_size, output_size])
                 b_out = tf.Variable(tf.fill([output_size], 0.0), name="b_out")
                 self.logits = tf.matmul(last_layer, w_out) + b_out
 

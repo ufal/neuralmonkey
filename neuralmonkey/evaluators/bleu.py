@@ -100,7 +100,8 @@ class BLEUEvaluator(object):
         if corpus_generated_length == 0:
             return 1, 0
 
-        return corpus_true_positives / corpus_generated_length, corpus_generated_length
+        return (corpus_true_positives / corpus_generated_length,
+                corpus_generated_length)
 
 
     @staticmethod
