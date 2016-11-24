@@ -1,8 +1,25 @@
 #tests: lint
 
 import tensorflow as tf
-from neuralmonkey.nn.projection import linear
+from neuralmonkey.nn.projection import linear, nonlinear
 
+
+def multilayer_perceptron(input_, layer_sizes, activation=tf.tanh,
+                          dropout_plc=None, scope="mlp"):
+    mlp_input = input_
+
+    with tf.variable_scope(scope):
+        for i, size in enumerate(layer_sizes):
+            mlp_input = nonlinear(mlp_input, size, activation=activation,
+                                  scope="mlp_layer_{}".format(i))
+            if dropout_plc:
+                mlp_input = tf.nn.dropout(mlp_input, dropout_plc)
+
+    return mlp_input
+
+
+# TODO is the class below equivalent/worse/better than the function above?
+# Should we deprecate this class?
 class MultilayerPerceptron(object):
     """ General implementation of the multilayer perceptron. """
 

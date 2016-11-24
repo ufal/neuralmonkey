@@ -6,6 +6,8 @@ import numpy as np
 from neuralmonkey.nn.ortho_gru_cell import OrthoGRUCell
 from neuralmonkey.vocabulary import START_TOKEN
 from neuralmonkey.logging import log
+from neuralmonkey.decoders.output_projection import no_deep_output
+from neuralmonkey.nn.projection import linear
 
 class Decoder(object):
     """A class that manages parts of the computation graph that are
@@ -43,6 +45,8 @@ class Decoder(object):
         self.vocabulary = vocabulary
         self.data_id = data_id
         self.name = name
+
+        self.output_projection = kwargs.get("output_projection", no_deep_output)
 
         self.max_output = kwargs.get("max_output_len", 20)
         self.embedding_size = kwargs.get("embedding_size", 200)
@@ -88,8 +92,6 @@ class Decoder(object):
 
         state = self._initial_state()
 
-        self.weights, self.biases = self._rnn_output_proj_params()
-
         self.embedding_matrix = self._input_embeddings()
 
         self.train_inputs, self.train_weights = self._training_placeholders()
@@ -102,7 +104,7 @@ class Decoder(object):
 
         embedded_train_inputs = self._embed_inputs(self.train_inputs[:-1])
 
-        self.train_rnn_outputs, _ = self._attention_decoder(
+        self.train_rnn_outputs, _, train_logits = self._attention_decoder(
             embedded_train_inputs, state)
 
         # runtime methods and objects are used when no ground truth is provided
@@ -112,7 +114,7 @@ class Decoder(object):
         ### Use the same variables for runtime decoding!
         tf.get_variable_scope().reuse_variables()
 
-        self.runtime_rnn_outputs, self.runtime_rnn_states = \
+        self.runtime_rnn_outputs, self.runtime_rnn_states, runtime_logits = \
             self._attention_decoder(
                 runtime_inputs, state, runtime_mode=True,
                 summary_collections=["summary_val_plots"])
@@ -123,9 +125,8 @@ class Decoder(object):
             if val_plots_collection else None
         )
 
-        _, train_logits = self._decode(self.train_rnn_outputs)
-        self.decoded, runtime_logits = self._decode(self.runtime_rnn_outputs)
         self.train_logprobs = [tf.nn.log_softmax(l) for l in train_logits]
+        self.decoded = self._decode_from_logits(runtime_logits)
 
         self.train_loss = tf.nn.seq2seq.sequence_loss(
             train_logits, train_targets, self.train_weights,
@@ -246,28 +247,6 @@ class Decoder(object):
 
         return inputs, weights
 
-
-    def _rnn_output_proj_params(self):
-        """Create parameters for projection of RNN outputs to vocabulary
-        indices.
-
-        This method should provide parameter shapes compatible with whatever
-        the _get_rnn_output method is returning.
-        """
-        ctx_sizes = [a.attn_size for a in self._collect_attention_objects()]
-        state_size = self.rnn_size + self.embedding_size + sum(ctx_sizes)
-
-        weights = tf.get_variable(
-            "state_to_word_W", [state_size, self.vocabulary_size],
-            initializer=tf.random_normal_initializer(stddev=0.01))
-
-        biases = tf.get_variable(
-            "state_to_word_b",
-            initializer=tf.zeros_initializer([self.vocabulary_size]))
-
-        return weights, biases
-
-
     def _get_rnn_cell(self):
         """Returns a RNNCell object for this decoder"""
         return OrthoGRUCell(self.rnn_size)
@@ -323,10 +302,18 @@ class Decoder(object):
     def _logit_function(self, rnn_output):
         """Compute logits on the vocabulary given the state
 
+        This variant simply linearly project the vectors to fit
+        the size of the vocabulary
+
         Arguments:
             rnn_output: the output of the decoder RNN
+                        (after output projection)
+
+        Returns:
+            A Tensor of shape batch_size x vocabulary_size
         """
-        return tf.matmul(self._dropout(rnn_output), self.weights) + self.biases
+        return linear(self._dropout(rnn_output), self.vocabulary_size)
+
 
     #pylint: disable=too-many-arguments
     # TODO reduce the number of arguments
@@ -358,9 +345,12 @@ class Decoder(object):
 
             ## First decoding step
             contexts = [a.attention(initial_state) for a in att_objects]
-            output = self._get_rnn_output(inputs[0], initial_state, contexts)
+            output = self.output_projection(inputs[0], initial_state, contexts)
             _, state = cell(tf.concat(1, [inputs[0]] + contexts), initial_state)
 
+            logit = self._logit_function(output)
+
+            output_logits = [logit]
             rnn_outputs = [output]
             rnn_states = [initial_state, state]
 
@@ -374,9 +364,10 @@ class Decoder(object):
 
                 ## N-th decoding step
                 contexts = [a.attention(state) for a in att_objects]
-                output = self._get_rnn_output(current_input, state, contexts)
+                output = self.output_projection(current_input, state, contexts)
                 _, state = cell(tf.concat(1, [current_input] + contexts), state)
 
+                output_logits.append(logit)
                 rnn_outputs.append(output)
                 rnn_states.append(state)
 
@@ -390,40 +381,20 @@ class Decoder(object):
                                      collections=summary_collections,
                                      max_images=256)
 
-        return rnn_outputs, rnn_states
+        return rnn_outputs, rnn_states, output_logits
 
 
-    # pylint: disable=no-self-use
-    # TODO refactor out of this class to a helper module
-    def _get_rnn_output(self, prev_state, prev_output, ctx_tensors):
-        """Compute RNN output out of the previous state and output, and the
-        context tensors returned from attention mechanisms.
-
-        This function corresponds to the equations for computation the
-        t_tilde in the Bahdanau et al. (2015) paper, on page 14,
-        **before** the linear projection.
+    def _decode_from_logits(self, logits):
+        """Converts logits to indices to vocabulary
 
         Arguments:
-            prev_state: Previous decoder RNN state. (Denoted s_i-1)
-            prev_output: Embedded output of the previous step. (y_i-1)
-            ctx_tensors: Context tensors computed by the attentions. (c_i)
+            logits: A list of logits in each time step, of shape
+                    batch x vocabulary_size
 
         Returns:
-            In this decoder, this function just concatenates all the inputs.
+            A list of indices to vocabulary for each time step. Batch-shaped.
         """
-        return tf.concat(1, [prev_state, prev_output] + ctx_tensors)
-
-
-    def _decode(self, rnn_outputs):
-        """Decodes a sequence from a list of hidden states
-
-        Arguments:
-            rnn_outputs: List of batch x maxout_size tensors
-        """
-        logits = [self._logit_function(s) for s in rnn_outputs]
-        decoded = [tf.argmax(l[:, 1:], 1) + 1 for l in logits]
-
-        return decoded, logits
+        return [tf.argmax(l[:, 1:], 1) + 1 for l in logits]
 
 
     def _init_summaries(self):
