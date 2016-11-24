@@ -15,7 +15,6 @@ from typing import List, Callable, NamedTuple, Tuple
 import numpy as np
 import tensorflow as tf
 
-from neuralmonkey.tf_manager import RunResult
 from neuralmonkey.runners.base_runner import (BaseRunner, Executable,
                                               ExecutionResult, NextExecute)
 from neuralmonkey.vocabulary import END_TOKEN_INDEX
@@ -255,7 +254,7 @@ class RuntimeRnnExecutable(Executable):
 
         return self._all_coders, to_run, additional_feed_dict
 
-    def collect_results(self, results: List[List[RunResult]]) -> None:
+    def collect_results(self, results: List[Dict]) -> None:
         """Process what the TF session returned.
 
         Only a single time step is always processed at once. First,

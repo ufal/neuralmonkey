@@ -1,9 +1,8 @@
-from typing import Any, List, NamedTuple, Optional, Tuple
+from typing import Any, Dict, List, NamedTuple, Optional, Tuple
 import re
 
 import tensorflow as tf
 
-from neuralmonkey.tf_manager import RunResult
 from neuralmonkey.runners.base_runner import (collect_encoders, Executable,
                                               ExecutionResult, NextExecute)
 
@@ -122,7 +121,7 @@ class TrainExecutable(Executable):
 
         return self.all_coders, fetches, {}
 
-    def collect_results(self, results: List[List[RunResult]]) -> None:
+    def collect_results(self, results: List[Dict]) -> None:
         if self.scalar_summaries is None:
             scalar_summaries = None
             histogram_summaries = None

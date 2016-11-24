@@ -2,7 +2,6 @@ from typing import List
 import numpy as np
 import tensorflow as tf
 
-from neuralmonkey.tf_manager import RunResult
 from neuralmonkey.runners.base_runner import (BaseRunner, Executable,
                                               ExecutionResult, NextExecute)
 
@@ -12,7 +11,7 @@ from neuralmonkey.runners.base_runner import (BaseRunner, Executable,
 
 class GreedyRunner(BaseRunner):
 
-    def __init__(self, output_series: str, decoder):
+    def __init__(self, output_series: str, decoder) -> None:
         super(GreedyRunner, self).__init__(output_series, decoder)
 
     def get_executable(self, train=False, summaries=True):
@@ -45,7 +44,7 @@ class GreedyRunExecutable(Executable):
         """Get the feedables and tensors to run."""
         return self.all_coders, self.to_run, {}
 
-    def collect_results(self, results: List[List[RunResult]]) -> None:
+    def collect_results(self, results: List[Dict]) -> None:
         train_loss = 0.
         runtime_loss = 0.
         summed_logprobs = [-np.inf for _ in self.to_run["decoded_logprobs"]]

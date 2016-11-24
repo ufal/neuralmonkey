@@ -6,8 +6,7 @@ import tensorflow as tf
 
 # pylint: disable=invalid-name
 FeedDict = Dict[tf.Tensor, Union[int, float, np.ndarray]]
-NextExecute = Tuple[List[Any], List[tf.Tensor], FeedDict]
-RunResult = Union[float, np.ndarray, tf.Summary]
+NextExecute = Tuple[List[Any], Union[Dict, List], FeedDict]
 ExecutionResult = NamedTuple('ExecutionResult',
                              [('outputs', List[Any]),
                               ('losses', List[float]),
@@ -21,7 +20,7 @@ class Executable(object):
     def next_to_execute(self) -> NextExecute:
         raise NotImplementedError()
 
-    def collect_results(self, results: List[List[RunResult]]) -> None:
+    def collect_results(self, results: List[Dict]) -> None:
         raise NotImplementedError()
 
 
