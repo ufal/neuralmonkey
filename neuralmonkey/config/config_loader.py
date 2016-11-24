@@ -9,8 +9,8 @@ from inspect import signature, isclass, isfunction
 
 import neuralmonkey.config.parsing as parsing
 from neuralmonkey.logging import log, debug
-from neuralmonkey.config.exceptions import ConfigInvalidValueException, \
-    ConfigBuildException
+from neuralmonkey.config.exceptions import (ConfigInvalidValueException,
+                                            ConfigBuildException)
 
 
 # pylint: disable=too-many-return-statements

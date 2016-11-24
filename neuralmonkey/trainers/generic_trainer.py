@@ -4,10 +4,10 @@ import re
 import tensorflow as tf
 
 from neuralmonkey.tf_manager import RunResult
-from neuralmonkey.runners.base_runner import collect_encoders, \
-        Executable, ExecutionResult, NextExecute
+from neuralmonkey.runners.base_runner import (collect_encoders, Executable,
+                                              ExecutionResult, NextExecute)
 
-# tests: pylint, mypy
+# tests: lint, mypy
 
 # pylint: disable=invalid-name
 Gradients = List[Tuple[tf.Tensor, tf.Variable]]

@@ -5,8 +5,8 @@ import os
 
 from neuralmonkey.logging import log, log_print
 from neuralmonkey.config.configuration import Configuration
-from neuralmonkey.learning_utils import evaluation, run_on_dataset, \
-    print_final_evaluation
+from neuralmonkey.learning_utils import (evaluation, run_on_dataset,
+                                         print_final_evaluation)
 from neuralmonkey.tf_manager import TensorFlowManager
 
 CONFIG = Configuration()

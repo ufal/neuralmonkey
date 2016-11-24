@@ -3,8 +3,8 @@ import numpy as np
 import tensorflow as tf
 
 from neuralmonkey.tf_manager import RunResult
-from neuralmonkey.runners.base_runner import BaseRunner, \
-    Executable, ExecutionResult, NextExecute
+from neuralmonkey.runners.base_runner import (BaseRunner, Executable,
+                                              ExecutionResult, NextExecute)
 
 # tests: mypy,pylint
 # pylint: disable=too-few-public-methods
