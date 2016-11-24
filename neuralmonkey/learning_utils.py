@@ -198,11 +198,12 @@ def training_loop(tf_manager: TensorFlowManager,
     except KeyboardInterrupt:
         log("Training interrupted by user.")
 
-    if os.path.islink(link_best_vars):
-        tf_manager.restore(link_best_vars)
 
     log("Training finished. Maximum {} on validation data: {:.2f}, epoch {}"
         .format(main_metric, best_score, best_score_epoch))
+
+    if test_datasets and os.path.islink(link_best_vars):
+        tf_manager.restore(link_best_vars)
 
     for dataset in test_datasets:
         test_results, test_outputs = run_on_dataset(
