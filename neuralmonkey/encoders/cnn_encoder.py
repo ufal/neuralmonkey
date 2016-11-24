@@ -124,15 +124,17 @@ class CNNEncoder(object):
             with tf.variable_scope("convolutions"):
                 for i, (filter_size, n_filters, pool_size) in enumerate(convolutions):
                     with tf.variable_scope("cnn_layer_{}".format(i)):
-                        conv_w = tf.Variable(
-                            tf.truncated_normal([filter_size, filter_size, last_n_channels, n_filters],
-                                                stddev=0.1),
-                            name="weights")
-                        conv_b = tf.Variable(
-                            tf.fill([n_filters], 0.1), name="biases")
-                        conv_activation = \
-                            tf.nn.conv2d(last_layer, conv_w, [
-                                         1, 1, 1, 1], "SAME") + conv_b
+                        conv_w = tf.get_variable(
+                            "wieghts",
+                            shape=[filter_size, filter_size,
+                                   last_n_channels, n_filters],
+                            initializer=tf.truncated_normal_initializer(stddev=.1))
+                        conv_b = tf.get_variable(
+                            "biases",
+                            shape=[n_filters],
+                            initializer=tf.constant_initializer(.1))
+                        conv_activation = tf.nn.conv2d(
+                            last_layer, conv_w, [1, 1, 1, 1], "SAME") + conv_b
                         last_layer = tf.nn.relu(conv_activation)
                         last_n_channels = n_filters
                         self.image_processing_layers.append(last_layer)
@@ -140,8 +142,8 @@ class CNNEncoder(object):
                         if pool_size:
                             last_layer = tf.nn.max_pool(
                                 last_layer, [1, 2, 2, 1], [1, 2, 2, 1], "SAME")
-                            last_padding_masks = tf.nn.max_pool(last_padding_masks,
-                                                                [1, 2, 2, 1], [1, 2, 2, 1], "SAME")
+                            last_padding_masks = tf.nn.max_pool(
+                                last_padding_masks, [1, 2, 2, 1], [1, 2, 2, 1], "SAME")
                             self.image_processing_layers.append(last_layer)
                             assert image_height % 2 == 0
                             image_height /= 2
@@ -252,10 +254,11 @@ def batch_norm(tensor, n_out, phase_train, scope='bn', scale_after_norm=True):
     """
 
     with tf.variable_scope(scope):
-        beta = tf.Variable(tf.constant(0.0, shape=[n_out]),
-                           name='beta', trainable=True)
-        gamma = tf.Variable(tf.constant(1.0, shape=[n_out]),
-                            name='gamma', trainable=scale_after_norm)
+        beta = tf.get_variable(
+            name='beta', initializer=tf.zeros_initializer(shape=[n_out]))
+        gamma = tf.get_variable(
+            name="gamma", initializer=tf.ones_initializer(shape=[n_out]),
+            trainable=scale_after_norm)
 
         batch_mean, batch_var = tf.nn.moments(
             tensor, [0, 1, 2], name='moments')
