@@ -17,7 +17,7 @@ import tensorflow as tf
 
 from neuralmonkey.tf_manager import RunResult
 from neuralmonkey.runners.base_runner import (BaseRunner, Executable,
-                                              ExecutionResult, NextExecute
+                                              ExecutionResult, NextExecute)
 from neuralmonkey.vocabulary import END_TOKEN_INDEX
 
 # tests: mypy,pylint
