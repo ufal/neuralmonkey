@@ -13,7 +13,7 @@ import tensorflow as tf
 from neuralmonkey.logging import log
 from neuralmonkey.dataset import Dataset
 
-from neuralmonkey.runners.base_runner import ExecutionResult, \
+from neuralmonkey.runners.base_runner import Executable, ExecutionResult, \
         RunResult, reduce_execution_results
 
 # tests: pylint,mypy
@@ -79,7 +79,7 @@ class TensorFlowManager(object):
                            for s in execution_scripts]
             while not all(ex.result is not None for ex in executables):
                 all_feedables = set()   # type: Set[Any]
-                all_tensors_to_execute = []  # type: List[tf.Tensor]
+                all_tensors_to_execute = {}  # type: Dict[Executable, tf.Tensor]
                 additional_feed_dicts = []
                 tensor_list_lengths = []  # type: List[int]
 
@@ -89,7 +89,7 @@ class TensorFlowManager(object):
                          tensors_to_execute,
                          add_feed_dict) = executable.next_to_execute()
                         all_feedables = all_feedables.union(feedables)
-                        all_tensors_to_execute.extend(tensors_to_execute)
+                        all_tensors_to_execute[executable] = tensors_to_execute
                         additional_feed_dicts.append(add_feed_dict)
                         tensor_list_lengths.append(len(tensors_to_execute))
                     else:
@@ -103,13 +103,10 @@ class TensorFlowManager(object):
                                             feed_dict=feed_dict)
                                    for sess in self.sessions]
 
-                results_by_executable = _partition_results(
-                    session_results, tensor_list_lengths)
-
-                for executable, results in zip(executables,
-                                               results_by_executable):
+                for executable in executables:
                     if executable.result is None:
-                        executable.collect_results(results)
+                        executable.collect_results(
+                            [res[executable] for res in session_results])
 
             for script_list, executable in zip(batch_results, executables):
                 script_list.append(executable.result)
@@ -148,21 +145,6 @@ class TensorFlowManager(object):
         for sess, file_name in zip(self.sessions, variable_files):
             log("Loading variables from {}".format(file_name))
             self.saver.restore(sess, file_name)
-
-
-def _partition_results(session_results: List[List[RunResult]],
-                       tensor_list_lengths: List[int]) \
-                                                 -> List[List[List[RunResult]]]:
-    """Split the session run results back for their executables."""
-    results_by_executable = []
-    res_start = 0
-    for length in tensor_list_lengths:
-        this_executable_results = [
-            one_session_results[res_start:res_start + length]
-            for one_session_results in session_results]
-        res_start += length
-        results_by_executable.append(this_executable_results)
-    return results_by_executable
 
 
 def _feed_dicts(dataset, coders, train=False):
