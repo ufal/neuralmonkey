@@ -11,7 +11,7 @@ before the a next output is emmited.
 """
 
 
-from typing import List, Callable, NamedTuple, Tuple
+from typing import Dict, List, Callable, NamedTuple, Tuple
 import numpy as np
 import tensorflow as tf
 
