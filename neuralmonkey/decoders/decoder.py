@@ -126,7 +126,7 @@ class Decoder(object):
         )
 
         self.train_logprobs = [tf.nn.log_softmax(l) for l in train_logits]
-        self.decoded = self._decode_from_logits(runtime_logits)
+        self.decoded = [tf.argmax(l[:, 1:], 1) + 1 for l in logits]
 
         self.train_loss = tf.nn.seq2seq.sequence_loss(
             train_logits, train_targets, self.train_weights,
@@ -382,19 +382,6 @@ class Decoder(object):
                                      max_images=256)
 
         return rnn_outputs, rnn_states, output_logits
-
-
-    def _decode_from_logits(self, logits):
-        """Converts logits to indices to vocabulary
-
-        Arguments:
-            logits: A list of logits in each time step, of shape
-                    batch x vocabulary_size
-
-        Returns:
-            A list of indices to vocabulary for each time step. Batch-shaped.
-        """
-        return [tf.argmax(l[:, 1:], 1) + 1 for l in logits]
 
 
     def _init_summaries(self):
