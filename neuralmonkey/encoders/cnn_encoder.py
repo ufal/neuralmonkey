@@ -9,6 +9,7 @@ from neuralmonkey.decoding_function import Attention
 
 # tests: mypy
 
+
 class CNNEncoder(object):
     """
 
@@ -44,7 +45,6 @@ class CNNEncoder(object):
                  batch_normalization=True,
                  local_response_normalization=True,
                  dropout_keep_p=0.5):
-
         """
         Initilizes and configures the computational graph creator.
 
@@ -100,11 +100,13 @@ class CNNEncoder(object):
         self.name = name
 
         with tf.variable_scope(name):
-            self.dropout_placeholder = tf.placeholder(tf.float32, name="dropout")
+            self.dropout_placeholder = tf.placeholder(
+                tf.float32, name="dropout")
             self.is_training = tf.placeholder(tf.bool, name="is_training")
             self.input_op = \
                 tf.placeholder(tf.float32,
-                               shape=(None, image_height, image_width, pixel_dim),
+                               shape=(None, image_height,
+                                      image_width, pixel_dim),
                                name="input_images")
 
             self.padding_masks = \
@@ -126,15 +128,18 @@ class CNNEncoder(object):
                             tf.truncated_normal([filter_size, filter_size, last_n_channels, n_filters],
                                                 stddev=0.1),
                             name="weights")
-                        conv_b = tf.Variable(tf.fill([n_filters], 0.1), name="biases")
+                        conv_b = tf.Variable(
+                            tf.fill([n_filters], 0.1), name="biases")
                         conv_activation = \
-                                tf.nn.conv2d(last_layer, conv_w, [1, 1, 1, 1], "SAME") + conv_b
+                            tf.nn.conv2d(last_layer, conv_w, [
+                                         1, 1, 1, 1], "SAME") + conv_b
                         last_layer = tf.nn.relu(conv_activation)
                         last_n_channels = n_filters
                         self.image_processing_layers.append(last_layer)
 
                         if pool_size:
-                            last_layer = tf.nn.max_pool(last_layer, [1, 2, 2, 1], [1, 2, 2, 1], "SAME")
+                            last_layer = tf.nn.max_pool(
+                                last_layer, [1, 2, 2, 1], [1, 2, 2, 1], "SAME")
                             last_padding_masks = tf.nn.max_pool(last_padding_masks,
                                                                 [1, 2, 2, 1], [1, 2, 2, 1], "SAME")
                             self.image_processing_layers.append(last_layer)
@@ -144,12 +149,15 @@ class CNNEncoder(object):
                             image_width /= 2
 
                         if local_response_normalization:
-                            last_layer = tf.nn.local_response_normalization(last_layer)
+                            last_layer = tf.nn.local_response_normalization(
+                                last_layer)
 
                         if batch_normalization:
-                            last_layer = batch_norm(last_layer, n_filters, self.is_training)
+                            last_layer = batch_norm(
+                                last_layer, n_filters, self.is_training)
 
-                        last_layer = tf.nn.dropout(last_layer, keep_prob=self.dropout_placeholder)
+                        last_layer = tf.nn.dropout(
+                            last_layer, keep_prob=self.dropout_placeholder)
 
                 last_layer = last_layer * last_padding_masks
             last_layer_size = last_n_channels * image_height * image_width
@@ -165,38 +173,44 @@ class CNNEncoder(object):
                         cell = tf.nn.rnn_cell.GRUCell(size, last_layer_size)
                         last_layer_size = size
                         cell = tf.nn.rnn_cell.DropoutWrapper(cell,
-                                                       output_keep_prob=self.dropout_placeholder)
+                                                             output_keep_prob=self.dropout_placeholder)
                         encoder_layers.append(cell)
 
                     encoder_cell = tf.nn.rnn_cell.MultiRNNCell(encoder_layers)
                     last_layer_size = len(encoder_layers) * last_layer_size
                     # MultiRNNCell concatenates output of all the recurent layers,
                     # but we want only the very last one
-                    _, encoder_state_concatenated = tf.nn.rnn(encoder_cell, inputs, dtype=tf.float32)
+                    _, encoder_state_concatenated = tf.nn.rnn(
+                        encoder_cell, inputs, dtype=tf.float32)
 
                     if concatenate_rnns:
                         encoder_state = encoder_state_concatenated
                     else:
-                        encoder_state = encoder_state_concatenated[:, sum(rnn_layers[:-1]):]
+                        encoder_state = encoder_state_concatenated[
+                            :, sum(rnn_layers[:-1]):]
                     return encoder_state
 
-            encoder_state = rnn_encoder(encoder_ins, last_layer_size, "encoder-forward")
+            encoder_state = rnn_encoder(
+                encoder_ins, last_layer_size, "encoder-forward")
 
             if bidirectional:
                 backward_encoder_state = rnn_encoder(list(reversed(encoder_ins)),
                                                      last_layer_size, "encoder-backward")
-                encoder_state = tf.concat(1, [encoder_state, backward_encoder_state])
+                encoder_state = tf.concat(
+                    1, [encoder_state, backward_encoder_state])
 
             self.encoded = encoder_state
 
             self.attention_tensor = \
-                    tf.reshape(last_layer, [-1, image_width,
-                                            last_n_channels * image_height])
+                tf.reshape(last_layer, [-1, image_width,
+                                        last_n_channels * image_height])
 
-            att_in_weights = tf.squeeze(tf.reduce_prod(last_padding_masks, [1]), [2])
+            att_in_weights = tf.squeeze(
+                tf.reduce_prod(last_padding_masks, [1]), [2])
 
             self.attention_object = Attention(self.attention_tensor,
-                                              scope="attention_{}".format(name),
+                                              scope="attention_{}".format(
+                                                  name),
                                               dropout_placeholder=self.dropout_placeholder,
                                               input_weights=att_in_weights)
 
@@ -210,7 +224,7 @@ class CNNEncoder(object):
 
         # it is one everywhere where non-zero, i.e. zero columns are masked out
         f_dict[self.padding_masks] = \
-                np.sum(np.sign(images), axis=3, keepdims=True)
+            np.sum(np.sign(images), axis=3, keepdims=True)
 
         if train:
             f_dict[self.dropout_placeholder] = self.dropout_keep_p
@@ -237,17 +251,18 @@ def batch_norm(tensor, n_out, phase_train, scope='bn', scale_after_norm=True):
 
     """
 
-
     with tf.variable_scope(scope):
         beta = tf.Variable(tf.constant(0.0, shape=[n_out]),
                            name='beta', trainable=True)
         gamma = tf.Variable(tf.constant(1.0, shape=[n_out]),
                             name='gamma', trainable=scale_after_norm)
 
-        batch_mean, batch_var = tf.nn.moments(tensor, [0, 1, 2], name='moments')
+        batch_mean, batch_var = tf.nn.moments(
+            tensor, [0, 1, 2], name='moments')
         ema = tf.train.ExponentialMovingAverage(decay=0.9)
         ema_apply_op = ema.apply([batch_mean, batch_var])
         ema_mean, ema_var = ema.average(batch_mean), ema.average(batch_var)
+
         def mean_var_with_update():
             with tf.control_dependencies([ema_apply_op]):
                 return tf.identity(batch_mean), tf.identity(batch_var)
@@ -256,6 +271,6 @@ def batch_norm(tensor, n_out, phase_train, scope='bn', scale_after_norm=True):
                             lambda: (ema_mean, ema_var))
 
         normed = \
-                tf.nn.batch_norm_with_global_normalization(tensor, mean, var,
-                                                           beta, gamma, 1e-3, scale_after_norm)
+            tf.nn.batch_norm_with_global_normalization(tensor, mean, var,
+                                                       beta, gamma, 1e-3, scale_after_norm)
         return normed
