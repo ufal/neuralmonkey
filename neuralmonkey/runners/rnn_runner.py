@@ -11,7 +11,7 @@ before the a next output is emmited.
 """
 
 
-from typing import List, NamedTuple, Tuple
+from typing import List, Callable, NamedTuple, Tuple
 import numpy as np
 import tensorflow as tf
 
@@ -30,6 +30,7 @@ BeamBatch = NamedTuple('BeamBatch',
 ExpandedBeamBatch = NamedTuple('ExpandedBeamBatch',
                                [('beam_batch', BeamBatch),
                                 ('next_logprobs', np.ndarray)])
+ScoringFunction = Callable[[np.ndarray, np.ndarray], np.ndarray]
 
 # pylint: disable=too-many-locals
 
@@ -47,11 +48,29 @@ def _n_best_indices(scores: np.ndarray, n: int) -> np.ndarray:
 def _score_expanded(n: int,
                     batch_size: int,
                     expanded: List[ExpandedBeamBatch],
-                    scoring_function) -> \
+                    scoring_function: ScoringFunction) -> \
         Tuple[List[np.ndarray], List[np.ndarray]]:
+    """Score expanded beams.
+
+    After all hypotheses have their possible continuations, we need to score
+    the expanded hypotheses. We collect all possible conitnuations (typically
+    `n`-times size of the voabulary), score them using `scoring_function` and
+    keep only `n` with the highest scores.
+
+    Args:
+        n: Number of best hypotheses.
+        batch_size: Number hypothese in the batch.
+        expanded: List of expanded hypotheses from the previous beam, organized
+            into batches.
+        scoring_function: A function that scores the expanded hypotheses based
+            on the hypotheses and individual words' log-probs.
+
+    Returns:
+        Hypotheses indices and logprobs for the next decoding step.
+    """
     next_beam_hypotheses = []
     next_beam_logprobs = []
-    # agregate the expanded hypotheses hypothsis-wise
+    # agregate the expanded hypotheses hypothesis-wise
     for rank in range(batch_size):
         candidate_scores = None
         candidate_hypotheses = None
@@ -74,7 +93,9 @@ def _score_expanded(n: int,
                     [np.append(prev_logprobs, logprob)
                      for logprob in next_distribution])
 
+            assert expanded_hypotheses.shape == expanded_logprobs.shape
             scores = scoring_function(expanded_hypotheses, expanded_logprobs)
+            assert scores.shape[0] == expanded_hypotheses.shape[0]
             n_best_indices = _n_best_indices(scores, n)
             candidate_scores = _try_append(
                 candidate_scores, scores[n_best_indices])
@@ -97,6 +118,7 @@ def _try_append(first, second):
         return second
     else:
         return np.append(first, second)
+
 
 
 def likelihood_beam_score(decoded, logprobs):

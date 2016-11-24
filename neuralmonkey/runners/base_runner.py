@@ -47,8 +47,8 @@ class BaseRunner(object):
     def loss_names(self) -> List[str]:
         raise NotImplementedError()
 
-def reduce_execution_results(execution_results: List[ExecutionResult]) \
-                                                           -> ExecutionResult:
+def reduce_execution_results(
+        execution_results: List[ExecutionResult]) -> ExecutionResult:
     """Aggregate execution results into one."""
     outputs = []  # type: List[Any]
     losses_sum = [0. for _ in execution_results[0].losses]

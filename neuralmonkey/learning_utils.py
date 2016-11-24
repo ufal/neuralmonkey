@@ -1,6 +1,6 @@
 # tests: mypy
 
-from typing import Any, Dict, List, Tuple, Union
+from typing import Any, Callable, Dict, List, Tuple, Optional, Union
 import os
 import numpy as np
 import tensorflow as tf
@@ -18,21 +18,21 @@ EvalConfiguration = List[Union[Tuple[str, Any], Tuple[str, str, Any]]]
 
 def training_loop(tf_manager: TensorFlowManager,
                   epochs: int,
-                  trainer,
+                  trainer: BaseRunner, # TODO better annotate
                   batch_size: int,
                   train_dataset: Dataset,
                   val_dataset: Dataset,
                   log_directory: str,
                   evaluators: EvalConfiguration,
                   runners: List[BaseRunner],
-                  test_datasets=None,
-                  save_n_best_vars=1,
+                  test_datasets: Optional[List[Dataset]]=None,
+                  save_n_best_vars: int=1,
                   link_best_vars="/tmp/variables.data.best",
                   vars_prefix="/tmp/variables.data",
-                  logging_period=20,
-                  validation_period=500,
-                  postprocess=None,
-                  minimize_metric=False):
+                  logging_period: int=20,
+                  validation_period: int=500,
+                  postprocess: Callable=None,
+                  minimize_metric: bool=False):
 
     # TODO finish the list
     """
@@ -218,9 +218,9 @@ def training_loop(tf_manager: TensorFlowManager,
 def run_on_dataset(tf_manager: TensorFlowManager,
                    runners: List[BaseRunner],
                    dataset: Dataset,
-                   postprocess,
-                   write_out=False) -> Tuple[List[ExecutionResult],
-                                             Dict[str, List[Any]]]:
+                   postprocess: Callable,
+                   write_out: bool=False) -> Tuple[List[ExecutionResult],
+                                                   Dict[str, List[Any]]]:
     """Apply the model on a dataset and optionally write outputs to files.
 
     Args:
@@ -261,7 +261,7 @@ def run_on_dataset(tf_manager: TensorFlowManager,
                 path = dataset.series_outputs[series_id]
                 if isinstance(data, np.ndarray):
                     np.save(path, data)
-                    log("Result saved as numpy array to \"{}\"".format(path))
+                    log('Result saved as numpy array to "{}"'.format(path))
                 else:
                     with open(path, 'w') as f_out:
                         f_out.writelines(
@@ -278,9 +278,9 @@ def evaluation(evaluators, dataset, runners, execution_results, result_data):
     """Evaluate the model outputs.
 
     Args:
-        evaluators: List of tuples of series and evaluation function.
+        evaluators: List of tuples of series and evaluation functions.
         dataset: Dataset against which the evaluation is done.
-        runners: List of runners (contain series ids and loss names).
+        runners: List of runners (contains series ids and loss names).
         execution_results: Execution results that include the loss values.
         result_data: Dictionary from series names to list of outputs.
 
@@ -314,13 +314,10 @@ def _log_continuons_evaluation(tb_writer: tf.train.SummaryWriter,
                                eval_result: Evaluation,
                                seen_instances: int,
                                execution_results: List[ExecutionResult],
-                               train=False) -> None:
+                               train: bool=False) -> None:
     """Log the evaluation results and the TensorBoard summaries."""
 
-    if train:
-        color, prefix = 'yellow', 'train'
-    else:
-        color, prefix = 'blue', 'val'
+    color, prefix = ("yellow", "train") if train else ("blue", "val")
 
     eval_string = _format_evaluation_line(eval_result, main_metric)
     log(eval_string, color=color)
