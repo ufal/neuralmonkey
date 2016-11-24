@@ -88,6 +88,9 @@ containing NLP specific models
 - [Nematus](https://github.com/rsennrich/nematus) - A tool for training and
   running Neural Machine Translation models
 
+
+<img align="left" alt="Ape is not a monkey" src="http://ufallab.ms.mff.cuni.cz/~helcl/gorila2.png">
+
 ### License
 
 The software is distributed under the [BSD
