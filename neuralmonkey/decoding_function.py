@@ -62,8 +62,8 @@ class Attention(object):
                 name="AttnV",
                 shape=[self.attention_vec_size],
                 initializer=tf.random_normal_initializer(stddev=.001))
-            self.v_bias = tf.get_variable("AttnV_b", [],
-                                          initializer=tf.constant_initializer(0))
+            self.v_bias = tf.get_variable(
+                "AttnV_b", [], initializer=tf.constant_initializer(0))
 
     def attention(self, query_state):
         """Put attention masks on att_states_reshaped
