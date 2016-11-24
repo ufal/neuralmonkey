@@ -50,8 +50,8 @@ def main():
         exit(1)
 
     # random seeds have to be set before anything is created in the graph
-    np.random.seed(1)
-    tf.set_random_seed(1)
+    np.random.seed(2574600)
+    tf.set_random_seed(2574600)
 
     args = create_config(sys.argv[1])
 
