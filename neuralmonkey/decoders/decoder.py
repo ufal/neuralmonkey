@@ -126,7 +126,7 @@ class Decoder(object):
         )
 
         self.train_logprobs = [tf.nn.log_softmax(l) for l in train_logits]
-        self.decoded = [tf.argmax(l[:, 1:], 1) + 1 for l in logits]
+        self.decoded = [tf.argmax(l[:, 1:], 1) + 1 for l in runtime_logits]
 
         self.train_loss = tf.nn.seq2seq.sequence_loss(
             train_logits, train_targets, self.train_weights,
