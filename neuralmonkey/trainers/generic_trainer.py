@@ -114,10 +114,11 @@ class TrainExecutable(Executable):
         self.result = None
 
     def next_to_execute(self) -> NextExecute:
-        fetches = [self.train_op]
+        fetches = {'train_op': self.train_op}
         if self.scalar_summaries is not None:
-            fetches += [self.scalar_summaries, self.histogram_summaries]
-        fetches += self.losses
+            fetches['scalar_summaries'] = self.scalar_summaries
+            fetches['histogram_summaries'] = self.histogram_summaries
+        fetches['losses'] = self.losses
 
         return self.all_coders, fetches, {}
 
@@ -127,14 +128,14 @@ class TrainExecutable(Executable):
             histogram_summaries = None
         else:
             # TODO collect summaries from different sessions
-            scalar_summaries = results[0][1]
-            histogram_summaries = results[0][2]
+            scalar_summaries = results[0]['scalar_summaries']
+            histogram_summaries = results[0]['histogram_summaries']
 
         losses_sum = [0. for _ in self.losses]
-        for session_results in results:
+        for session_result in results:
             for i in range(len(self.losses)):
                 # from the end, losses are last ones
-                losses_sum[-i - 1] += session_results[-i - 1]
+                losses_sum[i] += session_result['losses'][i]
         avg_losses = [s / len(results) for s in losses_sum]
 
         self.result = ExecutionResult(

@@ -235,7 +235,7 @@ class RuntimeRnnExecutable(Executable):
             raise Exception(
                 "Nothing to execute, if there is already a result.")
 
-        to_run = [self._decoder.train_logprobs[self._time_step]]
+        to_run = {'logprobs': self._decoder.train_logprobs[self._time_step]}
 
         self._current_beam_batch = self._to_exapand.pop()
 
@@ -249,9 +249,9 @@ class RuntimeRnnExecutable(Executable):
         # at the end, we should compute loss
         if self._time_step == self._decoder.max_output - 1:
             if self._compute_loss:
-                to_run.append(self._decoder.train_loss)
+                to_run["xent"] = self._decoder.train_loss
             else:
-                to_run.append(tf.zeros([]))
+                to_run["xent"] = tf.zeros([])
 
         return self._all_coders, to_run, additional_feed_dict
 
@@ -265,7 +265,8 @@ class RuntimeRnnExecutable(Executable):
 
         summed_logprobs = -np.inf
         for sess_result in results:
-            summed_logprobs = np.logaddexp(summed_logprobs, sess_result[0])
+            summed_logprobs = np.logaddexp(summed_logprobs,
+                                           sess_result["logprobs"])
         avg_logprobs = summed_logprobs - np.log(len(results))
 
         expanded_batch = ExpandedBeamBatch(self._current_beam_batch,
@@ -281,10 +282,10 @@ class RuntimeRnnExecutable(Executable):
         if self._time_step == self._decoder.max_output:
             top_batch = self._to_exapand[-1].decoded.T
             decoded_tokens = self._vocabulary.vectors_to_sentences(top_batch)
-            # loss = np.average([res[1] for res in results])
+            loss = np.mean([res["xent"] for res in results])
             self.result = ExecutionResult(
                 outputs=decoded_tokens,
-                losses=[],
+                losses=[loss],
                 scalar_summaries=None,
                 histogram_summaries=None,
                 image_summaries=None

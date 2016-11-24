@@ -12,16 +12,17 @@ from neuralmonkey.runners.base_runner import (BaseRunner, Executable,
 
 class GreedyRunner(BaseRunner):
 
-    def __init__(self, output_series, decoder):
+    def __init__(self, output_series: str, decoder):
         super(GreedyRunner, self).__init__(output_series, decoder)
 
     def get_executable(self, train=False, summaries=True):
         if train:
-            losses = [self._decoder.train_loss,
-                      self._decoder.runtime_loss]
+            to_run = {"train_xent": self._decoder.train_loss,
+                      "runtime_xent": self._decoder.runtime_loss}
         else:
-            losses = [tf.zeros([]), tf.zeros([])]
-        to_run = losses + self._decoder.runtime_logprobs
+            to_run = {"train_xent": tf.zeros([]),
+                      "runtime_xent": tf.zeros([])}
+        to_run["decoded_logprobs"] = self._decoder.runtime_logprobs
         return GreedyRunExecutable(self.all_coders, to_run,
                                    self._decoder.vocabulary)
 
@@ -47,13 +48,13 @@ class GreedyRunExecutable(Executable):
     def collect_results(self, results: List[List[RunResult]]) -> None:
         train_loss = 0.
         runtime_loss = 0.
-        summed_logprobs = [-np.inf for _ in range(len(self.to_run) - 2)]
+        summed_logprobs = [-np.inf for _ in self.to_run["decoded_logprobs"]]
 
         for sess_result in results:
-            train_loss += sess_result[0]
-            runtime_loss += sess_result[1]
+            train_loss += sess_result["train_xent"]
+            runtime_loss += sess_result["runtime_xent"]
 
-            for i, logprob in enumerate(sess_result[2:]):
+            for i, logprob in enumerate(sess_result["decoded_logprobs"]):
                 summed_logprobs[i] = np.logaddexp(summed_logprobs[i], logprob)
 
         argmaxes = [np.argmax(l, axis=1) for l in summed_logprobs]
