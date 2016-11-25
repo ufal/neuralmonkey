@@ -46,6 +46,7 @@ class BaseRunner(object):
     def loss_names(self) -> List[str]:
         raise NotImplementedError()
 
+
 def reduce_execution_results(
         execution_results: List[ExecutionResult]) -> ExecutionResult:
     """Aggregate execution results into one."""
@@ -56,7 +57,7 @@ def reduce_execution_results(
         for i, loss in enumerate(result.losses):
             losses_sum[i] += loss
         # TODO aggregate TensorBoard summaries
-    losses = [l / len(outputs) for l in losses_sum]
+    losses = [l / max(len(outputs), 1) for l in losses_sum]
     return ExecutionResult(outputs, losses,
                            execution_results[0].scalar_summaries,
                            execution_results[0].histogram_summaries,
