@@ -58,8 +58,9 @@ class Attention(object):
             #pylint: disable=invalid-name
             # see comments on disabling invalid names below
             self.v = tf.get_variable(
-                "AttnV",
-                initializer=tf.zeros_initializer([self.attention_vec_size]))
+                name="AttnV",
+                shape=[self.attention_vec_size],
+                initializer=tf.random_normal_initializer(stddev=.001))
 
     def attention(self, query_state):
         """Put attention masks on att_states_reshaped
