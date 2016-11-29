@@ -4,6 +4,7 @@ This is a training script for sequence to sequence learning.
 # tests: lint, mypy
 
 import sys
+import random
 import os
 from shutil import copyfile
 
@@ -36,7 +37,6 @@ def create_config(config_file):
     config.add_argument('validation_period', int, required=False, default=500)
     config.add_argument('minimize', bool, required=False, default=False)
     config.add_argument('postprocess')
-
     config.add_argument('name', str)
     config.add_argument('initial_variables', str, required=False, default=[])
     config.add_argument('overwrite_output_dir', bool, required=False,
@@ -50,6 +50,7 @@ def main():
         exit(1)
 
     # random seeds have to be set before anything is created in the graph
+    random.seed(2574600)
     np.random.seed(2574600)
     tf.set_random_seed(2574600)
 
