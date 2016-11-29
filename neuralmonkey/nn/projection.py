@@ -4,6 +4,7 @@ This module implements various types of projections.
 #tests: lint
 import tensorflow as tf
 
+
 def linear(inputs, size, scope="LinearProjection"):
     """Simple linear projection
 
@@ -20,6 +21,25 @@ def linear(inputs, size, scope="LinearProjection"):
     """
     with tf.variable_scope(scope):
         return tf.nn.seq2seq.linear(inputs, size, True)
+
+
+def nonlinear(inputs, size, activation=tf.tanh, scope="NonlinearProjection"):
+    """Linear projection with non-linear activation function
+
+    y = activation(Wx + b)
+
+    Arguments:
+        inputs: A tensor or list of tensors. It should be 2D tensors
+                with equal length in the first dimension (batch size)
+        size: The size of the second dimension (index 1) of the output tensor
+        scope: The name of the scope used for the variables
+
+    Returns:
+        A tensor of shape batch x size
+    """
+    with tf.variable_scope(scope) as varscope:
+        return activation(linear(inputs, size, scope=varscope))
+
 
 def maxout(inputs, size, scope="MaxoutProjection"):
     """Implementation of Maxout layer (Goodfellow et al., 2013)
@@ -38,7 +58,7 @@ def maxout(inputs, size, scope="MaxoutProjection"):
         A tensor of shape batch x size
     """
     with tf.variable_scope(scope):
-        projected = linear(inputs, size * 2)
+        projected = linear(inputs, size * 2, scope=scope)
         maxout_input = tf.reshape(projected, [-1, 1, 2, size])
         maxpooled = tf.nn.max_pool(
             maxout_input, [1, 1, 2, 1], [1, 1, 2, 1], "SAME")

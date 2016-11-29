@@ -26,10 +26,7 @@ class GenericTrainer(object):
                  l1_weight=0.0, l2_weight=0.0,
                  clip_norm=False, optimizer=None) -> None:
 
-        if optimizer is None:
-            self.optimizer = tf.train.AdamOptimizer(1e-4)
-        else:
-            self.optimizer = optimizer
+        self.optimizer = optimizer or tf.train.AdamOptimizer(1e-4)
 
         with tf.variable_scope('regularization'):
             regularizable = [tf.reduce_sum(
@@ -57,7 +54,8 @@ class GenericTrainer(object):
 
         gradients = _sum_gradients(partial_gradients)
 
-        if clip_norm is not None:
+        if clip_norm:
+            assert clip_norm > 0.0
             gradients = [(tf.clip_by_norm(grad, clip_norm), var)
                          for grad, var in gradients]
 
