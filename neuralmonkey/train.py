@@ -38,7 +38,6 @@ def create_config(config_file):
     config.add_argument('postprocess')
 
     config.add_argument('name', str)
-    config.add_argument('random_seed', int, required=False)
     config.add_argument('initial_variables', str, required=False, default=[])
     config.add_argument('overwrite_output_dir', bool, required=False,
                         default=False)
@@ -57,10 +56,6 @@ def main():
     args = create_config(sys.argv[1])
 
     print("")
-
-    #pylint: disable=no-member,broad-except
-    if args.random_seed is not None:
-        tf.set_random_seed(args.random_seed)
 
     if os.path.isdir(args.output) and \
             os.path.exists(os.path.join(args.output, "experiment.ini")):
