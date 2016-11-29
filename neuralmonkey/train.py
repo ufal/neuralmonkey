@@ -58,6 +58,7 @@ def main():
 
     print("")
 
+    #pylint: disable=no-member
     if os.path.isdir(args.output) and \
             os.path.exists(os.path.join(args.output, "experiment.ini")):
         if args.overwrite_output_dir:
@@ -80,6 +81,7 @@ def main():
         log(str(exc), color='red')
         exit(1)
 
+    #pylint: disable=broad-except
     if not os.path.isdir(args.output):
         try:
             os.mkdir(args.output)
