@@ -19,7 +19,7 @@ class GreedyRunner(BaseRunner):
         self._postprocess = postprocess
 
         self.image_summaries = tf.merge_summary(
-                tf.get_collection("summary_val_plots"))
+            tf.get_collection("summary_val_plots"))
 
     def get_executable(self, train=False, summaries=True):
         if train:
