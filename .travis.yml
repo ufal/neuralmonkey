@@ -5,7 +5,7 @@ language: python
 
 env:
   global:
-    - TF=0.11.0rc0-cp35-cp35m
+    - TF=0.11.0-cp35-cp35m
   matrix:
     - TEST_SUITE=lint
     - TEST_SUITE=unit-tests
