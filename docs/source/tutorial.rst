@@ -168,6 +168,8 @@ neuralmonkey root directory, run::
     --target-sentences=exp-nm-ape/data/train/train.pe \
         > exp-nm-ape/data/train/train.edits
 
+And the same for the development data.
+
 NOTE: You may have to change the path to the exp-nm-ape directory if it is not
 located inside the repository root directory.
 
