@@ -1,5 +1,8 @@
+Features
+========
+
 Byte Pair Encoding
-==================
+------------------
 
 Neural machine translation (NMT) models typically operate with a fixed vocabulary, but translation is an open-vocabulary problem. 
 Byte pair encoding (BPE) enables NMT model translation on open-vocabulary by encoding rare and unknown words as sequences of subword units. 
@@ -13,7 +16,7 @@ Postprocessing can be manually done by::
   sed "s/@@ //g"
 
 BPE generation
---------------
+**************
 
 In order to use BPE, you must first generate merge_file, over all data. This file is generated on both source and target dataset.
 You can generate it by running following script::
@@ -23,7 +26,7 @@ You can generate it by running following script::
 You can change number of merges, this number is equivalent to the size of the vocabulary. Do not forget that as an input is file containing both source and target sides.
 
 Use of BPE
-----------
+**********
 
 Now that you have merge_file you can implement the BPE into your model. First you have to create preprocessor and postprocessor::
 
@@ -34,13 +37,9 @@ Now that you have merge_file you can implement the BPE into your model. First yo
   [bpe_postprocess]
   class=processors.bpe.BPEPostprocessor
 
-Second you need to redefine the vocabulary sections in the following way::
+Second you need to redefine the vocabulary sections. The vocabulary is shared for the BPE and therefore you only need to define one vocabulary for both encoder and decoder as in the following way::
 
-  [source_vocabulary]
-  class=vocabulary.from_bpe
-  path=merge_file.bpe
-
-  [target_vocabulary]
+  [shared_vocabulary]
   class=vocabulary.from_bpe
   path=merge_file.bpe
 
@@ -58,7 +57,7 @@ You must add the postprocessing into the [main] section::
 
 
 Dropout
-=======
+-------
 
 Neural networks with a large number of parameters have a serious problem with an overfitting. 
 Dropout is a technique for addressing this problem. The key idea is to randomly drop units (along with their connections) from the neural
@@ -79,7 +78,7 @@ or::
   ...
 
 Pervasive dropout
------------------
+*****************
 
 Detailed information in https://arxiv.org/abs/1512.05287
 
