@@ -165,7 +165,7 @@ neuralmonkey root directory, run::
 
   scripts/postedit_prepare_data.py \
     --translated-sentences=exp-nm-ape/data/train/train.mt \
-    --target-sentences=exp-nm-ape/data/train.train.pe \
+    --target-sentences=exp-nm-ape/data/train/train.pe \
         > exp-nm-ape/data/train/train.edits
 
 NOTE: You may have to change the path to the exp-nm-ape directory if it is not
