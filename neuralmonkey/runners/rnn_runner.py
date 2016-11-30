@@ -178,8 +178,10 @@ def n_best(n: int,
 class RuntimeRnnRunner(BaseRunner):
     """Prepare running the RNN decoder step by step."""
 
-    def __init__(self, output_series, decoder,
-                 beam_size=1, beam_scoring_f=likelihood_beam_score):
+    def __init__(self,
+                 output_series: str, decoder,
+                 beam_size: int=1, beam_scoring_f=likelihood_beam_score,
+                 postprocess: Callable[[List[str]], List[str]]=None) -> None:
         super(RuntimeRnnRunner, self).__init__(output_series, decoder)
 
         self._initial_fetches = [decoder.runtime_rnn_states[0]]
@@ -187,6 +189,7 @@ class RuntimeRnnRunner(BaseRunner):
                                   if hasattr(e, 'encoded')]
         self._beam_size = beam_size
         self._beam_scoring_f = beam_scoring_f
+        self._postprocess = postprocess
 
     def get_executable(self, train=False, summaries=True):
 
@@ -195,18 +198,21 @@ class RuntimeRnnRunner(BaseRunner):
                                     self._decoder.vocabulary,
                                     beam_size=self._beam_size,
                                     beam_scoring_f=self._beam_scoring_f,
-                                    compute_loss=train)
+                                    compute_loss=train,
+                                    postprocess=self._postprocess)
 
     @property
     def loss_names(self) -> List[str]:
         return ["runtime_xent"]
 
 
+# pylint: disable=too-many-instance-attributes
 class RuntimeRnnExecutable(Executable):
     """Run and ensemble the RNN decoder step by step."""
 
+    # pylint: disable=too-many-arguments
     def __init__(self, all_coders, decoder, initial_fetches, vocabulary,
-                 beam_scoring_f, beam_size=1,
+                 beam_scoring_f, postprocess, beam_size=1,
                  compute_loss=True):
         self._all_coders = all_coders
         self._decoder = decoder
@@ -215,6 +221,7 @@ class RuntimeRnnExecutable(Executable):
         self._compute_loss = compute_loss
         self._beam_size = beam_size
         self._beam_scoring_f = beam_scoring_f
+        self._postprocess = postprocess
 
         self._to_exapand = [None]  # type: List[Option[BeamBatch]]
         self._current_beam_batch = None
@@ -281,6 +288,11 @@ class RuntimeRnnExecutable(Executable):
         if self._time_step == self._decoder.max_output:
             top_batch = self._to_exapand[-1].decoded.T
             decoded_tokens = self._vocabulary.vectors_to_sentences(top_batch)
+
+            if self._postprocess is not None:
+                decoded_tokens = [self._postprocess(seq)
+                                  for seq in decoded_tokens]
+
             loss = np.mean([res["xent"] for res in results])
             self.result = ExecutionResult(
                 outputs=decoded_tokens,

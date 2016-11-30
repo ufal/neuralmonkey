@@ -1,4 +1,4 @@
-from typing import Dict, List
+from typing import Callable, Dict, List
 import numpy as np
 import tensorflow as tf
 
@@ -11,19 +11,24 @@ from neuralmonkey.runners.base_runner import (BaseRunner, Executable,
 
 class GreedyRunner(BaseRunner):
 
-    def __init__(self, output_series: str, decoder) -> None:
+    def __init__(self,
+                 output_series: str,
+                 decoder,
+                 postprocess: Callable[[List[str]], List[str]]=None) -> None:
         super(GreedyRunner, self).__init__(output_series, decoder)
+        self._postprocess = postprocess
 
     def get_executable(self, train=False, summaries=True):
         if train:
-            to_run = {"train_xent": self._decoder.train_loss,
-                      "runtime_xent": self._decoder.runtime_loss}
+            fecthes = {"train_xent": self._decoder.train_loss,
+                       "runtime_xent": self._decoder.runtime_loss}
         else:
-            to_run = {"train_xent": tf.zeros([]),
-                      "runtime_xent": tf.zeros([])}
-        to_run["decoded_logprobs"] = self._decoder.runtime_logprobs
-        return GreedyRunExecutable(self.all_coders, to_run,
-                                   self._decoder.vocabulary)
+            fecthes = {"train_xent": tf.zeros([]),
+                       "runtime_xent": tf.zeros([])}
+        fecthes["decoded_logprobs"] = self._decoder.runtime_logprobs
+        return GreedyRunExecutable(self.all_coders, fecthes,
+                                   self._decoder.vocabulary,
+                                   self._postprocess)
 
     @property
     def loss_names(self) -> List[str]:
@@ -32,22 +37,23 @@ class GreedyRunner(BaseRunner):
 
 class GreedyRunExecutable(Executable):
 
-    def __init__(self, all_coders, to_run, vocabulary):
+    def __init__(self, all_coders, fecthes, vocabulary, postprocess):
         self.all_coders = all_coders
-        self.to_run = to_run
-        self.vocabulary = vocabulary
+        self._fetches = fecthes
+        self._vocabulary = vocabulary
+        self._postprocess = postprocess
 
         self.decoded_sentences = []
         self.result = None  # type: Option[ExecutionResult]
 
     def next_to_execute(self) -> NextExecute:
         """Get the feedables and tensors to run."""
-        return self.all_coders, self.to_run, {}
+        return self.all_coders, self._fetches, {}
 
     def collect_results(self, results: List[Dict]) -> None:
         train_loss = 0.
         runtime_loss = 0.
-        summed_logprobs = [-np.inf for _ in self.to_run["decoded_logprobs"]]
+        summed_logprobs = [-np.inf for _ in self._fetches["decoded_logprobs"]]
 
         for sess_result in results:
             train_loss += sess_result["train_xent"]
@@ -58,10 +64,13 @@ class GreedyRunExecutable(Executable):
 
         argmaxes = [np.argmax(l, axis=1) for l in summed_logprobs]
 
-        decoded_sentences_batch = \
-            self.vocabulary.vectors_to_sentences(argmaxes)
+        decoded_tokens = self._vocabulary.vectors_to_sentences(argmaxes)
+
+        if self._postprocess is not None:
+            decoded_tokens = [self._postprocess(seq) for seq in decoded_tokens]
+
         self.result = ExecutionResult(
-            outputs=decoded_sentences_batch,
+            outputs=decoded_tokens,
             losses=[train_loss, runtime_loss],
             scalar_summaries=None,
             histogram_summaries=None,
