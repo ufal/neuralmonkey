@@ -31,6 +31,7 @@ def training_loop(tf_manager: TensorFlowManager,
                   vars_prefix="/tmp/variables.data",
                   logging_period: int=20,
                   validation_period: int=500,
+                  runners_batch_size: Optional[int]=None,
                   postprocess: Callable=None,
                   minimize_metric: bool=False):
 
@@ -131,7 +132,8 @@ def training_loop(tf_manager: TensorFlowManager,
                 if step % validation_period == validation_period - 1:
                     val_results, val_outputs = run_on_dataset(
                         tf_manager, runners, val_dataset,
-                        postprocess, write_out=False)
+                        postprocess, write_out=False,
+                        batch_size=runners_batch_size)
                     val_evaluation = evaluation(
                         evaluators, val_dataset, runners, val_results,
                         val_outputs)
@@ -208,7 +210,7 @@ def training_loop(tf_manager: TensorFlowManager,
     for dataset in test_datasets:
         test_results, test_outputs = run_on_dataset(
             tf_manager, runners, dataset, postprocess,
-            write_out=True)
+            write_out=True, batch_size=runners_batch_size)
         eval_result = evaluation(evaluators, dataset, runners,
                                  test_results, test_outputs)
         print_final_evaluation(dataset.name, eval_result)
@@ -220,8 +222,10 @@ def run_on_dataset(tf_manager: TensorFlowManager,
                    runners: List[BaseRunner],
                    dataset: Dataset,
                    postprocess: Callable,
-                   write_out: bool=False) -> Tuple[List[ExecutionResult],
-                                                   Dict[str, List[Any]]]:
+                   write_out: bool=False,
+                   batch_size: Optional[int]=None) \
+                                                -> Tuple[List[ExecutionResult],
+                                                         Dict[str, List[Any]]]:
     """Apply the model on a dataset and optionally write outputs to files.
 
     Args:
@@ -246,7 +250,8 @@ def run_on_dataset(tf_manager: TensorFlowManager,
                            for runner in runners)
 
     all_results = tf_manager.execute(dataset, runners,
-                                     train=contains_targets)
+                                     train=contains_targets,
+                                     batch_size=batch_size)
 
     result_data_raw = {runner.output_series: result.outputs
                        for runner, result in zip(runners, all_results)}

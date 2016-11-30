@@ -35,6 +35,7 @@ def create_config(config_file):
     config.add_argument('save_n_best', int, required=False, default=1)
     config.add_argument('logging_period', int, required=False, default=20)
     config.add_argument('validation_period', int, required=False, default=500)
+    config.add_argument('runners_batch_size', int, required=False, default=None)
     config.add_argument('minimize', bool, required=False, default=False)
     config.add_argument('postprocess')
     config.add_argument('name', str)
