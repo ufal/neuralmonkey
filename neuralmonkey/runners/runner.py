@@ -67,7 +67,7 @@ class GreedyRunExecutable(Executable):
         decoded_tokens = self._vocabulary.vectors_to_sentences(argmaxes)
 
         if self._postprocess is not None:
-            decoded_tokens = [self._postprocess(seq) for seq in decoded_tokens]
+            decoded_tokens = self._postprocess(decoded_tokens)
 
         self.result = ExecutionResult(
             outputs=decoded_tokens,
