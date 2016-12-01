@@ -45,6 +45,18 @@ reviewed and merged by someone else. The typical workflow should be as follows:
           commit that does not affect the program behavior should be marked with
           ``[ci skip]`` inside the commit message.
 
+Documentation
+-------------
+
+Documentation related to GitHub is written in `Markdown
+<https://daringfireball.net/projects/markdown/>` files, Python documentation
+using `reStructuredText
+<http://docutils.sourceforge.net/docs/ref/rst/restructuredtext.html>`. This
+concerns both the standalone documents (in `/docs/`) and the docstrings in
+source code.
+
+Style of the Markdown files is automatically checked using `Markdownlint
+<https://github.com/mivok/markdownlint>`.
 
 Other
 -----
