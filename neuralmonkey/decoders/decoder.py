@@ -116,14 +116,7 @@ class Decoder(object):
 
         self.runtime_rnn_outputs, self.runtime_rnn_states, runtime_logits = \
             self._attention_decoder(
-                runtime_inputs, state, runtime_mode=True,
-                summary_collections=["summary_val_plots"])
-
-        val_plots_collection = tf.get_collection("summary_val_plots")
-        self.summary_val_plots = (
-            tf.merge_summary(val_plots_collection)
-            if val_plots_collection else None
-        )
+                runtime_inputs, state, runtime_mode=True)
 
         self.train_logprobs = [tf.nn.log_softmax(l) for l in train_logits]
         self.decoded = [tf.argmax(l[:, 1:], 1) + 1 for l in runtime_logits]
@@ -318,7 +311,7 @@ class Decoder(object):
     #pylint: disable=too-many-arguments
     # TODO reduce the number of arguments
     def _attention_decoder(self, inputs, initial_state, runtime_mode=False,
-                           summary_collections=None, scope="attention_decoder"):
+                           scope="attention_decoder"):
         """Run the decoder RNN.
 
         Arguments:
@@ -327,8 +320,6 @@ class Decoder(object):
             initial_state: The initial state of the decoder.
             runtime_mode: Boolean flag whether the decoder is running in
                           runtime mode (with loop function).
-            summary_collections: The list of summary collections to which
-                                 the alignments are logged.
             scope: The variable scope to use with this function.
         """
         cell = self._get_rnn_cell()
@@ -371,14 +362,14 @@ class Decoder(object):
                 rnn_outputs.append(output)
                 rnn_states.append(state)
 
-            if summary_collections:
+            if runtime_mode:
                 for i, a in enumerate(att_objects):
                     attentions = a.attentions_in_time[-len(inputs):]
                     alignments = tf.expand_dims(tf.transpose(
                         tf.pack(attentions), perm=[1, 2, 0]), -1)
 
                     tf.image_summary("attention_{}".format(i), alignments,
-                                     collections=summary_collections,
+                                     collections=["summary_val_plots"],
                                      max_images=256)
 
         return rnn_outputs, rnn_states, output_logits

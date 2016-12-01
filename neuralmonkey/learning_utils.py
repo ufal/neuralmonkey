@@ -405,10 +405,12 @@ def _print_examples(dataset: Dataset,
             formated = _data_item_to_str(content)
             log_print("  {}: {}".format(colored_prefix, formated))
 
-        for series_id, data in source_series.items():
+        for series_id, data in sorted(source_series.items(),
+                                      key=lambda x: x[0]):
             print_line(series_id, 'yellow', data[i])
 
-        for series_id, data in outputs.items():
+        for series_id, data in sorted(outputs.items(),
+                                      key=lambda x: x[0]):
             model_output = data[i]
             print_line(series_id, 'magenta', model_output)
 
