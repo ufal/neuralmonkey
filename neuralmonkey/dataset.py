@@ -143,7 +143,7 @@ def create_dataset_series(path: str,
         for line in gzreader.read():
             yield preprocess(line)
     elif file_type == 'application/octet-stream':
-        return np.load(path)
+        yield from np.load(path)
     else:
         raise Exception("Unsupported data type: {}, file {}"
                         .format(file_type, path))
