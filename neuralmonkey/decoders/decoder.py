@@ -358,6 +358,8 @@ class Decoder(object):
                 output = self.output_projection(current_input, state, contexts)
                 _, state = cell(tf.concat(1, [current_input] + contexts), state)
 
+                logit = self._logit_function(output)
+
                 output_logits.append(logit)
                 rnn_outputs.append(output)
                 rnn_states.append(state)
