@@ -120,7 +120,7 @@ def training_loop(tf_manager: TensorFlowManager,
                         evaluators, batch_dataset, runners,
                         train_results, train_outputs)
 
-                    _log_continuons_evaluation(tb_writer, main_metric,
+                    _log_continuous_evaluation(tb_writer, main_metric,
                                                train_evaluation,
                                                seen_instances,
                                                trainer_result,
@@ -178,7 +178,7 @@ def training_loop(tf_manager: TensorFlowManager,
                     log("Validation (epoch {}, batch number {}):"
                         .format(i + 1, batch_n), color='blue')
 
-                    _log_continuons_evaluation(tb_writer, main_metric,
+                    _log_continuous_evaluation(tb_writer, main_metric,
                                                val_evaluation, seen_instances,
                                                val_results, train=False)
 
@@ -315,7 +315,7 @@ def evaluation(evaluators, dataset, runners, execution_results, result_data):
     return eval_result
 
 
-def _log_continuons_evaluation(tb_writer: tf.train.SummaryWriter,
+def _log_continuous_evaluation(tb_writer: tf.train.SummaryWriter,
                                main_metric: str,
                                eval_result: Evaluation,
                                seen_instances: int,
