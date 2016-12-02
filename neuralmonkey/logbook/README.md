@@ -1,6 +1,6 @@
 # Neural Monkey LogBook
 
-## What is it?
+## What is it
 
 _Neural Monkey LogBook_ is a simple web application for preview the outputs of
 the experiments in the browser.
@@ -14,7 +14,7 @@ LogBook is meant as a complement to using
 [TensorBoard](https://www.tensorflow.org/versions/r0.9/how_tos/summaries_and_tensorboard/index.html)
 whose summaries are stored in the same directory structure.
 
-## How to run it?
+## How to run it
 
 You can run the server using the following command:
 
