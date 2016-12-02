@@ -28,7 +28,8 @@ class Attention(object):
                            maximum fertility of one word.
         """
         self.scope = scope
-        self.attentions_in_time = []
+        self._train_attentions_in_time = []
+        self._runtime_attentions_in_time = []
         self.attention_states = attention_states
         self.input_weights = input_weights
 
@@ -62,10 +63,15 @@ class Attention(object):
             self.v_bias = tf.get_variable(
                 "AttnV_b", [], initializer=tf.constant_initializer(0))
 
-    def attention(self, query_state):
+    def get_attentions_in_time(self, runtime_mode):
+        return self._runtime_attentions_in_time if runtime_mode \
+               else self._train_attentions_in_time
+
+    def attention(self, query_state, runtime_mode):
         """Put attention masks on att_states_reshaped
            using hidden_features and query.
         """
+        attentions_in_time = self.get_attentions_in_time(runtime_mode)
 
         with tf.variable_scope(self.scope + "/Attention") as varscope:
             # Sort-of a hack to get the matrix (bahdanau's W_a) in the linear
@@ -79,7 +85,7 @@ class Attention(object):
             # pylint: disable=invalid-name
             # code copied from tensorflow. Suggestion: rename the variables
             # according to the Bahdanau paper
-            s = self.get_logits(y)
+            s = self.get_logits(y, runtime_mode)
 
             if self.input_weights is None:
                 a = tf.nn.softmax(s)
@@ -88,7 +94,7 @@ class Attention(object):
                 norm = tf.reduce_sum(a_all, 1, keep_dims=True) + 1e-8
                 a = a_all / norm
 
-            self.attentions_in_time.append(a)
+            attentions_in_time.append(a)
 
             # Now calculate the attention-weighted vector d.
             d = tf.reduce_sum(tf.reshape(a, [-1, self.attn_length, 1, 1])
@@ -96,7 +102,7 @@ class Attention(object):
 
             return tf.reshape(d, [-1, self.attn_size])
 
-    def get_logits(self, y):
+    def get_logits(self, y, runtime_mode):
         # Attention mask is a softmax of v^T * tanh(...).
         return tf.reduce_sum(
             self.v * tf.tanh(self.hidden_features + y), [2, 3]) + self.v_bias
@@ -122,9 +128,10 @@ class CoverageAttention(Attention):
         self.fertility = 1e-8 + self.max_fertility * tf.sigmoid(
             tf.reduce_sum(self.fertility_weights * self.attention_states, [2]))
 
-    def get_logits(self, y):
+    def get_logits(self, y, runtime_mode):
+        attentions_in_time = self.get_attentions_in_time(runtime_mode)
         coverage = sum(
-            self.attentions_in_time) / self.fertility * self.input_weights
+            attentions_in_time) / self.fertility * self.input_weights
 
         logits = tf.reduce_sum(
             self.v * tf.tanh(
