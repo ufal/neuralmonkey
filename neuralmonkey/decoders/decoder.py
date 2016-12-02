@@ -123,11 +123,11 @@ class Decoder(object):
 
         self.train_loss = tf.nn.seq2seq.sequence_loss(
             train_logits, train_targets, self.train_weights,
-            self.vocabulary_size)
+            self.vocabulary_size) * 100
 
         self.runtime_loss = tf.nn.seq2seq.sequence_loss(
             runtime_logits, train_targets, self.train_weights,
-            self.vocabulary_size)
+            self.vocabulary_size) * 100
 
         self.cross_entropies = tf.nn.seq2seq.sequence_loss_by_example(
             train_logits, train_targets, self.train_weights,
