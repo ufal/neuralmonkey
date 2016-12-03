@@ -91,10 +91,16 @@ class SentenceEncoder(object):
 
             self.encoded = tf.concat(1, encoded_tup)
 
-            self.attention_object = attention_type(
-                self.attention_tensor, scope="attention_{}".format(name),
-                input_weights=self.padding,
-                max_fertility=attention_fertility) if attention_type else None
+            def attention_object(runtime=False):
+                return attention_type(
+                    self.attention_tensor,
+                    scope="attention_{}".format(name),
+                    input_weights=self.padding,
+                    max_fertility=attention_fertility,
+                    runtime_mode=runtime) if attention_type else None
+
+            self.attention_object_train = attention_object()
+            self.attention_object_runtime = attention_object(runtime=True)
 
         log("Sentence encoder initialized")
 
@@ -120,8 +126,7 @@ class SentenceEncoder(object):
 
 
     def _create_embedding_matrix(self):
-        """Create variables and operations for embedding
-        the input words
+        """Create variables and operations for embedding the input words.
 
         If parent encoder is specified, we reuse its embedding matrix
         """

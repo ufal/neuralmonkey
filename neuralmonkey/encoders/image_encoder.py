@@ -24,7 +24,8 @@ class VectorEncoder(object):
         self.encoded = tf.tanh(tf.matmul(self.flat, project_w) + project_b)
 
         self.attention_tensor = None
-        self.attention_object = None
+        self.attention_object_train = None
+        self.attention_object_runtime = None
 
     # pylint: disable=unused-argument
     def feed_dict(self, dataset, train=False):
@@ -69,11 +70,15 @@ class PostCNNImageEncoder(object):
                             input_shape[2]],
                            name="flatten_image")
 
-            self.attention_object = \
-                attention_type(self.attention_tensor,
-                               scope="attention_img",
-                               dropout_placeholder=self.dropout_placeholder) \
-                if attention_type else None
+            def attention_object(runtime=False):
+                return attention_type(self.attention_tensor,
+                    scope="attention_img",
+                    dropout_placeholder=self.dropout_placeholder,
+                    runtime_mode=runtime) \
+                    if attention_type else None
+
+            self.attention_object_train = attention_object()
+            self.attention_object_runtime = attention_object(runtime=True)
 
     def feed_dict(self, dataset, train=False):
         res = {self.image_features: dataset.get_series(self.data_id)}

@@ -220,10 +220,15 @@ class CNNEncoder(object):
             att_in_weights = tf.squeeze(
                 tf.reduce_prod(last_padding_masks, [1]), [2])
 
-            self.attention_object = Attention(self.attention_tensor,
-                                              scope="attention_{}".format(
-                                                  name),
-                                              input_weights=att_in_weights)
+            def attention_object(runtime=False):
+                return Attention(self.attention_tensor,
+                    scope="attention_{}".format(name),
+                    dropout_placeholder=self.dropout_placeholder,
+                    input_weights=att_in_weights,
+                    runtime_mode=runtime)
+
+            self.attention_object_train = attention_object()
+            self.attention_object_runtime = attention_object(runtime=True)
 
     def feed_dict(self, dataset, train=False):
         # if it is from the pickled file, it is list, not numpy tensor,

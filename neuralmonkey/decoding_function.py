@@ -14,8 +14,8 @@ class Attention(object):
     # pylint: disable=unused-argument,too-many-instance-attributes,too-many-arguments
     # For maintaining the same API as in CoverageAttention
 
-    def __init__(self, attention_states, scope, input_weights=None,
-                 max_fertility=None):
+    def __init__(self, attention_states, scope,
+                 input_weights=None, max_fertility=None, runtime_mode=False):
         """Create the attention object.
 
         Args:
@@ -26,6 +26,8 @@ class Attention(object):
             input_weights: (Optional) The padding weights on the input.
             max_fertility: (Optional) For the Coverage attention compatibilty,
                            maximum fertility of one word.
+            runtime_mode: (Optional) Indicates whether the object will be used
+                          for runtime decoding.
         """
         self.scope = scope
         self._train_attentions_in_time = []
@@ -33,7 +35,7 @@ class Attention(object):
         self.attention_states = attention_states
         self.input_weights = input_weights
 
-        with tf.variable_scope(scope):
+        with tf.variable_scope(scope, reuse=runtime_mode):
             self.attn_length = attention_states.get_shape()[1].value
             self.attn_size = attention_states.get_shape()[2].value
 

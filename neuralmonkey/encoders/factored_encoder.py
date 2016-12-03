@@ -71,12 +71,17 @@ class FactoredEncoder(object):
                 weight_tensor = tf.concat(
                     1, [tf.expand_dims(w, 1) for w in self.padding_weights])
 
-                self.attention_object = attention_type(
-                    self.attention_tensor,
-                    scope="attention_{}".format(self.name),
-                    dropout_placeholder=self.dropout_placeholder,
-                    input_weights=weight_tensor,
-                    max_fertility=attention_fertility)
+                def attention_object(runtime=False):
+                    return attention_type(
+                        self.attention_tensor,
+                        scope="attention_{}".format(self.name),
+                        dropout_placeholder=self.dropout_placeholder,
+                        input_weights=weight_tensor,
+                        max_fertility=attention_fertility,
+                        runtime_mode=runtime)
+
+                self.attention_object_train = attention_object()
+                self.attention_object_runtime = attention_object(runtime=True)
 
         log("Encoder graph constructed.")
 
