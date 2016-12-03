@@ -335,8 +335,7 @@ class Decoder(object):
         with tf.variable_scope(scope):
 
             ## First decoding step
-            contexts = [a.attention(initial_state, runtime_mode)
-                        for a in att_objects]
+            contexts = [a.attention(initial_state) for a in att_objects]
             output = self.output_projection(inputs[0], initial_state, contexts)
             _, state = cell(tf.concat(1, [inputs[0]] + contexts), initial_state)
 
@@ -355,8 +354,7 @@ class Decoder(object):
                     current_input = inputs[step]
 
                 ## N-th decoding step
-                contexts = [a.attention(state, runtime_mode)
-                            for a in att_objects]
+                contexts = [a.attention(state) for a in att_objects]
                 output = self.output_projection(current_input, state, contexts)
                 _, state = cell(tf.concat(1, [current_input] + contexts), state)
 
@@ -368,7 +366,7 @@ class Decoder(object):
 
             if runtime_mode:
                 for i, a in enumerate(att_objects):
-                    attentions = a.get_attentions_in_time(runtime_mode=True)
+                    attentions = a.attentions_in_time[-len(inputs):]
                     alignments = tf.expand_dims(tf.transpose(
                         tf.pack(attentions), perm=[1, 2, 0]), -1)
 
