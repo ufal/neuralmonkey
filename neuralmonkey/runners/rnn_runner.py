@@ -252,7 +252,7 @@ class RuntimeRnnExecutable(Executable):
             additional_feed_dict = {}
 
         # at the end, we should compute loss
-        if self._time_step == self._decoder.max_output - 1:
+        if self._time_step == self._decoder.max_output_len - 1:
             if self._compute_loss:
                 to_run["xent"] = self._decoder.train_loss
             else:
@@ -284,7 +284,7 @@ class RuntimeRnnExecutable(Executable):
                 self._beam_size, self._expanded, self._beam_scoring_f)
             self._expanded = []
 
-        if self._time_step == self._decoder.max_output:
+        if self._time_step == self._decoder.max_output_len:
             top_batch = self._to_exapand[-1].decoded.T
             decoded_tokens = self._vocabulary.vectors_to_sentences(top_batch)
 
