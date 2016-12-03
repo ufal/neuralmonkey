@@ -123,10 +123,10 @@ def main():
     # it does not matter for git.
     repodir = os.path.dirname(os.path.realpath(__file__))
 
-    os.system("cd {}; git log -1 --format=%H > {}"
+    os.system("cd {}/..; git log -1 --format=%H > {}"
               .format(repodir, git_commit_file))
 
-    os.system("cd {}; git --no-pager diff --color=always > {}"
+    os.system("cd {}/..; git --no-pager diff --color=always > {}"
               .format(repodir, git_diff_file))
 
     link_best_vars = "{}.best".format(variables_file_prefix)
