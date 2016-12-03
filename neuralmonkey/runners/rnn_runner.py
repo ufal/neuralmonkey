@@ -246,7 +246,7 @@ class RuntimeRnnExecutable(Executable):
 
         if self._current_beam_batch is not None:
             additional_feed_dict = {t: index for t, index in zip(
-                self._decoder.train_inputs[1:],
+                tf.unpack(self._decoder.train_inputs[1:]),
                 self._current_beam_batch.decoded.T)}
         else:
             additional_feed_dict = {}
