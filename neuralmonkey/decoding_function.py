@@ -14,8 +14,8 @@ class Attention(object):
     # pylint: disable=unused-argument,too-many-instance-attributes,too-many-arguments
     # For maintaining the same API as in CoverageAttention
 
-    def __init__(self, attention_states, scope, dropout_placeholder,
-                 input_weights=None, max_fertility=None):
+    def __init__(self, attention_states, scope, input_weights=None,
+                 max_fertility=None):
         """Create the attention object.
 
         Args:
@@ -23,16 +23,13 @@ class Attention(object):
                               with the output states of the encoder.
             scope: The name of the variable scope in the graph used by this
                    attention object.
-            dropout_placeholder: A Tensor that contains the value of the dropout
-                                 keep probability
             input_weights: (Optional) The padding weights on the input.
             max_fertility: (Optional) For the Coverage attention compatibilty,
                            maximum fertility of one word.
         """
         self.scope = scope
         self.attentions_in_time = []
-        self.attention_states = tf.nn.dropout(attention_states,
-                                              dropout_placeholder)
+        self.attention_states = attention_states
         self.input_weights = input_weights
 
         with tf.variable_scope(scope):
@@ -109,11 +106,10 @@ class CoverageAttention(Attention):
 
     # pylint: disable=too-many-arguments
     # Great objects require great number of parameters
-    def __init__(self, attention_states, scope, dropout_placeholder,
+    def __init__(self, attention_states, scope,
                  input_weights=None, max_fertility=5):
 
         super(CoverageAttention, self).__init__(attention_states, scope,
-                                                dropout_placeholder,
                                                 input_weights=input_weights,
                                                 max_fertility=max_fertility)
 
