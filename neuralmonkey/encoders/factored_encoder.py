@@ -173,6 +173,8 @@ class FactoredEncoder(object):
 
         self.attention_tensor = tf.concat(1, [tf.expand_dims(o, 1)
                                               for o in self.outputs_bidi])
+        self.attention_tensor = tf.nn.dropout(self.attention_tensor,
+                                              self.dropout_placeholder)
 
 
     def feed_dict(self, dataset, train=False):
