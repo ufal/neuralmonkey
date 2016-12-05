@@ -120,9 +120,9 @@ def load_config_file(config_file):
     Arguments:
         config_file: The configuration file
     """
-    fh = codecs.open(config_file, 'r', 'utf-8')
-    config_dicts = parsing.parse_file(fh)
-    fh.close()
+    file_handle = codecs.open(config_file, 'r', 'utf-8')
+    config_dicts = parsing.parse_file(file_handle)
+    file_handle.close()
     log("INI file is parsed.")
     return config_dicts
 

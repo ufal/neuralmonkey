@@ -4,12 +4,11 @@ This is a training script for sequence to sequence learning.
 # tests: lint, mypy
 
 import sys
-import random
+#import random
 import os
 from shutil import copyfile
-import numpy as np
+#import numpy as np
 
-import numpy as np
 import tensorflow as tf
 
 from neuralmonkey.checking import CheckingException, check_dataset_and_coders
@@ -45,7 +44,7 @@ def create_config():
     config.add_argument('overwrite_output_dir', bool, required=False,
                         default=False)
 
-        return config
+    return config
 
 def main():
     if len(sys.argv) != 2:

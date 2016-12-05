@@ -70,6 +70,7 @@ class Configuration(object):
         log("Building model based on the config.")
         try:
             model = build_config(self.config_dict, self.ignored)
+        #pylint: disable=broad-except
         except Exception as exc:
             log("Failed to build model: {}".format(exc), color='red')
             traceback.print_exc()
@@ -83,9 +84,9 @@ class Configuration(object):
                 cond_filename = cond_code.co_filename
                 cond_line_number = cond_code.co_firstlineno
                 raise Exception(
-                        "Value of field '{}' does not satisfy "
-                        "condition defined at {}:{}."
-                        .format(name, cond_filename, cond_line_number))
+                    "Value of field '{}' does not satisfy "
+                    "condition defined at {}:{}."
+                    .format(name, cond_filename, cond_line_number))
 
             setattr(model_n, name, value)
             #arguments.__dict__[name] = value
