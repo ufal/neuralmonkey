@@ -29,6 +29,7 @@ CONFIG.ignore_argument('initial_variables')
 CONFIG.ignore_argument('validation_period')
 CONFIG.ignore_argument('logging_period')
 CONFIG.ignore_argument('minimize')
+CONFIG.ignore_argument('random_seed')
 CONFIG.ignore_argument('save_n_best')
 CONFIG.ignore_argument('overwrite_output_dir')
 

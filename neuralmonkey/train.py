@@ -4,10 +4,10 @@ This is a training script for sequence to sequence learning.
 # tests: lint, mypy
 
 import sys
-#import random
+import random
 import os
 from shutil import copyfile
-#import numpy as np
+import numpy as np
 
 import tensorflow as tf
 
@@ -58,11 +58,14 @@ def main():
     ## various things like randseed or summarywriter should be set up here
     ## so that graph building can be recorded
     # build all the objects specified in the config
-    args = cfg.build_model()
 
-    #pylint: disable=no-member,broad-except
-    if args.random_seed is not None:
-        tf.set_random_seed(args.random_seed)
+    if args.random_seed is None:
+        args.random_seed = 2574600
+    random.seed(args.random_seed)
+    np.random.seed(args.random_seed)
+    tf.set_random_seed(args.random_seed)
+
+    args = cfg.build_model()
 
     #pylint: disable=no-member
     if os.path.isdir(args.output) and \
