@@ -34,29 +34,32 @@ class Configuration(object):
     def ignore_argument(self, name):
         self.ignored.add(name)
 
+    def make_namespace(self, d_obj):
+        n_space = Namespace()
+        for name, value in d_obj.items():
+            if name in self.conditions and not self.conditions[name](value):
+                cond_code = self.conditions[name].__code__
+                cond_filename = cond_code.co_filename
+                cond_line_number = cond_code.co_firstlineno
+                raise Exception(
+                    "Value of field '{}' does not satisfy "
+                    "condition defined at {}:{}."
+                    .format(name, cond_filename, cond_line_number))
+
+            setattr(n_space, name, value)
+            #arguments.__dict__[name] = value
+
+        for name, value in self.defaults.items():
+            if name not in n_space.__dict__:
+                n_space.__dict__[name] = value
+        return n_space
+
     def load_file(self, path):
         log("Loading INI file: '{}'".format(path), color='blue')
 
         try:
-            arguments = Namespace()
             self.config_dict = load_config_file(path)
-
-            for name, value in self.config_dict.items():
-                if name in self.conditions and not self.conditions[name](value):
-                    cond_code = self.conditions[name].__code__
-                    cond_filename = cond_code.co_filename
-                    cond_line_number = cond_code.co_firstlineno
-                    raise Exception(
-                        "Value of field '{}' does not satisfy "
-                        "condition defined at {}:{}."
-                        .format(name, cond_filename, cond_line_number))
-
-                setattr(arguments, name, value)
-                #arguments.__dict__[name] = value
-
-            for name, value in self.defaults.items():
-                if name not in arguments.__dict__:
-                    arguments.__dict__[name] = value
+            arguments = self.make_namespace(self.config_dict)
             log("INI file loaded.", color='blue')
         #pylint: disable=broad-except
         except Exception as exc:
@@ -77,25 +80,7 @@ class Configuration(object):
             exit(1)
         log("Model built.")
         self._check_loaded_conf(model)
-        model_n = Namespace()
-        for name, value in model.items():
-            if name in self.conditions and not self.conditions[name](value):
-                cond_code = self.conditions[name].__code__
-                cond_filename = cond_code.co_filename
-                cond_line_number = cond_code.co_firstlineno
-                raise Exception(
-                    "Value of field '{}' does not satisfy "
-                    "condition defined at {}:{}."
-                    .format(name, cond_filename, cond_line_number))
-
-            setattr(model_n, name, value)
-            #arguments.__dict__[name] = value
-
-        for name, value in self.defaults.items():
-            if name not in model_n.__dict__:
-                model_n.__dict__[name] = value
-
-        return model_n
+        return self.make_namespace(model)
 
     def _check_loaded_conf(self, config_dict):
         """ Checks whether there are unexpected or missing fields """
