@@ -89,7 +89,9 @@ def main():
     test_datasets.add_argument('variables')
 
     args = CONFIG.load_file(sys.argv[1])
+    args = CONFIG.build_model()
     datasets_args = test_datasets.load_file(sys.argv[2])
+    datasets_args = test_datasets.build_model()
     initialize_for_running(args.output, args.tf_manager,
                            datasets_args.variables)
 

@@ -63,6 +63,7 @@ def main():
 
     # pylint: disable=no-member
     args = CONFIG.load_file(cli_args.configuration)
+    args = CONFIG.build_model()
     initialize_for_running(args.output, args.tf_manager, None)
     APP.config['args'] = args
     APP.run(port=cli_args.port, host=cli_args.host)
