@@ -44,7 +44,7 @@ class CNNEncoder(object):
                  bidirectional=True,
                  batch_normalization=True,
                  local_response_normalization=True,
-                 dropout_keep_p=0.5):
+                 dropout_keep_prob=0.5):
         """
         Initilizes and configures the computational graph creator.
 
@@ -96,7 +96,7 @@ class CNNEncoder(object):
         self.bidirectional = bidirectional
         self.batch_normalization = batch_normalization
         self.local_response_normalization = local_response_normalization
-        self.dropout_keep_p = dropout_keep_p
+        self.dropout_keep_prob = dropout_keep_prob
         self.name = name
 
         with tf.variable_scope(name):
@@ -229,7 +229,7 @@ class CNNEncoder(object):
             np.sum(np.sign(images), axis=3, keepdims=True)
 
         if train:
-            f_dict[self.dropout_placeholder] = self.dropout_keep_p
+            f_dict[self.dropout_placeholder] = self.dropout_keep_prob
         else:
             f_dict[self.dropout_placeholder] = 1.0
         f_dict[self.is_training] = train

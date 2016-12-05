@@ -12,13 +12,13 @@ class SequenceClassifier(object):
     """
 
     def __init__(self, encoders, vocabulary, data_id, name,
-                 layers=[], activation=tf.tanh, dropout_keep_p=0.5):
+                 layers=[], activation=tf.tanh, dropout_keep_prob=0.5):
         self.encoders = encoders
         self.vocabulary = vocabulary
         self.data_id = data_id
         self.layers = layers
         self.activation = activation
-        self.dropout_keep_p = dropout_keep_p
+        self.dropout_keep_prob = dropout_keep_prob
         self.name = name
         self.max_output_len = 1
 
@@ -66,7 +66,7 @@ class SequenceClassifier(object):
         res[self.gt_inputs[0]] = label_tensors[1]
 
         if train:
-            res[self.dropout_placeholder] = self.dropout_keep_p
+            res[self.dropout_placeholder] = self.dropout_keep_prob
         else:
             res[self.dropout_placeholder] = 1.0
 
