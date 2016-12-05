@@ -113,19 +113,24 @@ def instantiate_class(name, all_dicts, existing_objects, depth):
     return obj
 
 
-def load_config_file(config_file, ignore_names):
-    """ Loads and builds the model from the configuration
+def load_config_file(config_file):
+    """ Loads the configuration
 
     Arguments:
         config_file: The configuration file
+    """
+    with open(config_file, 'r', encoding='utf-8') as file:
+        config_dicts = parsing.parse_file(file)
+    log("INI file is parsed.")
+    return config_dicts
+
+def build_config(config_dicts, ignore_names):
+    """ Builds the model from the configuration
+
+    Arguments:
+        config_dicts: The parsed configuration file
         ignore_names: A set of names that should be ignored during the loading.
     """
-    config_dicts = parsing.parse_file(config_file)
-    config_file.close()
-    log("INI file is parsed.")
-
-    # first load the configuration into a dictionary
-
     if "main" not in config_dicts:
         raise Exception("Configuration does not contain the main block.")
 

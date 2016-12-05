@@ -29,6 +29,7 @@ CONFIG.ignore_argument('initial_variables')
 CONFIG.ignore_argument('validation_period')
 CONFIG.ignore_argument('logging_period')
 CONFIG.ignore_argument('minimize')
+CONFIG.ignore_argument('random_seed')
 CONFIG.ignore_argument('save_n_best')
 CONFIG.ignore_argument('overwrite_output_dir')
 
@@ -88,8 +89,10 @@ def main():
     test_datasets.add_argument('test_datasets')
     test_datasets.add_argument('variables')
 
-    args = CONFIG.load_file(sys.argv[1])
-    datasets_args = test_datasets.load_file(sys.argv[2])
+    CONFIG.load_file(sys.argv[1])
+    args = CONFIG.build_model()
+    test_datasets.load_file(sys.argv[2])
+    datasets_args = test_datasets.build_model()
     initialize_for_running(args.output, args.tf_manager,
                            datasets_args.variables)
 

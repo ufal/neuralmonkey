@@ -1,11 +1,10 @@
 #tests: lint
 
-import codecs
 import traceback
 from argparse import Namespace
 
 from neuralmonkey.logging import log
-from neuralmonkey.config.config_loader import load_config_file
+from neuralmonkey.config.config_loader import load_config_file, build_config
 
 class Configuration(object):
     """
@@ -18,6 +17,7 @@ class Configuration(object):
         self.defaults = {}
         self.conditions = {}
         self.ignored = set()
+        self.config_dict = {}
 
     #pylint: disable=too-many-arguments
     def add_argument(self, name, arg_type=object, required=False, default=None,
@@ -34,43 +34,53 @@ class Configuration(object):
     def ignore_argument(self, name):
         self.ignored.add(name)
 
+    def make_namespace(self, d_obj):
+        n_space = Namespace()
+        for name, value in d_obj.items():
+            if name in self.conditions and not self.conditions[name](value):
+                cond_code = self.conditions[name].__code__
+                cond_filename = cond_code.co_filename
+                cond_line_number = cond_code.co_firstlineno
+                raise Exception(
+                    "Value of field '{}' does not satisfy "
+                    "condition defined at {}:{}."
+                    .format(name, cond_filename, cond_line_number))
+
+            setattr(n_space, name, value)
+            #arguments.__dict__[name] = value
+
+        for name, value in self.defaults.items():
+            if name not in n_space.__dict__:
+                n_space.__dict__[name] = value
+        return n_space
+
     def load_file(self, path):
         log("Loading INI file: '{}'".format(path), color='blue')
 
         try:
-            config_f = codecs.open(path, 'r', 'utf-8')
-            arguments = Namespace()
-
-            config_dict = load_config_file(config_f, self.ignored)
-
-            self._check_loaded_conf(config_dict)
-
-            for name, value in config_dict.items():
-                if name in self.conditions and not self.conditions[name](value):
-                    cond_code = self.conditions[name].__code__
-                    cond_filename = cond_code.co_filename
-                    cond_line_number = cond_code.co_firstlineno
-                    raise Exception(
-                        "Value of field '{}' does not satisfy "
-                        "condition defined at {}:{}."
-                        .format(name, cond_filename, cond_line_number))
-
-                setattr(arguments, name, value)
-                #arguments.__dict__[name] = value
-
-            for name, value in self.defaults.items():
-                if name not in arguments.__dict__:
-                    arguments.__dict__[name] = value
+            self.config_dict = load_config_file(path)
+            arguments = self.make_namespace(self.config_dict)
             log("INI file loaded.", color='blue')
         #pylint: disable=broad-except
         except Exception as exc:
             log("Failed to load INI file: {}".format(exc), color='red')
             traceback.print_exc()
             exit(1)
-        finally:
-            config_f.close()
 
         return arguments
+
+    def build_model(self):
+        log("Building model based on the config.")
+        try:
+            model = build_config(self.config_dict, self.ignored)
+        #pylint: disable=broad-except
+        except Exception as exc:
+            log("Failed to build model: {}".format(exc), color='red')
+            traceback.print_exc()
+            exit(1)
+        log("Model built.")
+        self._check_loaded_conf(model)
+        return self.make_namespace(model)
 
     def _check_loaded_conf(self, config_dict):
         """ Checks whether there are unexpected or missing fields """
@@ -81,9 +91,8 @@ class Configuration(object):
             if name not in self.defaults:
                 expected_missing.append(name)
         if expected_missing:
-            raise Exception("Missing mandatory fileds: {}"
+            raise Exception("Missing mandatory fields: {}"
                             .format(", ".join(expected_missing)))
-
         unexpected = []
         for name in config_dict:
             if name not in expected_fields:
