@@ -4,7 +4,6 @@ specified by the experiment configuration
 """
 # tests: lint
 
-import codecs
 import collections
 from inspect import signature, isclass, isfunction
 
@@ -120,9 +119,8 @@ def load_config_file(config_file):
     Arguments:
         config_file: The configuration file
     """
-    file_handle = codecs.open(config_file, 'r', 'utf-8')
-    config_dicts = parsing.parse_file(file_handle)
-    file_handle.close()
+    with open(config_file, 'r', encoding='utf-8') as file:
+        config_dicts = parsing.parse_file(file)
     log("INI file is parsed.")
     return config_dicts
 

@@ -8,7 +8,6 @@ import random
 import os
 from shutil import copyfile
 import numpy as np
-
 import tensorflow as tf
 
 from neuralmonkey.checking import CheckingException, check_dataset_and_coders
