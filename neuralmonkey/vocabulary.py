@@ -14,10 +14,6 @@ import numpy as np
 from neuralmonkey.logging import log
 from neuralmonkey.dataset import Dataset, LazyDataset
 
-#pylint: disable=invalid-name
-Sentence = List[str]
-#pylint: enable=invalid-name
-
 PAD_TOKEN = "<pad>"
 START_TOKEN = "<s>"
 END_TOKEN = "</s>"
@@ -333,7 +329,7 @@ class Vocabulary(collections.Sized):
 
 
     def sentences_to_tensor(
-            self, sentences: List[Sentence], max_len: int, train: bool=False,
+            self, sentences: List[List[str]], max_len: int, train: bool=False,
             add_technical_symbols: bool=True) -> Tuple[np.ndarray, np.ndarray]:
         """Generate the tensor representation for the provided sentences.
 
