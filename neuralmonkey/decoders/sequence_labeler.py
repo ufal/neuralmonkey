@@ -13,7 +13,7 @@ class SequenceLabeler(Decoder):
         self.vocabulary = vocabulary
         self.data_id = data_id
 
-        dropout_keep_prob = kwargs.get("dropout_keep_p", 1.0)
+        dropout_keep_prob = kwargs.get("dropout_keep_prob", 1.0)
 
         self.rnn_size = self.encoder.rnn_size * 2
         self.max_output = self.encoder.max_input_len

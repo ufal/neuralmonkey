@@ -34,13 +34,13 @@ class VectorEncoder(object):
 class PostCNNImageEncoder(object):
 
     def __init__(self, input_shape, output_shape, data_id, name,
-                 dropout_keep_p=1.0, attention_type=None):
+                 dropout_keep_prob=1.0, attention_type=None):
         assert len(input_shape) == 3
 
         self.input_shape = input_shape
         self.output_shape = output_shape
         self.data_id = data_id
-        self.dropout_keep_p = dropout_keep_p
+        self.dropout_keep_prob = dropout_keep_prob
         self.attention_type = attention_type
         self.name = name
 
@@ -77,7 +77,7 @@ class PostCNNImageEncoder(object):
         res = {self.image_features: dataset.get_series(self.data_id)}
 
         if train:
-            res[self.dropout_placeholder] = self.dropout_keep_p
+            res[self.dropout_placeholder] = self.dropout_keep_prob
         else:
             res[self.dropout_placeholder] = 1.0
 

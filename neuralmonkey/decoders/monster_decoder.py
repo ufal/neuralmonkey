@@ -23,7 +23,7 @@ from neuralmonkey.vocabulary import Vocabulary, START_TOKEN
 class Decoder(object):
     def __init__(self, encoders, vocabulary, data_id, rnn_size, name,
                  embedding_size=128, use_attention=None, max_output_len=20,
-                 scheduled_sampling=None, dropout_keep_p=0.5, copy_net=None,
+                 scheduled_sampling=None, dropout_keep_prob=0.5, copy_net=None,
                  reused_word_embeddings=None, use_noisy_activations=False,
                  depth=1):
 
@@ -114,7 +114,7 @@ class Decoder(object):
         self.use_attention = use_attention
         self.max_output_len = max_output_len
         self.scheduled_sampling = scheduled_sampling
-        self.dropout_keep_p = dropout_keep_p
+        self.dropout_keep_prob = dropout_keep_prob
         self.copy_net = copy_net
         self.reused_word_embeddings = reused_word_embeddings
         self.use_noisy_activations = use_noisy_activations
@@ -504,7 +504,7 @@ class Decoder(object):
                 res[words_plc] = words_tensor
 
         if train:
-            res[self.dropout_placeholder] = self.dropout_keep_p
+            res[self.dropout_placeholder] = self.dropout_keep_prob
         else:
             res[self.dropout_placeholder] = 1.0
 

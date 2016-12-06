@@ -40,7 +40,7 @@ class FactoredEncoder(object):
             attention_fertility: Fertility for CoverageAttention (if used). [3]
 
             name: The name for this encoder. [sentence_encoder]
-            dropout_keep_p: 1 - Dropout probability [1]
+            dropout_keep_prob: 1 - Dropout probability [1]
         """
         for vocabulary in vocabularies:
             assert_type(self, 'vocabulary', vocabulary, Vocabulary)
@@ -53,7 +53,7 @@ class FactoredEncoder(object):
         self.rnn_size = rnn_size
 
         self.name = kwargs.get("name", "sentence_encoder")
-        self.dropout_keep_p = kwargs.get("dropout_keep_p", 1)
+        self.dropout_keep_prob = kwargs.get("dropout_keep_prob", 1)
 
         self.use_noisy_activations = kwargs.get("use_noisy_activations", False)
         self.use_pervasive_dropout = kwargs.get("use_pervasive_dropout", False)
@@ -173,6 +173,8 @@ class FactoredEncoder(object):
 
         self.attention_tensor = tf.concat(1, [tf.expand_dims(o, 1)
                                               for o in self.outputs_bidi])
+        self.attention_tensor = tf.nn.dropout(self.attention_tensor,
+                                              self.dropout_placeholder)
 
 
     def feed_dict(self, dataset, train=False):
@@ -225,7 +227,7 @@ class FactoredEncoder(object):
             res[plc] = padding
 
         if train:
-            res[self.dropout_placeholder] = self.dropout_keep_p
+            res[self.dropout_placeholder] = self.dropout_keep_prob
         else:
             res[self.dropout_placeholder] = 1.0
         res[self.is_training] = train
