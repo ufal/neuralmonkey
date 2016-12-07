@@ -1,12 +1,25 @@
+from typing import List, Iterable
+import gzip
 
-class PlainTextFileReader(object):
+from neuralmonkey.readers.utils import FILETYPER
 
-    def __init__(self, path, encoding="utf-8"):
-        self.path = path
-        self.encoding = encoding
+# tests: lint,mypy
 
-    def read(self):
-        # type: () -> Iterator[List[str]]
-        with open(self.path, encoding=self.encoding) as f_data:
-            for line in f_data:
-                yield line.strip().split(" ")
+def get_plain_text_reader(encoding: str="utf-8"):
+    """Get reader for space-separated tokenized text."""
+    def reader(files: List[str]) -> Iterable[List[str]]:
+        for path in files:
+            mime_type = FILETYPER.from_file(path)
+
+            if mime_type == "application/gzip":
+                open_f = gzip.open
+            else:
+                open_f = open
+
+            with open_f(path, encoding=encoding) as f_data:
+                for line in f_data:
+                    yield line.strip().split(" ")
+    return reader
+
+# pylint: disable=invalid-name
+UtfPlainTextReader = get_plain_text_reader()
