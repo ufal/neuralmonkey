@@ -47,7 +47,7 @@ def load_dataset_from_files(name: str=None, lazy: bool=False,
     series_paths_and_readers = _get_series_paths_and_readers(kwargs)
     series_outputs = _get_series_outputs(kwargs)
 
-    if len(series_paths_and_readers) == 0:
+    if not series_paths_and_readers:
         raise Exception("No input files are provided.")
 
     log("Initializing dataset with: {}".format(
@@ -103,9 +103,9 @@ def _get_series_paths_and_readers(
     """Get paths to files that contain data from the dataset kwargs.
 
     Input file for a serie named 'xxx' is specified by parameter 's_xxx'. The
-    dataset series is define by a string with a path / list of strings with
-    path, or a tuple whose first member is path or list of path and the second
-    memeber is a reader function.
+    dataset series is defined by a string with a path / list of strings with
+    paths, or a tuple whose first member is a path or a list of paths and the
+    second memeber is a reader function.
 
     Arguments:
         kwargs: A dictionary containing the dataset keyword argument specs.
