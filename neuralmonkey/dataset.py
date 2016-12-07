@@ -15,6 +15,7 @@ from neuralmonkey.readers.plain_text_reader import UtfPlainTextReader
 SERIES_SOURCE = re.compile("s_([^_]*)$")
 SERIES_OUTPUT = re.compile("s_(.*)_out")
 
+
 def load_dataset_from_files(name: str=None, lazy: bool=False,
                             preprocessors: List[Tuple[str, str, Callable]]=None,
                             **kwargs: str) -> 'Dataset':
@@ -62,6 +63,17 @@ def load_dataset_from_files(name: str=None, lazy: bool=False,
     series = {key: list(reader(paths))
               for key, (paths, reader) in series_paths_and_readers.items()}
 
+    if preprocessors is not None:
+        for src_id, tgt_id, function in preprocessors:
+            if src_id == tgt_id:
+                raise Exception("Attempt to rewrite series '{}'".format(src_id))
+            if src_id not in series:
+                raise Exception(
+                    ("The source series ({}) of the '{}' preprocessor "
+                     "is not defined in the dataset.").format(
+                         src_id, function.__name__))
+            series[tgt_id] = function(series[src_id])
+
     dataset = Dataset(name, series, series_outputs)
     log("Dataset length: {}".format(len(dataset)))
 
@@ -79,8 +91,9 @@ def _get_name_from_paths(series_paths: Dict[str, Tuple[List[str],
     Returns:
         The name for the dataset.
     """
+
     name = "dataset"
-    for _, (paths, _) in series_paths.items():
+    for paths, _ in series_paths.values():
         name += "-{}".format("+".join(paths))
     return name
 
@@ -161,7 +174,6 @@ class Dataset(collections.Sized):
 
         self._check_series_lengths()
 
-
     def _check_series_lengths(self) -> None:
         """Check lenghts of series in the dataset.
 
@@ -177,7 +189,6 @@ class Dataset(collections.Sized):
             raise Exception("Lengths of data series must be equal. Instead: {}"
                             .format(", ".join(err_str)))
 
-
     def __len__(self) -> int:
         """Get the length of the dataset.
 
@@ -190,8 +201,6 @@ class Dataset(collections.Sized):
             first_series = next(iter(self._series.values()))
             return len(list(first_series))
 
-
-
     def has_series(self, name: str) -> bool:
         """Check if the dataset contains a series of a given name.
 
@@ -202,7 +211,6 @@ class Dataset(collections.Sized):
             True if the dataset contains the series, False otherwise.
         """
         return name in self._series
-
 
     def get_series(self, name: str, allow_none: bool=False) -> Iterable:
         """Get the data series with a given name.
@@ -226,7 +234,6 @@ class Dataset(collections.Sized):
     def series_ids(self) -> Iterable[str]:
         return self._series.keys()
 
-
     def shuffle(self) -> None:
         """Shuffle the dataset randomly """
         keys = list(self._series.keys())
@@ -234,7 +241,6 @@ class Dataset(collections.Sized):
         random.shuffle(zipped)
         for key, serie in zip(keys, list(zip(*zipped))):
             self._series[key] = serie
-
 
     def batch_serie(self, serie_name: str,
                     batch_size: int) -> Iterable[Iterable]:
@@ -256,7 +262,6 @@ class Dataset(collections.Sized):
         if buf:
             yield buf
 
-
     def batch_dataset(self, batch_size: int) -> Iterable['Dataset']:
         """Split the dataset into a list of batched datasets.
 
@@ -271,12 +276,11 @@ class Dataset(collections.Sized):
 
         batch_index = 0
         for next_batches in zip(*batched_series):
-            batch_dict = {key:data for key, data in zip(keys, next_batches)}
+            batch_dict = {key: data for key, data in zip(keys, next_batches)}
             dataset = Dataset(self.name + "-batch-{}".format(batch_index),
                               batch_dict, {})
             batch_index += 1
             yield dataset
-
 
 
 class LazyDataset(Dataset):
@@ -287,6 +291,7 @@ class LazyDataset(Dataset):
     Instead, everytime the function ``get_series`` is called, a new file handle
     is created and a generator which yields lines from the file is returned.
     """
+
     def __init__(self, name: str,
                  series_paths_and_readers: Dict[str, Tuple[List[str], Reader]],
                  series_outputs: Dict[str, str],
@@ -302,8 +307,19 @@ class LazyDataset(Dataset):
         super().__init__(name, {s: None for s in series_paths_and_readers},
                          series_outputs)
         self.series_paths_and_readers = series_paths_and_readers
-        self.preprocessors = preprocessors
 
+        self.preprocess_series = {} # type: Dict[str, Tuple[str, Callable]]
+        if preprocessors is not None:
+            for src_id, tgt_id, func in preprocessors:
+                if src_id == tgt_id:
+                    raise Exception(
+                        "Attempt to rewrite series '{}'".format(src_id))
+                if src_id not in series_paths_and_readers:
+                    raise Exception(
+                        ("The source series ({}) of the '{}' preprocessor "
+                         "is not defined in the dataset.").format(
+                             src_id, func.__name__))
+                self.preprocess_series[tgt_id] = (src_id, func)
 
     def __len__(self):
         """Length of the lazy dataset is unknown.
@@ -317,7 +333,6 @@ class LazyDataset(Dataset):
         """
         raise Exception("Lazy dataset does not know its size")
 
-
     def has_series(self, name: str) -> bool:
         """Check if the dataset contains a series of a given name.
 
@@ -328,7 +343,6 @@ class LazyDataset(Dataset):
             True if the dataset contains the series, False otherwise.
         """
         return name in self.series_paths_and_readers
-
 
     def get_series(self, name: str, allow_none: bool=False) -> Iterable:
         """Get the data series with a given name.
@@ -346,12 +360,22 @@ class LazyDataset(Dataset):
         Raises:
             KeyError if the series does not exists and allow_none is False
         """
-        if allow_none and name not in self.series_paths_and_readers:
+
+        if (allow_none and
+                name not in self.series_paths_and_readers and
+                name not in self.preprocess_series):
             return None
 
-        paths, reader = self.series_paths_and_readers[name]
-        return reader(paths)
-
+        if name in self.series_paths_and_readers:
+            paths, reader = self.series_paths_and_readers[name]
+            return reader(paths)
+        elif name in self.preprocess_series:
+            src_id, func = self.preprocess_series[name]
+            paths, reader = self.series_paths_and_readers[src_id]
+            src_series = reader(paths)
+            return func(src_series)
+        else:
+            raise Exception("Series '{}' is not in the dataset.".format(name))
 
     def shuffle(self):
         """Does nothing, not in-memory shuffle is impossible.
@@ -359,3 +383,8 @@ class LazyDataset(Dataset):
         TODO: this is related to the ``__len__`` method.
         """
         pass
+
+    @property
+    def series_ids(self) -> Iterable[str]:
+        return (list(self.series_paths_and_readers.keys()) +
+                list(self.preprocess_series.keys()))
