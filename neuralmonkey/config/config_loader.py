@@ -40,7 +40,10 @@ def build_object(value, all_dicts, existing_objects, depth):
     # TODO zapisovani do argumentu
     #   existing_objects[value] = None
 
-    if isinstance(value, collections.Iterable) and not isinstance(value, str):
+    if isinstance(value, tuple):
+        return tuple(build_object(val, all_dicts, existing_objects, depth + 1)
+                     for val in value)
+    elif isinstance(value, collections.Iterable) and not isinstance(value, str):
         return [build_object(val, all_dicts, existing_objects, depth + 1)
                 for val in value]
 
