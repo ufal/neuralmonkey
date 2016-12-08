@@ -30,8 +30,7 @@ class Attention(object):
                           for runtime decoding.
         """
         self.scope = scope
-        self._train_attentions_in_time = []
-        self._runtime_attentions_in_time = []
+        self.attentions_in_time = []
         self.attention_states = attention_states
         self.input_weights = input_weights
 
