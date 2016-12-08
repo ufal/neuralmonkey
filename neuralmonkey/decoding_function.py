@@ -15,7 +15,8 @@ class Attention(object):
     # For maintaining the same API as in CoverageAttention
 
     def __init__(self, attention_states, scope,
-                 input_weights=None, max_fertility=None, runtime_mode=False):
+                 input_weights=None, attention_fertility=None,
+                 runtime_mode=False):
         """Create the attention object.
 
         Args:
@@ -24,8 +25,8 @@ class Attention(object):
             scope: The name of the variable scope in the graph used by this
                    attention object.
             input_weights: (Optional) The padding weights on the input.
-            max_fertility: (Optional) For the Coverage attention compatibilty,
-                           maximum fertility of one word.
+            attention_fertility: (Optional) For the Coverage attention
+                compatibilty, maximum fertility of one word.
             runtime_mode: (Optional) Indicates whether the object will be used
                           for runtime decoding.
         """
@@ -109,19 +110,20 @@ class CoverageAttention(Attention):
     # pylint: disable=too-many-arguments
     # Great objects require great number of parameters
     def __init__(self, attention_states, scope,
-                 input_weights=None, max_fertility=5):
+                 input_weights=None, attention_fertility=5):
 
-        super(CoverageAttention, self).__init__(attention_states, scope,
-                                                input_weights=input_weights,
-                                                max_fertility=max_fertility)
+        super(CoverageAttention, self).__init__(
+            attention_states, scope,
+            input_weights=input_weights,
+            attention_fertility=attention_fertility)
 
         self.coverage_weights = tf.get_variable("coverage_matrix",
                                                 [1, 1, 1, self.attn_size])
         self.fertility_weights = tf.get_variable("fertility_matrix",
                                                  [1, 1, self.attn_size])
-        self.max_fertility = max_fertility
+        self.attention_fertility = attention_fertility
 
-        self.fertility = 1e-8 + self.max_fertility * tf.sigmoid(
+        self.fertility = 1e-8 + self.attention_fertility * tf.sigmoid(
             tf.reduce_sum(self.fertility_weights * self.attention_states, [2]))
 
     def get_logits(self, y):

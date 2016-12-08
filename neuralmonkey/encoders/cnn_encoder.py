@@ -5,12 +5,13 @@ a CNN, followed by a sequential processing by RNN.
 
 import numpy as np
 import tensorflow as tf
+from neuralmonkey.encoders.attentive import Attentive
 from neuralmonkey.decoding_function import Attention
 
 # tests: lint, mypy
 
 # pylint: disable=too-many-instance-attributes, too-few-public-methods
-class CNNEncoder(object):
+class CNNEncoder(Attentive):
     """
 
     An image encoder. It projects the input image through a serie of
@@ -45,7 +46,8 @@ class CNNEncoder(object):
                  bidirectional=True,
                  batch_normalization=True,
                  local_response_normalization=True,
-                 dropout_keep_prob=0.5):
+                 dropout_keep_prob=0.5,
+                 attention_type=Attention):
         """
         Initilizes and configures the computational graph creator.
 
@@ -123,15 +125,16 @@ class CNNEncoder(object):
             self.image_processing_layers = []
 
             with tf.variable_scope("convolutions"):
-                for i, (filter_size, n_filters, pool_size) \
-                        in enumerate(convolutions):
+                for i, (filter_size,
+                        n_filters,
+                        pool_size) in enumerate(convolutions):
                     with tf.variable_scope("cnn_layer_{}".format(i)):
                         conv_w = tf.get_variable(
                             "wieghts",
                             shape=[filter_size, filter_size,
                                    last_n_channels, n_filters],
-                            initializer= \
-                                    tf.truncated_normal_initializer(stddev=.1))
+                            initializer=tf.truncated_normal_initializer(
+                                stddev=.1))
                         conv_b = tf.get_variable(
                             "biases",
                             shape=[n_filters],
@@ -169,11 +172,9 @@ class CNNEncoder(object):
             last_layer_size = last_n_channels * image_height * image_width
 
             with tf.variable_scope("rnn_inputs"):
-                encoder_ins = [tf.reshape(x,
-                                          [-1, last_n_channels * image_height])
-                               for x in tf.split(2, image_width,
-                                                 last_layer,
-                                                 name='split_input')]
+                encoder_ins = [
+                    tf.reshape(x, [-1, last_n_channels * image_height]) for x in
+                    tf.split(2, image_width, last_layer, name='split_input')]
 
             def rnn_encoder(inputs, last_layer_size, scope):
                 with tf.variable_scope(scope):
@@ -205,9 +206,7 @@ class CNNEncoder(object):
             if bidirectional:
                 backward_encoder_state = rnn_encoder(
                     list(reversed(encoder_ins)),
-                    last_layer_size,
-                    "encoder-backward")
-                # pylint: disable=redefined-variable-type
+                    last_layer_size, "encoder-backward")
                 encoder_state = tf.concat(
                     1, [encoder_state, backward_encoder_state])
 
@@ -217,18 +216,10 @@ class CNNEncoder(object):
                 tf.reshape(last_layer, [-1, image_width,
                                         last_n_channels * image_height])
 
-            att_in_weights = tf.squeeze(
+            self._padding = tf.squeeze(
                 tf.reduce_prod(last_padding_masks, [1]), [2])
 
-            def attention_object(runtime=False):
-                return Attention(self.attention_tensor,
-                    scope="attention_{}".format(name),
-                    dropout_placeholder=self.dropout_placeholder,
-                    input_weights=att_in_weights,
-                    runtime_mode=runtime)
-
-            self.attention_object_train = attention_object()
-            self.attention_object_runtime = attention_object(runtime=True)
+            super(CNNEncoder, self).__init__(attention_type)
 
     def feed_dict(self, dataset, train=False):
         # if it is from the pickled file, it is list, not numpy tensor,
@@ -252,7 +243,9 @@ class CNNEncoder(object):
 # pylint: disable=too-many-locals
 def batch_norm(tensor, n_out, phase_train, scope='bn', scale_after_norm=True):
     """
-    Batch normalization on convolutional maps. Taken from
+    Batch normalization on convolutional maps.
+
+    Taken from
     http://stackoverflow.com/questions/33949786/how-could-i-use-batch-normalization-in-tensorflow
 
     Arguments:
@@ -287,8 +280,6 @@ def batch_norm(tensor, n_out, phase_train, scope='bn', scale_after_norm=True):
                             mean_var_with_update,
                             lambda: (ema_mean, ema_var))
 
-        normed = \
-            tf.nn.batch_norm_with_global_normalization(tensor, mean, var,
-                                                       beta, gamma, 1e-3,
-                                                       scale_after_norm)
+        normed = tf.nn.batch_norm_with_global_normalization(
+            tensor, mean, var, beta, gamma, 1e-3, scale_after_norm)
         return normed

@@ -250,12 +250,8 @@ class Decoder(object):
         if not self.use_attention:
             return []
 
-        if runtime_mode:
-            return [e.attention_object_runtime for e in self.encoders
-                    if e.attention_object_runtime]
-        else:
-            return [e.attention_object_train for e in self.encoders
-                    if e.attention_object_train]
+        return [e.get_attention_object(runtime_mode)
+                for e in self.encoders]
 
     def _embed_inputs(self, inputs):
         """Embed inputs using the decoder"s word embedding matrix
