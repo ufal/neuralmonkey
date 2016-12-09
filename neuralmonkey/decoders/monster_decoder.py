@@ -536,7 +536,14 @@ def attention_decoder(decoder_inputs, initial_state, attention_objects,
         outputs = []
         prev = None
 
-        attns = [a.initialize(batch_size, dtype) for a in attention_objects]
+        def initialize(attention_obj, batch_size, dtype):
+            batch_attn_size = tf.pack([batch_size, attention_obj.attn_size])
+            initial = tf.zeros(batch_attn_size, dtype=dtype)
+            # Ensure the second shape of attention vectors is set.
+            initial.set_shape([None, attention_obj.attn_size])
+            return initial
+
+        attns = [initialize(a, batch_size, dtype) for a in attention_objects]
 
         states = []
         for i, inp in enumerate(decoder_inputs):
