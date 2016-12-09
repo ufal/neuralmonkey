@@ -74,7 +74,7 @@ def load_dataset_from_files(
                     ("The source series ({}) of the '{}' preprocessor "
                      "is not defined in the dataset.").format(
                          src_id, function.__name__))
-            series[tgt_id] = function(series[src_id])
+            series[tgt_id] = list(map(function, series[src_id]))
 
     dataset = Dataset(name, series, series_outputs)
     log("Dataset length: {}".format(len(dataset)))
