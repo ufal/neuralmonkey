@@ -71,8 +71,8 @@ class FactoredEncoder(Attentive):
                 weight_tensor = tf.concat(
                         1, [tf.expand_dims(w, 1) for w in self.padding_weights])
 
-                super(FactoredEncoder, self).__init__(
-                        attention_type, attention_fertility=attention_fertility)
+                super().__init__(
+                    attention_type, attention_fertility=attention_fertility)
 
                 log("Encoder graph constructed.")
 
@@ -176,8 +176,8 @@ class FactoredEncoder(Attentive):
 
     # pylint: disable=too-many-locals
     def feed_dict(self, dataset, train=False):
-        factors = {data_id: dataset.get_series(
-            data_id) for data_id in self.data_ids}
+        factors = {data_id: dataset.get_series(data_id)
+                   for data_id in self.data_ids}
 
         # this method should be responsible for checking if the factored
         # sentences are of the same length

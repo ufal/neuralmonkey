@@ -92,7 +92,7 @@ class SentenceEncoder(Attentive):
 
             self.encoded = tf.concat(1, encoded_tup)
 
-        super(SentenceEncoder, self).__init__(
+        super().__init__(
             attention_type, attention_fertility=attention_fertility)
 
         log("Sentence encoder initialized")

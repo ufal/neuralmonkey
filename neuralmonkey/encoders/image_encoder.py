@@ -1,5 +1,7 @@
 import tensorflow as tf
 
+from neuralmonkey.encoders.attentive import Attentive
+
 # tests: lint, mypy
 
 # pylint: disable=too-few-public-methods
@@ -24,15 +26,13 @@ class VectorEncoder(object):
         self.encoded = tf.tanh(tf.matmul(self.flat, project_w) + project_b)
 
         self.attention_tensor = None
-        self.attention_object_train = None
-        self.attention_object_runtime = None
 
     # pylint: disable=unused-argument
     def feed_dict(self, dataset, train=False):
         return {self.image_features: dataset.get_series(self.data_id)}
 
 
-class PostCNNImageEncoder(object):
+class PostCNNImageEncoder(Attentive):
 
     def __init__(self, input_shape, output_shape, data_id, name,
                  dropout_keep_prob=1.0, attention_type=None):
@@ -64,21 +64,15 @@ class PostCNNImageEncoder(object):
 
             self.encoded = tf.tanh(tf.matmul(self.flat, project_w) + project_b)
 
-            self.attention_tensor = \
+            self._attention_tensor = \
                 tf.reshape(self.image_features,
                            [-1, input_shape[0] * input_shape[1],
                             input_shape[2]],
                            name="flatten_image")
 
-            def attention_object(runtime=False):
-                return attention_type(self.attention_tensor,
-                    scope="attention_img",
-                    dropout_placeholder=self.dropout_placeholder,
-                    runtime_mode=runtime) \
-                    if attention_type else None
+            self._padding = tf.ones(tf.shape(self._attention_tensor))
 
-            self.attention_object_train = attention_object()
-            self.attention_object_runtime = attention_object(runtime=True)
+        super().__init__(attention_type)
 
     def feed_dict(self, dataset, train=False):
         res = {self.image_features: dataset.get_series(self.data_id)}
