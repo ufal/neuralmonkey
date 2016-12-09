@@ -41,17 +41,21 @@ class GenericTrainer(object):
         tf.scalar_summary('train_l1', l1_value, collections=["summary_train"])
         tf.scalar_summary('train_l2', l2_value, collections=["summary_train"])
 
-        partial_gradients = []  # type: List[Gradients]
-        for objective in objectives:
-            if objective.gradients is None:
-                gradients = self._get_gradients(objective.loss)
-                partial_gradients.append(gradients)
-            else:
-                partial_gradients.append(objective.gradients)
-        partial_gradients += [self._get_gradients(l)
-                              for l in [l1_cost, l2_cost] if l != 0.]
+        # if the objective does not have its own gradients,
+        # just use TF do the derivative
+        objectives_without_gradients = sum(
+            o.loss for o in objectives
+            if  o.gradients is None) + l1_cost + l2_cost
+        implicit_gradients = self._get_gradients(objectives_without_gradients)
 
-        gradients = _sum_gradients(partial_gradients)
+        # objectives that have their gradients explictly computed
+        other_gradients = [
+            o.gradients for o in objectives if o.gradients is not None]
+
+        if other_gradients:
+            gradients = _sum_gradients([implicit_gradients] + other_gradients)
+        else:
+            gradients = implicit_gradients
 
         if clip_norm:
             assert clip_norm > 0.0
