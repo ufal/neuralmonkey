@@ -15,7 +15,7 @@ import tensorflow as tf
 import numpy as np
 
 from neuralmonkey.logging import log
-from neuralmonkey.decoding_function import attention_decoder
+#from neuralmonkey.decoding_function import attention_decoder
 from neuralmonkey.nn.noisy_gru_cell import NoisyGRUCell
 from neuralmonkey.checking import assert_type
 from neuralmonkey.vocabulary import Vocabulary, START_TOKEN
@@ -215,7 +215,7 @@ class Decoder(object):
                                       -0.5, 0.5),
                     name="word_embeddings")
             else:
-                decoding_em = reused_word_embeddings.word_embeddings
+                decoding_em = reused_word_embeddings.embedding_matrix
 
             # vyrobime embeddovany ground-truth inputy a dropoutujem
             # pouzivaj se pri trenovani
@@ -378,7 +378,7 @@ class Decoder(object):
 
                 decoder_cells.append(get_rnn_cell())
 
-            decoder_cell = tf.nn.rnn_cell.MultiRNNCell(decoder_cells)
+            decoder_cell = tf.nn.rnn_cell.MultiRNNCell(decoder_cells, state_is_tuple=False)
 
             # A ted prichazi na radu attention. To se jen kouknem na encodery,
             # jestli ho maji zadefinovanej nebo ne
@@ -505,5 +505,66 @@ class Decoder(object):
         return self.loss_with_decoded_ins
 
     @property
+    def runtime_logprobs(self):
+        return [tf.nn.log_softmax(l) for l in self.decoded_logits]
+
+    @property
     def decoded(self):
         return self.decoded_seq
+
+
+
+def attention_decoder(decoder_inputs, initial_state, attention_objects,
+                      embedding_size, cell, output_size=None,
+                      loop_function=None, dtype=tf.float32, scope=None):
+
+    if output_size is None:
+        output_size = cell.output_size
+
+    with tf.variable_scope(scope or "attention_decoder"):
+        batch_size = tf.shape(decoder_inputs[0])[0]    # Needed for reshaping.
+
+        # do manualy broadcasting of the initial state if we want it
+        # to be the same for all inputs
+        if len(initial_state.get_shape()) == 1:
+            state_size = initial_state.get_shape()[0].value
+            initial_state = tf.reshape(tf.tile(initial_state,
+                                               tf.shape(decoder_inputs[0])[:1]),
+                                       [-1, state_size])
+
+        state = initial_state
+        outputs = []
+        prev = None
+
+        attns = [a.initialize(batch_size, dtype) for a in attention_objects]
+
+        states = []
+        for i, inp in enumerate(decoder_inputs):
+            if i > 0:
+                tf.get_variable_scope().reuse_variables()
+            # If loop_function is set, we use it instead of decoder_inputs.
+            if loop_function is not None and prev is not None:
+                with tf.variable_scope("loop_function", reuse=True):
+                    inp = loop_function(prev, i)
+            # Merge input and previous attentions into one vector of the right
+            # size.
+            x = tf.nn.seq2seq.linear([inp] + attns, embedding_size, True)
+            # Run the RNN.
+
+            cell_output, state = cell(x, state)
+            states.append(state)
+            # Run the attention mechanism.
+            attns = [a.attention(state) for a in attention_objects]
+
+            if attns:
+                with tf.variable_scope("AttnOutputProjection"):
+                    output = tf.nn.seq2seq.linear([cell_output] + attns, output_size,
+                                             True)
+            else:
+                output = cell_output
+
+            if loop_function is not None:
+                prev = output
+            outputs.append(output)
+
+    return outputs, states
