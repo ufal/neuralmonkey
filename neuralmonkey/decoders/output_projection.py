@@ -2,6 +2,7 @@
 This module contains different variants of projection functions
 for RNN outputs.
 """
+#tests: lint
 import tensorflow as tf
 
 from neuralmonkey.nn.projection import maxout
