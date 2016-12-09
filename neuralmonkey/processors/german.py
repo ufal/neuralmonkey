@@ -47,11 +47,11 @@ class GermanPreprocessor(object):
             if self.contracting and word in CONTRACTIONS_SET:
                 result.extend(UNCONTRACT[word])
             elif self.pronouns and ein_match:
-                result.append(ein_match[1])
-                result.append("<<" + ein_match[2])
+                result.append(ein_match.group(1))
+                result.append("<<" + ein_match.group(2))
             elif self.pronouns and der_match:
-                result.append(der_match[1])
-                result.append("<<" + der_match[2])
+                result.append(der_match.group(1))
+                result.append("<<" + der_match.group(2))
             elif self.compounding and word.find(">><<") > -1:
                 compound_parts = word.split(">><<")
                 result.append(compound_parts[0])
