@@ -35,7 +35,7 @@ class Attention(object):
         self.attention_states = attention_states
         self.input_weights = input_weights
 
-        with tf.variable_scope(scope, reuse=runtime_mode):
+        with tf.variable_scope(scope):
             self.attn_length = attention_states.get_shape()[1].value
             self.attn_size = attention_states.get_shape()[2].value
 

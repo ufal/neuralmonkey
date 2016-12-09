@@ -219,7 +219,7 @@ class CNNEncoder(Attentive):
             self._padding = tf.squeeze(
                 tf.reduce_prod(last_padding_masks, [1]), [2])
 
-            super(CNNEncoder, self).__init__(attention_type)
+            super().__init__(attention_type)
 
     def feed_dict(self, dataset, train=False):
         # if it is from the pickled file, it is list, not numpy tensor,
