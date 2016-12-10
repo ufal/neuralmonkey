@@ -1,4 +1,4 @@
-# tests: mypy
+# tests: lint, mypy
 
 import re
 
@@ -10,8 +10,9 @@ except:
 
 CONTRACTIONS = ["am", "ans", "beim", "im", "ins", "vom", "zum", "zur"]
 CONTRACTIONS_SET = set(CONTRACTIONS)
-UNCONTRACTED_FORMS = [["an", "dem"], ["an", "das"], ["bei", "dem"], ["in", "dem"],
-                      ["in", "das"], ["von", "dem"], ["zu", "dem"], ["zu", "der"]]
+UNCONTRACTED_FORMS = [["an", "dem"], ["an", "das"], ["bei", "dem"],
+                      ["in", "dem"], ["in", "das"], ["von", "dem"],
+                      ["zu", "dem"], ["zu", "der"]]
 UNCONTRACT = {c: un for c, un in zip(CONTRACTIONS, UNCONTRACTED_FORMS)}
 
 CONTRACT = {} # type: Dict[str, Dict[str, str]]
@@ -21,9 +22,11 @@ for cont, (prep, article) in zip(CONTRACTIONS, UNCONTRACTED_FORMS):
     CONTRACT[article][prep] = cont
 
 
-EIN_TYPE_PRONOUNS = re.compile("^(ein|[mdsk]ein|ihr|unser|euer|Ihr)(e|es|er|em|en)$")
+EIN_TYPE_PRONOUNS = \
+        re.compile("^(ein|[mdsk]ein|ihr|unser|euer|Ihr)(e|es|er|em|en)$")
 DER_TYPE_PRONOUNS = re.compile("^(dies|welch|jed|all)(e|es|er|em|en)$")
 
+# pylint: disable=too-few-public-methods
 class GermanPreprocessor(object):
     def __init__(self, compounding=True, contracting=True, pronouns=True):
         self.compounding = compounding

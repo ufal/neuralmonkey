@@ -2,12 +2,13 @@
 This module gathers some tools for image preprocessing.
 """
 
-# tests: mypy
+# tests: lint, mypy
+# pylint: skip-file
 
 import numpy as np
 from scipy.misc import imread, imresize
 
-
+# pylint: disable=too-few-public-methods
 class STRPreprocessor(object):
     """
     This class implements a function that preprocesses an image for scene text
@@ -47,4 +48,3 @@ class STRPreprocessor(object):
             img = np.concatenate((img, padding), axis=1)
             self.paddings.append(float(rest))
             return img
-

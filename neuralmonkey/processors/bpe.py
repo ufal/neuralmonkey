@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 
-# tests: mypy
+# tests: lint, mypy
 
 import codecs
 import re
 from neuralmonkey.logging import log
 from lib.subword_nmt.apply_bpe import BPE, encode
 
+# pylint: disable=too-few-public-methods
 class BPEPreprocessor(object):
     """ Wrapper class for Byte-Pair-Encoding from Edinburgh """
 

@@ -1,4 +1,4 @@
-# tests: mypy
+# tests: lint, mypy
 
 from typing import Any, Callable, Dict, List, Tuple, Optional, Union
 import os
@@ -14,8 +14,10 @@ from neuralmonkey.runners.base_runner import BaseRunner, ExecutionResult
 # pylint: disable=invalid-name
 Evaluation = Dict[str, float]
 EvalConfiguration = List[Union[Tuple[str, Any], Tuple[str, str, Any]]]
+# pylint: enable=invalid-name
 
 
+# pylint: disable=too-many-arguments, too-many-locals, too-many-branches
 def training_loop(tf_manager: TensorFlowManager,
                   epochs: int,
                   trainer: BaseRunner, # TODO better annotate

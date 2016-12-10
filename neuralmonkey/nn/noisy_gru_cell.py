@@ -1,8 +1,7 @@
 import math
 import tensorflow as tf
 
-# tests: mypy
-
+# tests: lint, mypy
 
 class NoisyGRUCell(tf.nn.rnn_cell.RNNCell):
     """
@@ -32,12 +31,14 @@ class NoisyGRUCell(tf.nn.rnn_cell.RNNCell):
             with tf.variable_scope("Gates"):  # Reset gate and update gate.
                 # We start with bias of 1.0 to not reset and not update.
                 r, u = tf.split(
-                    1, 2, tf.nn.seq2seq.linear([inputs, state], 2 * self._num_units, True, 1.0))
+                    1, 2, tf.nn.seq2seq.linear([inputs, state],
+                                               2 * self._num_units, True, 1.0))
                 r, u = noisy_sigmoid(
                     r, self.training), noisy_sigmoid(u, self.training)
         with tf.variable_scope("Candidate"):
             c = noisy_tanh(tf.nn.seq2seq.linear([inputs, r * state],
-                                                self._num_units, True), self.training)
+                                                self._num_units, True),
+                           self.training)
             new_h = u * state + (1 - u) * c
         return new_h, new_h
 
@@ -79,15 +80,15 @@ def noisy_activation(x, generic, linearized, training, alpha=1.1, c=0.5):
     return activation
 
 
-# These are equations (1), (3) and (4) in the Noisy Activation FUnctions paper
-lin_sigmoid = lambda x: 0.25 * x + 0.5
-hard_tanh = lambda x: tf.minimum(tf.maximum(x, -1.), 1.)
-hard_sigmoid = lambda x: tf.minimum(tf.maximum(lin_sigmoid(x), 0.), 1.)
-
+# lin_sigmoid, hard_tanh, hard_sigmoid are equations (1), (3) and (4) in
+# the Noisy Activation Functions paper
 
 def noisy_sigmoid(x, training):
+    lin_sigmoid = lambda x: 0.25 * x + 0.5
+    hard_sigmoid = lambda x: tf.minimum(tf.maximum(lin_sigmoid(x), 0.), 1.)
     return noisy_activation(x, hard_sigmoid, lin_sigmoid, training)
 
 
 def noisy_tanh(x, training):
+    hard_tanh = lambda x: tf.minimum(tf.maximum(x, -1.), 1.)
     return noisy_activation(x, hard_tanh, lambda y: y, training)
