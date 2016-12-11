@@ -209,7 +209,7 @@ class FactoredEncoder(Attentive):
         factor_vectors_and_weights = {
             data_id: vocabulary.sentences_to_tensor(factors[data_id],
                                                     self.max_input_len,
-                                                    train=train)
+                                                    train_mode=train)
             for data_id, vocabulary in zip(self.data_ids, self.vocabularies)}
 
         # check input lengths

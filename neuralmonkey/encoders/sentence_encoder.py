@@ -201,7 +201,7 @@ class SentenceEncoder(Attentive):
         sentences = dataset.get_series(self.data_id)
 
         vectors, paddings = self.vocabulary.sentences_to_tensor(
-            list(sentences), self.max_input_len, train=train)
+            list(sentences), self.max_input_len, train_mode=train)
 
         # as sentences_to_tensor returns lists of shape (time, batch),
         # we need to transpose
