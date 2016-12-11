@@ -6,6 +6,7 @@ import math
 import tensorflow as tf
 import numpy as np
 
+from neuralmonkey.nn.ortho_gru_cell import OrthoGRUCell
 from neuralmonkey.vocabulary import Vocabulary, START_TOKEN
 from neuralmonkey.logging import log
 from neuralmonkey.nn.utils import dropout
@@ -251,7 +252,7 @@ class Decoder(object):
                            output_size: int=None,
                            train_mode: bool=False,
                            scope: Union[str, tf.VariableScope]=None):
-        cell = tf.nn.rnn_cell.GRUCell(self.rnn_size)
+        cell = OrthoGRUCell(self.rnn_size)
 
         att_objects = []
         if self.use_attention:
