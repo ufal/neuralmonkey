@@ -42,11 +42,11 @@ class GenericTrainer(object):
         tf.scalar_summary('train_l2', l2_value, collections=["summary_train"])
 
         # if the objective does not have its own gradients,
-        # just use TF do the derivative
-        objectives_without_gradients = sum(
+        # just use TF to do the derivative
+        differentiable_loss_sum = sum(
             o.loss for o in objectives
             if  o.gradients is None) + l1_cost + l2_cost
-        implicit_gradients = self._get_gradients(objectives_without_gradients)
+        implicit_gradients = self._get_gradients(differentiable_loss_sum)
 
         # objectives that have their gradients explictly computed
         other_gradients = [
