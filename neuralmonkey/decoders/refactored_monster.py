@@ -1,6 +1,6 @@
 #tests: mypy, lint
 
-from typing import List, Any, Callable, Optional
+from typing import List, Callable, Optional
 import math
 
 import tensorflow as tf
@@ -13,9 +13,15 @@ from neuralmonkey.encoders.attentive import Attentive
 from neuralmonkey.decoders.encoder_projection import (
     linear_encoder_projection, concat_encoder_projection, empty_initial_state)
 
-
+# pylint: disable=too-many-instance-attributes
+# Big decoder cannot be simpler. Not sure if refactoring
+# it into smaller units would be helpful
 class Decoder(object):
+    """A class that manages parts of the computation graph that are
+    used for the decoding.
+    """
 
+    # pylint: disable=too-manby-arguments,too-many-locals
     def __init__(self,
                  encoders: List[object],
                  vocabulary: Vocabulary,
@@ -35,7 +41,23 @@ class Decoder(object):
         """Creates a refactored version of monster decoder.
 
         Arguments:
-            there are many argumetns.
+            encoders: Input encoders of the decoder
+            vocabulary: Target vocabulary
+            data_id: Target data series
+            name: Name of the decoder. Should be unique accross all Neural
+                Monkey objects
+            max_output_len: Maximum length of an output sequence
+            dropout_keep_prob: Probability of keeping a value during dropout
+
+        Keyword arguments:
+            rnn_size: Size of the decoder hidden state
+            embedding_size: Size of embedding vectors for target words
+            output_projection: How to generate distribution over vocabulary
+                from decoder rnn_outputs
+            encoder_projection: How to construct initial state from encoders
+            use_attention: Flag whether to look at attention vectors of the
+                encoders
+            embeddings_encoder: Encoder to take embeddings from
         """
         log("Initializing decoder, name: '{}'".format(name))
 
@@ -92,7 +114,8 @@ class Decoder(object):
 
             self.decoding_b = tf.get_variable(
                 "state_to_word_b", [len(self.vocabulary)],
-                initializer=tf.constant_initializer(-math.log(len(self.vocabulary))))
+                initializer=tf.constant_initializer(
+                    - math.log(len(self.vocabulary))))
 
             # POSLEDNI TRAIN INPUT SE V DEKODOVACI FUNKCI NEPOUZIJE
             # (jen jako target)
@@ -110,8 +133,8 @@ class Decoder(object):
 
             tf.get_variable_scope().reuse_variables()
 
-            runtime_rnn_outputs, _ = self._attention_decoder(embedded_go_symbols,
-                                                             train_mode=False)
+            runtime_rnn_outputs, _ = self._attention_decoder(
+                embedded_go_symbols, train_mode=False)
 
             self.hidden_states = runtime_rnn_outputs
 
@@ -201,8 +224,8 @@ class Decoder(object):
         """
         if self.embeddings_encoder is None:
             # TODO better initialization
-            self.embedding_matrix =  tf.get_variable(
-                "word_embeddings", [self.vocabulary_size, self.embedding_size],
+            self.embedding_matrix = tf.get_variable(
+                "word_embeddings", [len(self.vocabulary), self.embedding_size],
                 initializer=tf.random_normal_initializer(stddev=0.01))
         else:
             self.embedding_matrix = self.embeddings_encoder.embedding_matrix
@@ -222,10 +245,12 @@ class Decoder(object):
         return tf.matmul(state, self.decoding_w) + self.decoding_b
 
 
-
-
-    def _attention_decoder(self, go_symbols, train_inputs=None, output_size=None,
-                           train_mode=False, scope=None):
+    def _attention_decoder(self,
+                           go_symbols: tf.Tensor,
+                           train_inputs: tf.Tensor=None,
+                           output_size: int=None,
+                           train_mode: bool=False,
+                           scope: Union[str, tf.VariableScope]=None):
         cell = tf.nn.rnn_cell.GRUCell(self.rnn_size)
 
         att_objects = []
@@ -243,9 +268,9 @@ class Decoder(object):
             # to be the same for all inputs
             if len(self.initial_state.get_shape()) == 1:
                 state_size = self.initial_state.get_shape()[0].value
-                self.initial_state = tf.reshape(tf.tile(self.initial_state,
-                                                        tf.shape(go_symbols)[1:]),
-                                           [-1, state_size])
+                self.initial_state = tf.reshape(
+                    tf.tile(self.initial_state, tf.shape(go_symbols)[1:]),
+                    [-1, state_size])
 
             state = self.initial_state
             outputs = []
@@ -274,13 +299,14 @@ class Decoder(object):
                         inp = go_symbols[0]
                     else:
                         with tf.variable_scope("loop_function", reuse=True):
-                            out_activation = self._logit_function(prev_state)
+                            out_activation = self._logit_function(prev)
                             prev_word_index = tf.argmax(out_activation, 1)
                             inp = self._embed_and_dropout(prev_word_index)
 
                 # Merge input and previous attentions into one vector of the
                 # right size.
-                x = tf.nn.seq2seq.linear([inp] + attns, self.embedding_size, True)
+                x = tf.nn.seq2seq.linear(
+                    [inp] + attns, self.embedding_size, True)
                 # Run the RNN.
 
                 cell_output, state = cell(x, state)
