@@ -104,18 +104,14 @@ class Decoder(object):
                                                          self.go_symbols)
 
 
-            def loop(prev_state):
-                out_activation = self._logit_function(prev_state)
-                prev_word_index = tf.argmax(out_activation, 1)
-                return self._embed_and_dropout(prev_word_index)
-
             train_rnn_outputs, _ = self._attention_decoder(
-                embedded_go_symbols, train_inputs=embedded_train_inputs)
+                embedded_go_symbols, train_inputs=embedded_train_inputs,
+                train_mode=True)
 
             tf.get_variable_scope().reuse_variables()
 
             runtime_rnn_outputs, _ = self._attention_decoder(embedded_go_symbols,
-                loop_function=loop)
+                                                             train_mode=False)
 
             self.hidden_states = runtime_rnn_outputs
 
@@ -229,8 +225,7 @@ class Decoder(object):
 
 
     def _attention_decoder(self, go_symbols, train_inputs=None, output_size=None,
-                           loop_function=None, scope=None):
-
+                           train_mode=False, scope=None):
         cell = tf.nn.rnn_cell.GRUCell(self.rnn_size)
 
         att_objects = []
@@ -269,15 +264,19 @@ class Decoder(object):
                 if i > 0:
                     tf.get_variable_scope().reuse_variables()
 
-                # If loop_function is set, we use it instead of train_inputs.
-                if loop_function is not None and prev is not None:
-                    with tf.variable_scope("loop_function", reuse=True):
-                        inp = loop_function(prev)
+
+                if train_mode:
+                    inp = train_inputs[i - 1]
                 else:
-                    if i == 0:
+
+                    if prev is None:
+                        assert i == 0
                         inp = go_symbols[0]
                     else:
-                        inp = train_inputs[i-1]
+                        with tf.variable_scope("loop_function", reuse=True):
+                            out_activation = self._logit_function(prev_state)
+                            prev_word_index = tf.argmax(out_activation, 1)
+                            inp = self._embed_and_dropout(prev_word_index)
 
                 # Merge input and previous attentions into one vector of the
                 # right size.
@@ -296,8 +295,9 @@ class Decoder(object):
                 else:
                     output = cell_output
 
-                if loop_function is not None:
+                if not train_mode:
                     prev = output
+
                 outputs.append(output)
 
         return outputs, states
