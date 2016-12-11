@@ -29,7 +29,7 @@ neuralmonkey-logbook --logdir <EXPERIMENTS_DIR> [OPTION] ...
 - You need Python 3.5 to run _Neural Monkey_.
 
 - For GPU version: Install dependencies by typing `pip install -r
-- requirements-gpu.txt`.
+  requirements-gpu.txt`.
 
 - For CPU version, run `pip install -r requirements.txt` instead.
 
@@ -113,7 +113,7 @@ documentation as well.
   running Neural Machine Translation models
 
 ![Ape is not a
-monkey.](http://ufallab.ms.mff.cuni.cz/~helcl/gorila2.png){float: left}
+monkey.](http://ufallab.ms.mff.cuni.cz/~helcl/gorila2.png)
 
 ## License
 
