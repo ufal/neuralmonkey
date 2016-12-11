@@ -2,6 +2,8 @@ from typing import List
 
 import numpy as np
 
+# tests: lint
+
 def numpy_reader(files: List[str]):
     if len(list == 1):
         return np.load(files[0])

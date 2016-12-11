@@ -7,9 +7,9 @@ import numpy as np
 import tensorflow as tf
 from neuralmonkey.decoding_function import Attention
 
-# tests: mypy
+# tests: lint, mypy
 
-
+# pylint: disable=too-many-instance-attributes, too-few-public-methods
 class CNNEncoder(object):
     """
 
@@ -38,6 +38,7 @@ class CNNEncoder(object):
 
     """
 
+    # pylint: disable=too-many-arguments, too-many-locals
     def __init__(self, data_id, convolutions, rnn_layers,
                  image_height, image_width, pixel_dim,
                  name, concatenate_rnns=False,
@@ -52,9 +53,9 @@ class CNNEncoder(object):
 
             convolutions (list): Configuration convolutional layers. It is a
                 list of tripplets of integers where the values are: size of the
-                convolutional window, number of convolutional filters, and size of
-                max-pooling window. If the max-pooling size is set to None, no
-                pooling is performed.
+                convolutional window, number of convolutional filters, and size
+                of max-pooling window. If the max-pooling size is set to None,
+                no pooling is performed.
 
             data_id: Identifier of the data series in the dataset.
 
@@ -122,13 +123,15 @@ class CNNEncoder(object):
             self.image_processing_layers = []
 
             with tf.variable_scope("convolutions"):
-                for i, (filter_size, n_filters, pool_size) in enumerate(convolutions):
+                for i, (filter_size, n_filters, pool_size) \
+                        in enumerate(convolutions):
                     with tf.variable_scope("cnn_layer_{}".format(i)):
                         conv_w = tf.get_variable(
                             "wieghts",
                             shape=[filter_size, filter_size,
                                    last_n_channels, n_filters],
-                            initializer=tf.truncated_normal_initializer(stddev=.1))
+                            initializer= \
+                                    tf.truncated_normal_initializer(stddev=.1))
                         conv_b = tf.get_variable(
                             "biases",
                             shape=[n_filters],
@@ -143,7 +146,8 @@ class CNNEncoder(object):
                             last_layer = tf.nn.max_pool(
                                 last_layer, [1, 2, 2, 1], [1, 2, 2, 1], "SAME")
                             last_padding_masks = tf.nn.max_pool(
-                                last_padding_masks, [1, 2, 2, 1], [1, 2, 2, 1], "SAME")
+                                last_padding_masks, [1, 2, 2, 1],
+                                [1, 2, 2, 1], "SAME")
                             self.image_processing_layers.append(last_layer)
                             assert image_height % 2 == 0
                             image_height /= 2
@@ -165,23 +169,26 @@ class CNNEncoder(object):
             last_layer_size = last_n_channels * image_height * image_width
 
             with tf.variable_scope("rnn_inputs"):
-                encoder_ins = [tf.reshape(x, [-1, last_n_channels * image_height]) for x in
-                               tf.split(2, image_width, last_layer, name='split_input')]
+                encoder_ins = [tf.reshape(x,
+                                          [-1, last_n_channels * image_height])
+                               for x in tf.split(2, image_width,
+                                                 last_layer,
+                                                 name='split_input')]
 
             def rnn_encoder(inputs, last_layer_size, scope):
                 with tf.variable_scope(scope):
                     encoder_layers = []
                     for size in rnn_layers:
-                        cell = tf.nn.rnn_cell.GRUCell(size, last_layer_size)
+                        cell_g = tf.nn.rnn_cell.GRUCell(size, last_layer_size)
                         last_layer_size = size
-                        cell = tf.nn.rnn_cell.DropoutWrapper(cell,
-                                                             output_keep_prob=self.dropout_placeholder)
+                        cell = tf.nn.rnn_cell.DropoutWrapper(
+                            cell_g, output_keep_prob=self.dropout_placeholder)
                         encoder_layers.append(cell)
 
                     encoder_cell = tf.nn.rnn_cell.MultiRNNCell(encoder_layers)
                     last_layer_size = len(encoder_layers) * last_layer_size
-                    # MultiRNNCell concatenates output of all the recurent layers,
-                    # but we want only the very last one
+                    # MultiRNNCell concatenates output of all the recurent
+                    # layers,but we want only the very last one
                     _, encoder_state_concatenated = tf.nn.rnn(
                         encoder_cell, inputs, dtype=tf.float32)
 
@@ -196,8 +203,11 @@ class CNNEncoder(object):
                 encoder_ins, last_layer_size, "encoder-forward")
 
             if bidirectional:
-                backward_encoder_state = rnn_encoder(list(reversed(encoder_ins)),
-                                                     last_layer_size, "encoder-backward")
+                backward_encoder_state = rnn_encoder(
+                    list(reversed(encoder_ins)),
+                    last_layer_size,
+                    "encoder-backward")
+                # pylint: disable=redefined-variable-type
                 encoder_state = tf.concat(
                     1, [encoder_state, backward_encoder_state])
 
@@ -213,7 +223,6 @@ class CNNEncoder(object):
             self.attention_object = Attention(self.attention_tensor,
                                               scope="attention_{}".format(
                                                   name),
-                                              dropout_placeholder=self.dropout_placeholder,
                                               input_weights=att_in_weights)
 
     def feed_dict(self, dataset, train=False):
@@ -235,7 +244,7 @@ class CNNEncoder(object):
         f_dict[self.is_training] = train
         return f_dict
 
-
+# pylint: disable=too-many-locals
 def batch_norm(tensor, n_out, phase_train, scope='bn', scale_after_norm=True):
     """
     Batch normalization on convolutional maps. Taken from
@@ -275,5 +284,6 @@ def batch_norm(tensor, n_out, phase_train, scope='bn', scale_after_norm=True):
 
         normed = \
             tf.nn.batch_norm_with_global_normalization(tensor, mean, var,
-                                                       beta, gamma, 1e-3, scale_after_norm)
+                                                       beta, gamma, 1e-3,
+                                                       scale_after_norm)
         return normed

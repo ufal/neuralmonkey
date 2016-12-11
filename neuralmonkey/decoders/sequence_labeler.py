@@ -1,12 +1,14 @@
 import tensorflow as tf
 
-from neuralmonkey.logging import log, debug
 from neuralmonkey.decoders.decoder import Decoder
 
+# tests: lint
 
+# pylint: disable=too-many-instance-attributes
 class SequenceLabeler(Decoder):
     """Classifier assing a label to each encoder's state."""
 
+    # pylint: disable=super-init-not-called
     def __init__(self, encoder, vocabulary, data_id, **kwargs):
 
         self.encoder = encoder
@@ -18,6 +20,7 @@ class SequenceLabeler(Decoder):
         self.rnn_size = self.encoder.rnn_size * 2
         self.max_output = self.encoder.max_input_len
 
+        # pylint: disable=no-member
         self.weights, self.biases = self._state_to_output()
 
         logits = [tf.tanh(tf.matmul(state, self.weights) + self.biases)
@@ -41,8 +44,8 @@ class SequenceLabeler(Decoder):
                          for t in self.train_targets]
 
         # one less than inputs
-        self.train_weights = [tf.placeholder(tf.float32, [None],
-                                             name="seq_lab_padding_weights_{}".format(i))
+        self.train_weights = [tf.placeholder(
+            tf.float32, [None], name="seq_lab_padding_weights_{}".format(i))
                               for i in range(self.max_output)]
 
         losses = [tf.nn.softmax_cross_entropy_with_logits(l, t)
@@ -68,7 +71,7 @@ class SequenceLabeler(Decoder):
 
     def feed_dict(self, dataset, train=False):
 
-        fd = {}
+        feed = {}
 
         sentences = dataset.get_series(self.data_id, allow_none=True)
 
@@ -80,12 +83,12 @@ class SequenceLabeler(Decoder):
             assert len(inputs) == len(self.train_targets) + 2
 
             for placeholder, weight in zip(self.train_weights, weights[:-1]):
-                fd[placeholder] = weight
+                feed[placeholder] = weight
 
             for placeholder, tensor in zip(self.train_targets, inputs[1:-1]):
-                fd[placeholder] = tensor
+                feed[placeholder] = tensor
 
         if not train:
-            fd[self.dropout_placeholder] = 1.0
+            feed[self.dropout_placeholder] = 1.0
 
-        return fd
+        return feed

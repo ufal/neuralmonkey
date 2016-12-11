@@ -5,6 +5,7 @@ from neuralmonkey.vocabulary import PAD_TOKEN
 from neuralmonkey.logging import log
 from neuralmonkey.dataset import Dataset
 
+# tests: lint
 
 class MultiDecoder(object):
     """The MultiDecoder class wraps a several child decoders into

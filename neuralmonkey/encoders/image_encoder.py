@@ -1,8 +1,8 @@
 import tensorflow as tf
 
-# tests: mypy
+# tests: lint, mypy
 
-
+# pylint: disable=too-few-public-methods
 class VectorEncoder(object):
 
     def __init__(self, dimension, output_shape, data_id):
@@ -50,7 +50,8 @@ class PostCNNImageEncoder(object):
                                                  shape=[None] + input_shape,
                                                  name="image_input")
 
-            self.flat = tf.reduce_mean(self.image_features, reduction_indices=[1, 2],
+            self.flat = tf.reduce_mean(self.image_features,
+                                       reduction_indices=[1, 2],
                                        name="average_image")
             project_w = tf.get_variable(
                 name="img_init_proj_W",
@@ -64,7 +65,8 @@ class PostCNNImageEncoder(object):
 
             self.attention_tensor = \
                 tf.reshape(self.image_features,
-                           [-1, input_shape[0] * input_shape[1], input_shape[2]],
+                           [-1, input_shape[0] * input_shape[1],
+                            input_shape[2]],
                            name="flatten_image")
 
             self.attention_object = \

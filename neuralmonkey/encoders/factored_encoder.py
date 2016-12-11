@@ -8,8 +8,9 @@ from neuralmonkey.nn.pervasive_dropout_wrapper import PervasiveDropoutWrapper
 from neuralmonkey.checking import assert_type
 from neuralmonkey.vocabulary import Vocabulary
 
-# tests: mypy
+# tests: lint, mypy
 
+# pylint: disable=too-many-instance-attributes, too-few-public-methods
 class FactoredEncoder(object):
     """Implementation of a generic encoder that processes an arbitrary
     number of input sequences.
@@ -82,12 +83,15 @@ class FactoredEncoder(object):
 
     def _get_rnn_cell(self):
         """Return the RNN cell for the encoder"""
+        # pylint: disable=redefined-variable-type
         if self.use_noisy_activations:
             cell = NoisyGRUCell(self.rnn_size, self.is_training)
         else:
             cell = tf.nn.rnn_cell.GRUCell(self.rnn_size)
 
         if self.use_pervasive_dropout:
+            #pylint: disable=no-member, undefined-variable
+            # TODO fix this
             shape = tf.concat(0, [tf.shape(self.inputs[0]), [rnn_size]])
             ## TODO shape needs recomputing
 
@@ -108,6 +112,7 @@ class FactoredEncoder(object):
         return forward, backward
 
 
+    # pylint: disable=too-many-locals
     def _create_encoder_graph(self):
         self.dropout_placeholder = tf.placeholder(tf.float32, name="dropout")
         self.is_training = tf.placeholder(tf.bool, name="is_training")
@@ -176,9 +181,10 @@ class FactoredEncoder(object):
         self.attention_tensor = tf.nn.dropout(self.attention_tensor,
                                               self.dropout_placeholder)
 
-
+    # pylint: disable=too-many-locals
     def feed_dict(self, dataset, train=False):
-        factors = {data_id: dataset.get_series(data_id) for data_id in self.data_ids}
+        factors = {data_id: dataset.get_series(data_id)
+                   for data_id in self.data_ids}
 
         ## this method should be responsible for checking if the factored
         ## sentences are of the same length
@@ -187,7 +193,8 @@ class FactoredEncoder(object):
         # we asume that all factors have equal word counts
         # this is removed as res should only contain placeholders as keys
         # res[self.sentence_lengths] = np.array(
-        #     [min(self.max_input_len, len(s)) + 2 for s in factors[self.data_ids[0]]])
+        #     [min(self.max_input_len, len(s)) +
+        #      2 for s in factors[self.data_ids[0]]])
 
         batch_size = None
         for data_id in factors:
@@ -203,11 +210,11 @@ class FactoredEncoder(object):
         lengths = []
         paddings = None
 
-        for factor, (_, padding_weights) in factor_vectors_and_weights.items():
+        for _, (_, padding_weights) in factor_vectors_and_weights.items():
             paddings = padding_weights
 
             if len(lengths) == 0:
-                lenghts = [sum(p) for p in padding_weights]
+                lengths = [sum(p) for p in padding_weights]
             else:
                 lengths_this = [sum(p) for p in padding_weights]
 
