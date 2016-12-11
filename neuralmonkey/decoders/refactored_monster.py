@@ -99,22 +99,23 @@ class Decoder(object):
             embedded_train_inputs = self._embed_and_dropout(
                 self.train_inputs[:-1])
 
+            # POZOR TADY SE NEDELA DROPOUT
+            embedded_go_symbols = tf.nn.embedding_lookup(self.embedding_matrix,
+                                                         self.go_symbols)
+
+
             def loop(prev_state):
                 out_activation = self._logit_function(prev_state)
                 prev_word_index = tf.argmax(out_activation, 1)
                 return self._embed_and_dropout(prev_word_index)
 
             train_rnn_outputs, _ = self._attention_decoder(
-                embedded_train_inputs)
+                embedded_go_symbols, train_inputs=embedded_train_inputs)
 
             tf.get_variable_scope().reuse_variables()
 
-            # POZOR TADY SE NEDELA DROPOUT
-            embedded_go_symbols = tf.nn.embedding_lookup(self.embedding_matrix,
-                                                         self.go_symbols)
-
-            runtime_rnn_outputs, _ = self._attention_decoder(
-                embedded_go_symbols, loop_function=loop)
+            runtime_rnn_outputs, _ = self._attention_decoder(embedded_go_symbols,
+                loop_function=loop)
 
             self.hidden_states = runtime_rnn_outputs
 
@@ -132,7 +133,7 @@ class Decoder(object):
 
         _, self.train_logits = decode(train_rnn_outputs)
 
-        train_targets = tf.unpack(self.train_inputs[1:])
+        train_targets = tf.unpack(self.train_inputs)
 
         self.train_loss = tf.nn.seq2seq.sequence_loss(
             self.train_logits, train_targets,
@@ -178,11 +179,11 @@ class Decoder(object):
         The training placeholder nodes are NOT fed during runtime.
         """
         self.train_inputs = tf.placeholder(
-            tf.int32, [self.max_output_len + 2, None],
+            tf.int32, [self.max_output_len, None],
             name="decoder_input_placeholder")
 
         self.train_padding = tf.placeholder(
-            tf.float32, [self.max_output_len + 1, None],
+            tf.float32, [self.max_output_len, None],
             name="decoder_padding_placeholder")
 
     def _create_initial_state(self):
@@ -227,7 +228,7 @@ class Decoder(object):
 
 
 
-    def _attention_decoder(self, decoder_inputs, output_size=None,
+    def _attention_decoder(self, go_symbols, train_inputs=None, output_size=None,
                            loop_function=None, scope=None):
 
         cell = tf.nn.rnn_cell.GRUCell(self.rnn_size)
@@ -237,19 +238,18 @@ class Decoder(object):
             att_objects = [e.get_attention_object() for e in self.encoders
                            if isinstance(e, Attentive)]
 
-
         if output_size is None:
             output_size = cell.output_size
 
         with tf.variable_scope(scope or "attention_decoder"):
-            batch_size = tf.shape(decoder_inputs[0])[0]    # Needed for reshaping.
+            batch_size = tf.shape(go_symbols)[1]    # Needed for reshaping.
 
             # do manualy broadcasting of the initial state if we want it
             # to be the same for all inputs
             if len(self.initial_state.get_shape()) == 1:
                 state_size = self.initial_state.get_shape()[0].value
                 self.initial_state = tf.reshape(tf.tile(self.initial_state,
-                                                   tf.shape(decoder_inputs[0])[:1]),
+                                                        tf.shape(go_symbols)[1:]),
                                            [-1, state_size])
 
             state = self.initial_state
@@ -264,17 +264,21 @@ class Decoder(object):
                 return initial
 
             attns = [initialize(a, batch_size) for a in att_objects]
-
             states = []
-            for i in range(self.max_output_len + 1):
+            for i in range(self.max_output_len):
                 if i > 0:
                     tf.get_variable_scope().reuse_variables()
-                # If loop_function is set, we use it instead of decoder_inputs.
+
+                # If loop_function is set, we use it instead of train_inputs.
                 if loop_function is not None and prev is not None:
                     with tf.variable_scope("loop_function", reuse=True):
                         inp = loop_function(prev)
                 else:
-                    inp = decoder_inputs[i]
+                    if i == 0:
+                        inp = go_symbols[0]
+                    else:
+                        inp = train_inputs[i-1]
+
                 # Merge input and previous attentions into one vector of the
                 # right size.
                 x = tf.nn.seq2seq.linear([inp] + attns, self.embedding_size, True)
@@ -318,10 +322,15 @@ class Decoder(object):
                                        dtype=np.int32)
 
         if sentences is not None:
+            # train_mode=False, since we don't want to <unk>ize target words!
             inputs, weights = self.vocabulary.sentences_to_tensor(
-                sentences, self.max_output_len)
+                sentences, self.max_output_len, train_mode=False,
+                add_start_symbol=False, add_end_symbol=True)
 
-            res[self.train_padding] = weights
+            assert inputs.shape == (self.max_output_len, len(sentences))
+            assert weights.shape == (self.max_output_len, len(sentences))
+
             res[self.train_inputs] = inputs
+            res[self.train_padding] = weights
 
         return res
