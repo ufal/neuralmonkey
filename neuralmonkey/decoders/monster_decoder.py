@@ -481,7 +481,9 @@ class Decoder(object):
         if sentences is not None:
             sentnces_tensors, weights_tensors = \
                 self.vocabulary.sentences_to_tensor(sentences,
-                                                    self.max_output_len)
+                                                    self.max_output_len,
+                                                    add_start_symbol=True,
+                                                    add_end_symbol=True)
 
             for weight_plc, weight_tensor in zip(self.weights_ins,
                                                  weights_tensors):

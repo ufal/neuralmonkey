@@ -234,8 +234,7 @@ class FactoredEncoder(Attentive):
             for words_plc, words_tensor in zip(inputs, vectors):
                 fd[words_plc] = words_tensor
 
-        fd[self.padding_weights[0]] = np.ones(batch_size)
-        for plc, padding in zip(self.padding_weights[1:], paddings):
+        for plc, padding in zip(self.padding_weights, paddings):
             fd[plc] = padding
 
         if train:

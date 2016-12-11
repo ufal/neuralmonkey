@@ -81,13 +81,13 @@ class SequenceLabeler(Decoder):
             inputs, weights = self.vocabulary.sentences_to_tensor(
                 sentences, self.max_output_len)
 
-            assert len(weights) == len(self.train_weights) + 1
-            assert len(inputs) == len(self.train_targets) + 2
+            assert len(weights) == len(self.train_weights)
+            assert len(inputs) == len(self.train_targets)
 
-            for placeholder, weight in zip(self.train_weights, weights[:-1]):
+            for placeholder, weight in zip(self.train_weights, weights):
                 fd[placeholder] = weight
 
-            for placeholder, tensor in zip(self.train_targets, inputs[1:-1]):
+            for placeholder, tensor in zip(self.train_targets, inputs):
                 fd[placeholder] = tensor
 
         if not train:

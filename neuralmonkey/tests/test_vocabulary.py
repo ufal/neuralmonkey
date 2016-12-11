@@ -40,8 +40,9 @@ class TestVacabulary(unittest.TestCase):
         pass
 
     def test_there_and_back_self(self):
-        vectors, _ = VOCABULARY.sentences_to_tensor(TOKENIZED_CORPUS, 20)
-        senteces_again = VOCABULARY.vectors_to_sentences(vectors[1:])
+        vectors, _ = VOCABULARY.sentences_to_tensor(TOKENIZED_CORPUS, 20,
+                                                    add_start_symbol=True)
+        senteces_again = VOCABULARY.vectors_to_sentences(vectors[:1])
 
         for orig_sentence, reconstructed_sentence in \
                 zip(TOKENIZED_CORPUS, senteces_again):

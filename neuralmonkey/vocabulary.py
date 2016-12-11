@@ -322,60 +322,62 @@ class Vocabulary(collections.Sized):
             self.word_to_index[word] = index
 
     def sentences_to_tensor(
-            self, sentences: List[List[str]], max_len: int, train: bool=False,
-            add_technical_symbols: bool=True) -> Tuple[np.ndarray, np.ndarray]:
+            self,
+            sentences: List[List[str]],
+            max_len: int,
+            train_mode: bool=False,
+            add_start_symbol: bool=False,
+            add_end_symbol: bool=False) -> Tuple[np.ndarray, np.ndarray]:
         """Generate the tensor representation for the provided sentences.
 
         Arguments:
             sentences: List of sentences as lists of tokens.
             max_len: Maximum lengh of a sentence toward which they will be
-                     padded to.
-            train: Flag whether we are training or not
-                   (enables/disables unk sampling).
-            add_technical_symbols: Flag whether to add the start and end tokens
-                                   to the sentences (default True)
+                padded to.
+            train_mode: Flag whether we are training or not
+                (enables/disables unk sampling).
+            add_start_symbol: If True, the `<s>` token will be added to the
+                beginning of each sentence vector. Enabling this option extends
+                the vector size (`max_len`) by one.
+            add_end_symbol: If True, the `</s>` token will be added to the end
+                of each sentence vector, provided that the sentence is shorter
+                than `max_len`. If not, the end token is not added. Unlike
+                `add_start_symbol`, enabling this option **does not alter**
+                the size of the vectors.
 
         Returns:
             A tuple of a sentence tensor and a padding weight vector.
 
             The shape of the tensor representing the sentences is either
-            (max_length, batch) or (max_length + 2, batch), depending on
-            whether the technical symbols are added. Note that when the
-            sentence is longer than the max length, the end symbol is not
-            included and the last position in the tensor represents the
-            (max_length + 1)-th word in the sentence.
+            (max_len, batch_size) or (max_len, batch_size), depending on
+            the value of the `add_start_symbol` argument.
 
-            The shape of the padding vector is (max_length, batch) or
-            (max_length + 1, batch) respectively.
-
+            The shape of the padding vector is the same as of the sentence
+            vector.
         """
-        start_indices = [np.repeat(self.get_word_index(START_TOKEN),
-                                   len(sentences))]
-        pad_indices = [np.repeat(self.get_word_index(PAD_TOKEN),
-                                 len(sentences))
-                       for _ in range(max_len)]
-        end_indices = [np.repeat(self.get_word_index(PAD_TOKEN),
-                                 len(sentences))]
-
-        if add_technical_symbols:
-            word_indices = np.stack(start_indices + pad_indices + end_indices)
-            weights = [np.zeros([len(sentences)]) for _ in range(max_len + 1)]
-        else:
-            word_indices = np.stack(pad_indices)
-            weights = [np.zeros([len(sentences)]) for _ in range(max_len)]
+        word_indices = np.full(
+            [max_len, len(sentences)], self.get_word_index(PAD_TOKEN))
+        weights = np.zeros([max_len, len(sentences)])
 
         for i in range(max_len):
             for j, sent in enumerate(sentences):
                 if i < len(sent):
-                    word_indices[i + 1 if add_technical_symbols else i][j] = (
-                        self.get_unk_sampled_word_index(sent[i])
-                        if train else self.get_word_index(sent[i]))
+                    w_idx = (self.get_unk_sampled_word_index(sent[i])
+                             if train_mode else self.get_word_index(sent[i]))
+                    word_indices[i, j] = w_idx
+                    weights[i, j] = 1
 
-                    weights[i][j] = 1.0
+                elif i == len(sent) and add_end_symbol:
+                    word_indices[i, j] = self.get_word_index(END_TOKEN)
+                    weights[i, j] = 1
 
-                elif i == len(sent) and add_technical_symbols:
-                    word_indices[i + 1][j] = self.get_word_index(END_TOKEN)
-                    weights[i][j] = 1.0
+        if add_start_symbol:
+            prepend_indices = np.full(
+                [1, len(sentences)], self.get_word_index(START_TOKEN))
+            prepend_weights = np.ones([1, len(sentences)])
+
+            word_indices = np.concatenate(prepend_indices, word_indices)
+            weights = np.concatenate(prepend_weigths, weights)
 
         return word_indices, weights
 
