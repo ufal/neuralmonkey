@@ -1,12 +1,11 @@
 #tests: mypy, lint
 
-from typing import List, Callable, Optional, Union
+from typing import List, Callable, Optional, Union, Tuple
 import math
 
 import tensorflow as tf
 import numpy as np
 
-from neuralmonkey.nn.ortho_gru_cell import OrthoGRUCell
 from neuralmonkey.vocabulary import Vocabulary, START_TOKEN
 from neuralmonkey.logging import log
 from neuralmonkey.nn.utils import dropout
@@ -127,7 +126,6 @@ class Decoder(object):
             embedded_go_symbols = tf.nn.embedding_lookup(self.embedding_matrix,
                                                          self.go_symbols)
 
-
             train_rnn_outputs, _ = self._attention_decoder(
                 embedded_go_symbols, train_inputs=embedded_train_inputs,
                 train_mode=True)
@@ -193,6 +191,8 @@ class Decoder(object):
         self.go_symbols = tf.placeholder(tf.int32, shape=[1, None],
                                          name="decoder_go_symbols")
 
+        self.batch_size = tf.shape(self.go_symbols)[1]
+
     def _create_training_placeholders(self) -> None:
         """Creates training placeholder nodes in the computation graph
 
@@ -218,9 +218,8 @@ class Decoder(object):
         # Broadcast the initial state to the whole batch if needed
         if len(self.initial_state.get_shape()) == 1:
             assert self.initial_state.get_shape()[0].value == self.rnn_size
-
-            batch_size = tf.shape(self.go_symbols)[1]
-            tiles = tf.tile(self.initial_state, tf.expand_dims(batch_size, 0))
+            tiles = tf.tile(self.initial_state,
+                            tf.expand_dims(self.batch_size, 0))
             self.initial_state = tf.reshape(tiles, [-1, self.rnn_size])
 
     def _create_embedding_matrix(self) -> None:
@@ -253,7 +252,7 @@ class Decoder(object):
 
 
     def _get_rnn_cell(self) -> tf.nn.rnn_cell.RNNCell:
-        return OrthoGRUCell(self.rnn_size)
+        return tf.nn.rnn_cell.GRUCell(self.rnn_size)
 
     def _attention_decoder(
             self,
@@ -273,28 +272,20 @@ class Decoder(object):
                 decoded using the loop function)
             scope: Variable scope to use
         """
-        cell = self._get_rnn_cell()
-
         att_objects = []
         if self.use_attention:
             att_objects = [e.get_attention_object() for e in self.encoders
                            if isinstance(e, Attentive)]
 
-        with tf.variable_scope(scope or "attention_decoder"):
-            batch_size = tf.shape(go_symbols)[1]    # Needed for reshaping.
+        cell = self._get_rnn_cell()
 
+        with tf.variable_scope(scope or "attention_decoder"):
             state = self.initial_state
             outputs = []
             prev = None
 
-            def initialize(attention_obj, batch_size):
-                batch_attn_size = tf.pack([batch_size, attention_obj.attn_size])
-                initial = tf.zeros(batch_attn_size, dtype=tf.float32)
-                # Ensure the second shape of attention vectors is set.
-                initial.set_shape([None, attention_obj.attn_size])
-                return initial
-
-            attns = [initialize(a, batch_size) for a in att_objects]
+            attns = [tf.zeros([self.batch_size, a.attn_size])
+                     for a in att_objects]
             states = []
             for i in range(self.max_output_len):
                 if i > 0:
