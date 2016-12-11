@@ -132,6 +132,7 @@ class Decoder(object):
                 embedded_go_symbols, train_inputs=embedded_train_inputs,
                 train_mode=True)
 
+            assert not tf.get_variable_scope().reuse
             tf.get_variable_scope().reuse_variables()
 
             runtime_rnn_outputs, _ = self._attention_decoder(
@@ -185,15 +186,14 @@ class Decoder(object):
 
 
 
-    def _create_input_placeholders(self):
+    def _create_input_placeholders(self) -> None:
         """Creates input placeholder nodes in the computation graph"""
         self.train_mode = tf.placeholder(tf.bool, name="decoder_train_mode")
 
         self.go_symbols = tf.placeholder(tf.int32, shape=[1, None],
                                          name="decoder_go_symbols")
 
-
-    def _create_training_placeholders(self):
+    def _create_training_placeholders(self) -> None:
         """Creates training placeholder nodes in the computation graph
 
         The training placeholder nodes are NOT fed during runtime.
@@ -206,7 +206,7 @@ class Decoder(object):
             tf.float32, [self.max_output_len, None],
             name="decoder_padding_placeholder")
 
-    def _create_initial_state(self):
+    def _create_initial_state(self) -> None:
         """Construct the part of the computation graph that computes the initial
         state of the decoder."""
         self.initial_state = dropout(self.encoder_projection(self.train_mode,
@@ -214,10 +214,16 @@ class Decoder(object):
                                                              self.encoders),
                                      self.dropout_keep_prob,
                                      self.train_mode)
-        # TODO broadcast if initial state is 1D tensor
-        # (move from attention_decoder)
 
-    def _create_embedding_matrix(self):
+        # Broadcast the initial state to the whole batch if needed
+        if len(self.initial_state.get_shape()) == 1:
+            assert self.initial_state.get_shape()[0].value == self.rnn_size
+
+            batch_size = tf.shape(self.go_symbols)[1]
+            tiles = tf.tile(self.initial_state, tf.expand_dims(batch_size, 0))
+            self.initial_state = tf.reshape(tiles, [-1, self.rnn_size])
+
+    def _create_embedding_matrix(self) -> None:
         """Create variables and operations for embedding of input words
 
         If we are reusing word embeddings, this function takes the embedding
@@ -231,7 +237,7 @@ class Decoder(object):
         else:
             self.embedding_matrix = self.embeddings_encoder.embedding_matrix
 
-    def _embed_and_dropout(self, inputs):
+    def _embed_and_dropout(self, inputs: tf.Tensor) -> tf.Tensor:
         """Embed the input using the embedding matrix and apply dropout
 
         Arguments:
@@ -241,37 +247,41 @@ class Decoder(object):
         return dropout(embedded, self.dropout_keep_prob, self.train_mode)
 
 
-    def _logit_function(self, state):
+    def _logit_function(self, state: tf.Tensor) -> tf.Tensor:
         state = dropout(state, self.dropout_keep_prob, self.train_mode)
         return tf.matmul(state, self.decoding_w) + self.decoding_b
 
 
-    def _attention_decoder(self,
-                           go_symbols: tf.Tensor,
-                           train_inputs: tf.Tensor=None,
-                           output_size: int=None,
-                           train_mode: bool=False,
-                           scope: Union[str, tf.VariableScope]=None):
-        cell = OrthoGRUCell(self.rnn_size)
+    def _get_rnn_cell(self) -> tf.nn.rnn_cell.RNNCell:
+        return OrthoGRUCell(self.rnn_size)
+
+    def _attention_decoder(
+            self,
+            go_symbols: tf.Tensor,
+            train_inputs: tf.Tensor=None,
+            train_mode: bool=False,
+            scope: Union[str, tf.VariableScope]=None) -> Tuple[List[tf.Tensor],
+                                                               List[tf.Tensor]]:
+        """Run the decoder RNN.
+
+        Arguments:
+            go_symbols: The tensor of start symbols of shape (1, batch_size)
+            train_inputs: Training inputs to feed the decoder with. These are
+                not used when `train_mode = False`
+            train_mode: Boolean flag whether the decoder is running in
+                train (with ground truth inputs) or runtime mode (with inputs
+                decoded using the loop function)
+            scope: Variable scope to use
+        """
+        cell = self._get_rnn_cell()
 
         att_objects = []
         if self.use_attention:
             att_objects = [e.get_attention_object() for e in self.encoders
                            if isinstance(e, Attentive)]
 
-        if output_size is None:
-            output_size = cell.output_size
-
         with tf.variable_scope(scope or "attention_decoder"):
             batch_size = tf.shape(go_symbols)[1]    # Needed for reshaping.
-
-            # do manualy broadcasting of the initial state if we want it
-            # to be the same for all inputs
-            if len(self.initial_state.get_shape()) == 1:
-                state_size = self.initial_state.get_shape()[0].value
-                self.initial_state = tf.reshape(
-                    tf.tile(self.initial_state, tf.shape(go_symbols)[1:]),
-                    [-1, state_size])
 
             state = self.initial_state
             outputs = []
@@ -318,7 +328,7 @@ class Decoder(object):
                 if attns:
                     with tf.variable_scope("AttnOutputProjection"):
                         output = tf.nn.seq2seq.linear(
-                            [cell_output] + attns, output_size, True)
+                            [cell_output] + attns, cell.output_size, True)
                 else:
                     output = cell_output
 
