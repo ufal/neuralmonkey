@@ -104,7 +104,7 @@ class SentenceEncoder(Attentive):
 
     @property
     def _attention_mask(self):
-        return self.__input_weights
+        return self._input_mask
 
     @property
     def vocabulary_size(self):
@@ -119,12 +119,12 @@ class SentenceEncoder(Attentive):
         self.inputs = tf.placeholder(tf.int32, shape=[None, self.max_input_len],
                                      name="encoder_input")
 
-        self.__input_weights = tf.placeholder(
+        self._input_mask = tf.placeholder(
             tf.float32, shape=[None, self.max_input_len],
             name="encoder_padding")
 
         self.sentence_lengths = tf.to_int32(
-            tf.reduce_sum(self.__input_weights, 1))
+            tf.reduce_sum(self._input_mask, 1))
 
 
     def _create_embedding_matrix(self):
@@ -213,6 +213,6 @@ class SentenceEncoder(Attentive):
         # as sentences_to_tensor returns lists of shape (time, batch),
         # we need to transpose
         fd[self.inputs] = list(zip(*vectors))
-        fd[self.__input_weights] = list(zip(*paddings))
+        fd[self._input_mask] = list(zip(*paddings))
 
         return fd

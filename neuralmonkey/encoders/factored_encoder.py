@@ -75,7 +75,7 @@ class FactoredEncoder(Attentive):
 
     @property
     def _attention_mask(self):
-        return self.__attention_weights
+        return self.__attention_mask
 
     @property
     def _attention_tensor(self):
@@ -178,7 +178,7 @@ class FactoredEncoder(Attentive):
                                                 for o in self.outputs_bidi])
         self.__attention_tensor = tf.nn.dropout(self.__attention_tensor,
                                                 self.dropout_placeholder)
-        self.__attention_weights = tf.concat(
+        self.__attention_mask = tf.concat(
             1, [tf.expand_dims(w, 1) for w in self.padding_weights])
 
     # pylint: disable=too-many-locals

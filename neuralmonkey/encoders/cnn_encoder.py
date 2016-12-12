@@ -214,11 +214,11 @@ class CNNEncoder(Attentive):
 
             self.encoded = encoder_state
 
-            self.__attention_tensor = \
-                tf.reshape(last_layer, [-1, image_width,
-                                        last_n_channels * image_height])
+            self.__attention_tensor = tf.reshape(
+                last_layer, [-1, image_width,
+                             last_n_channels * image_height])
 
-            self.__attention_weights = tf.squeeze(
+            self.__attention_mask = tf.squeeze(
                 tf.reduce_prod(last_padding_masks, [1]), [2])
 
     @property
@@ -227,7 +227,7 @@ class CNNEncoder(Attentive):
 
     @property
     def _attention_mask(self):
-        return self.__attention_weights
+        return self.__attention_mask
 
     def feed_dict(self, dataset, train=False):
         # if it is from the pickled file, it is list, not numpy tensor,
