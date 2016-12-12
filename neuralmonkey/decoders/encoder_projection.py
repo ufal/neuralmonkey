@@ -2,7 +2,7 @@
 This module contains different variants of projection of encoders into the
 initial state of the decoder.
 """
-#tests: mypy, lint
+#tests: lint
 from typing import List, Optional, Callable
 
 import tensorflow as tf

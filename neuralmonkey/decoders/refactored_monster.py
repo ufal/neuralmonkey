@@ -1,4 +1,4 @@
-#tests: mypy, lint
+#tests: lint
 
 from typing import List, Callable, Optional, Union, Tuple
 import math
