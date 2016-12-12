@@ -11,13 +11,14 @@ from neuralmonkey.vocabulary import Vocabulary
 
 # tests: lint, mypy
 
+# pylint: disable=too-many-instance-attributes
 class FactoredEncoder(Attentive):
     """Implementation of a generic encoder that processes an arbitrary
     number of input sequences.
     """
 
     def __init__(self, max_input_len, vocabularies, data_ids, embedding_sizes,
-            rnn_size, **kwargs):
+                 rnn_size, **kwargs):
         """Construct a new instance of the factored encoder.
 
         Args:
@@ -68,8 +69,8 @@ class FactoredEncoder(Attentive):
 
             # Attention mechanism
             if attention_type is not None:
-                weight_tensor = tf.concat(
-                        1, [tf.expand_dims(w, 1) for w in self.padding_weights])
+                self._padding = tf.concat(
+                    1, [tf.expand_dims(w, 1) for w in self.padding_weights])
 
                 super().__init__(
                     attention_type, attention_fertility=attention_fertility)
@@ -91,7 +92,7 @@ class FactoredEncoder(Attentive):
             # TODO shape needs recomputing
 
             dropout_mask = tf.floor(tf.random_uniform(shape, 0.0, 1.0)
-                    + self.dropout_placeholder)
+                                    + self.dropout_placeholder)
 
             scale = tf.inv(self.dropout_placeholder)
             cell = PervasiveDropoutWrapper(cell, dropout_mask, scale)
