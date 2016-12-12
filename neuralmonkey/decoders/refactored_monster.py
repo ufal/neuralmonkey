@@ -10,6 +10,7 @@ from neuralmonkey.vocabulary import Vocabulary, START_TOKEN
 from neuralmonkey.logging import log
 from neuralmonkey.nn.utils import dropout
 from neuralmonkey.encoders.attentive import Attentive
+from neuralmonkey.nn.projection import linear
 from neuralmonkey.decoders.encoder_projection import (
     linear_encoder_projection, concat_encoder_projection, empty_initial_state)
 
@@ -307,8 +308,7 @@ class Decoder(object):
 
                 # Merge input and previous attentions into one vector of the
                 # right size.
-                x = tf.nn.seq2seq.linear(
-                    [inp] + attns, self.embedding_size, True)
+                x = linear([inp] + attns, self.embedding_size)
                 # Run the RNN.
 
                 cell_output, state = cell(x, state)
@@ -317,9 +317,8 @@ class Decoder(object):
                 attns = [a.attention(state) for a in att_objects]
 
                 if attns:
-                    with tf.variable_scope("AttnOutputProjection"):
-                        output = tf.nn.seq2seq.linear(
-                            [cell_output] + attns, cell.output_size, True)
+                    output = linear([cell_output] + attns, cell.output_size,
+                                    scope="AttnOutputProjection")
                 else:
                     output = cell_output
 
