@@ -277,7 +277,7 @@ the source sentences::
   rnn_size=300
   max_input_len=50
   embedding_size=300
-  dropout_keep_p=0.8
+  dropout_keep_prob=0.8
   attention_type=decoding_function.Attention
   data_id=source
   name=src_encoder
@@ -300,7 +300,7 @@ The configuration of the second encoder follows::
   rnn_size=300
   max_input_len=50
   embedding_size=300
-  dropout_keep_p=0.8
+  dropout_keep_prob=0.8
   attention_type=decoding_function.Attention
   data_id=translated
   name=trans_encoder
@@ -324,7 +324,7 @@ decoder. Without furhter ado, here it goes::
   rnn_size=300
   max_output_len=50
   reuse_word_embeddings=True
-  dropout_keep_p=0.8
+  dropout_keep_prob=0.8
   use_attention=True
   data_id=edits
   vocabulary=<target_vocabulary>
