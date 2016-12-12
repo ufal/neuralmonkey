@@ -61,8 +61,8 @@ def mlp_output(layer_sizes, dropout_plc=None, activation=tf.tanh):
 
     Arguments:
         layer_sizes: A list of sizes of the hiddel layers of the MLP
-        dropout_plc: Dropout placeholder. TODO this is not going to work with
-            current configuration
+        dropout_plc: Dropout placeholder. TODO this is not going to
+            work with current configuration
         activation: The activation function to use in each layer.
     """
     def _projection(prev_state, prev_output, ctx_tensors):

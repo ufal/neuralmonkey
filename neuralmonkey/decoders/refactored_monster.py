@@ -14,7 +14,7 @@ from neuralmonkey.nn.projection import linear
 from neuralmonkey.decoders.encoder_projection import (
     linear_encoder_projection, concat_encoder_projection, empty_initial_state)
 
-# pylint: disable=too-many-instance-attributes
+# pylint: disable=too-many-instance-attributes,too-few-public-methods
 # Big decoder cannot be simpler. Not sure if refactoring
 # it into smaller units would be helpful
 class Decoder(object):
@@ -216,9 +216,15 @@ class Decoder(object):
                                      self.dropout_keep_prob,
                                      self.train_mode)
 
+        # pylint: disable=no-member
+        # Pylint keeps complaining about initial shape being a tuple, but it is
+        # a tensor!!!
+        init_state_shape = self.initial_state.get_shape()
+        # pylint: enable=no-member
+
         # Broadcast the initial state to the whole batch if needed
-        if len(self.initial_state.get_shape()) == 1:
-            assert self.initial_state.get_shape()[0].value == self.rnn_size
+        if len(init_state_shape) == 1:
+            assert init_state_shape[0].value == self.rnn_size
             tiles = tf.tile(self.initial_state,
                             tf.expand_dims(self.batch_size, 0))
             self.initial_state = tf.reshape(tiles, [-1, self.rnn_size])

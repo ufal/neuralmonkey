@@ -27,7 +27,6 @@ def empty_initial_state(train_mode: tf.Tensor,
         raise ValueError("You must supply rnn_size for this type of "
                          "encoder projection")
     return tf.zeros([rnn_size])
-#pylint: enable=unused-argument
 
 
 def linear_encoder_projection(
@@ -91,7 +90,9 @@ def concat_encoder_projection(
 
     encoded_concat = tf.concat(1, [e.encoded for e in encoders])
 
+    #pylint: disable=no-member
     log("The inferred rnn_size of this encoder projection will be {}"
         .format(encoded_concat.get_shape()[1].value))
+    #pylint: enable=no-member
 
     return encoded_concat
