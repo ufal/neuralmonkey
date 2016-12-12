@@ -1,5 +1,4 @@
 import tensorflow as tf
-import numpy as np
 
 from neuralmonkey.checking import assert_shape
 from neuralmonkey.encoders.attentive import Attentive
@@ -201,11 +200,6 @@ class FactoredEncoder(Attentive):
         # res[self.sentence_lengths] = np.array(
         #     [min(self.max_input_len, len(s)) +
         #      2 for s in factors[self.data_ids[0]]])
-
-        batch_size = None
-        for data_id in factors:
-            batch_size = len(factors[data_id])
-
         factor_vectors_and_weights = {
             data_id: vocabulary.sentences_to_tensor(factors[data_id],
                                                     self.max_input_len,
