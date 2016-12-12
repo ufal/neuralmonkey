@@ -378,8 +378,8 @@ class Vocabulary(collections.Sized):
                 dtype=np.int32)
             prepend_weights = np.ones([1, len(sentences)])
 
-            word_indices = np.concatenate(prepend_indices, word_indices)
-            weights = np.concatenate(prepend_weigths, weights)
+            word_indices = np.concatenate((prepend_indices, word_indices))
+            weights = np.concatenate((prepend_weights, weights))
 
         return word_indices, weights
 
