@@ -91,7 +91,7 @@ class SentenceEncoder(Attentive):
                 dtype=tf.float32)
 
             self.__attention_tensor = tf.concat(2, outputs_bidi_tup)
-            self.__attention_tensor = self._dropout(self._attention_tensor)
+            self.__attention_tensor = self._dropout(self.__attention_tensor)
 
             self.encoded = tf.concat(1, encoded_tup)
 
