@@ -62,6 +62,9 @@ class SentenceEncoder(Attentive):
             attention_fertility: Fertility parameter used with
                 CoverageAttention (default 3).
         """
+        super().__init__(
+            attention_type, attention_fertility=attention_fertility)
+
         self.vocabulary = vocabulary
         self.data_id = data_id
         self.name = name
@@ -87,16 +90,21 @@ class SentenceEncoder(Attentive):
                 fw_cell, bw_cell, embedded_inputs, self.sentence_lengths,
                 dtype=tf.float32)
 
-            self._attention_tensor = tf.concat(2, outputs_bidi_tup)
-            self._attention_tensor = self._dropout(self._attention_tensor)
+            self.__attention_tensor = tf.concat(2, outputs_bidi_tup)
+            self.__attention_tensor = self._dropout(self._attention_tensor)
 
             self.encoded = tf.concat(1, encoded_tup)
 
-        super().__init__(
-            attention_type, attention_fertility=attention_fertility)
 
         log("Sentence encoder initialized")
 
+    @property
+    def _attention_tensor(self):
+        return self.__attention_tensor
+
+    @property
+    def _attention_mask(self):
+        return self.__input_weights
 
     @property
     def vocabulary_size(self):
@@ -111,11 +119,12 @@ class SentenceEncoder(Attentive):
         self.inputs = tf.placeholder(tf.int32, shape=[None, self.max_input_len],
                                      name="encoder_input")
 
-        self._padding = tf.placeholder(
+        self.__input_weights = tf.placeholder(
             tf.float32, shape=[None, self.max_input_len],
             name="encoder_padding")
 
-        self.sentence_lengths = tf.to_int32(tf.reduce_sum(self._padding, 1))
+        self.sentence_lengths = tf.to_int32(
+            tf.reduce_sum(self.__input_weights, 1))
 
 
     def _create_embedding_matrix(self):
@@ -204,6 +213,6 @@ class SentenceEncoder(Attentive):
         # as sentences_to_tensor returns lists of shape (time, batch),
         # we need to transpose
         fd[self.inputs] = list(zip(*vectors))
-        fd[self._padding] = list(zip(*paddings))
+        fd[self.__input_weights] = list(zip(*paddings))
 
         return fd

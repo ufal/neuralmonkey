@@ -25,8 +25,6 @@ class VectorEncoder(object):
 
         self.encoded = tf.tanh(tf.matmul(self.flat, project_w) + project_b)
 
-        self.attention_tensor = None
-
     # pylint: disable=unused-argument
     def feed_dict(self, dataset, train=False):
         return {self.image_features: dataset.get_series(self.data_id)}
@@ -37,6 +35,7 @@ class PostCNNImageEncoder(Attentive):
     def __init__(self, input_shape, output_shape, data_id, name,
                  dropout_keep_prob=1.0, attention_type=None):
         assert len(input_shape) == 3
+        super().__init__(attention_type)
 
         self.input_shape = input_shape
         self.output_shape = output_shape
@@ -64,15 +63,15 @@ class PostCNNImageEncoder(Attentive):
 
             self.encoded = tf.tanh(tf.matmul(self.flat, project_w) + project_b)
 
-            self._attention_tensor = \
-                tf.reshape(self.image_features,
-                           [-1, input_shape[0] * input_shape[1],
-                            input_shape[2]],
-                           name="flatten_image")
+            self.__attention_tensor = tf.reshape(
+                self.image_features,
+                [-1, input_shape[0] * input_shape[1],
+                 input_shape[2]],
+                name="flatten_image")
 
-            self._padding = tf.ones(tf.shape(self._attention_tensor))
-
-        super().__init__(attention_type)
+    @property
+    def _attention_tensor(self):
+        return self.__attention_tensor
 
     def feed_dict(self, dataset, train=False):
         res = {self.image_features: dataset.get_series(self.data_id)}

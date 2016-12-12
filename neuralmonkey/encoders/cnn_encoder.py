@@ -87,6 +87,7 @@ class CNNEncoder(Attentive):
                 dropout keeping probability
 
         """
+        super().__init__(attention_type)
 
         self.convolutions = convolutions
         self.data_id = data_id
@@ -203,6 +204,7 @@ class CNNEncoder(Attentive):
             encoder_state = rnn_encoder(
                 encoder_ins, last_layer_size, "encoder-forward")
 
+            # pylint: disable=redefined-variable-type
             if bidirectional:
                 backward_encoder_state = rnn_encoder(
                     list(reversed(encoder_ins)),
@@ -212,14 +214,20 @@ class CNNEncoder(Attentive):
 
             self.encoded = encoder_state
 
-            self.attention_tensor = \
+            self.__attention_tensor = \
                 tf.reshape(last_layer, [-1, image_width,
                                         last_n_channels * image_height])
 
-            self._padding = tf.squeeze(
+            self.__attention_weights = tf.squeeze(
                 tf.reduce_prod(last_padding_masks, [1]), [2])
 
-            super().__init__(attention_type)
+    @property
+    def _attention_tensor(self):
+        return self.__attention_tensor
+
+    @property
+    def _attention_mask(self):
+        return self.__attention_weights
 
     def feed_dict(self, dataset, train=False):
         # if it is from the pickled file, it is list, not numpy tensor,

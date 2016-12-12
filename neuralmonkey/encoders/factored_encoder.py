@@ -44,6 +44,10 @@ class FactoredEncoder(Attentive):
             name: The name for this encoder. [sentence_encoder]
             dropout_keep_prob: 1 - Dropout probability [1]
         """
+        attention_type = kwargs.get("attention_type", None)
+        attention_fertility = kwargs.get("attention_fertility", 3)
+        super().__init__(
+            attention_type, attention_fertility=attention_fertility)
         for vocabulary in vocabularies:
             assert_type(self, 'vocabulary', vocabulary, Vocabulary)
 
@@ -60,22 +64,22 @@ class FactoredEncoder(Attentive):
         self.use_noisy_activations = kwargs.get("use_noisy_activations", False)
         self.use_pervasive_dropout = kwargs.get("use_pervasive_dropout", False)
 
-        attention_type = kwargs.get("attention_type", None)
-        attention_fertility = kwargs.get("attention_fertility", 3)
 
         log("Building encoder graph, name: '{}'.".format(self.name))
         with tf.variable_scope(self.name):
             self._create_encoder_graph()
 
             # Attention mechanism
-            if attention_type is not None:
-                self._padding = tf.concat(
-                    1, [tf.expand_dims(w, 1) for w in self.padding_weights])
 
-                super().__init__(
-                    attention_type, attention_fertility=attention_fertility)
+            log("Encoder graph constructed.")
 
-                log("Encoder graph constructed.")
+    @property
+    def _attention_mask(self):
+        return self.__attention_weights
+
+    @property
+    def _attention_tensor(self):
+        return self.__attention_tensor
 
     def _get_rnn_cell(self):
         """Return the RNN cell for the encoder"""
@@ -170,10 +174,12 @@ class FactoredEncoder(Attentive):
         self.outputs_bidi = bidi_layer.outputs_bidi
         self.encoded = bidi_layer.encoded
 
-        self.attention_tensor = tf.concat(1, [tf.expand_dims(o, 1)
-                                              for o in self.outputs_bidi])
-        self.attention_tensor = tf.nn.dropout(self.attention_tensor,
-                                              self.dropout_placeholder)
+        self.__attention_tensor = tf.concat(1, [tf.expand_dims(o, 1)
+                                                for o in self.outputs_bidi])
+        self.__attention_tensor = tf.nn.dropout(self.__attention_tensor,
+                                                self.dropout_placeholder)
+        self.__attention_weights = tf.concat(
+            1, [tf.expand_dims(w, 1) for w in self.padding_weights])
 
     # pylint: disable=too-many-locals
     def feed_dict(self, dataset, train=False):
