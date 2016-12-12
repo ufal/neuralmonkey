@@ -245,12 +245,13 @@ class Decoder(object):
         return OrthoGRUCell(self.rnn_size)
 
 
-    def _collect_attention_objects(self):
+    def _collect_attention_objects(self, runtime_mode):
         """Collect attention objects from encoders."""
         if not self.use_attention:
             return []
-        return [e.attention_object for e in self.encoders if e.attention_object]
 
+        return [e.get_attention_object(runtime_mode)
+                for e in self.encoders]
 
     def _embed_inputs(self, inputs):
         """Embed inputs using the decoder"s word embedding matrix
@@ -323,7 +324,7 @@ class Decoder(object):
             scope: The variable scope to use with this function.
         """
         cell = self._get_rnn_cell()
-        att_objects = self._collect_attention_objects()
+        att_objects = self._collect_attention_objects(runtime_mode)
 
         ## Broadcast the initial state to the whole batch if needed
         if len(initial_state.get_shape()) == 1:
@@ -366,9 +367,8 @@ class Decoder(object):
 
             if runtime_mode:
                 for i, a in enumerate(att_objects):
-                    attentions = a.attentions_in_time[-len(inputs):]
                     alignments = tf.expand_dims(tf.transpose(
-                        tf.pack(attentions), perm=[1, 2, 0]), -1)
+                        tf.pack(a.attentions_in_time), perm=[1, 2, 0]), -1)
 
                     tf.image_summary("attention_{}".format(i), alignments,
                                      collections=["summary_val_plots"],
