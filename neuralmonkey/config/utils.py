@@ -2,7 +2,7 @@
 the configuration file because calling the functions or the class constructors
 directly would be inconvinent or impossible.
 """
-#tests: lint
+#tests: lint, mypy
 import tensorflow as tf
 
 import neuralmonkey.vocabulary as vocabulary

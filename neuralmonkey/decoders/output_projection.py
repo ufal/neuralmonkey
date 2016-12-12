@@ -7,7 +7,7 @@ import tensorflow as tf
 from neuralmonkey.nn.projection import maxout
 from neuralmonkey.nn.mlp import multilayer_perceptron
 
-# tests: lint
+# tests: lint, mypy
 
 def no_deep_output(prev_state, prev_output, ctx_tensors):
     """Compute RNN output out of the previous state and output, and the

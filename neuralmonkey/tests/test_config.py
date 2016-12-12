@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """ Tests the config parsing module. """
-#tests: lint
+#tests: lint, mypy
 #pylint: disable=protected-access
 
 import unittest

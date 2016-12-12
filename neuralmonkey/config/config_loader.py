@@ -2,7 +2,7 @@
 This module is responsible for instantiating objects
 specified by the experiment configuration
 """
-# tests: lint
+# tests: lint, mypy
 
 import collections
 from inspect import signature, isclass, isfunction

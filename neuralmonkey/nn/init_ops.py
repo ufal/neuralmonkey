@@ -3,7 +3,7 @@ from tensorflow.python.ops import random_ops
 from tensorflow.python.ops import linalg_ops
 from tensorflow.python.ops import array_ops
 
-# tests: lint
+# tests: lint, mypy
 
 def _assert_float_dtype(dtype):
     """Validate and return floating point type based on `dtype`.

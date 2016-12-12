@@ -1,4 +1,4 @@
-#tests: lint
+#tests: lint, mypy
 
 import traceback
 from argparse import Namespace

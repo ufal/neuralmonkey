@@ -4,7 +4,7 @@ This module servers as a library of API checks used as assertions during
 constructing the computational graph.
 """
 
-# tests: lint
+# tests: lint, mypy
 
 from neuralmonkey.logging import log, debug
 

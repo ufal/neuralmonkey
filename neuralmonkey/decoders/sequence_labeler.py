@@ -2,7 +2,7 @@ import tensorflow as tf
 
 from neuralmonkey.decoders.decoder import Decoder
 
-# tests: lint
+# tests: lint, mypy
 
 # pylint: disable=too-many-instance-attributes
 class SequenceLabeler(Decoder):

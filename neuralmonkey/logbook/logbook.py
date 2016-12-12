@@ -1,4 +1,4 @@
-#tests: lint
+#tests: lint, mypy
 
 import argparse
 import os

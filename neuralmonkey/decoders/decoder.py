@@ -1,4 +1,4 @@
-#tests: lint
+#tests: lint, mypy
 
 import tensorflow as tf
 import numpy as np
