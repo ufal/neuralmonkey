@@ -2,4 +2,4 @@
 
 set -e
 
-pycodestyle $(find neuralmonkey -name '*.py')
+pylint $(find neuralmonkey -name '*.py')
