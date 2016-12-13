@@ -12,7 +12,7 @@ from neuralmonkey.dataset import Dataset
 from neuralmonkey.vocabulary import Vocabulary
 
 # pylint: disable=invalid-name
-AttType = Any ## Type[] or union of types do not work here
+AttType = Any  # Type[] or union of types do not work here
 FeedDict = Dict[tf.Tensor, Any]
 RNNCellTuple = Tuple[tf.nn.rnn_cell.RNNCell, tf.nn.rnn_cell.RNNCell]
 # pylint: enable=invalid-name
@@ -83,8 +83,8 @@ class SentenceEncoder(Attentive):
             self._create_input_placeholders()
             self._create_embedding_matrix()
 
-            embedded_inputs = self._embed(self.inputs) # type: tf.Tensor
-            fw_cell, bw_cell = self.rnn_cells() # type: RNNCellTuple
+            embedded_inputs = self._embed(self.inputs)  # type: tf.Tensor
+            fw_cell, bw_cell = self.rnn_cells()  # type: RNNCellTuple
 
             outputs_bidi_tup, encoded_tup = tf.nn.bidirectional_dynamic_rnn(
                 fw_cell, bw_cell, embedded_inputs, self.sentence_lengths,
@@ -94,7 +94,6 @@ class SentenceEncoder(Attentive):
             self.__attention_tensor = self._dropout(self.__attention_tensor)
 
             self.encoded = tf.concat(1, encoded_tup)
-
 
         log("Sentence encoder initialized")
 
@@ -110,13 +109,13 @@ class SentenceEncoder(Attentive):
     def vocabulary_size(self):
         return len(self.vocabulary)
 
-
     def _create_input_placeholders(self):
         """Creates input placeholder nodes in the computation graph"""
         self.train_mode = tf.placeholder(tf.bool, shape=[],
                                          name="mode_placeholder")
 
-        self.inputs = tf.placeholder(tf.int32, shape=[None, self.max_input_len],
+        self.inputs = tf.placeholder(tf.int32,
+                                     shape=[None, self.max_input_len],
                                      name="encoder_input")
 
         self._input_mask = tf.placeholder(
@@ -125,7 +124,6 @@ class SentenceEncoder(Attentive):
 
         self.sentence_lengths = tf.to_int32(
             tf.reduce_sum(self._input_mask, 1))
-
 
     def _create_embedding_matrix(self):
         """Create variables and operations for embedding the input words.
@@ -140,7 +138,6 @@ class SentenceEncoder(Attentive):
             self.embedding_matrix = tf.get_variable(
                 "word_embeddings", [self.vocabulary_size, self.embedding_size],
                 initializer=tf.random_normal_initializer(stddev=0.01))
-
 
     def _dropout(self, variable: tf.Tensor) -> tf.Tensor:
         """Perform dropout on a variable
@@ -160,7 +157,6 @@ class SentenceEncoder(Attentive):
         dropped_value = tf.nn.dropout(variable, self.dropout_keep_p)
         return tf.select(train_mode_batch, dropped_value, variable)
 
-
     def _embed(self, inputs: tf.Tensor) -> tf.Tensor:
         """Embed the input using the embedding matrix and apply dropout
 
@@ -169,7 +165,6 @@ class SentenceEncoder(Attentive):
         """
         embedded = tf.nn.embedding_lookup(self.embedding_matrix, inputs)
         return self._dropout(embedded)
-
 
     def rnn_cells(self) -> RNNCellTuple:
         """Return the graph template to for creating RNN memory cells"""
@@ -183,7 +178,6 @@ class SentenceEncoder(Attentive):
 
         return (OrthoGRUCell(self.rnn_size),
                 OrthoGRUCell(self.rnn_size))
-
 
     def feed_dict(self, dataset: Dataset, train: bool=False) -> FeedDict:
         """Populate the feed dictionary with the encoder inputs.
@@ -202,7 +196,7 @@ class SentenceEncoder(Attentive):
             train: Boolean flag telling whether it is training time
         """
         # pylint: disable=invalid-name
-        fd = {} # type: FeedDict
+        fd = {}  # type: FeedDict
         fd[self.train_mode] = train
         sentences = dataset.get_series(self.data_id)
 

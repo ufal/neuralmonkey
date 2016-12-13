@@ -1,4 +1,4 @@
-#tests: lint, mypy
+# tests: lint, mypy
 
 import tensorflow as tf
 from neuralmonkey.nn.projection import linear, nonlinear
@@ -23,7 +23,7 @@ def multilayer_perceptron(input_, layer_sizes, activation=tf.tanh,
 class MultilayerPerceptron(object):
     """ General implementation of the multilayer perceptron. """
 
-    #pylint: disable=too-many-arguments
+    # pylint: disable=too-many-arguments
     def __init__(self, mlp_input, layer_configuration, dropout_plc,
                  output_size, name='multilayer_perceptron'):
 
@@ -49,7 +49,6 @@ class MultilayerPerceptron(object):
                     "b_out", tf.zeros_initializer([output_size]))
 
                 self.logits = tf.matmul(last_layer, w_out) + b_out
-
 
     @property
     def softmax(self):

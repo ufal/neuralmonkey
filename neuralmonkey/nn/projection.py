@@ -1,7 +1,7 @@
 """
 This module implements various types of projections.
 """
-#tests: lint, mypy
+# tests: lint, mypy
 import tensorflow as tf
 
 

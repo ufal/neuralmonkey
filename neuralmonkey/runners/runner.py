@@ -76,7 +76,6 @@ class GreedyRunExecutable(Executable):
         if self._postprocess is not None:
             decoded_tokens = self._postprocess(decoded_tokens)
 
-
         image_summaries = results[0].get('image_summaries')
 
         self.result = ExecutionResult(

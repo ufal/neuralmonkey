@@ -5,13 +5,16 @@ from neuralmonkey.nn.mlp import MultilayerPerceptron
 # tests: lint, mypy
 
 # pylint: disable=too-many-instance-attributes
+
+
 class SequenceClassifier(object):
     """
     This is a implementation of a simple MLP classifier over encoders. The API
     pretends it is an RNN decoder which always generates a sequence of length
     exactly one.
     """
-    #pylint: disable=dangerous-default-value
+    # pylint: disable=dangerous-default-value
+
     def __init__(self, encoders, vocabulary, data_id, name,
                  layers=[], activation=tf.tanh, dropout_keep_prob=0.5):
         self.encoders = encoders
@@ -46,11 +49,11 @@ class SequenceClassifier(object):
             self.decoded_logits = [mlp.logits]
 
             tf.scalar_summary(
-                'val_optimization_cost', self.cost, collections=["summary_val"])
+                'val_optimization_cost', self.cost,
+                collections=["summary_val"])
             tf.scalar_summary(
                 'train_optimization_cost',
                 self.cost, collections=["summary_train"])
-
 
     @property
     def train_loss(self):

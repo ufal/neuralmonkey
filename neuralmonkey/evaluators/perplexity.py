@@ -1,13 +1,14 @@
-#tests: lint, mypy
+# tests: lint, mypy
 
 import numpy as np
 
-#pylint: disable=too-few-public-methods
+# pylint: disable=too-few-public-methods
+
+
 class Perplexity(object):
 
     def __init__(self, name="Perplexity"):
         self.name = name
-
 
     def __call__(self, perplexities, _):
         """

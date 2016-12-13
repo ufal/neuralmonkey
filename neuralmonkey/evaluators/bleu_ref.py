@@ -1,4 +1,4 @@
-#tests: lint
+# tests: lint
 
 import tempfile
 import subprocess
@@ -6,6 +6,8 @@ from neuralmonkey.logging import log
 
 # pylint: disable=too-few-public-methods
 # to be further refactored
+
+
 class BLEUReferenceImplWrapper(object):
     """Wrapper for TectoMT's wrapper for reference NIST and BLEU scorer"""
 
@@ -15,13 +17,11 @@ class BLEUReferenceImplWrapper(object):
         self.encoding = encoding
         self.name = name
 
-
     def serialize_to_bytes(self, sentences):
         # type: (List[List[str]]) -> bytes
         joined = [" ".join(r) for r in sentences]
         string = "\n".join(joined) + "\n"
         return string.encode(self.encoding)
-
 
     def __call__(self, decoded, references):
         # type: (List[List[str]], List[List[str]]) -> float

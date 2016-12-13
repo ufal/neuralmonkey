@@ -9,6 +9,7 @@ from neuralmonkey.nn.mlp import multilayer_perceptron
 
 # tests: lint, mypy
 
+
 def no_deep_output(prev_state, prev_output, ctx_tensors):
     """Compute RNN output out of the previous state and output, and the
     context tensors returned from attention mechanisms.
@@ -50,8 +51,8 @@ def maxout_output(maxout_size):
     return _projection
 
 
-## TODO fix this so it does not need dropout_plc. But it needs to be
-## able to do dropout!! So does maxout, BTW..
+# TODO fix this so it does not need dropout_plc. But it needs to be
+# able to do dropout!! So does maxout, BTW..
 def mlp_output(layer_sizes, dropout_plc=None, activation=tf.tanh):
     """Compute RNN deep output using the multilayer perceptron
     with a specified activation function.

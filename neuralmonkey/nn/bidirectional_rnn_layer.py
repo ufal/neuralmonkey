@@ -2,6 +2,7 @@
 
 import tensorflow as tf
 
+
 class BidirectionalRNNLayer(object):
     """Bidirectional RNN Layer class - forward and backward RNN layers in one.
     """
@@ -33,13 +34,12 @@ class BidirectionalRNNLayer(object):
             self._outputs_rev = _reverse_seq(outputs_rev_rev,
                                              sentence_lengths_placeholder)
 
-
     @property
     def outputs_bidi(self):
         """Outputs of the bidirectional layer"""
 
-        ## outputs and outputs_rev, both lists in time of shape batch x rnn_size
-        ## concatenations have shape batch x (2 * rnn_size)
+        # outputs and outputs_rev, both lists in time of shape batch x rnn_size
+        # concatenations have shape batch x (2 * rnn_size)
         return [tf.concat(1, [o1, o2]) for o1, o2 in zip(self._outputs,
                                                          self._outputs_rev)]
 

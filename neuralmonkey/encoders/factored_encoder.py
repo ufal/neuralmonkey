@@ -12,6 +12,8 @@ from neuralmonkey.vocabulary import Vocabulary
 # tests: lint, mypy
 
 # pylint: disable=too-many-instance-attributes
+
+
 class FactoredEncoder(Attentive):
     """Implementation of a generic encoder that processes an arbitrary
     number of input sequences.
@@ -35,7 +37,8 @@ class FactoredEncoder(Attentive):
                                    functions in RNN cells.
                                    (see neuralmonkey.nn.noisy_gru_cell) [False]
 
-            use_pervasive_dropout: Boolean flag whether to use pervasive dropout
+            use_pervasive_dropout: Boolean flag whether to use pervasive
+                                   dropout
                                    (see arxiv.org/abs/1606.02891) [False]
 
             attention_type: The attention to use. [None]
@@ -64,7 +67,6 @@ class FactoredEncoder(Attentive):
         self.use_noisy_activations = kwargs.get("use_noisy_activations", False)
         self.use_pervasive_dropout = kwargs.get("use_pervasive_dropout", False)
 
-
         log("Building encoder graph, name: '{}'.".format(self.name))
         with tf.variable_scope(self.name):
             self._create_encoder_graph()
@@ -90,7 +92,7 @@ class FactoredEncoder(Attentive):
             cell = tf.nn.rnn_cell.GRUCell(self.rnn_size)
 
         if self.use_pervasive_dropout:
-            #pylint: disable=no-member, undefined-variable
+            # pylint: disable=no-member, undefined-variable
             # TODO fix this
             shape = tf.concat(0, [tf.shape(self.inputs[0]), [rnn_size]])
             # TODO shape needs recomputing

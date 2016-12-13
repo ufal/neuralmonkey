@@ -30,7 +30,7 @@ def post_request():
         try:
             dataset = Dataset("request", request_data, {})
             # TODO check the dataset
-            #check_dataset_and_coders(dataset, args.encoders)
+            # check_dataset_and_coders(dataset, args.encoders)
 
             _, response_data = run_on_dataset(
                 args.tf_manager, args.runners,

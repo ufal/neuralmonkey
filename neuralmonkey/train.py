@@ -17,6 +17,7 @@ from neuralmonkey.learning_utils import training_loop
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.tf_manager import TensorFlowManager
 
+
 def create_config():
     config = Configuration()
 
@@ -34,7 +35,8 @@ def create_config():
     config.add_argument('save_n_best', int, required=False, default=1)
     config.add_argument('logging_period', int, required=False, default=20)
     config.add_argument('validation_period', int, required=False, default=500)
-    config.add_argument('runners_batch_size', int, required=False, default=None)
+    config.add_argument('runners_batch_size', int,
+                        required=False, default=None)
     config.add_argument('minimize', bool, required=False, default=False)
     config.add_argument('postprocess')
     config.add_argument('name', str)
@@ -45,6 +47,7 @@ def create_config():
 
     return config
 
+
 def main():
     if len(sys.argv) != 2:
         print("Usage: train.py <ini_file>")
@@ -54,8 +57,8 @@ def main():
     cfg = create_config()
     # load the params from the config file, getting also the simple arguments
     args = cfg.load_file(sys.argv[1])
-    ## various things like randseed or summarywriter should be set up here
-    ## so that graph building can be recorded
+    # various things like randseed or summarywriter should be set up here
+    # so that graph building can be recorded
     # build all the objects specified in the config
 
     if args.random_seed is None:
@@ -66,9 +69,9 @@ def main():
 
     args = cfg.build_model()
 
-    #pylint: disable=no-member
-    if os.path.isdir(args.output) and \
-            os.path.exists(os.path.join(args.output, "experiment.ini")):
+    # pylint: disable=no-member
+    if (os.path.isdir(args.output) and
+            os.path.exists(os.path.join(args.output, "experiment.ini"))):
         if args.overwrite_output_dir:
             # we do not want to delete the directory contents
             log("Directory with experiment.ini '{}' exists, "
@@ -89,7 +92,7 @@ def main():
         log(str(exc), color='red')
         exit(1)
 
-    #pylint: disable=broad-except
+    # pylint: disable=broad-except
     if not os.path.isdir(args.output):
         try:
             os.mkdir(args.output)

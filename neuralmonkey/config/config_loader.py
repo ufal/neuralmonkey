@@ -43,7 +43,8 @@ def build_object(value, all_dicts, existing_objects, depth):
     if isinstance(value, tuple):
         return tuple(build_object(val, all_dicts, existing_objects, depth + 1)
                      for val in value)
-    elif isinstance(value, collections.Iterable) and not isinstance(value, str):
+    elif (isinstance(value, collections.Iterable) and
+          not isinstance(value, str)):
         return [build_object(val, all_dicts, existing_objects, depth + 1)
                 for val in value]
 
@@ -126,6 +127,7 @@ def load_config_file(config_file):
         config_dicts = parsing.parse_file(file)
     log("INI file is parsed.")
     return config_dicts
+
 
 def build_config(config_dicts, ignore_names):
     """ Builds the model from the configuration

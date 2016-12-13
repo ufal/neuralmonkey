@@ -1,9 +1,11 @@
-#tests: lint
+# tests: lint
 
 from collections import Counter
 import numpy as np
 
+
 class BLEUEvaluator(object):
+
     def __init__(self, n=4, deduplicate=False, name=None):
         self.n = n
         self.deduplicate = deduplicate
@@ -15,7 +17,6 @@ class BLEUEvaluator(object):
             if self.deduplicate:
                 self.name += "-dedup"
 
-
     def __call__(self, decoded, references):
         # type: (List[List[str]], List[List[str]]) -> float
         listed_references = [[s] for s in references]
@@ -24,7 +25,6 @@ class BLEUEvaluator(object):
             decoded = BLEUEvaluator._deduplicate_sentences(decoded)
 
         return 100 * BLEUEvaluator.bleu(decoded, listed_references, self.n)
-
 
     @staticmethod
     def ngram_counts(sentence, n, lowercase, delimiter=" "):
@@ -48,7 +48,6 @@ class BLEUEvaluator(object):
 
         return counts
 
-
     @staticmethod
     def merge_max_counters(counters):
         # type: (List[Counter]) -> Counter
@@ -61,7 +60,6 @@ class BLEUEvaluator(object):
 
         return merged
 
-
     @staticmethod
     def modified_ngram_precision(hypotheses, references_list, n,
                                  case_sensitive):
@@ -70,7 +68,8 @@ class BLEUEvaluator(object):
 
         Arguments:
             hypothesis: List of output sentences as lists of words
-            references: List of lists of reference sentences (as lists of words)
+            references: List of lists of reference sentences (as lists of
+                words)
             n: n-gram order
             case_sensitive: Whether to perform case-sensitive computation
         """
@@ -103,7 +102,6 @@ class BLEUEvaluator(object):
         return (corpus_true_positives / corpus_generated_length,
                 corpus_generated_length)
 
-
     @staticmethod
     def effective_reference_length(hypotheses, references_list):
         # type: (List[List[str]], List[List[List[str]]]) -> int
@@ -134,14 +132,13 @@ class BLEUEvaluator(object):
 
         return eff_ref_length
 
-
     # pylint: disable=unused-argument
     # to mainain same API with the function above
     @staticmethod
     def minimum_reference_length(hypotheses, references_list):
         # type: (List[List[str]], List[List[List[str]]]) -> int
-        """Computes the effective reference corpus length (based on the shortest
-        reference sentence length)
+        """Computes the effective reference corpus length (based on the
+        shortest reference sentence length)
 
         Arguments:
             hypotheses: List of output sentences as lists of words
@@ -161,7 +158,6 @@ class BLEUEvaluator(object):
 
         return eff_ref_length
 
-
     @staticmethod
     def bleu(hypotheses, references, ngrams=4, case_sensitive=True):
         # Type: (List[List[str]], List[List[List[str]]]) -> float
@@ -171,7 +167,8 @@ class BLEUEvaluator(object):
 
         Arguments:
             hypotheses: List of hypotheses
-            references: List of references. There can be more than one reference
+            references: LIst of references. There can be more than one
+                reference.
             ngram: Maximum order of n-grams. Default 4.
             case_sensitive: Perform case-sensitive computation. Default True.
         """
@@ -196,11 +193,10 @@ class BLEUEvaluator(object):
         r = BLEUEvaluator.effective_reference_length(hypotheses, references)
         c = sum([len(hyp) for hyp in hypotheses])
 
-        bp = min(1 - r/c, 0) if c != 0 else -np.inf
+        bp = min(1 - r / c, 0) if c != 0 else -np.inf
         log_bleu += bp
 
         return np.exp(log_bleu)
-
 
     @staticmethod
     def _deduplicate_sentences(sentences):
@@ -219,7 +215,6 @@ class BLEUEvaluator(object):
             deduplicated_sentences.append(dedup_snt)
 
         return deduplicated_sentences
-
 
     @staticmethod
     def compare_scores(score1, score2):

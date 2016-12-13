@@ -11,6 +11,8 @@ from neuralmonkey.decoding_function import Attention
 # tests: lint, mypy
 
 # pylint: disable=too-many-instance-attributes, too-few-public-methods
+
+
 class CNNEncoder(Attentive):
     """
 
@@ -174,8 +176,9 @@ class CNNEncoder(Attentive):
 
             with tf.variable_scope("rnn_inputs"):
                 encoder_ins = [
-                    tf.reshape(x, [-1, last_n_channels * image_height]) for x in
-                    tf.split(2, image_width, last_layer, name='split_input')]
+                    tf.reshape(x, [-1, last_n_channels * image_height])
+                    for x in tf.split(2, image_width,
+                                      last_layer, name='split_input')]
 
             def rnn_encoder(inputs, last_layer_size, scope):
                 with tf.variable_scope(scope):
@@ -249,6 +252,8 @@ class CNNEncoder(Attentive):
         return f_dict
 
 # pylint: disable=too-many-locals
+
+
 def batch_norm(tensor, n_out, phase_train, scope='bn', scale_after_norm=True):
     """
     Batch normalization on convolutional maps.

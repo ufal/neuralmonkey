@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """ Tests the config parsing module. """
-#tests: lint, mypy
-#pylint: disable=protected-access
+# tests: lint, mypy
+# pylint: disable=protected-access
 
 import unittest
 import neuralmonkey.config.parsing as parsing
@@ -16,13 +16,11 @@ SPLITTER_TESTS = [
 ]
 
 
-
 class TestParsing(unittest.TestCase):
 
     def test_splitter_bad_brackets(self):
         self.assertRaises(Exception, parsing._split_on_commas,
                           "(omg,brac],kets")
-
 
 
 def test_splitter_gen(a, b):

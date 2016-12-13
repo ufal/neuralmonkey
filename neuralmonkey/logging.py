@@ -1,15 +1,16 @@
-#tests: lint
+# tests: lint
 
 import time
 import codecs
 from termcolor import colored
 
+
 class Logging(object):
 
-    log_file = None # type: file
+    log_file = None  # type: file
 
-    ## 'all' and 'none' are special symbols,
-    ## others are filtered according the labels
+    # 'all' and 'none' are special symbols,
+    # others are filtered according the labels
     debug_enabled = ['all']
     debug_disabled = []
 
@@ -26,7 +27,7 @@ class Logging(object):
         if Logging.log_file is not None:
             if not isinstance(text, str):
                 text = str(text)
-            Logging.log_file.write(text+"\n")
+            Logging.log_file.write(text + "\n")
             Logging.log_file.flush()
 
         print(text)
