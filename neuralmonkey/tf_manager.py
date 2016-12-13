@@ -46,7 +46,8 @@ class TensorFlowManager(object):
         session_cfg.allow_soft_placement = True  # needed for multiple GPUs
         # pylint: disable=no-member
         session_cfg.gpu_options.allow_growth = gpu_allow_growth
-        session_cfg.gpu_options.per_process_gpu_memory_fraction = per_process_gpu_memory_fraction
+        session_cfg.gpu_options.per_process_gpu_memory_fraction = \
+            per_process_gpu_memory_fraction
 
         self.sessions = [tf.Session(config=session_cfg)
                          for _ in range(num_sessions)]
