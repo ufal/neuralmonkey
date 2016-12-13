@@ -412,7 +412,7 @@ def _print_examples(dataset: Dataset,
                      for series_id in dataset.series_ids
                      if series_id not in outputs}
 
-    for i in range(num_examples):
+    for i in range(min(len(dataset), num_examples)):
         log_print(colored("  [{}]".format(i + 1), color='magenta',
                           attrs=['bold']))
 

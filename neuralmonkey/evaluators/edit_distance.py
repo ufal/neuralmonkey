@@ -25,5 +25,6 @@ class _EditDistance(object):
         # the lower the better
         return (score1 < score2) - (score1 > score2)
 
+
 # pylint: disable=invalid-name
 EditDistance = _EditDistance()

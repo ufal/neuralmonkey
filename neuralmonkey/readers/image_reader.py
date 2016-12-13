@@ -10,27 +10,33 @@ def image_reader(prefix="",
                  rescale: bool=False,
                  mode: str='RGB') -> Callable:
 
-    def load(file_names: List[List[str]]):
-        for i, image_file_list in enumerate(file_names):
-            file_name = " ".join(image_file_list)
-            path = os.path.join(prefix, file_name)
+    def load(list_files: List[str]):
+        for list_file in list_files:
+            with open(list_file) as f_list:
+                for i, image_file in enumerate(f_list):
+                    path = os.path.join(prefix, image_file.rstrip())
 
-            if not os.path.exists(path):
-                raise Exception(
-                    ("Image file '{}' no."
-                     "{}  does not exist.").format(path, i + 1))
+                    if not os.path.exists(path):
+                        raise Exception(
+                            ("Image file '{}' no."
+                             "{}  does not exist.").format(path, i + 1))
 
-            image = ndimage.imread(path, mode=mode)
+                    image = ndimage.imread(path, mode=mode)
 
-            channels = image.shape[3] if len(image.shape) == 3 else 1
-            if rescale:
-                image = _rescale(image, pad_w, pad_h)
-            else:
-                image = _crop(image, pad_w, pad_h)
+                    if len(image.shape) == 2:
+                        channels = 1
+                        image = np.expand_dims(image, 2)
+                    else:
+                        channels = image.shape[2]
+                    if rescale:
+                        image = _rescale(image, pad_w, pad_h)
+                    else:
+                        image = _crop(image, pad_w, pad_h)
 
-            yield _pad(image, pad_w, pad_h, channels)
+                    yield _pad(image, pad_w, pad_h, channels)
 
     return load
+
 
 def _rescale(image, pad_w, pad_h):
     orig_w, orig_h = image.shape[:2]
@@ -42,6 +48,7 @@ def _rescale(image, pad_w, pad_h):
         return ndimage.zoom(image, zoom_ratio)
     else:
         return image
+
 
 def _crop(image, pad_w, pad_h):
     orig_w, orig_h = image.shape[:2]
@@ -55,6 +62,7 @@ def _crop(image, pad_w, pad_h):
         image = image[half_diff + (diff % 2):-half_diff, :]
 
     return image
+
 
 def _pad(image, pad_w, pad_h, channels):
     img_h, img_w = image.shape[:2]

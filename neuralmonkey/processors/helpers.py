@@ -20,6 +20,7 @@ def untruecase(
         else:
             yield []
 
+
 def pipeline(processors: List[Callable]) -> Callable:
     """Concatenate processors."""
 
