@@ -8,6 +8,7 @@ env:
     - TF=0.11.0-cp35-cp35m
   matrix:
     - TEST_SUITE=lint
+    - TEST_SUITE=pycodestyle
     - TEST_SUITE=unit-tests
     - TEST_SUITE=tests
     - TEST_SUITE=mypy
