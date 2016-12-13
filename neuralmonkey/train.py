@@ -154,4 +154,5 @@ def main():
                   logging_period=args.logging_period,
                   validation_period=args.validation_period,
                   postprocess=args.postprocess,
+                  runners_batch_size=args.runners_batch_size,
                   minimize_metric=args.minimize)
