@@ -215,7 +215,7 @@ class Decoder(object):
         them from the first encoder
         """
         if self.reuse_word_embeddings:
-            return self.encoders[0].word_embeddings
+            return self.encoders[0].embedding_matrix
 
         # NOTE In the Bahdanau paper, they say they initialized some weights
         # as orthogonal matrices, some by sampling from gauss distro with
