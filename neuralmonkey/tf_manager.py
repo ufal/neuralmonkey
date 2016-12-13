@@ -43,7 +43,7 @@ class TensorFlowManager(object):
         session_cfg = tf.ConfigProto()
         session_cfg.inter_op_parallelism_threads = num_threads
         session_cfg.intra_op_parallelism_threads = num_threads
-        session_cfg.allow_soft_placement = True # needed for multiple GPUs
+        session_cfg.allow_soft_placement = True  # needed for multiple GPUs
         # pylint: disable=no-member
         session_cfg.gpu_options.allow_growth = gpu_allow_growth
         session_cfg.gpu_options.per_process_gpu_memory_fraction = per_process_gpu_memory_fraction
@@ -73,14 +73,15 @@ class TensorFlowManager(object):
             batch_size = len(dataset)
         batched_dataset = dataset.batch_dataset(batch_size)
 
-        batch_results = [[] for _ in
-                         execution_scripts]  # type: List[List[ExecutionResult]]
+        batch_results = [
+            [] for _ in execution_scripts]  # type: List[List[ExecutionResult]]
         for batch in batched_dataset:
             executables = [s.get_executable(train=train, summaries=summaries)
                            for s in execution_scripts]
             while not all(ex.result is not None for ex in executables):
                 all_feedables = set()   # type: Set[Any]
-                all_tensors_to_execute = {}  # type: Dict[Executable, tf.Tensor]
+                # type: Dict[Executable, tf.Tensor]
+                all_tensors_to_execute = {}
                 additional_feed_dicts = []
                 tensor_list_lengths = []  # type: List[int]
 

@@ -29,6 +29,7 @@ REFERENCE = [r.split() for r in CORPUS_REFERENCE]
 
 FUNC = BLEUEvaluator()
 
+
 class TestBLEU(unittest.TestCase):
 
     def test_empty_decoded(self):

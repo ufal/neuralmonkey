@@ -22,7 +22,9 @@ VOCABULARY = Vocabulary()
 for s in TOKENIZED_CORPUS:
     VOCABULARY.add_tokenized_text(s)
 
+
 class TestVacabulary(unittest.TestCase):
+
     def test_all_words_in(self):
         for sentence in TOKENIZED_CORPUS:
             for word in sentence:
@@ -44,6 +46,7 @@ class TestVacabulary(unittest.TestCase):
         for orig_sentence, reconstructed_sentence in \
                 zip(TOKENIZED_CORPUS, senteces_again):
             self.assertSequenceEqual(orig_sentence, reconstructed_sentence)
+
 
 if __name__ == "__main__":
     unittest.main()

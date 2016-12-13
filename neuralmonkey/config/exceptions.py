@@ -1,9 +1,10 @@
 """
 Module that contains exceptions handled in config parsing and loading
 """
-#tests: lint, mypy
+# tests: lint, mypy
 
 import traceback
+
 
 class IniError(Exception):
     """ Exception caused by error in INI file syntax """
@@ -32,8 +33,8 @@ class IniError(Exception):
             msg += "\nTraceback:{}".format(trc)
         return msg
 
-class ConfigInvalidValueException(Exception):
 
+class ConfigInvalidValueException(Exception):
 
     def __init__(self, value, message):
         """ Creates an instance of the exception
@@ -45,7 +46,6 @@ class ConfigInvalidValueException(Exception):
         super().__init__()
         self.value = value
         self.message = message
-
 
     def __str__(self):
         """ Converts this exception to string """

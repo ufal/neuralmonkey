@@ -5,6 +5,8 @@ from neuralmonkey.encoders.attentive import Attentive
 # tests: lint, mypy
 
 # pylint: disable=too-few-public-methods
+
+
 class VectorEncoder(object):
 
     def __init__(self, dimension, output_shape, data_id):

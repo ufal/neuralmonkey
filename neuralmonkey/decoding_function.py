@@ -11,7 +11,9 @@ from neuralmonkey.nn.projection import linear
 
 
 class Attention(object):
-    # pylint: disable=unused-argument,too-many-instance-attributes,too-many-arguments
+    # pylint: disable=unused-argument,too-many-instance-attributes
+    # pylint: disable=too-many-arguments
+
     # For maintaining the same API as in CoverageAttention
 
     def __init__(self, attention_states, scope,
@@ -39,8 +41,8 @@ class Attention(object):
             self.attn_length = attention_states.get_shape()[1].value
             self.attn_size = attention_states.get_shape()[2].value
 
-            # To calculate W1 * h_t we use a 1-by-1 convolution, need to reshape
-            # before.
+            # To calculate W1 * h_t we use a 1-by-1 convolution, need to
+            # reshape before.
             self.att_states_reshaped = tf.reshape(
                 self.attention_states,
                 [-1, self.attn_length, 1, self.attn_size])

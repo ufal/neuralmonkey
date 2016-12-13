@@ -5,6 +5,7 @@ from tensorflow.python.ops import array_ops
 
 # tests: lint, mypy
 
+
 def _assert_float_dtype(dtype):
     """Validate and return floating point type based on `dtype`.
 
@@ -22,6 +23,7 @@ def _assert_float_dtype(dtype):
     if not dtype.is_floating:
         raise ValueError("Expected floating point type, got %s." % dtype)
     return dtype
+
 
 def orthogonal_initializer(gain=1.0, dtype=tf.float32, seed=None):
     """Returns an initializer that generates an orthogonal matrix or a reshaped

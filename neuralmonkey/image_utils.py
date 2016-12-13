@@ -9,6 +9,8 @@ import numpy as np
 from scipy.misc import imread, imresize
 
 # pylint: disable=too-few-public-methods
+
+
 class STRPreprocessor(object):
     """
     This class implements a function that preprocesses an image for scene text

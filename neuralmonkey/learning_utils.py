@@ -20,7 +20,7 @@ EvalConfiguration = List[Union[Tuple[str, Any], Tuple[str, str, Any]]]
 # pylint: disable=too-many-arguments, too-many-locals, too-many-branches
 def training_loop(tf_manager: TensorFlowManager,
                   epochs: int,
-                  trainer: BaseRunner, # TODO better annotate
+                  trainer: BaseRunner,  # TODO better annotate
                   batch_size: int,
                   train_dataset: Dataset,
                   val_dataset: Dataset,
@@ -175,7 +175,8 @@ def training_loop(tf_manager: TensorFlowManager,
                             os.symlink(os.path.basename(worst_var_file),
                                        link_best_vars)
 
-                        log("Best scores saved so far: {}".format(saved_scores))
+                        log("Best scores saved so far: {}".format(
+                            saved_scores))
 
                     log("Validation (epoch {}, batch number {}):"
                         .format(i + 1, batch_n), color='blue')
@@ -201,7 +202,6 @@ def training_loop(tf_manager: TensorFlowManager,
 
     except KeyboardInterrupt:
         log("Training interrupted by user.")
-
 
     log("Training finished. Maximum {} on validation data: {:.4g}, epoch {}"
         .format(main_metric, best_score, best_score_epoch))

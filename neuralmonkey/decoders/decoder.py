@@ -1,4 +1,4 @@
-#tests: lint, mypy
+# tests: lint, mypy
 
 import tensorflow as tf
 import numpy as np
@@ -9,12 +9,15 @@ from neuralmonkey.logging import log
 from neuralmonkey.decoders.output_projection import no_deep_output
 from neuralmonkey.nn.projection import linear
 
+
 class Decoder(object):
     """A class that manages parts of the computation graph that are
     used for the decoding.
     """
 
-    # pylint: disable=too-many-instance-attributes,too-many-locals,too-many-statements
+    # pylint: disable=too-many-instance-attributes
+    # pylint: disable=too-many-locals,too-many-statements
+
     # Big decoder cannot be simpler. Not sure if refactoring
     # it into smaller units would be helpful
     # Some locals may be turned to attributes
@@ -46,7 +49,8 @@ class Decoder(object):
         self.data_id = data_id
         self.name = name
 
-        self.output_projection = kwargs.get("output_projection", no_deep_output)
+        self.output_projection = kwargs.get(
+            "output_projection", no_deep_output)
 
         self.max_output = kwargs.get("max_output_len", 20)
         self.embedding_size = kwargs.get("embedding_size", 200)
@@ -67,9 +71,9 @@ class Decoder(object):
 
         log("Initializing decoder, name: '{}'".format(self.name))
 
-        ### Learning step
-        ### TODO was here only because of scheduled sampling.
-        ### needs to be refactored out
+        # Learning step
+        # TODO was here only because of scheduled sampling.
+        # needs to be refactored out
         self.learning_step = tf.get_variable(
             "learning_step", [], initializer=tf.constant_initializer(0),
             trainable=False)
@@ -84,7 +88,7 @@ class Decoder(object):
             self.rnn_size = sum(e.encoded.get_shape()[1].value
                                 for e in self.encoders)
 
-        ### Initialize model
+        # Initialize model
 
         self.dropout_placeholder = tf.placeholder_with_default(
             tf.constant(dropout_keep_prob, tf.float32),
@@ -100,7 +104,7 @@ class Decoder(object):
         self.go_symbols = tf.placeholder(tf.int32, shape=[None],
                                          name="decoder_go_symbols")
 
-        ### Construct the computation part of the graph
+        # Construct the computation part of the graph
 
         embedded_train_inputs = self._embed_inputs(self.train_inputs[:-1])
 
@@ -111,7 +115,7 @@ class Decoder(object):
         # (such as during testing)
         runtime_inputs = self._runtime_inputs(self.go_symbols)
 
-        ### Use the same variables for runtime decoding!
+        # Use the same variables for runtime decoding!
         tf.get_variable_scope().reuse_variables()
 
         self.runtime_rnn_outputs, self.runtime_rnn_states, runtime_logits = \
@@ -137,11 +141,10 @@ class Decoder(object):
         self.runtime_logits = runtime_logits
         self.runtime_logprobs = [tf.nn.log_softmax(l) for l in runtime_logits]
 
-        ### Summaries
+        # Summaries
         self._init_summaries()
 
         log("Decoder initialized.")
-
 
     @property
     def vocabulary_size(self):
@@ -151,7 +154,6 @@ class Decoder(object):
     def cost(self):
         return self.train_loss
 
-
     def top_k_runtime_logprobs(self, k_best):
         """Return the top runtime log probabilities calculated from runtime
         logits.
@@ -159,9 +161,8 @@ class Decoder(object):
         Arguments:
             k_best: How many output items to return
         """
-        ## the array is of tuples ([values], [indices])
+        # the array is of tuples ([values], [indices])
         return [tf.nn.top_k(p, k_best) for p in self.runtime_logprobs]
-
 
     def _initial_state(self):
         """Create the initial state of the decoder."""
@@ -174,7 +175,6 @@ class Decoder(object):
             encoders_out = self._encoder_projection(encoders_out)
 
         return self._dropout(encoders_out)
-
 
     def _encoder_projection(self, encoded_states):
         """Creates a projection of concatenated encoder states
@@ -198,7 +198,6 @@ class Decoder(object):
         dropped_input = self._dropout(encoded_states)
         return tf.tanh(tf.matmul(dropped_input, weights) + biases)
 
-
     def _dropout(self, var):
         """Perform dropout on a variable
 
@@ -206,7 +205,6 @@ class Decoder(object):
             var: The variable to perform the dropout on
         """
         return tf.nn.dropout(var, self.dropout_placeholder)
-
 
     def _input_embeddings(self):
         """Create variables and operations for embedding of input words
@@ -226,7 +224,6 @@ class Decoder(object):
             "word_embeddings", [self.vocabulary_size, self.embedding_size],
             initializer=tf.random_normal_initializer(stddev=0.01))
 
-
     def _training_placeholders(self):
         """Defines data placeholders for training the decoder"""
 
@@ -243,7 +240,6 @@ class Decoder(object):
     def _get_rnn_cell(self):
         """Returns a RNNCell object for this decoder"""
         return OrthoGRUCell(self.rnn_size)
-
 
     def _collect_attention_objects(self, runtime_mode):
         """Collect attention objects from encoders."""
@@ -263,7 +259,6 @@ class Decoder(object):
                     for o in inputs]
         return [self._dropout(e) for e in embedded]
 
-
     def _runtime_inputs(self, go_symbols):
         """Defines data inputs for running trained decoder
 
@@ -276,7 +271,6 @@ class Decoder(object):
         inputs += [None for _ in range(self.max_output)]
 
         return inputs
-
 
     def _loop_function(self, rnn_output):
         """Basic loop function. Projects state to logits, take the
@@ -291,7 +285,6 @@ class Decoder(object):
         input_embedding = tf.nn.embedding_lookup(self.embedding_matrix,
                                                  previous_word)
         return self._dropout(input_embedding)
-
 
     def _logit_function(self, rnn_output):
         """Compute logits on the vocabulary given the state
@@ -308,8 +301,7 @@ class Decoder(object):
         """
         return linear(self._dropout(rnn_output), self.vocabulary_size)
 
-
-    #pylint: disable=too-many-arguments
+    # pylint: disable=too-many-arguments
     # TODO reduce the number of arguments
     def _attention_decoder(self, inputs, initial_state, runtime_mode=False,
                            scope="attention_decoder"):
@@ -326,7 +318,7 @@ class Decoder(object):
         cell = self._get_rnn_cell()
         att_objects = self._collect_attention_objects(runtime_mode)
 
-        ## Broadcast the initial state to the whole batch if needed
+        # Broadcast the initial state to the whole batch if needed
         if len(initial_state.get_shape()) == 1:
             assert initial_state.get_shape()[0].value == self.rnn_size
             initial_state = tf.reshape(
@@ -335,10 +327,11 @@ class Decoder(object):
 
         with tf.variable_scope(scope):
 
-            ## First decoding step
+            # First decoding step
             contexts = [a.attention(initial_state) for a in att_objects]
             output = self.output_projection(inputs[0], initial_state, contexts)
-            _, state = cell(tf.concat(1, [inputs[0]] + contexts), initial_state)
+            _, state = cell(
+                tf.concat(1, [inputs[0]] + contexts), initial_state)
 
             logit = self._logit_function(output)
 
@@ -354,10 +347,11 @@ class Decoder(object):
                 else:
                     current_input = inputs[step]
 
-                ## N-th decoding step
+                # N-th decoding step
                 contexts = [a.attention(state) for a in att_objects]
                 output = self.output_projection(current_input, state, contexts)
-                _, state = cell(tf.concat(1, [current_input] + contexts), state)
+                _, state = cell(
+                    tf.concat(1, [current_input] + contexts), state)
 
                 logit = self._logit_function(output)
 
@@ -376,7 +370,6 @@ class Decoder(object):
 
         return rnn_outputs, rnn_states, output_logits
 
-
     def _init_summaries(self):
         """Initialize the summaries of the decoder
 
@@ -390,7 +383,6 @@ class Decoder(object):
 
         tf.scalar_summary("train_optimization_cost", self.train_loss,
                           collections=["summary_train"])
-
 
     def feed_dict(self, dataset, train=False):
         """Populate the feed dictionary for the decoder object

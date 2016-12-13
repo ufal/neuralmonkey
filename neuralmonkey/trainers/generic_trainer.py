@@ -45,7 +45,7 @@ class GenericTrainer(object):
         # just use TF to do the derivative
         differentiable_loss_sum = sum(
             o.loss for o in objectives
-            if  o.gradients is None) + l1_cost + l2_cost
+            if o.gradients is None) + l1_cost + l2_cost
         implicit_gradients = self._get_gradients(differentiable_loss_sum)
 
         # objectives that have their gradients explictly computed
@@ -94,7 +94,7 @@ def _sum_gradients(gradients_list: List[Gradients]) -> Gradients:
     for gradients in gradients_list:
         for tensor, var in gradients:
             if tensor is not None:
-                if not var in summed_dict:
+                if var not in summed_dict:
                     summed_dict[var] = tensor
                 else:
                     summed_dict[var] += tensor

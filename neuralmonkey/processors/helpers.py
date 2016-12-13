@@ -1,5 +1,6 @@
 from typing import List
-# tests: lint, mpypy
+# tests: lint, mypy
+
 
 def preprocess_char_based(sequences: List[List[str]]) -> List[List[str]]:
     return [list(" ".join(sequence)) for sequence in sequences]

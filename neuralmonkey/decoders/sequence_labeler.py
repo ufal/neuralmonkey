@@ -5,6 +5,8 @@ from neuralmonkey.decoders.decoder import Decoder
 # tests: lint, mypy
 
 # pylint: disable=too-many-instance-attributes
+
+
 class SequenceLabeler(Decoder):
     """Classifier assing a label to each encoder's state."""
 
@@ -44,9 +46,10 @@ class SequenceLabeler(Decoder):
                          for t in self.train_targets]
 
         # one less than inputs
-        self.train_weights = [tf.placeholder(
-            tf.float32, [None], name="seq_lab_padding_weights_{}".format(i))
-                              for i in range(self.max_output)]
+        self.train_weights = [
+            tf.placeholder(tf.float32, [None],
+                           name="seq_lab_padding_weights_{}".format(i))
+            for i in range(self.max_output)]
 
         losses = [tf.nn.softmax_cross_entropy_with_logits(l, t)
                   for l, t in zip(logits, train_onehots)]

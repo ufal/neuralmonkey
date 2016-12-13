@@ -2,6 +2,8 @@ from abc import ABCMeta, abstractproperty
 import tensorflow as tf
 
 # pylint: disable=too-few-public-methods
+
+
 class Attentive(metaclass=ABCMeta):
     """A base class fro an attentive part of graph (typically encoder).
 
@@ -10,6 +12,7 @@ class Attentive(metaclass=ABCMeta):
     the encoder (e.g., input word representations in case of MT or
     convolutional maps in case of image captioning).
     """
+
     def __init__(self, attention_type, **kwargs):
         self._attention_type = attention_type
         self._attention_kwargs = kwargs

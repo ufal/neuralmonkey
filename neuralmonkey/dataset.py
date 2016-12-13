@@ -16,9 +16,10 @@ SERIES_SOURCE = re.compile("s_([^_]*)$")
 SERIES_OUTPUT = re.compile("s_(.*)_out")
 
 
-def load_dataset_from_files(name: str=None, lazy: bool=False,
-                            preprocessors: List[Tuple[str, str, Callable]]=None,
-                            **kwargs: str) -> 'Dataset':
+def load_dataset_from_files(
+        name: str=None, lazy: bool=False,
+        preprocessors: List[Tuple[str, str, Callable]]=None,
+        **kwargs: str) -> 'Dataset':
     """Load a dataset from the files specified by the provided arguments.
     Paths to the data are provided in a form of dictionary.
 
@@ -66,7 +67,8 @@ def load_dataset_from_files(name: str=None, lazy: bool=False,
     if preprocessors is not None:
         for src_id, tgt_id, function in preprocessors:
             if src_id == tgt_id:
-                raise Exception("Attempt to rewrite series '{}'".format(src_id))
+                raise Exception(
+                    "Attempt to rewrite series '{}'".format(src_id))
             if src_id not in series:
                 raise Exception(
                     ("The source series ({}) of the '{}' preprocessor "
@@ -144,7 +146,8 @@ def _get_series_outputs(kwargs: Dict[str, str]) -> Dict[str, str]:
         kwargs: A dictionary containing the dataset keyword argument specs.
 
     Returns:
-        A dictionary which maps serie names to the paths for their output files.
+        A dictionary which maps serie names to the paths for their output
+        files.
     """
     return {SERIES_OUTPUT.match(key).group(1): value
             for key, value in kwargs.items() if SERIES_OUTPUT.match(key)}
@@ -299,16 +302,16 @@ class LazyDataset(Dataset):
         """Create a new instance of the lazy dataset.
 
         Arguments:
-            name: The name of the dataset
-            series_paths_and_readers: The mapping of series name to its file
-            series_outputs: Dictionary mapping series names to their output file
-            preprocess: The preprocessor to apply to the read lines
+            name: The name of the dataset series_paths_and_readers: The mapping
+            of series name to its file series_outputs: Dictionary mapping
+            series names to their output file preprocess: The preprocessor to
+            apply to the read lines
         """
         super().__init__(name, {s: None for s in series_paths_and_readers},
                          series_outputs)
         self.series_paths_and_readers = series_paths_and_readers
 
-        self.preprocess_series = {} # type: Dict[str, Tuple[str, Callable]]
+        self.preprocess_series = {}  # type: Dict[str, Tuple[str, Callable]]
         if preprocessors is not None:
             for src_id, tgt_id, func in preprocessors:
                 if src_id == tgt_id:

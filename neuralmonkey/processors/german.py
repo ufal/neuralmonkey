@@ -3,7 +3,7 @@
 import re
 
 try:
-    #pylint: disable=unused-import,bare-except,import-error
+    # pylint: disable=unused-import,bare-except,import-error
     from typing import Dict
 except:
     pass
@@ -15,7 +15,7 @@ UNCONTRACTED_FORMS = [["an", "dem"], ["an", "das"], ["bei", "dem"],
                       ["zu", "dem"], ["zu", "der"]]
 UNCONTRACT = {c: un for c, un in zip(CONTRACTIONS, UNCONTRACTED_FORMS)}
 
-CONTRACT = {} # type: Dict[str, Dict[str, str]]
+CONTRACT = {}  # type: Dict[str, Dict[str, str]]
 for cont, (prep, article) in zip(CONTRACTIONS, UNCONTRACTED_FORMS):
     if article not in CONTRACT:
         CONTRACT[article] = {}
@@ -23,11 +23,14 @@ for cont, (prep, article) in zip(CONTRACTIONS, UNCONTRACTED_FORMS):
 
 
 EIN_TYPE_PRONOUNS = \
-        re.compile("^(ein|[mdsk]ein|ihr|unser|euer|Ihr)(e|es|er|em|en)$")
+    re.compile("^(ein|[mdsk]ein|ihr|unser|euer|Ihr)(e|es|er|em|en)$")
 DER_TYPE_PRONOUNS = re.compile("^(dies|welch|jed|all)(e|es|er|em|en)$")
 
 # pylint: disable=too-few-public-methods
+
+
 class GermanPreprocessor(object):
+
     def __init__(self, compounding=True, contracting=True, pronouns=True):
         self.compounding = compounding
         self.contracting = contracting
@@ -45,10 +48,10 @@ class GermanPreprocessor(object):
                 result.extend(UNCONTRACT[word])
             elif self.pronouns and ein_match:
                 result.append(ein_match[1])
-                result.append("<<"+ein_match[2])
+                result.append("<<" + ein_match[2])
             elif self.pronouns and der_match:
                 result.append(der_match[1])
-                result.append("<<"+der_match[2])
+                result.append("<<" + der_match[2])
             elif self.compounding and word.find(">><<") > -1:
                 compound_parts = word.split(">><<")
                 result.append(compound_parts[0])
@@ -62,16 +65,15 @@ class GermanPreprocessor(object):
 
 
 class GermanPostprocessor(object):
+
     def __init__(self, compounding=True, contracting=True, pronouns=True):
         self.compounding = compounding
         self.contracting = contracting
         self.pronouns = pronouns
 
-
     def __call__(self, decoded_sentences):
         # type: (List[List[str]]) -> List[List[str]]
         return [self.decode(s) for s in decoded_sentences]
-
 
     def decode(self, sentence):
         result = []

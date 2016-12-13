@@ -4,6 +4,7 @@ from neuralmonkey.nn.init_ops import orthogonal_initializer
 
 # tests: lint, mypy
 
+
 class OrthoGRUCell(tf.nn.rnn_cell.GRUCell):
     """Classic GRU cell but initialized using random orthogonal matrices"""
 

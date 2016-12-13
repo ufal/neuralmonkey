@@ -1,8 +1,7 @@
-#!/usr/bin/env python3
-
 import tensorflow as tf
 
 # tests: lint, mypy
+
 
 class PervasiveDropoutWrapper(tf.nn.rnn_cell.RNNCell):
 
@@ -22,7 +21,7 @@ class PervasiveDropoutWrapper(tf.nn.rnn_cell.RNNCell):
     def __call__(self, inputs, state, scope=None):
         output, new_state = self._cell(inputs, state)
 
-        #self._mask is of shape [batch_size, state_size]
-        #new_state is of shape [batch_size, state_size] (hopefully)
+        # self._mask is of shape [batch_size, state_size]
+        # new_state is of shape [batch_size, state_size] (hopefully)
         new_state_dropped = new_state * self._scale * self._mask
         return output, new_state_dropped

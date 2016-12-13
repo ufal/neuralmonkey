@@ -3,6 +3,7 @@ import tensorflow as tf
 
 # tests: lint, mypy
 
+
 class NoisyGRUCell(tf.nn.rnn_cell.RNNCell):
     """
     Gated Recurrent Unit cell (cf. http://arxiv.org/abs/1406.1078) with noisy
@@ -84,11 +85,15 @@ def noisy_activation(x, generic, linearized, training, alpha=1.1, c=0.5):
 # the Noisy Activation Functions paper
 
 def noisy_sigmoid(x, training):
-    lin_sigmoid = lambda x: 0.25 * x + 0.5
-    hard_sigmoid = lambda x: tf.minimum(tf.maximum(lin_sigmoid(x), 0.), 1.)
+    def lin_sigmoid(x):
+        return 0.25 * x + 0.5
+
+    def hard_sigmoid(x):
+        return tf.minimum(tf.maximum(lin_sigmoid(x), 0.), 1.)
     return noisy_activation(x, hard_sigmoid, lin_sigmoid, training)
 
 
 def noisy_tanh(x, training):
-    hard_tanh = lambda x: tf.minimum(tf.maximum(x, -1.), 1.)
+    def hard_tanh(x):
+        return tf.minimum(tf.maximum(x, -1.), 1.)
     return noisy_activation(x, hard_tanh, lambda y: y, training)

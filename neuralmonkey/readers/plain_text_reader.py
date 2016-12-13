@@ -5,6 +5,7 @@ from neuralmonkey.readers.utils import FILETYPER
 
 # tests: lint,mypy
 
+
 def get_plain_text_reader(encoding: str="utf-8"):
     """Get reader for space-separated tokenized text."""
     def reader(files: List[str]) -> Iterable[List[str]]:
@@ -20,6 +21,7 @@ def get_plain_text_reader(encoding: str="utf-8"):
                 for line in f_data:
                     yield line.strip().split(" ")
     return reader
+
 
 # pylint: disable=invalid-name
 UtfPlainTextReader = get_plain_text_reader()

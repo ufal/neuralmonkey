@@ -26,8 +26,8 @@ CONSTANTS = {
 }
 
 
-## this is a function because of the parse_*
-## functions which are not defined yet
+# this is a function because of the parse_*
+# functions which are not defined yet
 def _keyval_parser_dict():
     return {
         INTEGER: int,
@@ -112,9 +112,10 @@ def _parse_class_name(string):
     except ImportError as exc:
         # if the problem is really importing the module
         if exc.name == module_name:
-            raise Exception(("Interpretation '{}' as type name, module '{}' "
-                             "does not exist. Did you mean file './{}'? \n{}")
-                            .format(string, module_name, string, exc)) from None
+            raise Exception(
+                ("Interpretation '{}' as type name, module '{}' "
+                 "does not exist. Did you mean file './{}'? \n{}")
+                .format(string, module_name, string, exc)) from None
         else:
             raise
 
@@ -143,14 +144,14 @@ def _parse_value(string):
 
     return string
 
+
 def parse_config(config_file, filename=""):
     """ Parses an INI file into a dictionary """
 
     line_numbers = (line.strip() + " " + str(i + 1)
                     if line.strip() != "" else ""
                     for i, line in
-                    enumerate(config_file)
-                   )
+                    enumerate(config_file))
     config = configparser.ConfigParser()
     config.read_file(line_numbers, source=filename)
 
@@ -163,6 +164,7 @@ def parse_config(config_file, filename=""):
             new_config[section][key] = match.group(2), match.group(1)
 
     return new_config
+
 
 def parse_file(config_file):
     """ Parses an INI file into a dictionary """

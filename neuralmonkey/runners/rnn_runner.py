@@ -119,7 +119,6 @@ def _try_append(first, second):
         return np.append(first, second)
 
 
-
 def likelihood_beam_score(decoded, logprobs):
     """Score the beam by normalized probaility."""
 

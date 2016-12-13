@@ -1,10 +1,11 @@
-#tests: lint, mypy
+# tests: lint, mypy
 
 import traceback
 from argparse import Namespace
 
 from neuralmonkey.logging import log
 from neuralmonkey.config.config_loader import load_config_file, build_config
+
 
 class Configuration(object):
     """
@@ -19,7 +20,7 @@ class Configuration(object):
         self.ignored = set()
         self.config_dict = {}
 
-    #pylint: disable=too-many-arguments
+    # pylint: disable=too-many-arguments
     def add_argument(self, name, arg_type=object, required=False, default=None,
                      cond=None):
 
@@ -47,7 +48,6 @@ class Configuration(object):
                     .format(name, cond_filename, cond_line_number))
 
             setattr(n_space, name, value)
-            #arguments.__dict__[name] = value
 
         for name, value in self.defaults.items():
             if name not in n_space.__dict__:
@@ -61,7 +61,7 @@ class Configuration(object):
             self.config_dict = load_config_file(path)
             arguments = self.make_namespace(self.config_dict)
             log("INI file loaded.", color='blue')
-        #pylint: disable=broad-except
+        # pylint: disable=broad-except
         except Exception as exc:
             log("Failed to load INI file: {}".format(exc), color='red')
             traceback.print_exc()
@@ -73,7 +73,7 @@ class Configuration(object):
         log("Building model based on the config.")
         try:
             model = build_config(self.config_dict, self.ignored)
-        #pylint: disable=broad-except
+        # pylint: disable=broad-except
         except Exception as exc:
             log("Failed to build model: {}".format(exc), color='red')
             traceback.print_exc()

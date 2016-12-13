@@ -26,6 +26,7 @@ START_TOKEN_INDEX = 1
 END_TOKEN_INDEX = 2
 UNK_TOKEN_INDEX = 3
 
+
 def _is_special_token(word: str) -> bool:
     """Check whether word is a special token (such as <pad> or <s>).
 
@@ -184,15 +185,15 @@ def initialize_vocabulary(directory: str, name: str,
         return from_file(file_name)
 
     if datasets is None or series_ids is None or max_size is None:
-        raise Exception("Vocabulary does not exist in \"{}\","+
+        raise Exception("Vocabulary does not exist in \"{}\"," +
                         "neither dataset and series_id were provided.")
 
     return from_dataset(datasets, series_ids, max_size,
                         save_file=file_name, overwrite=False)
 
 
-
 class Vocabulary(collections.Sized):
+
     def __init__(self, tokenized_text: List[str]=None,
                  unk_sample_prob: float=0.0) -> None:
         """Create a new instance of a vocabulary.
@@ -200,9 +201,9 @@ class Vocabulary(collections.Sized):
         Arguments:
             tokenized_text: The initial list of words to add.
         """
-        self.word_to_index = {} # type: Dict[str, int]
-        self.index_to_word = [] # type: List[str]
-        self.word_count = {} # type: Dict[str, int]
+        self.word_to_index = {}  # type: Dict[str, int]
+        self.index_to_word = []  # type: List[str]
+        self.word_count = {}  # type: Dict[str, int]
 
         self.unk_sample_prob = unk_sample_prob
 
@@ -214,7 +215,6 @@ class Vocabulary(collections.Sized):
         if tokenized_text:
             self.add_tokenized_text(tokenized_text)
 
-
     def __len__(self) -> int:
         """Get the size of the vocabulary.
 
@@ -222,7 +222,6 @@ class Vocabulary(collections.Sized):
             The number of distinct words in the vocabulary.
         """
         return len(self.index_to_word)
-
 
     def __contains__(self, word: str) -> bool:
         """Check if a word is in the vocabulary.
@@ -234,7 +233,6 @@ class Vocabulary(collections.Sized):
             True if the word was added to the vocabulary, False otherwise.
         """
         return word in self.word_to_index
-
 
     def add_word(self, word: str) -> None:
         """Add a word to the vocablulary.
@@ -248,7 +246,6 @@ class Vocabulary(collections.Sized):
             self.word_count[word] = 0
         self.word_count[word] += 1
 
-
     def add_tokenized_text(self, tokenized_text: List[str]) -> None:
         """Add words from a list to the vocabulary.
 
@@ -257,7 +254,6 @@ class Vocabulary(collections.Sized):
         """
         for word in tokenized_text:
             self.add_word(word)
-
 
     def get_word_index(self, word: str) -> int:
         """ Return index of the specified word.
@@ -272,7 +268,6 @@ class Vocabulary(collections.Sized):
         if word not in self:
             return self.get_word_index(UNK_TOKEN)
         return self.word_to_index[word]
-
 
     def get_unk_sampled_word_index(self, word):
         """Return index of the specified word with sampling of unknown words.
@@ -296,7 +291,6 @@ class Vocabulary(collections.Sized):
             return self.get_word_index(UNK_TOKEN)
 
         return idx
-
 
     def trunkate(self, size: int) -> None:
         """Truncate the vocabulary to the requested size by discarding
@@ -327,7 +321,6 @@ class Vocabulary(collections.Sized):
         for index, word in enumerate(self.index_to_word):
             self.word_to_index[word] = index
 
-
     def sentences_to_tensor(
             self, sentences: List[List[str]], max_len: int, train: bool=False,
             add_technical_symbols: bool=True) -> Tuple[np.ndarray, np.ndarray]:
@@ -346,11 +339,11 @@ class Vocabulary(collections.Sized):
             A tuple of a sentence tensor and a padding weight vector.
 
             The shape of the tensor representing the sentences is either
-            (max_length, batch) or (max_length + 2, batch), depending on whether
-            the technical symbols are added. Note that when the sentence is
-            longer than the max length, the end symbol is not included and the
-            last position in the tensor represents the (max_length + 1)-th word
-            in the sentence.
+            (max_length, batch) or (max_length + 2, batch), depending on
+            whether the technical symbols are added. Note that when the
+            sentence is longer than the max length, the end symbol is not
+            included and the last position in the tensor represents the
+            (max_length + 1)-th word in the sentence.
 
             The shape of the padding vector is (max_length, batch) or
             (max_length + 1, batch) respectively.
@@ -358,7 +351,8 @@ class Vocabulary(collections.Sized):
         """
         start_indices = [np.repeat(self.get_word_index(START_TOKEN),
                                    len(sentences))]
-        pad_indices = [np.repeat(self.get_word_index(PAD_TOKEN), len(sentences))
+        pad_indices = [np.repeat(self.get_word_index(PAD_TOKEN),
+                                 len(sentences))
                        for _ in range(max_len)]
         end_indices = [np.repeat(self.get_word_index(PAD_TOKEN),
                                  len(sentences))]
@@ -385,7 +379,6 @@ class Vocabulary(collections.Sized):
 
         return word_indices, weights
 
-
     def vectors_to_sentences(self,
                              vectors: List[np.ndarray]) -> List[List[str]]:
         """Convert vectors of indexes of vocabulary items to lists of words.
@@ -397,7 +390,7 @@ class Vocabulary(collections.Sized):
             List of lists of words.
         """
         sentences = [[] for _ in range(vectors[0].shape[0])]
-        #type: List[List[str]]
+        # type: List[List[str]]
 
         for vec in vectors:
             for sentence, word_i in zip(sentences, vec):
@@ -405,7 +398,6 @@ class Vocabulary(collections.Sized):
                     sentence.append(self.index_to_word[word_i])
 
         return [s[:-1] if s[-1] == END_TOKEN else s for s in sentences]
-
 
     def save_to_file(self, path: str, overwrite: bool=False) -> None:
         """Save the vocabulary to a file.
@@ -424,7 +416,6 @@ class Vocabulary(collections.Sized):
 
         with open(path, 'wb') as f_pickle:
             pickle.dump(self, f_pickle)
-
 
     def log_sample(self, size: int=5):
         """Logs a sample of the vocabulary
