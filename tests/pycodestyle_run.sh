@@ -2,4 +2,4 @@
 
 set -e
 
-pycodestyle -j 4 $(find neuralmonkey -name '*.py')
+pycodestyle $(find neuralmonkey -name '*.py')

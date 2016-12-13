@@ -2,4 +2,4 @@
 
 set -e
 
-pylint $(find neuralmonkey -name '*.py')
+pylint -j 4 $(find neuralmonkey -name '*.py')
