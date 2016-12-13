@@ -42,10 +42,9 @@ class CNNEncoder(Attentive):
     """
 
     # pylint: disable=too-many-arguments, too-many-locals
-    def __init__(self, data_id, convolutions, rnn_layers,
+    def __init__(self, data_id, convolutions,
                  image_height, image_width, pixel_dim,
-                 name, concatenate_rnns=False,
-                 bidirectional=True,
+                 name,
                  batch_normalization=True,
                  local_response_normalization=True,
                  dropout_keep_prob=0.5,
@@ -63,21 +62,11 @@ class CNNEncoder(Attentive):
 
             data_id: Identifier of the data series in the dataset.
 
-            rnn_layers (list): List of sizes of RNN layer encoded the image
-                projection.
-
             image_height (int): Height of the input image in pixels.
 
             image_width (int): Width of the images (padded)
 
             pixel_dim (int): Number of color channels in the input images.
-
-            concatenate_rnns (bool): Flag whether to concatenate the outputs
-                of the RNN layers. If 'False', only the outputs of the last
-                layer are used.
-
-            biderectional (bool): Flag whether the bidirectional RNN encoder
-                should be used.
 
             batch_normalization (bool): Flag whether the batch normalization
                 should be used between the convolutional layers.
@@ -93,15 +82,9 @@ class CNNEncoder(Attentive):
 
         self.convolutions = convolutions
         self.data_id = data_id
-        self.rnn_layers = rnn_layers
         self.image_height = image_height
         self.image_width = image_width
         self.pixel_dim = pixel_dim
-        self.concatenate_rnns = concatenate_rnns
-        self.concatenate_rnns = concatenate_rnns
-        self.bidirectional = bidirectional
-        self.batch_normalization = batch_normalization
-        self.local_response_normalization = local_response_normalization
         self.dropout_keep_prob = dropout_keep_prob
         self.name = name
 
@@ -172,50 +155,8 @@ class CNNEncoder(Attentive):
                             last_layer, keep_prob=self.dropout_placeholder)
 
                 last_layer = last_layer * last_padding_masks
-            last_layer_size = last_n_channels * image_height * image_width
 
-            with tf.variable_scope("rnn_inputs"):
-                encoder_ins = [
-                    tf.reshape(x, [-1, last_n_channels * image_height])
-                    for x in tf.split(2, image_width,
-                                      last_layer, name='split_input')]
-
-            def rnn_encoder(inputs, last_layer_size, scope):
-                with tf.variable_scope(scope):
-                    encoder_layers = []
-                    for size in rnn_layers:
-                        cell_g = tf.nn.rnn_cell.GRUCell(size, last_layer_size)
-                        last_layer_size = size
-                        cell = tf.nn.rnn_cell.DropoutWrapper(
-                            cell_g, output_keep_prob=self.dropout_placeholder)
-                        encoder_layers.append(cell)
-
-                    encoder_cell = tf.nn.rnn_cell.MultiRNNCell(encoder_layers)
-                    last_layer_size = len(encoder_layers) * last_layer_size
-                    # MultiRNNCell concatenates output of all the recurent
-                    # layers,but we want only the very last one
-                    _, encoder_state_concatenated = tf.nn.rnn(
-                        encoder_cell, inputs, dtype=tf.float32)
-
-                    if concatenate_rnns:
-                        encoder_state = encoder_state_concatenated
-                    else:
-                        encoder_state = encoder_state_concatenated[
-                            :, sum(rnn_layers[:-1]):]
-                    return encoder_state
-
-            encoder_state = rnn_encoder(
-                encoder_ins, last_layer_size, "encoder-forward")
-
-            # pylint: disable=redefined-variable-type
-            if bidirectional:
-                backward_encoder_state = rnn_encoder(
-                    list(reversed(encoder_ins)),
-                    last_layer_size, "encoder-backward")
-                encoder_state = tf.concat(
-                    1, [encoder_state, backward_encoder_state])
-
-            self.encoded = encoder_state
+            self.encoded = tf.reduce_mean(last_layer, [2, 3])
 
             self.__attention_tensor = tf.reshape(
                 last_layer, [-1, image_width,
