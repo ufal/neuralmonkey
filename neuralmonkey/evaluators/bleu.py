@@ -137,8 +137,8 @@ class BLEUEvaluator(object):
     @staticmethod
     def minimum_reference_length(hypotheses, references_list):
         # type: (List[List[str]], List[List[List[str]]]) -> int
-        """Computes the effective reference corpus length (based on the shortest
-        reference sentence length)
+        """Computes the effective reference corpus length (based on the
+        shortest reference sentence length)
 
         Arguments:
             hypotheses: List of output sentences as lists of words

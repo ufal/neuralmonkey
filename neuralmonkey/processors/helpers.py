@@ -1,4 +1,4 @@
-from typing import Iterable, List
+from typing import Generator, List
 # tests: lint, mypy
 
 
@@ -10,7 +10,8 @@ def postprocess_char_based(sequences: List[List[str]]) -> List[List[str]]:
     return [["".join(sqc)] for sqc in sequences]
 
 
-def untruecase(sentences: List[List[str]]) -> Iterable[List[str]]:
+def untruecase(
+        sentences: List[List[str]]) -> Generator[List[str], None, None]:
     for sentence in sentences:
         if sentence:
             yield [sentence[0].capitalize()] + sentence[1:]
