@@ -141,6 +141,10 @@ def main():
 
     link_best_vars = "{}.best".format(variables_file_prefix)
 
+    # runners_batch_size must be set to avoid problems on GPU
+    if args.runners_batch_size == None:
+        args.runners_batch_size = args.batch_size
+
     training_loop(tf_manager=args.tf_manager,
                   epochs=args.epochs,
                   trainer=args.trainer,
