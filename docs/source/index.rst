@@ -20,3 +20,4 @@ Getting Started
    development
    api
    features
+   tf_manager
