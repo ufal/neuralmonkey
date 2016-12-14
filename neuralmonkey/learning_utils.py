@@ -129,7 +129,7 @@ def training_loop(tf_manager: TensorFlowManager,
 
                     _log_continuous_evaluation(tb_writer, main_metric,
                                                train_evaluation,
-                                               seen_instances, i, epochs,
+                                               seen_instances, i+1, epochs,
                                                trainer_result,
                                                train=True)
                 else:
@@ -188,7 +188,7 @@ def training_loop(tf_manager: TensorFlowManager,
 
                     _log_continuous_evaluation(tb_writer, main_metric,
                                                val_evaluation,
-                                               seen_instances, i, epochs,
+                                               seen_instances, i+1, epochs,
                                                val_results, train=False)
 
                     if this_score == best_score:
