@@ -6,6 +6,7 @@ import math
 import tensorflow as tf
 import numpy as np
 
+from neuralmonkey.encoders.attentive import Attentive
 from neuralmonkey.vocabulary import Vocabulary, START_TOKEN
 from neuralmonkey.logging import log
 from neuralmonkey.nn.utils import dropout
@@ -83,8 +84,8 @@ class Decoder(object):
 
         if self.embeddings_encoder is not None:
             if self.embedding_size is not None:
-                log("Warning: Overriding the embedding_size parameter with the "
-                    "size of the reused embeddings from the encoder.",
+                log("Warning: Overriding the embedding_size parameter with the"
+                    " size of the reused embeddings from the encoder.",
                     color="red")
 
             self.embedding_size = (
@@ -95,8 +96,8 @@ class Decoder(object):
                 log("No encoder - language model only.")
                 self.encoder_projection = empty_initial_state
             elif rnn_size is None:
-                log("No rnn_size or encoder_projection: Using concatenation of "
-                    "encoded states")
+                log("No rnn_size or encoder_projection: Using concatenation of"
+                    " encoded states")
                 self.encoder_projection = concat_encoder_projection
             else:
                 log("Using linear projection of encoders as the initial state")
@@ -208,8 +209,9 @@ class Decoder(object):
             name="decoder_padding_placeholder")
 
     def _create_initial_state(self) -> None:
-        """Construct the part of the computation graph that computes the initial
-        state of the decoder."""
+        """Construct the part of the computation graph that computes
+        the initial state of the decoder.
+        """
         self.initial_state = dropout(self.encoder_projection(self.train_mode,
                                                              self.rnn_size,
                                                              self.encoders),
@@ -266,8 +268,8 @@ class Decoder(object):
             go_symbols: tf.Tensor,
             train_inputs: tf.Tensor=None,
             train_mode: bool=False,
-            scope: Union[str, tf.VariableScope]=None) -> Tuple[List[tf.Tensor],
-                                                               List[tf.Tensor]]:
+            scope: Union[str, tf.VariableScope]=None) -> Tuple[
+                List[tf.Tensor], List[tf.Tensor]]:
         """Run the decoder RNN.
 
         Arguments:
@@ -285,6 +287,10 @@ class Decoder(object):
                            if isinstance(e, Attentive)]
 
         cell = self._get_rnn_cell()
+        if self.use_attention:
+            att_objects = [e.get_attention_object(not train_mode)
+                           for e in self.encoders
+                           if isinstance(e, Attentive)]
 
         with tf.variable_scope(scope or "attention_decoder"):
             state = self.initial_state
@@ -345,7 +351,8 @@ class Decoder(object):
         """
         sentences = dataset.get_series(self.data_id, allow_none=True)
         if sentences is None and train:
-            raise ValueError("When training, you must feed reference sentences")
+            raise ValueError("When training, you must feed "
+                             "reference sentences")
 
         res = {}
         res[self.train_mode] = train
