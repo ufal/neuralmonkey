@@ -30,6 +30,7 @@ class Attention(object):
                 compatibilty, maximum fertility of one word.
         """
         self.scope = scope
+        self.logits_in_time = []
         self.attentions_in_time = []
         self.attention_states = attention_states
         self.input_weights = input_weights
@@ -90,6 +91,7 @@ class Attention(object):
                 norm = tf.reduce_sum(a_all, 1, keep_dims=True) + 1e-8
                 a = a_all / norm
 
+            self.logits_in_time.append(s)
             self.attentions_in_time.append(a)
 
             # Now calculate the attention-weighted vector d.
