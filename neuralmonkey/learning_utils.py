@@ -14,8 +14,6 @@ from neuralmonkey.runners.base_runner import BaseRunner, ExecutionResult
 # pylint: disable=invalid-name
 Evaluation = Dict[str, float]
 EvalConfiguration = List[Union[Tuple[str, Any], Tuple[str, str, Any]]]
-
-
 # pylint: enable=invalid-name
 
 
@@ -29,15 +27,16 @@ def training_loop(tf_manager: TensorFlowManager,
                   log_directory: str,
                   evaluators: EvalConfiguration,
                   runners: List[BaseRunner],
-                  test_datasets: Optional[List[Dataset]] = None,
-                  save_n_best_vars: int = 1,
+                  test_datasets: Optional[List[Dataset]]=None,
+                  save_n_best_vars: int=1,
                   link_best_vars="/tmp/variables.data.best",
                   vars_prefix="/tmp/variables.data",
-                  logging_period: int = 20,
-                  validation_period: int = 500,
-                  runners_batch_size: Optional[int] = None,
-                  postprocess: Callable = None,
-                  minimize_metric: bool = False):
+                  logging_period: int=20,
+                  validation_period: int=500,
+                  runners_batch_size: Optional[int]=None,
+                  postprocess: Callable=None,
+                  minimize_metric: bool=False):
+
     # TODO finish the list
     """
     Performs the training loop for given graph and data.
@@ -230,10 +229,10 @@ def run_on_dataset(tf_manager: TensorFlowManager,
                    runners: List[BaseRunner],
                    dataset: Dataset,
                    postprocess: Callable,
-                   write_out: bool = False,
-                   batch_size: Optional[int] = None) \
-        -> Tuple[List[ExecutionResult],
-                 Dict[str, List[Any]]]:
+                   write_out: bool=False,
+                   batch_size: Optional[int]=None) \
+                                                -> Tuple[List[ExecutionResult],
+                                                         Dict[str, List[Any]]]:
     """Apply the model on a dataset and optionally write outputs to files.
 
     Args:
@@ -312,7 +311,7 @@ def evaluation(evaluators, dataset, runners, execution_results, result_data):
     # evaluation metrics
     for generated_id, dataset_id, function in evaluators:
         if (not dataset.has_series(dataset_id) or
-                    generated_id not in result_data):
+                generated_id not in result_data):
             continue
 
         desired_output = dataset.get_series(dataset_id)
@@ -330,7 +329,7 @@ def _log_continuous_evaluation(tb_writer: tf.train.SummaryWriter,
                                epoch: int,
                                max_epochs: int,
                                execution_results: List[ExecutionResult],
-                               train: bool = False) -> None:
+                               train: bool=False) -> None:
     """Log the evaluation results and the TensorBoard summaries."""
 
     color, prefix = ("yellow", "train") if train else ("blue", "val")
