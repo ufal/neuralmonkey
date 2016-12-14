@@ -19,5 +19,6 @@ Getting Started
    tutorial
    development
    api
+   visualization
    features
    tf_manager
