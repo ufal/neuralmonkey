@@ -104,9 +104,9 @@ def training_loop(tf_manager: TensorFlowManager,
 
     log("Starting training")
     try:
-        for i in range(epochs):
+        for epoch_n in range(1, epochs + 1):
             log_print("")
-            log("Epoch {} starts".format(i + 1), color='red')
+            log("Epoch {} starts".format(epoch_n), color='red')
 
             train_dataset.shuffle()
             train_batched_datasets = train_dataset.batch_dataset(batch_size)
@@ -128,8 +128,8 @@ def training_loop(tf_manager: TensorFlowManager,
 
                     _log_continuous_evaluation(tb_writer, main_metric,
                                                train_evaluation,
-                                               seen_instances, i+1, epochs,
-                                               trainer_result,
+                                               seen_instances, epoch_n,
+                                               epochs, trainer_result,
                                                train=True)
                 else:
                     tf_manager.execute(batch_dataset, [trainer],
@@ -160,7 +160,7 @@ def training_loop(tf_manager: TensorFlowManager,
 
                     if is_better(this_score, best_score, minimize_metric):
                         best_score = this_score
-                        best_score_epoch = i + 1
+                        best_score_epoch = epoch_n
                         best_score_batch_no = batch_n
 
                     worst_index = argworst(saved_scores, minimize_metric)
@@ -183,11 +183,12 @@ def training_loop(tf_manager: TensorFlowManager,
                             saved_scores))
 
                     log("Validation (epoch {}, batch number {}):"
-                        .format(i + 1, batch_n), color='blue')
+                        .format(epoch_n, batch_n), color='blue')
 
                     _log_continuous_evaluation(tb_writer, main_metric,
                                                val_evaluation,
-                                               seen_instances, i+1, epochs,
+                                               seen_instances, epoch_n,
+                                               epochs,
                                                val_results, train=False)
 
                     if this_score == best_score:
