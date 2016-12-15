@@ -59,6 +59,10 @@ def training_loop(tf_manager: TensorFlowManager,
             means the generated and dataset series have the same name.
     """
 
+    # TODO DOCUMENT_THIS
+    if runners_batch_size is None:
+        runners_batch_size = batch_size
+
     evaluators = [(e[0], e[0], e[1]) if len(e) == 2 else e
                   for e in evaluators]
 
