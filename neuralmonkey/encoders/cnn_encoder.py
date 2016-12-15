@@ -154,9 +154,14 @@ class CNNEncoder(Attentive):
                         last_layer = tf.nn.dropout(
                             last_layer, keep_prob=self.dropout_placeholder)
 
+                # last_layer shape is batch X height X width X channels
                 last_layer = last_layer * last_padding_masks
 
-            self.encoded = tf.reduce_mean(last_layer, [2, 3])
+
+            # we average out by the image size -> shape is number
+            # channels from the last convolution
+            self.encoded = tf.reduce_mean(last_layer, [1, 2])
+            # TODO assert shape
 
             self.__attention_tensor = tf.reshape(
                 last_layer, [-1, image_width,
