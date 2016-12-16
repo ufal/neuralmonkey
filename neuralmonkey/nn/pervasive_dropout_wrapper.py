@@ -1,5 +1,7 @@
 import tensorflow as tf
 
+from neuralmonkey.checking import assert_shape
+
 # tests: lint, mypy
 
 
@@ -8,6 +10,7 @@ class PervasiveDropoutWrapper(tf.nn.rnn_cell.RNNCell):
     def __init__(self, cell, mask, scale):
         self._cell = cell
         self._mask = mask
+        assert_shape(mask, [None, cell.sate_size])
         self._scale = scale
 
     @property
@@ -24,4 +27,5 @@ class PervasiveDropoutWrapper(tf.nn.rnn_cell.RNNCell):
         # self._mask is of shape [batch_size, state_size]
         # new_state is of shape [batch_size, state_size] (hopefully)
         new_state_dropped = new_state * self._scale * self._mask
+        assert_shape(new_state_dropped, [None, self._cell.sate_size])
         return output, new_state_dropped
