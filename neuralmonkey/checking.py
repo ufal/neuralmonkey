@@ -6,6 +6,10 @@ constructing the computational graph.
 
 # tests: lint, mypy
 
+from typing import List, Optional
+
+import tensorflow as tf
+
 from neuralmonkey.logging import log, debug
 
 
@@ -65,3 +69,34 @@ def assert_type(obj, name, value, expected_type, can_be_none=False):
         raise CheckingException(
             'Value of "{}" in "{}"should be "{}" but was "{}" {}'.format(
                 name, caller_type_str, exptected_str, real_type_str, value))
+
+
+def assert_shape(tensor: tf.Tensor,
+                 expected_shape: List[Optional[int]]) -> None:
+    """Check shape of a tensor.
+
+    Args:
+        tensor: Tensor to be chcecked.
+        expected_shape: Expected shape where None stands for None means the
+            same as in TF and -1 means not checking the dimension.
+    """
+
+    shape_list = tensor.get_shape().as_list()
+
+    if len(shape_list) != len(expected_shape):
+        raise CheckingException(
+            "Tensor '{}' with shape {} should have {} dimensions.".format(
+                tensor.name, shape_list, len(expected_shape)))
+
+    mismatching_dims = []
+    for i, (real, expected) in enumerate(zip(shape_list, expected_shape)):
+        if expected != -1 and real != expected:
+            mismatching_dims.append(i)
+
+    if mismatching_dims:
+        expected_str = ", ".join(
+            "?" if x == -1 else str(x) for x in expected_shape)
+        raise CheckingException(
+            "Shape mismatch in dimensions: {}. Shape was {} was [{}]".format(
+                ", ".join(str(d) for d in mismatching_dims),
+                shape_list, expected_str))
