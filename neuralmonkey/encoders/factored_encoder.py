@@ -154,6 +154,7 @@ class FactoredEncoder(Attentive):
                 tf.nn.dropout(i, self.dropout_placeholder)
                 for i in embedded_inputs]
 
+            # Resulting shape is batch x embedding_size
             assert_shape(dropped_embedded_inputs, [None, embedding_size])
             factors.append(dropped_embedded_inputs)
 
