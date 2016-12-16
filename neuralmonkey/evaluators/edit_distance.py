@@ -4,7 +4,7 @@ from difflib import SequenceMatcher
 import numpy as np
 
 
-class _EditDistance(object):
+class EditDistanceEvaluator(object):
 
     def __init__(self, name="Edit distance"):
         self.name = name
@@ -27,4 +27,4 @@ class _EditDistance(object):
 
 
 # pylint: disable=invalid-name
-EditDistance = _EditDistance()
+EditDistance = EditDistanceEvaluator()

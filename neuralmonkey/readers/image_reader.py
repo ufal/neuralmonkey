@@ -9,6 +9,22 @@ def image_reader(prefix="",
                  pad_h: Optional[int]=None,
                  rescale: bool=False,
                  mode: str='RGB') -> Callable:
+    """Get a reader of images loading them from a list of pahts.
+
+    Args:
+        prefix: Prefix of the paths that are listed in a image files.
+        pad_w: Width to which the images will be padded/cropped/resized.
+        pad_h: Height to with the images will be padded/corpped/resized.
+        rescale: If true, bigger images will be rescaled to the pad_w x pad_h
+            size. Otherwise, they will be cropped from the middle.
+        mode: Scipy image loading mode, see scipy documentation for more
+            details.
+
+    Returns:
+        The reader function that takes a list of image paths (relative to
+        provided prefix) and returns a list of images as numpy arrays of shape
+        pad_h x pad_w x number of channels.
+    """
 
     def load(list_files: List[str]):
         for list_file in list_files:
@@ -26,8 +42,14 @@ def image_reader(prefix="",
                     if len(image.shape) == 2:
                         channels = 1
                         image = np.expand_dims(image, 2)
-                    else:
+                    elif len(image.shape) == 3:
                         channels = image.shape[2]
+                    else:
+                        raise ValueError(
+                            ("Image should have either 2 (black and white) "
+                             "or three dimensions (color channels), has {} "
+                             "dimension.").format(len(image.shape)))
+
                     if rescale:
                         image = _rescale(image, pad_w, pad_h)
                     else:
