@@ -14,7 +14,8 @@ Objective = NamedTuple('Objective',
                        [('name', str),
                         ('decoder', Any),
                         ('loss', tf.Tensor),
-                        ('gradients', Optional[Gradients])])
+                        ('gradients', Optional[Gradients]),
+                        ('weight', Optional[tf.Tensor])])
 
 BIAS_REGEX = re.compile(r'[Bb]ias')
 
@@ -37,6 +38,7 @@ class GenericTrainer(object):
             l2_value = sum(tf.reduce_sum(v ** 2) for v in regularizable)
             l2_cost = l2_weight * l2_value if l2_weight > 0 else 0.0
 
+        # unweighted losses for fetching
         self.losses = [o.loss for o in objectives] + [l1_value, l2_value]
         tf.scalar_summary('train_l1', l1_value, collections=["summary_train"])
         tf.scalar_summary('train_l2', l2_value, collections=["summary_train"])
@@ -44,13 +46,14 @@ class GenericTrainer(object):
         # if the objective does not have its own gradients,
         # just use TF to do the derivative
         differentiable_loss_sum = sum(
-            o.loss for o in objectives
-            if o.gradients is None) + l1_cost + l2_cost
+            (o.weight if o.weight is not None else 1) * o.loss
+            for o in objectives if o.gradients is None) + l1_cost + l2_cost
         implicit_gradients = self._get_gradients(differentiable_loss_sum)
 
         # objectives that have their gradients explictly computed
         other_gradients = [
-            o.gradients for o in objectives if o.gradients is not None]
+            _scale_gradients(o.gradients, o.weight)
+            for o in objectives if o.gradients is not None]
 
         if other_gradients:
             gradients = _sum_gradients([implicit_gradients] + other_gradients)
@@ -100,6 +103,15 @@ def _sum_gradients(gradients_list: List[Gradients]) -> Gradients:
                     summed_dict[var] += tensor
     return [(tensor, var) for var, tensor in summed_dict.items()]
 
+def _scale_gradients(gradients: Gradients, weight: tf.Tensor) -> Gradients:
+    result = []  # type: Gradients
+    for tensor, var in gradients:
+        if weight is not None and tensor is not None:
+            result.append((weight * tensor, var))
+        else:
+            result.append((tensor, var))
+
+    return result
 
 class TrainExecutable(Executable):
 
