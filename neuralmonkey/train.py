@@ -47,6 +47,7 @@ def create_config() -> Configuration:
     return config
 
 
+#pylint: disable=too-many-statements
 def main() -> None:
     if len(sys.argv) != 2:
         print("Usage: train.py <ini_file>")
@@ -142,6 +143,10 @@ def main() -> None:
               .format(repodir, git_diff_file))
 
     link_best_vars = "{}.best".format(variables_file_prefix)
+
+    # runners_batch_size must be set to avoid problems on GPU
+    if cfg.model.runners_batch_size is None:
+        cfg.model.runners_batch_size = cfg.model.batch_size
 
     training_loop(tf_manager=cfg.model.tf_manager,
                   epochs=cfg.model.epochs,

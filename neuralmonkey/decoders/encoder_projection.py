@@ -56,8 +56,8 @@ def linear_encoder_projection(
                              "encoder projection")
 
         if encoders is None or not encoders:
-            raise ValueError("There must be at least one encoder for this type "
-                             "of encoder projection")
+            raise ValueError("There must be at least one encoder for this type"
+                             " of encoder projection")
 
         with tf.variable_scope("encoders_projection") as scope:
             encoded_concat = tf.concat(1, [e.encoded for e in encoders])
