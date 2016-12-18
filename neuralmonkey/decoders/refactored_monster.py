@@ -135,10 +135,11 @@ class Decoder(object):
             assert not tf.get_variable_scope().reuse
             tf.get_variable_scope().reuse_variables()
 
-            runtime_rnn_outputs, _ = self._attention_decoder(
-                embedded_go_symbols, train_mode=False)
+            (self.runtime_rnn_outputs,
+             self.runtime_rnn_states) = self._attention_decoder(
+                 embedded_go_symbols, train_mode=False)
 
-            self.hidden_states = runtime_rnn_outputs
+            self.hidden_states = self.runtime_rnn_outputs
 
         def decode(rnn_outputs):
             logits = []
@@ -162,7 +163,7 @@ class Decoder(object):
 
         self.cost = self.train_loss
 
-        self.decoded, self.runtime_logits = decode(runtime_rnn_outputs)
+        self.decoded, self.runtime_logits = decode(self.runtime_rnn_outputs)
 
         self.runtime_loss = tf.nn.seq2seq.sequence_loss(
             self.runtime_logits, train_targets,
