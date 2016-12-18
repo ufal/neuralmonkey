@@ -22,6 +22,7 @@ VOCABULARY = Vocabulary()
 for s in TOKENIZED_CORPUS:
     VOCABULARY.add_tokenized_text(s)
 
+
 class TestVocabulary(unittest.TestCase):
     def test_all_words_in(self):
         for sentence in TOKENIZED_CORPUS:

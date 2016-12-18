@@ -2,13 +2,11 @@
 This module contains different variants of projection functions
 for RNN outputs.
 """
-#tests: lint
+# tests: lint, mypy
 import tensorflow as tf
 
 from neuralmonkey.nn.projection import maxout
 from neuralmonkey.nn.mlp import multilayer_perceptron
-
-# tests: lint, mypy
 
 
 def no_deep_output(prev_state, prev_output, ctx_tensors):

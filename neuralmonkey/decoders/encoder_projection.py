@@ -2,7 +2,7 @@
 This module contains different variants of projection of encoders into the
 initial state of the decoder.
 """
-#tests: lint
+# tests: lint
 from typing import List, Optional, Callable
 
 import tensorflow as tf
@@ -11,7 +11,8 @@ from neuralmonkey.nn.utils import dropout
 from neuralmonkey.nn.projection import linear
 from neuralmonkey.logging import log
 
-#pylint: disable=unused-argument
+
+# pylint: disable=unused-argument
 # The function must conform the API
 def empty_initial_state(train_mode: tf.Tensor,
                         rnn_size: Optional[int],
@@ -90,9 +91,9 @@ def concat_encoder_projection(
 
     encoded_concat = tf.concat(1, [e.encoded for e in encoders])
 
-    #pylint: disable=no-member
+    # pylint: disable=no-member
     log("The inferred rnn_size of this encoder projection will be {}"
         .format(encoded_concat.get_shape()[1].value))
-    #pylint: enable=no-member
+    # pylint: enable=no-member
 
     return encoded_concat
