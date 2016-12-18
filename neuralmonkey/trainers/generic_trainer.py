@@ -103,6 +103,7 @@ def _sum_gradients(gradients_list: List[Gradients]) -> Gradients:
                     summed_dict[var] += tensor
     return [(tensor, var) for var, tensor in summed_dict.items()]
 
+
 def _scale_gradients(gradients: Gradients, weight: tf.Tensor) -> Gradients:
     result = []  # type: Gradients
     for tensor, var in gradients:
@@ -112,6 +113,7 @@ def _scale_gradients(gradients: Gradients, weight: tf.Tensor) -> Gradients:
             result.append((tensor, var))
 
     return result
+
 
 class TrainExecutable(Executable):
 

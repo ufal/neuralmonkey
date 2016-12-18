@@ -9,6 +9,7 @@ from neuralmonkey.trainers.generic_trainer import GenericTrainer, Objective
 # pylint: disable=invalid-name
 ObjectiveWeight = List[Union[tf.Tensor, float]]
 
+
 def xent_objective(decoder, weight=None) -> Objective:
     """Get XENT objective from decoder with cost."""
     return Objective(
