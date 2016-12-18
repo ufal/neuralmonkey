@@ -1,13 +1,9 @@
-from typing import Any, List, Optional, Union
+from typing import Any, List, Optional
 
-import tensorflow as tf
-
-from neuralmonkey.trainers.generic_trainer import GenericTrainer, Objective
+from neuralmonkey.trainers.generic_trainer import (GenericTrainer, Objective,
+                                                   ObjectiveWeight)
 
 # tests: lint, mypy
-
-# pylint: disable=invalid-name
-ObjectiveWeight = List[Union[tf.Tensor, float]]
 
 
 def xent_objective(decoder, weight=None) -> Objective:

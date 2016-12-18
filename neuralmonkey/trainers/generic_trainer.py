@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, NamedTuple, Optional, Tuple
+from typing import Any, Dict, List, NamedTuple, Optional, Tuple, Union
 import re
 
 import tensorflow as tf
@@ -10,12 +10,13 @@ from neuralmonkey.runners.base_runner import (collect_encoders, Executable,
 
 # pylint: disable=invalid-name
 Gradients = List[Tuple[tf.Tensor, tf.Variable]]
+ObjectiveWeight = Union[tf.Tensor, float, None]
 Objective = NamedTuple('Objective',
                        [('name', str),
                         ('decoder', Any),
                         ('loss', tf.Tensor),
                         ('gradients', Optional[Gradients]),
-                        ('weight', Optional[tf.Tensor])])
+                        ('weight', ObjectiveWeight)])
 
 BIAS_REGEX = re.compile(r'[Bb]ias')
 
@@ -104,7 +105,9 @@ def _sum_gradients(gradients_list: List[Gradients]) -> Gradients:
     return [(tensor, var) for var, tensor in summed_dict.items()]
 
 
-def _scale_gradients(gradients: Gradients, weight: tf.Tensor) -> Gradients:
+def _scale_gradients(gradients: Gradients,
+                     weight: ObjectiveWeight) -> Gradients:
+
     result = []  # type: Gradients
     for tensor, var in gradients:
         if weight is not None and tensor is not None:
