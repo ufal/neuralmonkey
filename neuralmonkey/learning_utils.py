@@ -28,7 +28,6 @@ def training_loop(tf_manager: TensorFlowManager,
                   evaluators: EvalConfiguration,
                   runners: List[BaseRunner],
                   test_datasets: Optional[List[Dataset]]=None,
-                  save_n_best_vars: int=1,
                   link_best_vars="/tmp/variables.data.best",
                   vars_prefix="/tmp/variables.data",
                   logging_period: int=20,
@@ -74,6 +73,7 @@ def training_loop(tf_manager: TensorFlowManager,
     step = 0
     seen_instances = 0
 
+    save_n_best_vars = tf_manager.saver_max_to_keep
     if save_n_best_vars < 1:
         raise Exception('save_n_best_vars must be greater than zero')
 

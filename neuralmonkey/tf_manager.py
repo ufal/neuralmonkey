@@ -26,8 +26,9 @@ class TensorFlowManager(object):
         sessions: List of active Tensorflow sessions.
     """
 
-    def __init__(self, num_sessions, num_threads, variable_files=None,
-                 gpu_allow_growth=True, per_process_gpu_memory_fraction=1.0):
+    def __init__(self, num_sessions, num_threads, save_n_best=1,
+                 variable_files=None, gpu_allow_growth=True,
+                 per_process_gpu_memory_fraction=1.0):
         """Initialize a TensorflowManager.
 
         At this moment the graph must already exist. This method initializes
@@ -49,12 +50,13 @@ class TensorFlowManager(object):
         session_cfg.gpu_options.per_process_gpu_memory_fraction = \
             per_process_gpu_memory_fraction
 
+        self.saver_max_to_keep = save_n_best
         self.sessions = [tf.Session(config=session_cfg)
                          for _ in range(num_sessions)]
         init_op = tf.initialize_all_variables()
         for sess in self.sessions:
             sess.run(init_op)
-        self.saver = tf.train.Saver()
+        self.saver = tf.train.Saver(max_to_keep=self.saver_max_to_keep)
 
         if variable_files:
             if len(variable_files) != num_sessions:
