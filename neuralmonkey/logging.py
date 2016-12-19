@@ -2,6 +2,7 @@
 
 import time
 import codecs
+import sys
 from termcolor import colored
 
 
@@ -30,7 +31,7 @@ class Logging(object):
             Logging.log_file.write(text + "\n")
             Logging.log_file.flush()
 
-        print(text)
+        print(text, file=sys.stderr)
 
     @staticmethod
     def log(message, color='yellow'):
