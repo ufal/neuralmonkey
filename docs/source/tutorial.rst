@@ -124,7 +124,7 @@ place all our work. We shall call it for example ``exp-nm-ape`` (feel free to
 choose another weird string).
 
 Extract all the files in the ``exp-nm-ape/data`` directory. Rename the files and
-direcotries so you get this directory structure::
+directories so you get this directory structure::
 
   exp-nm-ape
   |
