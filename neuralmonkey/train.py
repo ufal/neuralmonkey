@@ -1,4 +1,4 @@
-g"""
+"""
 This is a training script for sequence to sequence learning.
 """
 # tests: lint, mypy
