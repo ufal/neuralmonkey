@@ -77,8 +77,8 @@ def assert_shape(tensor: tf.Tensor,
 
     Args:
         tensor: Tensor to be chcecked.
-        expected_shape: Expected shape where None stands for None means the
-            same as in TF and -1 means not checking the dimension.
+        expected_shape: Expected shape where `None` means the same as in TF and
+            `-1` means not checking the dimension.
     """
 
     shape_list = tensor.get_shape().as_list()
