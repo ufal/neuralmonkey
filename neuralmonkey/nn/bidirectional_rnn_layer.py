@@ -2,6 +2,8 @@
 
 import tensorflow as tf
 
+from neuralmonkey.checking import assert_shape
+
 
 class BidirectionalRNNLayer(object):
     """Bidirectional RNN Layer class - forward and backward RNN layers in one.
@@ -17,6 +19,8 @@ class BidirectionalRNNLayer(object):
           sentence_lengths_placeholder - lengths of the sequences in inputs
 
         """
+        self._output_size = (
+            forward_cell.output_size + backward_cell.output_size)
         with tf.variable_scope('forward'):
             self._outputs, self._last_state = tf.nn.rnn(
                 cell=forward_cell,
@@ -39,9 +43,14 @@ class BidirectionalRNNLayer(object):
         """Outputs of the bidirectional layer"""
 
         # outputs and outputs_rev, both lists in time of shape batch x rnn_size
+        outputs_bidi = [
+            tf.concat(1, [o1, o2]) for o1, o2 in zip(self._outputs,
+                                                     self._outputs_rev)]
         # concatenations have shape batch x (2 * rnn_size)
-        return [tf.concat(1, [o1, o2]) for o1, o2 in zip(self._outputs,
-                                                         self._outputs_rev)]
+        for out in outputs_bidi:
+            assert_shape(out, [None, self._output_size])
+
+        return outputs_bidi
 
     @property
     def encoded(self):

@@ -1,6 +1,7 @@
 import tensorflow as tf
 import numpy as np
 
+from neuralmonkey.checking import assert_shape
 from neuralmonkey.encoders.attentive import Attentive
 from neuralmonkey.logging import log
 from neuralmonkey.nn.bidirectional_rnn_layer import BidirectionalRNNLayer
@@ -154,6 +155,7 @@ class FactoredEncoder(Attentive):
                 for i in embedded_inputs]
 
             # Resulting shape is batch x embedding_size
+            assert_shape(dropped_embedded_inputs, [None, embedding_size])
             factors.append(dropped_embedded_inputs)
 
             # Add inputs and weights to self to be able to feed them
@@ -167,6 +169,8 @@ class FactoredEncoder(Attentive):
         # tuples indexed by the time step
         concatenated_factors = [tf.concat(1, related_factors)
                                 for related_factors in zip(*factors)]
+        assert_shape(concatenated_factors[0],
+                     [None, sum(self.embedding_sizes)])
         forward_gru, backward_gru = self._get_birnn_cells()
 
         bidi_layer = BidirectionalRNNLayer(forward_gru, backward_gru,
