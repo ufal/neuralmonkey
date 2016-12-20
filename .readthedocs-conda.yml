@@ -1,5 +1,7 @@
 name: py35
 dependencies:
+ - python=3.5.2=0
+ - pip=8.1.1=py35_0
  - pip:
    - termcolor
    - python-magic>0.4.12
