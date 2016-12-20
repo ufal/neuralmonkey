@@ -74,7 +74,7 @@ def load_dataset_from_files(
                     ("The source series ({}) of the '{}' preprocessor "
                      "is not defined in the dataset.").format(
                          src_id, function.__name__))
-            series[tgt_id] = function(series[src_id])
+            series[tgt_id] = list(map(function, series[src_id]))
 
     dataset = Dataset(name, series, series_outputs)
     log("Dataset length: {}".format(len(dataset)))
@@ -307,8 +307,10 @@ class LazyDataset(Dataset):
             series names to their output file preprocess: The preprocessor to
             apply to the read lines
         """
-        super().__init__(name, {s: None for s in series_paths_and_readers},
-                         series_outputs)
+        parent_series = dict()  # type: Dict[str, Any]
+        parent_series.update({s: None for s in series_paths_and_readers})
+        parent_series.update({s[1]: None for s in preprocessors})
+        super().__init__(name, parent_series, series_outputs)
         self.series_paths_and_readers = series_paths_and_readers
 
         self.preprocess_series = {}  # type: Dict[str, Tuple[str, Callable]]
@@ -345,7 +347,8 @@ class LazyDataset(Dataset):
         Returns:
             True if the dataset contains the series, False otherwise.
         """
-        return name in self.series_paths_and_readers
+        return (name in self.series_paths_and_readers
+                or name in self.preprocess_series)
 
     def get_series(self, name: str, allow_none: bool=False) -> Iterable:
         """Get the data series with a given name.
@@ -376,7 +379,7 @@ class LazyDataset(Dataset):
             src_id, func = self.preprocess_series[name]
             paths, reader = self.series_paths_and_readers[src_id]
             src_series = reader(paths)
-            return func(src_series)
+            return map(func, src_series)
         else:
             raise Exception("Series '{}' is not in the dataset.".format(name))
 

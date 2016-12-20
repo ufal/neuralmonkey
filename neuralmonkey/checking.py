@@ -21,7 +21,6 @@ def check_dataset_and_coders(dataset, runners):
     # pylint: disable=protected-access
 
     data_list = []
-
     for runner in runners:
         for c in runner.all_coders:
             if hasattr(c, "data_id"):
@@ -42,10 +41,10 @@ def check_dataset_and_coders(dataset, runners):
             missing.append((coder, serie))
 
     if len(missing) > 0:
-        formated = ["{} ({}, {}.{})" .format(name, cod.name,
+        formated = ["{} ({}, {}.{})" .format(serie, cod.name,
                                              cod.__class__.__module__,
                                              cod.__class__.__name__)
-                    for name, cod in missing]
+                    for cod, serie in missing]
 
         raise CheckingException("Dataset '{}' is mising series {}:"
                                 .format(dataset.name, ", ".join(formated)))
