@@ -59,6 +59,10 @@ def training_loop(tf_manager: TensorFlowManager,
             means the generated and dataset series have the same name.
     """
 
+    if validation_period < logging_period:
+        raise AssertionError(
+            "Logging period can't smaller than validation period.")
+
     # TODO DOCUMENT_THIS
     if runners_batch_size is None:
         runners_batch_size = batch_size
