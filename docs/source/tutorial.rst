@@ -1,6 +1,6 @@
 
-Neural Monkey Tutorial
-======================
+Post-Editing Task Tutorial
+==========================
 
 This tutorial will guide you through designing your first experiment in Neural
 Monkey.
@@ -393,7 +393,7 @@ In order to handle system variables as how many cores the tensorflow should use,
   num_sessions=1
 
 
-7 - Main configuration section
+8 - Main configuration section
 ******************************
 
 Almost there! The last part of the configuration puts all the pieces
