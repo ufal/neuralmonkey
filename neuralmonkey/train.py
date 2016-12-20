@@ -32,7 +32,6 @@ def create_config():
     config.add_argument('evaluation', list)
     config.add_argument('runners', list)
     config.add_argument('test_datasets', list, required=False, default=[])
-    config.add_argument('save_n_best', int, required=False, default=1)
     config.add_argument('logging_period', int, required=False, default=20)
     config.add_argument('validation_period', int, required=False, default=500)
     config.add_argument('runners_batch_size', int,
@@ -151,7 +150,6 @@ def main():
                   evaluators=args.evaluation,
                   runners=args.runners,
                   test_datasets=args.test_datasets,
-                  save_n_best_vars=args.save_n_best,
                   link_best_vars=link_best_vars,
                   vars_prefix=variables_file_prefix,
                   logging_period=args.logging_period,
