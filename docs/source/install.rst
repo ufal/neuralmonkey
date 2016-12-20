@@ -17,8 +17,9 @@ Change your directory to ``neuralmonkey`` folder::
 
 	cd neuralmonkey
 
-And now run pip to install all requirements. For CPU version install dependencies
-by this command::
+And now run pip to install all requirements. Try to avoid using --upgrade if
+you already have installed older version of packages.
+For CPU version install dependencies by this command::
 
 
 	pip3 install -r --requirements.txt
