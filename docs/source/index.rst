@@ -17,6 +17,7 @@ Getting Started
 
    install
    tutorial
+   machine_translation
    development
    api
    visualization
