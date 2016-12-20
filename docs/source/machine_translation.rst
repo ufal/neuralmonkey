@@ -56,8 +56,8 @@ files and put them into following directory structure::
           \== batch3.gz
 
 The gzipping is not a necessary, if you put the dataset there in plaintext it
- will work the same way. Neural Monkey always try to recognize known file
- extension and opens it.
+ will work the same way. Neural Monkey always try to recognize gzip by the
+extension and opens it.
 
 TODO The dataset is not tokenized and need to be preprocessed.
 
@@ -149,7 +149,7 @@ merges::
 
   [shared_vocabulary]
   class=vocabulary.from_bpe
-  path=merge_file.bpe
+  path=exp-nm-mt/data/merge_file.bpe
 
 4 - Encoder and Decoder
 ************
@@ -217,8 +217,8 @@ As for the main configuration section do not forget to add BPE postprocessing::
   runners=[<runner>]
   tf_manager=<tf_manager>
   trainer=<trainer>
-  train_dataset=<train_dataset>
-  val_dataset=<val_dataset>
+  train_dataset=<train_data>
+  val_dataset=<val_data>
   evaluation=[(series_named_greedy,target,<bleu>), (series_named_greedy,target,
   <ter>)]
   minimize=True
