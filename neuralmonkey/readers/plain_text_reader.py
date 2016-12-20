@@ -13,13 +13,14 @@ def get_plain_text_reader(encoding: str="utf-8"):
             mime_type = FILETYPER.from_file(path)
 
             if mime_type == "application/gzip":
-                open_f = gzip.open
+                with gzip.open(path, 'r') as f_data:
+                    for line in f_data:
+                        yield str(line, 'utf-8').strip().split(" ")
             else:
-                open_f = open
+                with open(path, encoding=encoding) as f_data:
+                    for line in f_data:
+                        yield line.strip().split(" ")
 
-            with open_f(path, encoding=encoding) as f_data:
-                for line in f_data:
-                    yield line.strip().split(" ")
     return reader
 
 
