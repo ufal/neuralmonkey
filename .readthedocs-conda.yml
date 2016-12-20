@@ -4,7 +4,7 @@ dependencies:
  - pip=8.1.1=py35_0
  - pip:
    - termcolor
-   - python-magic>0.4.12
+   - python-magic==0.4.12
    - flask
    - ansiconv
    - numpy
