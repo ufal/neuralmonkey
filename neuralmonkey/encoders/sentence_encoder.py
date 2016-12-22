@@ -81,7 +81,7 @@ class SentenceEncoder(Attentive):
 
         with tf.variable_scope(self.name):
             self._create_input_placeholders()
-            with tf.variable_scope('intput_projection'):
+            with tf.variable_scope('input_projection'):
                 self._create_embedding_matrix()
                 embedded_inputs = self._embed(self.inputs)  # type: tf.Tensor
 
