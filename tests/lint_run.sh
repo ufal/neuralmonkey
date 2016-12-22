@@ -1,12 +1,6 @@
 #!/bin/bash
 
-pylint -j 4 $(find neuralmonkey -name '*.py')
+set -Ex
+trap 'echo -e "\033[1;31mPylint spotted errors!\033[0m"' ERR
 
-EXIT_CODE=$?
-
-if (( $EXIT_CODE )); then
-    echo Pylint spotted errors!
-    exit $EXIT_CODE
-else
-    echo Pylint OK.
-fi
+pylint -j 4 neuralmonkey

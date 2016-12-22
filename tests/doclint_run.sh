@@ -1,11 +1,6 @@
 #!/bin/bash
 
-mdl *.md $(find neuralmonkey -name '*.md') $(find tests -name '*.md') $(find examples -name '*.md')
+set -Ex
+trap 'echo -e "\033[1;31mMarkdownlint spotted errors!\033[0m"' ERR
 
-EXIT_CODE=$?
-
-if (( $EXIT_CODE )); then
-    exit $EXIT_CODE
-else
-    echo Markdownlint OK.
-fi
+mdl *.md scripts examples tests docs neuralmonkey

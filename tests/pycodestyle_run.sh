@@ -1,11 +1,6 @@
 #!/bin/bash
 
+set -Ex
+trap 'echo -e "\033[1;31mPycodestyle spotted errors!\033[0m"' ERR
+
 pycodestyle $(find neuralmonkey -name '*.py')
-
-EXIT_CODE=$?
-
-if (( $EXIT_CODE )); then
-    exit $EXIT_CODE
-else
-    echo Pycodestyle OK.
-fi
