@@ -257,8 +257,7 @@ def run_on_dataset(tf_manager: TensorFlowManager,
         they are available which are dictionary function -> value.
 
     """
-
-    contains_targets = all(dataset.has_series(runner.output_series)
+    contains_targets = all(dataset.has_series(runner.decoder_data_id)
                            for runner in runners)
 
     all_results = tf_manager.execute(dataset, runners,

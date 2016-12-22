@@ -43,6 +43,10 @@ class BaseRunner(object):
         raise NotImplementedError()
 
     @property
+    def decoder_data_id(self) -> str:
+        return self._decoder.data_id
+
+    @property
     def loss_names(self) -> List[str]:
         raise NotImplementedError()
 
