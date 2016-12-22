@@ -1,7 +1,7 @@
 from typing import Callable, List, Optional
 import os
 import numpy as np
-from scipy import ndimage
+from PIL import Image
 
 
 def image_reader(prefix="",
@@ -37,23 +37,24 @@ def image_reader(prefix="",
                             ("Image file '{}' no."
                              "{}  does not exist.").format(path, i + 1))
 
-                    image = ndimage.imread(path, mode=mode)
+                    image = Image.open(path).convert(mode)
+                    if rescale:
+                        _rescale(image, pad_w, pad_h)
+                    else:
+                        image = _crop(image, pad_w, pad_h)
+                    image_np = np.array(image)
 
-                    if len(image.shape) == 2:
+                    if len(image_np.shape) == 2:
                         channels = 1
                         image = np.expand_dims(image, 2)
-                    elif len(image.shape) == 3:
+                    elif len(image_np.shape) == 3:
                         channels = image.shape[2]
                     else:
                         raise ValueError(
                             ("Image should have either 2 (black and white) "
                              "or three dimensions (color channels), has {} "
-                             "dimension.").format(len(image.shape)))
+                             "dimension.").format(len(image_np.shape)))
 
-                    if rescale:
-                        image = _rescale(image, pad_w, pad_h)
-                    else:
-                        image = _crop(image, pad_w, pad_h)
 
                     yield _pad(image, pad_w, pad_h, channels)
 
@@ -61,29 +62,18 @@ def image_reader(prefix="",
 
 
 def _rescale(image, pad_w, pad_h):
-    orig_w, orig_h = image.shape[:2]
-    width_ratio = pad_w / orig_w
-    height_ratio = pad_h / orig_h
-    zoom_ratio = min(1., width_ratio, height_ratio)
-
-    if zoom_ratio < 1.:
-        return ndimage.zoom(image, zoom_ratio)
-    else:
-        return image
+    orig_w, orig_h = image.size
+    if orig_w > pad_w or orig_h > pad_h:
+        image.thumbnail((pad_w, pad_h))
 
 
 def _crop(image, pad_w, pad_h):
-    orig_w, orig_h = image.shape[:2]
-    if orig_w > pad_w:
-        diff = orig_w - pad_w
-        half_diff = diff // 2
-        image = image[:, half_diff + (diff % 2):-half_diff]
-    if orig_h > pad_h:
-        diff = orig_h - pad_h
-        half_diff = diff // 2
-        image = image[half_diff + (diff % 2):-half_diff, :]
+    orig_w, orig_h = image.size
+    w_shift = max(orig_w - pad_w, 0) // 2
+    h_shift = max(orig_h - pad_h, 0) // 2
 
-    return image
+    return image.crop(
+        (w_shift, h_shift, orig_w - w_shift, orig_h - h_shift))
 
 
 def _pad(image, pad_w, pad_h, channels):
