@@ -81,11 +81,11 @@ class SentenceEncoder(Attentive):
 
         with tf.variable_scope(self.name):
             self._create_input_placeholders()
-            self._create_embedding_matrix()
+            with tf.variable_scope('intput_projection'):
+                self._create_embedding_matrix()
+                embedded_inputs = self._embed(self.inputs)  # type: tf.Tensor
 
-            embedded_inputs = self._embed(self.inputs)  # type: tf.Tensor
             fw_cell, bw_cell = self.rnn_cells()  # type: RNNCellTuple
-
             outputs_bidi_tup, encoded_tup = tf.nn.bidirectional_dynamic_rnn(
                 fw_cell, bw_cell, embedded_inputs, self.sentence_lengths,
                 dtype=tf.float32)
