@@ -116,14 +116,13 @@ class Decoder(object):
             self._create_initial_state()
             self._create_embedding_matrix()
 
-            self.decoding_w = tf.get_variable(
-                "state_to_word_W", [rnn_size, len(self.vocabulary)],
-                initializer=tf.random_uniform_initializer(-0.5, 0.5))
+            self.decoding_w = tf.Variable(
+                tf.random_uniform([rnn_size, len(vocabulary)], -0.5, 0.5),
+                name="state_to_word_W")
 
-            self.decoding_b = tf.get_variable(
-                "state_to_word_b", [len(self.vocabulary)],
-                initializer=tf.constant_initializer(
-                    - math.log(len(self.vocabulary))))
+            self.decoding_b = tf.Variable(
+                tf.fill([len(vocabulary)], - math.log(len(vocabulary))),
+                name="state_to_word_b")
 
             # POSLEDNI TRAIN INPUT SE V DEKODOVACI FUNKCI NEPOUZIJE
             # (jen jako target)
@@ -248,9 +247,10 @@ class Decoder(object):
         """
         if self.embeddings_encoder is None:
             # TODO better initialization
-            self.embedding_matrix = tf.get_variable(
-                "word_embeddings", [len(self.vocabulary), self.embedding_size],
-                initializer=tf.random_normal_initializer(stddev=0.01))
+            self.embedding_matrix = tf.Variable(
+                tf.random_uniform([len(self.vocabulary), self.embedding_size],
+                                  -0.5, 0.5),
+                name="word_embeddings")
         else:
             self.embedding_matrix = self.embeddings_encoder.embedding_matrix
 
