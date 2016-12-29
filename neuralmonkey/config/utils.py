@@ -23,3 +23,7 @@ def adam_optimizer(learning_rate=1e-4):
 
 def adadelta_optimizer(**kwargs):
     return tf.train.AdadeltaOptimizer(**kwargs)
+
+
+def variable(initial_value=0, trainable=False, **kwargs):
+    return tf.Variable(initial_value, trainable, **kwargs)
