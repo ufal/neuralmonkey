@@ -134,6 +134,9 @@ class Decoder(object):
             embedded_go_symbols = tf.nn.embedding_lookup(self.embedding_matrix,
                                                          self.go_symbols)
 
+            # maps tuples (encoder, train_mode) to attention objects
+            self._attention_object_map = {}
+
             train_rnn_outputs, _ = self._attention_decoder(
                 embedded_go_symbols, train_inputs=embedded_train_inputs,
                 train_mode=True)
@@ -187,6 +190,8 @@ class Decoder(object):
 
         tf.scalar_summary('train_optimization_cost', self.cost,
                           collections=["summary_train"])
+
+        self._visualize_attention()
 
         log("Decoder initalized.")
 
@@ -265,6 +270,15 @@ class Decoder(object):
     def _get_rnn_cell(self) -> tf.nn.rnn_cell.RNNCell:
         return tf.nn.rnn_cell.GRUCell(self.rnn_size)
 
+    def get_attention_object(self, encoder, train_mode: bool,
+                             create: bool=False):
+        key = (encoder, train_mode)
+        if key not in self._attention_object_map and create:
+            self._attention_object_map[key] = encoder.get_attention_object(
+                runtime=not train_mode)
+
+        return self._attention_object_map[key]
+
     def _attention_decoder(
             self,
             go_symbols: tf.Tensor,
@@ -290,7 +304,8 @@ class Decoder(object):
 
         cell = self._get_rnn_cell()
         if self.use_attention:
-            att_objects = [e.get_attention_object(not train_mode)
+            att_objects = [self.get_attention_object(e, train_mode,
+                                                     create=True)
                            for e in self.encoders
                            if isinstance(e, Attentive)]
 
@@ -341,6 +356,21 @@ class Decoder(object):
                 outputs.append(output)
 
         return outputs, states
+
+    def _visualize_attention(self, train_mode=False):
+        """Create image summaries with attentions"""
+        att_objects = [self.get_attention_object(e, train_mode)
+                       for e in self.encoders
+                       if isinstance(e, Attentive)]
+
+        for i, a in enumerate(att_objects):
+            alignments = tf.expand_dims(tf.transpose(
+                tf.pack(a.attentions_in_time), perm=[1, 2, 0]), -1)
+
+            tf.image_summary(
+                "attention_{}".format(i), alignments,
+                collections=["summary_val_plots"],
+                max_images=256)
 
     def feed_dict(self, dataset, train=False):
         """Populate the feed dictionary for the decoder object
