@@ -1,4 +1,6 @@
+.. _machine-translation:
 
+=================================
 Machine Translation Task Tutorial
 =================================
 

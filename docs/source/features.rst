@@ -1,10 +1,14 @@
+.. _features:
+
+========
 Features
 ========
 
 Byte Pair Encoding
 ------------------
 
-This is explained in the machine translation tutorial. TODO add link.
+This is explained in
+:ref:`the machine translation tutorial <machine-translation>`.
 
 Dropout
 -------

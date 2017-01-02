@@ -1,4 +1,6 @@
+.. _developers-guidlines:
 
+======================
 Developers' guidelines
 ======================
 

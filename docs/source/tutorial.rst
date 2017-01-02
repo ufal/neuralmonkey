@@ -1,4 +1,6 @@
+.. _post-editing:
 
+==========================
 Post-Editing Task Tutorial
 ==========================
 
@@ -6,8 +8,8 @@ This tutorial will guide you through designing your first experiment in Neural
 Monkey.
 
 Before we get started with the tutorial, please check that you have the Neural
-Monkey package properly installed and working (TODO add link to installation
-docs here).
+Monkey package properly
+:ref:`installed and working <instalation>`.
 
 
 Part I. - The Task

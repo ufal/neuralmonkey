@@ -1,3 +1,6 @@
+.. _tensorflow-manager:
+
+==================
 TensorFlow manager
 ==================
 
