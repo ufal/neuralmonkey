@@ -1,23 +1,28 @@
 .. _machine-translation:
 
-=================================
-Machine Translation Task Tutorial
-=================================
+============================
+Machine Translation Tutorial
+============================
 
-This tutorial will guide you through designing Machnie Translation Task
-experiments in Neural Monkey. It assumes that you already read the
-Post-Editing tutorial.
+This tutorial will guide you through designing Machnine Translation
+experiments in Neural Monkey. We assumes that you already read
+:ref:`the post-editing tutorial <post-editing>`.
 
-The goal of this task is to translate sentences from one language into
-another. For this tutorial we will use data from IT translation task of WMT
-16 on English to Czech direction.
+The goal of the translation task is to translate sentences from one language
+into
+another. For this tutorial we will use data from the WMT 16 IT-domain
+translation shared task on English-to-Czech direction.
+
+`WMT <http://www.statmt
+.org/wmt16/>`_ is an annual machine translation conference where academic
+groups compete in translating different datasets over various language pairs.
 
 
 Part I. - The Data
 --------------------
 
 We are going to use the data for WMT 16 shared IT Machine Translation task. You
-can get them at the `WMT 16 IT Translation Task
+can get them at the `WMT IT Translation Shared Task webpage
 <http://www.statmt.org/wmt16/it-translation-task.html>`_ and there download
 Batch1 and Batch2 answers and Batch3 as a testing set. Or directly `here
 <http://ufallab.ms.mff.cuni.cz/~popel/batch1and2.zip>`_ and
@@ -37,7 +42,7 @@ Now - before we start, let's make our experiment directory, in which we will
 place all our work. We will call it ``exp-nm-mt``.
 
 First extract all the downloaded files, then make gzip files from individual
-files and put them into following directory structure::
+files and put arrange them into the following directory structure::
 
   exp-nm-mt
   |
@@ -57,9 +62,9 @@ files and put them into following directory structure::
           |
           \== batch3.gz
 
-The gzipping is not a necessary, if you put the dataset there in plaintext it
- will work the same way. Neural Monkey always try to recognize gzip by the
-extension and opens it.
+The gzipping is not necessary, if you put the dataset there in plaintext, it
+ will work the same way. Neural Monkey recognizes gzipped files by their MIME
+type and chooses the correct way to open them.
 
 TODO The dataset is not tokenized and need to be preprocessed.
 
@@ -70,7 +75,7 @@ Neural machine translation (NMT) models typically operate with a fixed
 vocabulary, but translation is an open-vocabulary problem.
 Byte pair encoding (BPE) enables NMT model translation on open-vocabulary by
 encoding rare and unknown words as sequences of subword units.
-This is based on the intuition that various word classes are translatable via
+This is based on an intuition that various word classes are translatable via
 smaller units than words. More information in the paper
 https://arxiv.org/abs/1508.07909 BPE creates a list of merges that are used
 for splitting out-of-vocabulary words. Example of such splitting::
@@ -81,10 +86,12 @@ Postprocessing can be manually done by::
 
   sed "s/@@ //g"
 
-BPE generation
+but Neural Monkey manages it for you.
+
+BPE Generation
 **************
 
-In order to use BPE, you must first generate merge_file, over all data. This
+In order to use BPE, you must first generate `merge_file`, over all data. This
 file is generated on both source and target dataset.
 You can generate it by running following script::
 
@@ -107,9 +114,9 @@ Part II. - The Model Configuration
 ----------------------------------
 
 In this section, we will go through setting the configuration file
-``translation.ini`` needed for
-the training of the machine translation task. We will mention only
-differences from the main Post_editing tutorial
+``translation.ini`` needed for the machine translation training.
+We will mention only the
+differences from the main post-editing tutorial
 
 1 - Datasets
 ************
@@ -121,19 +128,19 @@ For training, we prepare two datasets. Since we will be using BPE, we need to
   class=config.utils.dataset_from_files
   s_source=exp-nm-mt/data/train/Batch1a_en.txt.gz
   s_target=exp-nm-mt/data/train/Batch1a_cs.txt.gz
-  preprocessor=<bpe_preprocess>
+  preprocessors=[(source, source_bpe, <bpe_preprocess>), (target, target_bpe, <bpe_preprocess>)]
 
   [val_data]
   class=config.utils.dataset_from_files
   s_source=exp-nm-mt/data/dev/Batch2a_en.txt.gz
   s_target=exp-nm-mt/data/dev/Batch2a_cs.txt.gz
-  preprocessor=<bpe_preprocess>
+  preprocessors=[(source, source_bpe, <bpe_preprocess>), (target, target_bpe, <bpe_preprocess>)]
 
-2 - Preprocessor and postprocessor
+2 - Preprocessor and Postprocessor
 **********************************
 
-Wee need to tell the Neural Monkey how it should handle preprocessing and
-postprocessing due to the BPR::
+We need to tell the Neural Monkey how it should handle preprocessing and
+postprocessing due to the BPE::
 
   [bpe_preprocess]
   class=processors.bpe.BPEPreprocessor
@@ -154,9 +161,10 @@ merges::
   path=exp-nm-mt/data/merge_file.bpe
 
 4 - Encoder and Decoder
-************
+***********************
 
-The encoder and decored is similar to Post-Editing ones::
+The encoder and decored are similar to those from
+:ref:`the post-editing tutorial <post-editing>`::
 
   [encoder]
   class=encoders.sentence_encoder.SentenceEncoder
@@ -164,9 +172,8 @@ The encoder and decored is similar to Post-Editing ones::
   rnn_size=300
   max_input_len=50
   embedding_size=300
-  dropout_keep_prob=0.8
   attention_type=decoding_function.Attention
-  data_id=source
+  data_id=source_bpe
   vocabulary=<shared_vocabulary>
 
   [decoder]
@@ -176,16 +183,18 @@ The encoder and decored is similar to Post-Editing ones::
   rnn_size=256
   embedding_size=300
   use_attention=True
-  dropout_keep_prob=0.8
-  data_id=target
+  data_id=target_bpe
   vocabulary=<shared_vocabulary>
   max_output_len=50
 
+You can notice that both encoder and decoder uses as input data id the data
+preprocessed by `<bpe_preprocess>`.
 
-5 - Training sections
-**********************
+5 - Training Sections
+*********************
 
-Following sections are described more in detail in Post-editing task::
+The following sections are described in more detail in
+:ref:`the post-editing tutorial <post-editing>`::
 
   [trainer]
   class=trainers.cross_entropy_trainer.CrossEntropyTrainer
@@ -196,6 +205,7 @@ Following sections are described more in detail in Post-editing task::
   class=runners.runner.GreedyRunner
   decoder=<decoder>
   output_series=series_named_greedy
+  postprocess=<bpe_postprocess>
 
   [bleu]
   class=evaluators.bleu.BLEUEvaluator
@@ -230,7 +240,6 @@ As for the main configuration section do not forget to add BPE postprocessing::
   validation_period=1000
   logging_period=20
   save_n_best=3
-  postprocess=<bpe_postprocess>
 
 Part III. - Running and Evaluation of the Experiment
 ----------------------------------------------------
@@ -253,5 +262,4 @@ and run::
 
  bin/neuralmonkey-run exp-nm-mt/translation.ini exp-nm-mt/test_datasets.ini
 
-Now, you have a translation produced from your own translation model and you
-can start training various models.
+You are ready to experiment with your own models.

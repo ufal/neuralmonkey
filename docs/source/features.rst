@@ -31,7 +31,7 @@ or::
   dropout_keep_prob=0.8
   ...
 
-Pervasive dropout
+Pervasive Dropout
 *****************
 
 Detailed information in https://arxiv.org/abs/1512.05287

@@ -155,7 +155,7 @@ tools. The format of the data is plain text with one sentence per line.  There
 is 12k training triplets of sentences, 1k development triplets and 2k of
 evaluation triplets.
 
-Preprocessing of the data
+Preprocessing of the Data
 *************************
 
 The next phase is to prepare the post editing sequences that we should learn
@@ -339,7 +339,7 @@ between that encoder and the decoder. The loss of the decoder is computed
 against the ``edits`` data series.
 
 
-5 - Runner and trainer
+5 - Runner and Trainer
 **********************
 
 As their names suggest, runners and trainers are used for running and training
@@ -364,7 +364,7 @@ We define these two objects like this::
 
 Note that runner can only have one decoder, but during training you can train several decoders.
 
-6 - Evaluation metrics
+6 - Evaluation Metrics
 **********************
 
 During validation, the whole validation dataset gets processed by the models and
@@ -395,7 +395,7 @@ In order to handle system variables as how many cores the tensorflow should use,
   num_sessions=1
 
 
-8 - Main configuration section
+8 - Main Configuration Section
 ******************************
 
 Almost there! The last part of the configuration puts all the pieces
