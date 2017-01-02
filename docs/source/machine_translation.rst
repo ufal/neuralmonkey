@@ -10,7 +10,7 @@ experiments in Neural Monkey. We assumes that you already read
 
 The goal of the translation task is to translate sentences from one language
 into
-another. For this tutorial we will use data from the WMT 16 IT-domain
+another. For this tutorial we use data from the WMT 16 IT-domain
 translation shared task on English-to-Czech direction.
 
 `WMT <http://www.statmt
@@ -21,8 +21,8 @@ groups compete in translating different datasets over various language pairs.
 Part I. - The Data
 --------------------
 
-We are going to use the data for WMT 16 shared IT Machine Translation task. You
-can get them at the `WMT IT Translation Shared Task webpage
+We are going to use the data for the WMT 16 IT-domain translation shared task.
+You can get them at the `WMT IT Translation Shared Task webpage
 <http://www.statmt.org/wmt16/it-translation-task.html>`_ and there download
 Batch1 and Batch2 answers and Batch3 as a testing set. Or directly `here
 <http://ufallab.ms.mff.cuni.cz/~popel/batch1and2.zip>`_ and
@@ -31,15 +31,16 @@ Batch1 and Batch2 answers and Batch3 as a testing set. Or directly `here
 Note: Since we are using only small data for example which are not enough
  for real-life machine translation training.
 
-When we open the archive we find several files for different languages, we
-will use only following files as our training, validation and test set::
+We find several files for different languages in the downloaded archive.
+From which we use only the following files as our training, validation and
+test set::
 
     1. ``Batch1a_cs.txt and Batch1a_en.txt`` as our Training set
     2. ``Batch2a_cs.txt and Batch2a_en.txt`` as a Validation set
     3. ``Batch3`` as a Test set
 
-Now - before we start, let's make our experiment directory, in which we will
-place all our work. We will call it ``exp-nm-mt``.
+Now - before we start, let's make our experiment directory, in which we place
+all our work. Lets call it ``exp-nm-mt``.
 
 First extract all the downloaded files, then make gzip files from individual
 files and put arrange them into the following directory structure::
@@ -113,15 +114,14 @@ and target sides.
 Part II. - The Model Configuration
 ----------------------------------
 
-In this section, we will go through setting the configuration file
+In this section, we create the configuration file
 ``translation.ini`` needed for the machine translation training.
-We will mention only the
-differences from the main post-editing tutorial
+We mention only the differences from the main post-editing tutorial
 
 1 - Datasets
 ************
 
-For training, we prepare two datasets. Since we will be using BPE, we need to
+For training, we prepare two datasets. Since we are using BPE, we need to
  define the preprocessor. The configuration of the datasets looks like this::
 
   [train_data]
@@ -153,7 +153,7 @@ postprocessing due to the BPE::
 3 - Vocabularies
 ****************
 
-For both encoder and decoder we will use shared vocabulary created from BPE
+For both encoder and decoder we use shared vocabulary created from BPE
 merges::
 
   [shared_vocabulary]
@@ -231,14 +231,13 @@ As for the main configuration section do not forget to add BPE postprocessing::
   trainer=<trainer>
   train_dataset=<train_data>
   val_dataset=<val_data>
-  evaluation=[(series_named_greedy,target,<bleu>), (series_named_greedy,target,
-  <ter>)]
+  evaluation=[(series_named_greedy,target,<bleu>), (series_named_greedy, target, <ter>)]
   minimize=True
-  batch_size=128
+  batch_size=80
   runners_batch_size=256
   epochs=10
-  validation_period=1000
-  logging_period=20
+  validation_period=5000
+  logging_period=80
   save_n_best=3
 
 Part III. - Running and Evaluation of the Experiment
