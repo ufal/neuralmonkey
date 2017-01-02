@@ -309,7 +309,8 @@ class LazyDataset(Dataset):
         """
         parent_series = dict()  # type: Dict[str, Any]
         parent_series.update({s: None for s in series_paths_and_readers})
-        parent_series.update({s[1]: None for s in preprocessors})
+        if preprocessors:
+            parent_series.update({s[1]: None for s in preprocessors})
         super().__init__(name, parent_series, series_outputs)
         self.series_paths_and_readers = series_paths_and_readers
 
