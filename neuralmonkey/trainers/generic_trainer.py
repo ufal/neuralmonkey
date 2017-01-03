@@ -26,7 +26,7 @@ class GenericTrainer(object):
 
     def __init__(self, objectives: List[Objective],
                  l1_weight=0.0, l2_weight=0.0,
-                 clip_norm=False, optimizer=None) -> None:
+                 clip_norm=False, optimizer=None, global_step=None) -> None:
 
         self.optimizer = optimizer or tf.train.AdamOptimizer(1e-4)
 
@@ -68,7 +68,13 @@ class GenericTrainer(object):
 
         self.all_coders = set.union(*(collect_encoders(obj.decoder)
                                       for obj in objectives))
-        self.train_op = self.optimizer.apply_gradients(gradients)
+
+        if global_step is None:
+            global_step = tf.Variable(0, trainable=False, name='global_step')
+        self.global_step = global_step
+
+        self.train_op = self.optimizer.apply_gradients(
+            gradients, global_step=self.global_step)
 
         for grad, var in gradients:
             if grad is not None:

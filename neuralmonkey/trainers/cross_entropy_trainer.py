@@ -24,7 +24,7 @@ class CrossEntropyTrainer(GenericTrainer):
     def __init__(self, decoders: List[Any],
                  decoder_weights: Optional[List[ObjectiveWeight]]=None,
                  l1_weight=0., l2_weight=0.,
-                 clip_norm=False, optimizer=None) -> None:
+                 clip_norm=False, optimizer=None, global_step=None) -> None:
 
         if decoder_weights is None:
             decoder_weights = [None for _ in decoders]
@@ -38,4 +38,4 @@ class CrossEntropyTrainer(GenericTrainer):
                       for dec, w in zip(decoders, decoder_weights)]
         super(CrossEntropyTrainer, self).__init__(
             objectives, l1_weight, l2_weight, clip_norm=clip_norm,
-            optimizer=optimizer)
+            optimizer=optimizer, global_step=global_step)
