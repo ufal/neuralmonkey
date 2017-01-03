@@ -16,6 +16,7 @@ import numpy as np
 
 from neuralmonkey.logging import log
 #from neuralmonkey.decoding_function import attention_decoder
+from neuralmonkey.encoders.attentive import Attentive
 from neuralmonkey.nn.noisy_gru_cell import NoisyGRUCell
 from neuralmonkey.checking import assert_type
 from neuralmonkey.vocabulary import Vocabulary, START_TOKEN
@@ -384,8 +385,8 @@ class Decoder(object):
             # jestli ho maji zadefinovanej nebo ne
 
             if use_attention:
-                attention_objects = [e.attention_object
-                                     for e in encoders if e.attention_object]
+                attention_objects = [e.get_attention_object()
+                                     for e in encoders if isinstance(e, Attentive)]
             else:
                 attention_objects = []
 
