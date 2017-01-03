@@ -13,8 +13,8 @@ into
 another. For this tutorial we use data from the WMT 16 IT-domain
 translation shared task on English-to-Czech direction.
 
-`WMT <http://www.statmt
-.org/wmt16/>`_ is an annual machine translation conference where academic
+`WMT <http://www.statmt.org/wmt16/>`_
+is an annual machine translation conference where academic
 groups compete in translating different datasets over various language pairs.
 
 
@@ -28,8 +28,8 @@ Batch1 and Batch2 answers and Batch3 as a testing set. Or directly `here
 <http://ufallab.ms.mff.cuni.cz/~popel/batch1and2.zip>`_ and
 `testset <http://ufallab.ms.mff.cuni.cz/~popel/batch3.zip>`_.
 
-Note: Since we are using only small data for example which are not enough
- for real-life machine translation training.
+Note: In this tutorial we are using only small data for an example which are
+not enough for real-life machine translation training.
 
 We find several files for different languages in the downloaded archive.
 From which we use only the following files as our training, validation and
