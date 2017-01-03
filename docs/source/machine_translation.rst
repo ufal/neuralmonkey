@@ -28,8 +28,8 @@ Batch1 and Batch2 answers and Batch3 as a testing set. Or directly `here
 <http://ufallab.ms.mff.cuni.cz/~popel/batch1and2.zip>`_ and
 `testset <http://ufallab.ms.mff.cuni.cz/~popel/batch3.zip>`_.
 
-Note: In this tutorial we are using only small data for an example which are
-not enough for real-life machine translation training.
+Note: In this tutorial we are using only small data as an example, which are
+not big enough for real-life machine translation training.
 
 We find several files for different languages in the downloaded archive.
 From which we use only the following files as our training, validation and
