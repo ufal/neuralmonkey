@@ -195,7 +195,7 @@ class FactoredEncoder(Attentive):
         # this method should be responsible for checking if the factored
         # sentences are of the same length
 
-        res = {}
+        fd = {}
         # we asume that all factors have equal word counts
         # this is removed as res should only contain placeholders as keys
         # res[self.sentence_lengths] = np.array(
@@ -232,17 +232,16 @@ class FactoredEncoder(Attentive):
             inputs = self.factor_inputs[data_id]
             vectors, _ = factor_vectors_and_weights[data_id]
             for words_plc, words_tensor in zip(inputs, vectors):
-                res[words_plc] = words_tensor
+                fd[words_plc] = words_tensor
 
-        res[self.padding_weights[0]] = np.ones(batch_size)
-
+        fd[self.padding_weights[0]] = np.ones(batch_size)
         for plc, padding in zip(self.padding_weights[1:], paddings):
-            res[plc] = padding
+            fd[plc] = padding
 
         if train:
-            res[self.dropout_placeholder] = self.dropout_keep_prob
+            fd[self.dropout_placeholder] = self.dropout_keep_prob
         else:
-            res[self.dropout_placeholder] = 1.0
-        res[self.is_training] = train
+            fd[self.dropout_placeholder] = 1.0
+        fd[self.is_training] = train
 
-        return res
+        return fd

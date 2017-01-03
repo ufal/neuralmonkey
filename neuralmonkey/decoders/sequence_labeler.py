@@ -74,7 +74,7 @@ class SequenceLabeler(Decoder):
 
     def feed_dict(self, dataset, train=False):
 
-        feed = {}
+        fd = {}
 
         sentences = dataset.get_series(self.data_id, allow_none=True)
 
@@ -86,12 +86,12 @@ class SequenceLabeler(Decoder):
             assert len(inputs) == len(self.train_targets) + 2
 
             for placeholder, weight in zip(self.train_weights, weights[:-1]):
-                feed[placeholder] = weight
+                fd[placeholder] = weight
 
             for placeholder, tensor in zip(self.train_targets, inputs[1:-1]):
-                feed[placeholder] = tensor
+                fd[placeholder] = tensor
 
         if not train:
-            feed[self.dropout_placeholder] = 1.0
+            fd[self.dropout_placeholder] = 1.0
 
-        return feed
+        return fd

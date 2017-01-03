@@ -69,18 +69,18 @@ class SequenceClassifier(object):
 
     def feed_dict(self, dataset, train=False):
         sentences = dataset.get_series(self.data_id, allow_none=True)
-        res = {}
+        fd = {}
 
         # vocabulary automatically adds "<s>" and "</s>", so we need to take
         # only the middle symbol out of it
         label_tensors, _ = \
             self.vocabulary.sentences_to_tensor(
                 sentences, self.max_output_len + 2)
-        res[self.gt_inputs[0]] = label_tensors[1]
+        fd[self.gt_inputs[0]] = label_tensors[1]
 
         if train:
-            res[self.dropout_placeholder] = self.dropout_keep_prob
+            fd[self.dropout_placeholder] = self.dropout_keep_prob
         else:
-            res[self.dropout_placeholder] = 1.0
+            fd[self.dropout_placeholder] = 1.0
 
-        return res
+        return fd
