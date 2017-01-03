@@ -219,6 +219,7 @@ The following sections are described in more detail in
   class=tf_manager.TensorFlowManager
   num_threads=4
   num_sessions=1
+  save_n_best=3
 
 
 As for the main configuration section do not forget to add BPE postprocessing::
@@ -238,7 +239,6 @@ As for the main configuration section do not forget to add BPE postprocessing::
   epochs=10
   validation_period=5000
   logging_period=80
-  save_n_best=3
 
 Part III. - Running and Evaluation of the Experiment
 ----------------------------------------------------
