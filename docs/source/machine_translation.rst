@@ -233,7 +233,7 @@ As for the main configuration section do not forget to add BPE postprocessing::
   train_dataset=<train_data>
   val_dataset=<val_data>
   evaluation=[(series_named_greedy,target,<bleu>), (series_named_greedy, target, <ter>)]
-  minimize=True
+  minimize=False
   batch_size=80
   runners_batch_size=256
   epochs=10
