@@ -40,7 +40,7 @@ test set::
     3. ``Batch3`` as a Test set
 
 Now - before we start, let's make our experiment directory, in which we place
-all our work. Lets call it ``exp-nm-mt``.
+all our work. Let's call it ``exp-nm-mt``.
 
 First extract all the downloaded files, then make gzip files from individual
 files and put arrange them into the following directory structure::
@@ -116,7 +116,7 @@ Part II. - The Model Configuration
 
 In this section, we create the configuration file
 ``translation.ini`` needed for the machine translation training.
-We mention only the differences from the main post-editing tutorial
+We mention only the differences from the main post-editing tutorial.
 
 1 - Datasets
 ************
@@ -255,7 +255,6 @@ As for the evaluation, you need to create ``test_datasets.ini``::
   [eval_data]
   class=config.utils.dataset_from_files
   s_source=exp-nm-mt/data/test/batch3.gz
-  preprocessor=<bpe_preprocess>
 
 and run::
 
