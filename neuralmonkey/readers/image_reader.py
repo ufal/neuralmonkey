@@ -55,7 +55,6 @@ def image_reader(prefix="",
                              "or three dimensions (color channels), has {} "
                              "dimension.").format(len(image_np.shape)))
 
-
                     yield _pad(image, pad_w, pad_h, channels)
 
     return load
