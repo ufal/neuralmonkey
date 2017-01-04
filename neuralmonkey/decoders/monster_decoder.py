@@ -15,7 +15,6 @@ import tensorflow as tf
 import numpy as np
 
 from neuralmonkey.logging import log
-#from neuralmonkey.decoding_function import attention_decoder
 from neuralmonkey.encoders.attentive import Attentive
 from neuralmonkey.nn.noisy_gru_cell import NoisyGRUCell
 from neuralmonkey.checking import assert_type
@@ -379,14 +378,16 @@ class Decoder(object):
 
                 decoder_cells.append(get_rnn_cell())
 
-            decoder_cell = tf.nn.rnn_cell.MultiRNNCell(decoder_cells, state_is_tuple=False)
+            decoder_cell = tf.nn.rnn_cell.MultiRNNCell(decoder_cells,
+                                                       state_is_tuple=False)
 
             # A ted prichazi na radu attention. To se jen kouknem na encodery,
             # jestli ho maji zadefinovanej nebo ne
 
             if use_attention:
                 attention_objects = [e.get_attention_object()
-                                     for e in encoders if isinstance(e, Attentive)]
+                                     for e in encoders
+                                     if isinstance(e, Attentive)]
             else:
                 attention_objects = []
 
@@ -514,7 +515,6 @@ class Decoder(object):
         return self.decoded_seq
 
 
-
 def attention_decoder(decoder_inputs, initial_state, attention_objects,
                       embedding_size, cell, output_size=None,
                       loop_function=None, dtype=tf.float32, scope=None):
@@ -529,9 +529,9 @@ def attention_decoder(decoder_inputs, initial_state, attention_objects,
         # to be the same for all inputs
         if len(initial_state.get_shape()) == 1:
             state_size = initial_state.get_shape()[0].value
-            initial_state = tf.reshape(tf.tile(initial_state,
-                                               tf.shape(decoder_inputs[0])[:1]),
-                                       [-1, state_size])
+            initial_state = tf.reshape(
+                tf.tile(initial_state, tf.shape(decoder_inputs[0])[:1]),
+                [-1, state_size])
 
         state = initial_state
         outputs = []
@@ -566,8 +566,8 @@ def attention_decoder(decoder_inputs, initial_state, attention_objects,
 
             if attns:
                 with tf.variable_scope("AttnOutputProjection"):
-                    output = tf.nn.seq2seq.linear([cell_output] + attns, output_size,
-                                             True)
+                    output = tf.nn.seq2seq.linear([cell_output] + attns,
+                                                  output_size, True)
             else:
                 output = cell_output
 

@@ -22,7 +22,7 @@ class GreedyRunner(BaseRunner):
         if val_plot_summaries:
             self.image_summaries = tf.merge_summary(val_plot_summaries)
         else:
-            self.image_summaries = []
+            self.image_summaries = None
 
     def get_executable(self, train=False, summaries=True):
         if train:
@@ -33,7 +33,7 @@ class GreedyRunner(BaseRunner):
                        "runtime_xent": tf.zeros([])}
         fecthes["decoded_logprobs"] = self._decoder.runtime_logprobs
 
-        if summaries and self.image_summaries:
+        if summaries and self.image_summaries is not None:
             fecthes['image_summaries'] = self.image_summaries
 
         return GreedyRunExecutable(self.all_coders, fecthes,
