@@ -9,6 +9,7 @@ import numpy as np
 from neuralmonkey.vocabulary import Vocabulary, START_TOKEN
 from neuralmonkey.logging import log
 from neuralmonkey.nn.utils import dropout
+from neuralmonkey.encoders.attentive import Attentive
 from neuralmonkey.decoders.encoder_projection import (
     linear_encoder_projection, concat_encoder_projection, empty_initial_state)
 
@@ -234,8 +235,8 @@ class Decoder(object):
 
         att_objects = []
         if self.use_attention:
-            att_objects = [e.attention_object for e in self.encoders
-                           if e.attention_object is not None]
+            att_objects = [e.get_attention_object() for e in self.encoders
+                           if isinstance(e, Attentive)]
 
 
         if output_size is None:
