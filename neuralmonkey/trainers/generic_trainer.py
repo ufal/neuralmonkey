@@ -90,8 +90,10 @@ class GenericTrainer(object):
         gradient_list = self.optimizer.compute_gradients(tensor)
         return gradient_list
 
-    # pylint: disable=unused-argument
-    def get_executable(self, train=False, summaries=True) -> Executable:
+    def get_executable(
+            self, compute_losses=True, summaries=True) -> Executable:
+        assert compute_losses
+
         return TrainExecutable(self.all_coders,
                                self.train_op,
                                self.losses,

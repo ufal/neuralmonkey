@@ -24,19 +24,20 @@ class GreedyRunner(BaseRunner):
         else:
             self.image_summaries = None
 
-    def get_executable(self, train=False, summaries=True):
-        if train:
-            fecthes = {"train_xent": self._decoder.train_loss,
+    def get_executable(self, compute_losses=False, summaries=True):
+        if compute_losses:
+            fetches = {"train_xent": self._decoder.train_loss,
                        "runtime_xent": self._decoder.runtime_loss}
         else:
-            fecthes = {"train_xent": tf.zeros([]),
+            fetches = {"train_xent": tf.zeros([]),
                        "runtime_xent": tf.zeros([])}
-        fecthes["decoded_logprobs"] = self._decoder.runtime_logprobs
+
+        fetches["decoded_logprobs"] = self._decoder.runtime_logprobs
 
         if summaries and self.image_summaries is not None:
-            fecthes['image_summaries'] = self.image_summaries
+            fetches['image_summaries'] = self.image_summaries
 
-        return GreedyRunExecutable(self.all_coders, fecthes,
+        return GreedyRunExecutable(self.all_coders, fetches,
                                    self._decoder.vocabulary,
                                    self._postprocess)
 
@@ -47,9 +48,9 @@ class GreedyRunner(BaseRunner):
 
 class GreedyRunExecutable(Executable):
 
-    def __init__(self, all_coders, fecthes, vocabulary, postprocess):
+    def __init__(self, all_coders, fetches, vocabulary, postprocess):
         self.all_coders = all_coders
-        self._fetches = fecthes
+        self._fetches = fetches
         self._vocabulary = vocabulary
         self._postprocess = postprocess
 

@@ -261,7 +261,7 @@ def run_on_dataset(tf_manager: TensorFlowManager,
                            for runner in runners)
 
     all_results = tf_manager.execute(dataset, runners,
-                                     train=contains_targets,
+                                     compute_losses=contains_targets,
                                      batch_size=batch_size)
 
     result_data_raw = {runner.output_series: result.outputs

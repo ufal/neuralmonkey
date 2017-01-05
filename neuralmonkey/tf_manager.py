@@ -70,6 +70,7 @@ class TensorFlowManager(object):
                 dataset: Dataset,
                 execution_scripts,
                 train=False,
+                compute_losses=True,
                 summaries=True,
                 batch_size=None) -> List[ExecutionResult]:
         if batch_size is None:
@@ -79,7 +80,8 @@ class TensorFlowManager(object):
         batch_results = [
             [] for _ in execution_scripts]  # type: List[List[ExecutionResult]]
         for batch in batched_dataset:
-            executables = [s.get_executable(train=train, summaries=summaries)
+            executables = [s.get_executable(compute_losses=compute_losses,
+                                            summaries=summaries)
                            for s in execution_scripts]
             while not all(ex.result is not None for ex in executables):
                 all_feedables = set()   # type: Set[Any]

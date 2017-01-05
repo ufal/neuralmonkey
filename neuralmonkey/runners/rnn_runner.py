@@ -190,14 +190,14 @@ class RuntimeRnnRunner(BaseRunner):
         self._beam_scoring_f = beam_scoring_f
         self._postprocess = postprocess
 
-    def get_executable(self, train=False, summaries=True):
+    def get_executable(self, compute_losses=False, summaries=True):
 
         return RuntimeRnnExecutable(self.all_coders, self._decoder,
                                     self._initial_fetches,
                                     self._decoder.vocabulary,
                                     beam_size=self._beam_size,
                                     beam_scoring_f=self._beam_scoring_f,
-                                    compute_loss=train,
+                                    compute_loss=compute_losses,
                                     postprocess=self._postprocess)
 
     @property
