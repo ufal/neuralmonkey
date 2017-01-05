@@ -356,7 +356,8 @@ class Vocabulary(collections.Sized):
             vector.
         """
         word_indices = np.full(
-            [max_len, len(sentences)], self.get_word_index(PAD_TOKEN))
+            [max_len, len(sentences)], self.get_word_index(PAD_TOKEN),
+            dtype=np.int32)
         weights = np.zeros([max_len, len(sentences)])
 
         for i in range(max_len):
@@ -373,7 +374,8 @@ class Vocabulary(collections.Sized):
 
         if add_start_symbol:
             prepend_indices = np.full(
-                [1, len(sentences)], self.get_word_index(START_TOKEN))
+                [1, len(sentences)], self.get_word_index(START_TOKEN),
+                dtype=np.int32)
             prepend_weights = np.ones([1, len(sentences)])
 
             word_indices = np.concatenate(prepend_indices, word_indices)
