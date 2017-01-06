@@ -133,8 +133,13 @@ class Decoder(object):
             embedded_go_symbols = tf.nn.embedding_lookup(self.embedding_matrix,
                                                          self.go_symbols)
 
-            # maps tuples (encoder, train_mode) to attention objects
-            self._attention_object_map = {}
+            # fetch attention objects
+            self._attention_objects = {}
+            if self.use_attention:
+                self._attention_objects = {
+                    e: e.get_attention_object()
+                    for e in self.encoders
+                    if isinstance(e, Attentive)}
 
             train_rnn_outputs, _ = self._attention_decoder(
                 embedded_go_symbols, train_inputs=embedded_train_inputs,
@@ -270,15 +275,6 @@ class Decoder(object):
     def _get_rnn_cell(self) -> tf.nn.rnn_cell.RNNCell:
         return tf.nn.rnn_cell.GRUCell(self.rnn_size)
 
-    def get_attention_object(self, encoder, train_mode: bool,
-                             create: bool=False):
-        key = (encoder, train_mode)
-        if key not in self._attention_object_map and create:
-            self._attention_object_map[key] = encoder.get_attention_object(
-                runtime=not train_mode)
-
-        return self._attention_object_map[key]
-
     def _attention_decoder(
             self,
             go_symbols: tf.Tensor,
@@ -297,17 +293,8 @@ class Decoder(object):
                 decoded using the loop function)
             scope: Variable scope to use
         """
-        att_objects = []
-        if self.use_attention:
-            att_objects = [e.get_attention_object() for e in self.encoders
-                           if isinstance(e, Attentive)]
-
+        att_objects = self._attention_objects.values()
         cell = self._get_rnn_cell()
-        if self.use_attention:
-            att_objects = [self.get_attention_object(e, train_mode,
-                                                     create=True)
-                           for e in self.encoders
-                           if isinstance(e, Attentive)]
 
         with tf.variable_scope(scope or "attention_decoder"):
             state = self.initial_state
@@ -359,9 +346,7 @@ class Decoder(object):
 
     def _visualize_attention(self, train_mode=False):
         """Create image summaries with attentions"""
-        att_objects = [self.get_attention_object(e, train_mode)
-                       for e in self.encoders
-                       if isinstance(e, Attentive)]
+        att_objects = self._attention_objects.values()
 
         for i, a in enumerate(att_objects):
             alignments = tf.expand_dims(tf.transpose(
