@@ -1,4 +1,3 @@
-
 """
 Old, deprecated version of the decoder. In time, this will vanish.
 Now it is here for inspiration to young developers who do not wish
@@ -385,7 +384,7 @@ class Decoder(object):
             # jestli ho maji zadefinovanej nebo ne
 
             if use_attention:
-                attention_objects = [e.get_attention_object()
+                attention_objects = [e.create_attention_object()
                                      for e in encoders
                                      if isinstance(e, Attentive)]
             else:

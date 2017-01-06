@@ -17,7 +17,7 @@ class Attentive(metaclass=ABCMeta):
         self._attention_type = attention_type
         self._attention_kwargs = kwargs
 
-    def get_attention_object(self):
+    def create_attention_object(self):
         """Attention object that can be used in decoder."""
         # pylint: disable=no-member
         if hasattr(self, "name") and self.name:  # type: ignore

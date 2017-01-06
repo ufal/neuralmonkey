@@ -136,7 +136,7 @@ class Decoder(object):
             self._train_attention_objects = {}
             if self.use_attention:
                 self._train_attention_objects = {
-                    e: e.get_attention_object()
+                    e: e.create_attention_object()
                     for e in self.encoders
                     if isinstance(e, Attentive)}
 
@@ -151,7 +151,7 @@ class Decoder(object):
             self._runtime_attention_objects = {}
             if self.use_attention:
                 self._runtime_attention_objects = {
-                    e: e.get_attention_object()
+                    e: e.create_attention_object()
                     for e in self.encoders
                     if isinstance(e, Attentive)}
 
