@@ -245,9 +245,11 @@ class RuntimeRnnExecutable(Executable):
         self._current_beam_batch = self._to_exapand.pop()
 
         if self._current_beam_batch is not None:
-            additional_feed_dict = {t: index for t, index in zip(
-                tf.unpack(self._decoder.train_inputs[1:]),
-                self._current_beam_batch.decoded.T)}
+            batch_size, output_len = self._current_beam_batch.decoded.shape
+            fed_value = np.zeros([self._decoder.max_output_len, batch_size])
+            fed_value[:output_len, :] = self._current_beam_batch.decoded.T
+
+            additional_feed_dict = {self._decoder.train_inputs: fed_value}
         else:
             additional_feed_dict = {}
 

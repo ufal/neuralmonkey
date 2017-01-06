@@ -320,18 +320,16 @@ class Decoder(object):
                 if i > 0:
                     tf.get_variable_scope().reuse_variables()
 
-                if train_mode:
+                if prev is None:
+                    assert i == 0
+                    inp = go_symbols[0]
+                elif train_mode:
                     inp = train_inputs[i - 1]
                 else:
-
-                    if prev is None:
-                        assert i == 0
-                        inp = go_symbols[0]
-                    else:
-                        with tf.variable_scope("loop_function", reuse=True):
-                            out_activation = self._logit_function(prev)
-                            prev_word_index = tf.argmax(out_activation, 1)
-                            inp = self._embed_and_dropout(prev_word_index)
+                    with tf.variable_scope("loop_function", reuse=True):
+                        out_activation = self._logit_function(prev)
+                        prev_word_index = tf.argmax(out_activation, 1)
+                        inp = self._embed_and_dropout(prev_word_index)
 
                 # Merge input and previous attentions into one vector of the
                 # right size.
@@ -349,9 +347,7 @@ class Decoder(object):
                 else:
                     output = cell_output
 
-                if not train_mode:
-                    prev = output
-
+                prev = output
                 outputs.append(output)
 
         return outputs, states
