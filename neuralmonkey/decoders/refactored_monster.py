@@ -179,8 +179,9 @@ class Decoder(object):
         self.train_loss = tf.nn.seq2seq.sequence_loss(
             self.train_logits, train_targets,
             tf.unpack(self.train_padding), len(self.vocabulary))
-
         self.cost = self.train_loss
+
+        self.train_logprobs = [tf.nn.log_softmax(l) for l in self.train_logits]
 
         self.decoded, self.runtime_logits = decode(self.runtime_rnn_outputs)
 
