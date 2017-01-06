@@ -6,7 +6,6 @@ import math
 import tensorflow as tf
 import numpy as np
 
-from neuralmonkey.encoders.attentive import Attentive
 from neuralmonkey.vocabulary import Vocabulary, START_TOKEN
 from neuralmonkey.logging import log
 from neuralmonkey.nn.utils import dropout
