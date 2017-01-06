@@ -94,7 +94,4 @@ class GermanPostprocessor(object):
             else:
                 result.append(word)
 
-        if result:
-            result[0] = result[0].capitalize()
-
         return result
