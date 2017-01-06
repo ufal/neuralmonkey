@@ -47,7 +47,7 @@ def create_config() -> Configuration:
     return config
 
 
-#pylint: disable=too-many-statements
+# pylint: disable=too-many-statements
 def main() -> None:
     if len(sys.argv) != 2:
         print("Usage: train.py <ini_file>")
