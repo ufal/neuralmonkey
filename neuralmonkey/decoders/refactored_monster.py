@@ -132,10 +132,10 @@ class Decoder(object):
             embedded_go_symbols = tf.nn.embedding_lookup(self.embedding_matrix,
                                                          self.go_symbols)
 
-            # fetch attention objects
-            self._attention_objects = {}
+            # fetch train attention objects
+            self._train_attention_objects = {}
             if self.use_attention:
-                self._attention_objects = {
+                self._train_attention_objects = {
                     e: e.get_attention_object()
                     for e in self.encoders
                     if isinstance(e, Attentive)}
@@ -146,6 +146,14 @@ class Decoder(object):
 
             assert not tf.get_variable_scope().reuse
             tf.get_variable_scope().reuse_variables()
+
+            # fetch runtime attention objects
+            self._runtime_attention_objects = {}
+            if self.use_attention:
+                self._runtime_attention_objects = {
+                    e: e.get_attention_object()
+                    for e in self.encoders
+                    if isinstance(e, Attentive)}
 
             (self.runtime_rnn_outputs,
              self.runtime_rnn_states) = self._attention_decoder(
@@ -292,7 +300,11 @@ class Decoder(object):
                 decoded using the loop function)
             scope: Variable scope to use
         """
-        att_objects = self._attention_objects.values()
+        if train_mode:
+            att_objects = self._train_attention_objects.values()
+        else:
+            att_objects = self._runtime_attention_objects.values()
+
         cell = self._get_rnn_cell()
 
         with tf.variable_scope(scope or "attention_decoder"):
@@ -343,9 +355,9 @@ class Decoder(object):
 
         return outputs, states
 
-    def _visualize_attention(self, train_mode=False):
+    def _visualize_attention(self):
         """Create image summaries with attentions"""
-        att_objects = self._attention_objects.values()
+        att_objects = self._runtime_attention_objects.values()
 
         for i, a in enumerate(att_objects):
             alignments = tf.expand_dims(tf.transpose(
