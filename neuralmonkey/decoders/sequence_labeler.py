@@ -1,12 +1,10 @@
+# tests: lint, mypy
 import tensorflow as tf
 
 from neuralmonkey.decoders.decoder import Decoder
 
-# tests: lint, mypy
 
-# pylint: disable=too-many-instance-attributes
-
-
+# pylint: disable=too-many-instance-attributes,too-few-public-methods
 class SequenceLabeler(Decoder):
     """Classifier assing a label to each encoder's state."""
 
