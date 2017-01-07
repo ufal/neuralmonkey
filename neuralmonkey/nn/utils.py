@@ -1,8 +1,9 @@
 """
 This module provides utility functions used across the package.
 """
-#tests: mypy, lint
+# tests: mypy, lint
 import tensorflow as tf
+
 
 def dropout(variable: tf.Tensor,
             keep_prob: float,
