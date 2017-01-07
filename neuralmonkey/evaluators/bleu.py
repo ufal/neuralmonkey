@@ -1,7 +1,7 @@
 # tests: lint, mypy
 
 from collections import Counter
-from typing import List
+from typing import List, Tuple
 import numpy as np
 
 
@@ -62,9 +62,10 @@ class BLEUEvaluator(object):
         return merged
 
     @staticmethod
-    def modified_ngram_precision(hypotheses, references_list, n,
-                                 case_sensitive):
-        # type: (List[List[str]], List[List[List[str]]], int, bool) -> float
+    def modified_ngram_precision(hypotheses: List[List[str]],
+                                 references_list: List[List[List[str]]],
+                                 n: int,
+                                 case_sensitive: bool) -> Tuple[float, int]:
         """Computes the modified n-gram precision on a list of sentences
 
         Arguments:
