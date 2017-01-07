@@ -16,16 +16,15 @@ Part I. - The Task
 ------------------
 
 This section gives an overall description of the task we will try to solve in
-this tutorial. For I cannot think of anything better now and because I think
-making this tutorial about plain-old machine translation task would not be fun,
-our experiments will aim at the automatic post-editing task.
+this tutorial. To make things more interesting than plain machine translation,
+let's try automatic post-editing task (APE, rhyming well with Neural Monkey).
 
 In short, automatic post-editing is a task, in which we have a source language
 sentence (let's call it ``f``, as grown-ups do), a machine-translated sentence
 of ``f`` (I actually don't know what grown-ups call this, so let's call this
-``e'``), and we are required to generate another sentence in the same language
+``e'``), and we are expected to generate another sentence in the same language
 as ``e'`` but cleaned of all the errors that the machine translation system have
-made (this clean sentence, we will call ``e``). Consider this small example:
+made (let's call this cleaned sentence ``e``). Consider this small example:
 
 Source sentence ``f``:
   Bärbel hat eine Katze.
@@ -33,7 +32,7 @@ Source sentence ``f``:
 Machine-translated sentence ``e'``:
   Bärbel has a dog.
 
-Correct translation ``e``:
+Corrected translation ``e``:
   Bärbel has a cat.
 
 In the example, the machine translation system wrongly translated the German
@@ -57,10 +56,11 @@ source sentence was. The second view regards this as an ordinary machine
 translation task, with a little help from another MT system.
 
 In our tutorial, we will assume the MT system used to produce the sentence
-``e'`` was good enough for us to trust it suffice to make small edits to the
-translated sentence in order to make them correct. This means that we don't need
+``e'`` was good enough. We thus generally trust it and expect only to make 
+small edits to the
+translated sentence in order to make it fully correct. This means that we don't need
 to train a whole new MT system that would translate the source sentences from
-scratch. Instead we will build a system that will tell us how to edit the
+scratch. Instead, we will build a system that will tell us how to edit the
 machine translated sentence ``e'``.
 
 
@@ -69,34 +69,37 @@ Part II. - The Edit Operations
 
 How can an automatic system tell us how to edit a sentence? Here's one way to do
 it: We will design a set of edit operations and train the system to generate a
-sequence of this operations. If we consider a sequence of edit operations a
+sequence of these operations. If we consider a sequence of edit operations a
 function ``R`` (as in *rewrite*), which transforms one sequence to another, we
 can adapt the formulas above to suit our needs more::
 
   R* = argmax_R p(R(e')|f, e')
   e* = R*(e')
 
-Another question that arises is what the class of all possible edit functions
-should look like.
+So we are searching for the best edit function ``R*`` that, once applied
+to ``e'``, will give us the corrected output ``e*``.
+Another question is what the class of all possible edit functions
+should look like, for now we simply limit them to functions that can be
+defined as sequences of edit operations.
 
-The edit function processes the input sequence token-by-token in left-to-right
+The edit function ``R`` processes the input sequence token-by-token in left-to-right
 direction. It has a pointer to the input sequence, which starts by pointing to
 the first word of the sequence.
 
 We design three types of edit operations as follows:
 
 1. KEEP - this operation copies the current word to the output and moves the
-   pointer to the next token on the input
-2. DELETE - this operation does nothing and moves the pointer to the next token
-   on the input
+   pointer to the next token of the input,
+2. DELETE - this operation does not emit anything to the output and moves the pointer
+   to the next token of the input,
 3. INSERT - this operation puts a word on the output, leaving the pointer to the
    input intact.
 
-The edit function applies all its operations to the input sentence. For
-simplicity, if the pointer reaches the end of the input seqence, operations KEEP
-and DELETE do nothing. If the editation is ended before the end of the input
-sentence, the edit function applies additional KEEP operations, until it points
-to the end of the input sequence.
+The edit function applies all its operations to the input sentence. We handle malformed
+edit sequences simply: if the pointer reaches the end of the input seqence, operations KEEP
+and DELETE do nothing. If the sequence of edits ends before the end of the input
+sentence is reached, we apply as many additional KEEP operations as needed to reach
+the end of the input sequence.
 
 Let's see another example::
 
@@ -121,11 +124,11 @@ files in the repository:
 2. Test.zip - contains source and translated test data
 3. test_pe.zip - contains the post-edited test data
 
-Now - before we start, let's make our experiment directory, in which we will
+Now - before we start, let's create our experiment directory, in which we will
 place all our work. We shall call it for example ``exp-nm-ape`` (feel free to
 choose another weird string).
 
-Extract all the files in the ``exp-nm-ape/data`` directory. Rename the files and
+Extract all the files into the ``exp-nm-ape/data`` directory. Rename the files and
 directories so you get this directory structure::
 
   exp-nm-ape
@@ -152,7 +155,7 @@ directories so you get this directory structure::
 
 The data is already tokenized so we don't need to run any preprocessing
 tools. The format of the data is plain text with one sentence per line.  There
-is 12k training triplets of sentences, 1k development triplets and 2k of
+are 12k training triplets of sentences, 1k development triplets and 2k of
 evaluation triplets.
 
 Preprocessing of the Data
@@ -162,7 +165,7 @@ The next phase is to prepare the post editing sequences that we should learn
 during training. We apply the Levenshtein algorithm to find the shortest edit
 path from the translated sentence to the post-edited sentence. As a little
 coding excercise, you can implement your own script that does the job, or you
-may use our preprocessing script from the neuralmonkey package. For this, in the
+may use our preprocessing script from the Neural Monkey package. For this, in the
 neuralmonkey root directory, run::
 
   scripts/postedit_prepare_data.py \
@@ -176,9 +179,13 @@ NOTE: You may have to change the path to the exp-nm-ape directory if it is not
 located inside the repository root directory.
 
 NOTE 2: There is a hidden option of the preparation script
-(``--target-german=True``), which if used, it performs some preprocessing steps
+(``--target-german=True``) which turns on some steps
 tailored for better processing of German text. In this tutorial, we are not
 going to use it.
+
+If you look at the preprocessed files, you will see that the KEEP and DELETE
+operations are represented with special tokens while the INSERT operations are
+represented simply with the word they insert.
 
 Congratulations! Now, you should have train.edits, dev.edits and test.edits
 files all in their respective data directories. We can now move to work with
@@ -204,10 +211,15 @@ following paragraphs into the file.
 ************
 
 For training, we prepare two datasets. The first dataset will serve for the
-training, the other one for validation. In Neural Monkey, each dataset contains
+training, the second one for validation. In Neural Monkey, each dataset contains
 a number of so called `data series`. In our case, we will call the data series
 `source`, `translated`, and `edits`. Each of those series will contain the
-respective set of sentences. The configuration of the datasets looks like this::
+respective set of sentences.
+
+It is assumed that all series within a given dataset have the same number of
+elements (i.e. sentences in our case).
+
+The configuration of the datasets looks like this::
 
 
   [train_dataset]
@@ -222,10 +234,14 @@ respective set of sentences. The configuration of the datasets looks like this::
   s_translated=exp-nm-ape/data/dev/dev.mt
   s_edits=exp-nm-ape/data/dev/dev.edits
 
+Note that series names (`source`, `translated`, and `edits`) are arbitrary and
+defined by their first mention. The ``s_`` prefix stands for "series" and
+is used only here in the dataset sections, not later when the series are referred to.
 
 These two INI sections represent two calls to function
-``neuralmonkey.config.dataset_from_files``, with the series paths as keyword
-arguments. At the end, we will have two objects representing the two datasets.
+``neuralmonkey.config.dataset_from_files``, with the series file paths as keyword
+arguments. The function serves as a constructor and builds an object for every call.
+So at the end, we will have two objects representing the two datasets.
 
 
 2 - Vocabularies
@@ -254,24 +270,31 @@ to create only two vocabulary objects::
 The first vocabulary object (called ``source_vocabulary``) represents the
 (English) vocabulary used for this task. The 50,000 is the maximum size of the
 vocabulary. If the actual vocabulary of the data was bigger, the rare words
-would be replaced by the ``<unk>`` token, which stands for unknown words.  In
+would be replaced by the ``<unk>`` token (hardcoded in Neural Monkey, not part
+of the 50,000 items), which stands for unknown words.  In
 our case, however, the vocabularies of the datasets are much smaller so we won't
-lose any words. Both vocabularies are created out of the training dataset. This
+lose any words.
+
+Both vocabularies are created out of the training dataset, as specified by the
+line ``datasets=[<train_dataset>]`` (more datasets could be given in the list). This
 means that if there are any unseen words in the development or test data, our
 model will treat them as unknown words.
 
-The ``target_vocabulary`` is created from both ``edits`` and ``translated``
-series from the data. This doesn't mean anything else than the mappings from
-words to their one-hot encodings (or more precisely, indices to the vocabulary)
-will be identical.
+We know that the languages in the ``translated`` series and ``edits`` are
+the same (except for the KEEP and DELETE tokens in the edits), so we create a
+unified vocabulary for them. This is achieved by specifying
+``series_ids=[edits, translated]``. The one-hot encodings (or more precisely,
+indices to the vocabulary) will be identical for words in ``translated`` and
+``edits``.
 
 
 3 - Encoders
 ************
 
 Our network will have two inputs. Therefore, we must design two separate
-encoders. First encoder will process the source sentences, and the second will
-process the translated sentences. This is the configuration of the encoder for
+encoders. The first encoder will process source sentences, and the second will
+process translated sentences, i.e. the candidate translations that we are
+expected to post-edit. This is the configuration of the encoder for
 the source sentences::
 
   [src_encoder]
@@ -309,15 +332,15 @@ The configuration of the second encoder follows::
   vocabulary=<target_vocabulary>
 
 This config creates a second encoder for the ``translated`` data series. The
-setting is the same as in the first encoder case. (Except for the different
-vocabulary).
+setting is the same as for the first encoder, except for the different
+vocabulary and name.
 
 
 4 - Decoder
 ***********
 
 Now, we configure perhaps the most important object of the training - the
-decoder. Without furhter ado, here it goes::
+decoder. Without further ado, here it goes::
 
   [decoder]
   class=decoders.decoder.Decoder
@@ -332,21 +355,25 @@ decoder. Without furhter ado, here it goes::
   vocabulary=<target_vocabulary>
 
 As in the case of encoders, the decoder needs its RNN and embedding size
-settings, maximum output length, dropout parameter, and vocabulary settings.  In
-this case, the embedding size parameter is inferred by the embedding size of the
-first encoder (``trans_encoder``), and the embeddings themselves are shared
-between that encoder and the decoder. The loss of the decoder is computed
-against the ``edits`` data series.
+settings, maximum output length, dropout parameter, and vocabulary settings.
+
+The line ``reuse_word_embeddings=True`` means that the embeddings (including
+embedding size) are shared with the from the first
+encoder in the list (here ``trans_encoder``).
+
+The loss of the decoder is computed
+against the ``edits`` data series of whatever dataset the decoder will be
+applied to.
 
 
 5 - Runner and Trainer
 **********************
 
 As their names suggest, runners and trainers are used for running and training
-models. The trainer object provides the optimization operation to the graph. In
-case of the cross entropy trainer (used in our tutorial as well), the optimizer
-used is Adam and it's run against the decoder's loss, with added L2
-regularization (controlled by the ``l2_regularization`` parameter of the
+models. The ``trainer`` object provides the optimization operation to the graph. In
+the case of the cross entropy trainer (used in our tutorial), the default optimizer
+is Adam and it is run against the decoder's loss, with added L2
+regularization (controlled by the ``l2_weight`` parameter of the
 trainer). The runner is used to process a dataset by the model and return the
 decoded sentences, and (if possible) decoder losses.
 
@@ -360,15 +387,24 @@ We define these two objects like this::
   [runner]
   class=runners.runner.GreedyRunner
   decoder=<decoder>
-  output_series=series_named_greedy
+  output_series=greedy_edits
 
-Note that runner can only have one decoder, but during training you can train several decoders.
+Note that a runner can only have one decoder, but during training you can train
+several decoders, all contributing to the loss function.
+
+The purpose of the trainer is to optimize the model, so we are not interested in
+the actual outputs it produces, only the loss compared to the reference outputs
+(and the loss is calculated by the given decoder).
+
+The purpose of the runner is to get the actual outputs and for further use, they
+are collected to a new series called ``greedy_edits`` (see the line
+``output_series=``) of whatever dataset the runner will be applied to.
 
 6 - Evaluation Metrics
 **********************
 
 During validation, the whole validation dataset gets processed by the models and
-the decoded sentences are evaluated against reference to provide the user with
+the decoded sentences are evaluated against a reference to provide the user with
 the state of the training. For this, we need to specify evaluator objects which
 will be used to score the outputted sentences. In our case, we will use BLEU and
 TER::
@@ -387,7 +423,8 @@ TODO check if the TER evaluator works as expected
 7 - TensorFlow Manager
 ******************
 
-In order to handle system variables as how many cores the tensorflow should use, you need to specify the tensorflow manager::
+In order to handle global variables such as how many CPU cores
+TensorFlow should use, you need to specify a "TensorFlow manager"::
 
   [tf_manager]
   class=tf_manager.TensorFlowManager
@@ -411,7 +448,7 @@ parameters::
   trainer=<trainer>
   train_dataset=<train_dataset>
   val_dataset=<val_dataset>
-  evaluation=[(series_named_greedy,edits,<bleu>), (series_named_greedy,edits,<ter>)]
+  evaluation=[(greedy_edits,edits,<bleu>), (greedy_edits,edits,<ter>)]
   minimize=True
   batch_size=128
   runners_batch_size=256
@@ -419,61 +456,67 @@ parameters::
   validation_period=1000
   logging_period=20
 
-The output parameter specify the directory, in which all the files generated by
+The ``output`` parameter specifies the directory, in which all the files generated by
 the training (used for replicability of the experiment, logging, and saving best
 models variables) are stored.  It is also worth noting, that if the output
-directory exists, the training is not run, unless the ``overwrite_output_dir``
-flag is set to ``True``.
+directory exists, the training is not run, unless the line
+``overwrite_output_dir=True`` is also included here.
 
 The ``runners``, ``tf_manager``, ``trainer``, ``train_dataset`` and ``val_dataset`` options are self-explanatory.
 
-The parameter ``evaluation`` takes list of tuples, where each tuple contain name of output series,
-name of targets and section reference to an evaluation algorithm.
+The parameter ``evaluation`` takes list of tuples, where each tuple contains:
+- the name of output series (as produced by some runner), ``greedy_edits`` here,
+- the name of the reference series of the dataset, ``edits`` here,
+- the reference to the evaluation algorithm, ``<bleu>`` and ``<ter>`` in the two tuples here.
 
 The ``batch_size`` parameter controls how many sentences will be in one training
-mini-batch. When model does not fit into GPU memory, it might be a good idea to
-start reducing this number before anything else. The larger it is, however, the
-sooner the training should converge to the optimum. The same is for ``runners_batch_size``.
-The ``epochs`` parameter is
+mini-batch. When the model does not fit into GPU memory, it might be a good idea to
+start reducing this number before anything else. The larger the batch size, however, the
+sooner the training should converge to the optimum.
+
+Runners are less memory-demanding, so ``runners_batch_size`` can be set higher than ``batch_size``.
+
+The ``epochs`` parameter specifies
 the number of passes through the training data that the training loop should
-do. There is no early stopping mechanism, the training can be resumed after the
-end, however. The training can be safely ctrl+c'ed in any time (preserving the
-last ``save_n_best`` best model variables saved (judged by the score on
-validation dataset) on the disk).
+do. There is no early stopping mechanism in Neural Monkey yet, the training can be resumed after the
+end, however. The training can be safely ctrl+C'ed in any time: Neural Monkey preserves the
+last ``save_n_best`` best model variables saved on the disk.
 
 The validation and logging periods specify how often to measure the model's
-performance on training batch or on validation data. If too often, these can
-increase the time to train the model. Each validation (and logging), the model
+performance on the training batch (``logging_period``) or on validation data
+(``validation_period``). Note that both logging and validation involve running the runners
+over the current batch or the validation data, resp. If this happens too often,
+the time needed to train the model can significantly grow.
+
+At each validation (and logging), the output
 is scored using the specified evaluation metrics. The last of the evaluation
 metrics (TER in our case) is used to keep track of the model performance over
-time. Whenever the score on validation is better than any of the ``save_n_best``
-(3 in our case) previously saved models, the model is saved. The worse scoring
-model files are discarded.
+time. Whenever the score on validation data is better than any of the ``save_n_best``
+(3 in our case) previously saved models, the model is saved, discaring
+unneccessary lower scoring models.
 
 
 Part V. - Running an Experiment
 -------------------------------
 
-Now that we have prepred the data and the experiment INI file, we can run the
+Now that we have prepared the data and the experiment INI file, we can run the
 training. If your Neural Monkey installation is OK, you can just run this
 command from the root directory of the Neural Monkey repository::
 
   bin/neuralmonkey-train exp-nm-ape/post-edit.ini
 
-Again, you may want to adapt the path to the experiment directory.
-
-You should see the training program logging the parsing of the configuration
+You should see the training program reporting the parsing of the configuration
 file, initializing the model, and eventually the training process. If everything
 goes well, the training should run for 100 epochs. You should see a new line
 with the status of the model's performance on the current batch every few
-seconds, and there should be validation report printed every few minutes.
+seconds, and there should be a validation report printed every few minutes.
 
-The training script creates a subdirectory called ``training`` in our experiment
-directory. The contents of the directory are:
+As given in the ``main.output`` config line, the Neural Monkey creates the directory
+``experiments/training`` with these files:
 
 - ``git_commit`` - the Git hash of the current Neural Monkey revision.
 - ``git_diff`` - the diff between the clean checkout and the working copy.
-- ``experiment.ini`` - the INI file used for running the training (copied).
+- ``experiment.ini`` - the INI file used for running the training (a simple copy of the file NM was started with).
 - ``experiment.log`` - the output log of the training script.
 - ``checkpoint`` - file created by Tensorflow, keeps track of saved variables.
 - ``events.out.tfevents.<TIME>.<HOST>`` - file created by Tensorflow, keeps the
@@ -488,14 +531,14 @@ Part VI. - Evaluation of the Trained Model
 
 If you have reached this point, you have nearly everything this tutorial
 offers. The last step of this tutorial is to take the trained model and to
-evaluate it on previously unseen dataset. For this you will need additional two
+apply it to a previously unseen dataset. For this you will need two additional
 configuration files. But fear not - it's not going to be that difficult. The
 first configuration file is the specification of the model. We have this from
-the Part III. It will only require a small alteration (optional). The second
+Part III and a small optional change is needed. The second
 configuration file tells the run script which datasets to process.
 
-The optional alteration of the model INI file prevents the training dataset from
-loading. This is a flaw in the present design and it's subject to change. The
+The optional change of the model INI file prevents the training dataset from
+loading. This is a flaw in the present design and it is planned to change. The
 procedure is simple:
 
 1. Copy the file ``post-edit.ini`` into e.g. ``post-edit.test.ini``
@@ -513,27 +556,33 @@ configuration. We will call this file ``test_datasets.ini``::
   class=config.utils.dataset_from_files
   s_source=exp-nm-ape/data/test/test.src
   s_translated=exp-nm-ape/data/test/test.mt
-  s_edits_out=exp-nm-ape/test_output.edits
+  s_greedy_edits_out=exp-nm-ape/test_output.edits
 
-Please note the ``s_edits`` data series is **not** present in the evaluation
-dataset. That is simply because we do not want to use the reference edits to
-compute loss at this point. Usually, we don't even *know* the correct output.
-Instead, we will provide the output series ``s_edits_out``, which points to a
-file to which the output of the model gets stored. Also note that you may want
-to alter the path to the ``exp-nm-ape`` directory if it is not located inside
-the Neural Monkey package root dir.
+The dataset specifies the two input series ``s_source`` and ``s_translated`` (the
+candidate MT output output to be post-edited) as in the training. The series
+``s_edits`` (containing reference edits) is **not** present in the evaluation
+dataset, because we do not want to use the reference edits to
+compute loss at this point. Usually, we don't even *know* the correct output at runtime.
+
+Instead, we introduce the output series ``s_greedy_edits_out`` (the prefix ``s_`` and
+the suffix ``_out`` are hardcoded in Neural Monkey and the series name in between
+has to match the name of the series produced by the runner).
+
+The line ``s_greedy_edits_out=`` specifies the file where the output should be saved.
+(You may want to alter the path to the ``exp-nm-ape`` directory if it is not located inside
+the Neural Monkey package root dir.)
 
 We have all that we need to run the trained model on the evaluation
 dataset. From the root directory of the Neural Monkey repository, run::
 
  bin/neuralmonkey-run exp-nm-ape/post-edit.test.ini exp-nm-ape/test_datasets.ini
 
-At the end, you should see a new file in ``exp-nm-ape``, called
-``test_output.edits``. As you notice, the contents of this file are the
+At the end, you should see a new file ``exp-nm-ape/test_output.edits``.
+As you notice, the contents of this file are the
 sequences of edit operations, which if applied to the machine translated
-sentences, generate the output that we want. So the final step is to call the
-provided postprocessing script. Again, feel free to write your own as a simple
-excercise::
+sentences, generate the output that we want. The final step is to call the
+provided post-processing script. Again, feel free to write your own as a simple
+exercise::
 
   scripts/postedit_reconstruct_data.py \
     --edits=exp-nm-ape/test_output.edits \
@@ -549,14 +598,14 @@ reference evaluation dataset.
 Part VII. - Conclusions
 -----------------------
 
-This tutorial gave you the basic notion of how to design your experiments using
-Neural Monkey. We designed the experiment on the task of automatic
-post-editing. We got the data from the WMT 16 APE shared task and preprocessed
+This tutorial gave you the basic overview of how to design your experiments using
+Neural Monkey. The sample experiment was the task of automatic
+post-editing. We got the data from the WMT 16 APE shared task and pre-processed
 them to fit our needs. We have written the configuration file and run the
 training. At the end, we evaluated the model on the test dataset.
 
 If you want to learn more, the next step is perhaps to browse the ``examples``
-directory in the repository and try to see what's going on there. If you are
+directory in Neural Monkey repository and see some further possible setups. If you are
 planning to just design an experiment using existing modules, you can start by
 editing one of those examples as well.
 
