@@ -1,6 +1,7 @@
-# tests: lint
+# tests: lint, mypy
 
 from collections import Counter
+from typing import List
 import numpy as np
 
 
@@ -27,8 +28,8 @@ class BLEUEvaluator(object):
         return 100 * BLEUEvaluator.bleu(decoded, listed_references, self.n)
 
     @staticmethod
-    def ngram_counts(sentence, n, lowercase, delimiter=" "):
-        # type: (List[str], int, str) -> Counter
+    def ngram_counts(sentence: List[str], n: int,
+                     lowercase: bool, delimiter=" ") -> Counter:
         """Get n-grams from a sentence
 
         Arguments:
@@ -37,7 +38,8 @@ class BLEUEvaluator(object):
             lowercase: Convert ngrams to lowercase
             delimiter: delimiter to use to create counter entries
         """
-        counts = Counter()
+
+        counts = Counter()  # type: Counter[None]
 
         for begin in range(len(sentence) - n + 1):
             ngram = delimiter.join(sentence[begin:begin + n])
@@ -49,10 +51,9 @@ class BLEUEvaluator(object):
         return counts
 
     @staticmethod
-    def merge_max_counters(counters):
-        # type: (List[Counter]) -> Counter
+    def merge_max_counters(counters: List[Counter]) -> Counter:
         """Merge counters using maximum values"""
-        merged = Counter()
+        merged = Counter()  # type: Counter
 
         for counter in counters:
             for key in counter:
