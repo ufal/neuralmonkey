@@ -21,8 +21,9 @@ class Configuration(object):
         self.config_dict = {}
 
     # pylint: disable=too-many-arguments
-    def add_argument(self, name, arg_type=object, required=False, default=None,
-                     cond=None):
+    def add_argument(self, name: str, arg_type=object,
+                     required=False, default=None,
+                     cond=None) -> None:
 
         if name in self.data_types:
             raise Exception("Data filed defined multiple times.")
@@ -32,7 +33,7 @@ class Configuration(object):
         if cond is not None:
             self.conditions[name] = cond
 
-    def ignore_argument(self, name):
+    def ignore_argument(self, name: str) -> None:
         self.ignored.add(name)
 
     def make_namespace(self, d_obj):
@@ -54,12 +55,12 @@ class Configuration(object):
                 n_space.__dict__[name] = value
         return n_space
 
-    def load_file(self, path):
+    def load_file(self, path: str):
         log("Loading INI file: '{}'".format(path), color='blue')
 
         try:
             self.config_dict = load_config_file(path)
-            arguments = self.make_namespace(self.config_dict)
+            arguments = self.make_namespace(self.config_dict['main'])
             log("INI file loaded.", color='blue')
         # pylint: disable=broad-except
         except Exception as exc:
