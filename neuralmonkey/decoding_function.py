@@ -4,7 +4,7 @@ for RNN decoders.
 
 See http://arxiv.org/abs/1606.07481
 """
-# tests: lint
+# tests: lint, mypy
 
 import tensorflow as tf
 from neuralmonkey.nn.projection import linear
