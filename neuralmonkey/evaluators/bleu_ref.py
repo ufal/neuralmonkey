@@ -1,4 +1,4 @@
-# tests: lint
+# tests: lint, mypy
 
 import tempfile
 import subprocess
@@ -38,7 +38,7 @@ class BLEUReferenceImplWrapper(object):
                                      stderr=subprocess.PIPE,
                                      stdout=subprocess.PIPE)
 
-        proc_stdout = output_proc.stdout.decode("utf-8")
+        proc_stdout = output_proc.stdout.decode("utf-8")  # type: ignore
         lines = proc_stdout.splitlines()
 
         try:
@@ -46,8 +46,8 @@ class BLEUReferenceImplWrapper(object):
             return bleu_score
         except IndexError:
             log("Error: Malformed output from BLEU wrapper:", color="red")
-            log(print(proc_stdout), color="red")
-            log(print("======="), color="red")
+            log(proc_stdout, color="red")
+            log("=======", color="red")
             return 0.0
         except ValueError:
             log("Value error - bleu '{}' is not a number.".format(lines[0]),

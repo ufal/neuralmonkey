@@ -1,19 +1,21 @@
-# tests: lint
+# tests: lint, mypy
 
 import time
 import codecs
 import sys
+# pylint: disable=unused-import
+from typing import Any, Optional
 from termcolor import colored
 
 
 class Logging(object):
 
-    log_file = None  # type: file
+    log_file = None  # type: Optional[Any]
 
     # 'all' and 'none' are special symbols,
     # others are filtered according the labels
     debug_enabled = ['all']
-    debug_disabled = []
+    debug_disabled = []  # type: List[str]
 
     @staticmethod
     def set_log_file(path):
@@ -21,7 +23,7 @@ class Logging(object):
         Logging.log_file = codecs.open(path, 'w', 'utf-8', buffering=0)
 
     @staticmethod
-    def log_print(text):
+    def log_print(text: str) -> None:
         """Prints a string both to console and
         a log file is it is defined.
         """

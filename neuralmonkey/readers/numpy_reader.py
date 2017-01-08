@@ -2,7 +2,7 @@ from typing import List
 
 import numpy as np
 
-# tests: lint
+# tests: lint, mypy
 
 
 def numpy_reader(files: List[str]):
