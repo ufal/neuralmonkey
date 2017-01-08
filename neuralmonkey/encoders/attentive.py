@@ -20,8 +20,8 @@ class Attentive(metaclass=ABCMeta):
     def get_attention_object(self, runtime: bool=False):
         """Attention object that can be used in decoder."""
         # pylint: disable=no-member
-        if hasattr(self, "name") and self.name:
-            name = self.name
+        if hasattr(self, "name") and self.name:  # type: ignore
+            name = self.name  # type: ignore
         else:
             name = str(self)
 
