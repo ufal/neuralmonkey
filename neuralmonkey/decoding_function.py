@@ -17,8 +17,7 @@ class Attention(object):
     # For maintaining the same API as in CoverageAttention
 
     def __init__(self, attention_states, scope,
-                 input_weights=None, attention_fertility=None,
-                 runtime_mode=False):
+                 input_weights=None, attention_fertility=None):
         """Create the attention object.
 
         Args:
@@ -29,8 +28,6 @@ class Attention(object):
             input_weights: (Optional) The padding weights on the input.
             attention_fertility: (Optional) For the Coverage attention
                 compatibilty, maximum fertility of one word.
-            runtime_mode: (Optional) Indicates whether the object will be used
-                          for runtime decoding.
         """
         self.scope = scope
         self.attentions_in_time = []

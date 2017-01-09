@@ -12,7 +12,15 @@ from neuralmonkey.vocabulary import Vocabulary
 class TestDecoder(unittest.TestCase):
 
     def test_init(self):
-        decoder = Decoder([], Vocabulary(), "foo", "test-decoder")
+        decoder = Decoder(
+            encoders=[],
+            vocabulary=Vocabulary(),
+            data_id="foo",
+            name="test-decoder",
+            max_output_len=5,
+            dropout_keep_prob=1.0,
+            embedding_size=10,
+            rnn_size=10)
         self.assertIsNotNone(decoder)
 
 

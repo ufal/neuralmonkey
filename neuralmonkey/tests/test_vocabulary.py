@@ -23,8 +23,7 @@ for s in TOKENIZED_CORPUS:
     VOCABULARY.add_tokenized_text(s)
 
 
-class TestVacabulary(unittest.TestCase):
-
+class TestVocabulary(unittest.TestCase):
     def test_all_words_in(self):
         for sentence in TOKENIZED_CORPUS:
             for word in sentence:
@@ -40,7 +39,9 @@ class TestVacabulary(unittest.TestCase):
         pass
 
     def test_there_and_back_self(self):
-        vectors, _ = VOCABULARY.sentences_to_tensor(TOKENIZED_CORPUS, 20)
+        vectors, _ = VOCABULARY.sentences_to_tensor(TOKENIZED_CORPUS, 20,
+                                                    add_start_symbol=True,
+                                                    add_end_symbol=True)
         senteces_again = VOCABULARY.vectors_to_sentences(vectors[1:])
 
         for orig_sentence, reconstructed_sentence in \
