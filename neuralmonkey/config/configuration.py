@@ -72,6 +72,7 @@ class Configuration(object):
 
     def build_model(self):
         log("Building model based on the config.")
+        self._check_loaded_conf()
         try:
             model = build_config(self.config_dict, self.ignored)
         # pylint: disable=broad-except
@@ -80,10 +81,9 @@ class Configuration(object):
             traceback.print_exc()
             exit(1)
         log("Model built.")
-        self._check_loaded_conf(model)
         return self.make_namespace(model)
 
-    def _check_loaded_conf(self, config_dict):
+    def _check_loaded_conf(self):
         """ Checks whether there are unexpected or missing fields """
         expected_fields = set(self.data_types.keys())
 
@@ -95,7 +95,7 @@ class Configuration(object):
             raise Exception("Missing mandatory fields: {}"
                             .format(", ".join(expected_missing)))
         unexpected = []
-        for name in config_dict:
+        for name in self.config_dict['main']:
             if name not in expected_fields:
                 unexpected.append(name)
         if unexpected:
