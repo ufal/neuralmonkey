@@ -48,7 +48,7 @@ def default_variable_file(output_dir):
     return variables_file
 
 
-def initialize_for_running(output_dir, tf_manager, variable_files):
+def initialize_for_running(output_dir, tf_manager, variable_files) -> None:
     """Restore either default variables of from configuration.
 
     Arguments:
@@ -79,7 +79,7 @@ def initialize_for_running(output_dir, tf_manager, variable_files):
     log_print("")
 
 
-def main():
+def main() -> None:
     # pylint: disable=no-member,broad-except
     if len(sys.argv) != 3:
         print("Usage: run.py <run_ini_file> <test_datasets>")
@@ -90,23 +90,24 @@ def main():
     test_datasets.add_argument('variables')
 
     CONFIG.load_file(sys.argv[1])
-    args = CONFIG.build_model()
+    CONFIG.build_model()
     test_datasets.load_file(sys.argv[2])
-    datasets_args = test_datasets.build_model()
-    initialize_for_running(args.output, args.tf_manager,
-                           datasets_args.variables)
+    test_datasets.build_model()
+    datesets_model = test_datasets.model
+    initialize_for_running(CONFIG.model.output, CONFIG.model.tf_manager,
+                           datesets_model.variables)
 
     print("")
 
     evaluators = [(e[0], e[0], e[1]) if len(e) == 2 else e
-                  for e in args.evaluation]
+                  for e in CONFIG.model.evaluation]
 
-    for dataset in datasets_args.test_datasets:
+    for dataset in datesets_model.test_datasets:
         execution_results, output_data = run_on_dataset(
-            args.tf_manager, args.runners,
-            dataset, args.postprocess, write_out=True)
+            CONFIG.model.tf_manager, CONFIG.model.runners,
+            dataset, CONFIG.model.postprocess, write_out=True)
         # TODO what if there is no ground truth
-        eval_result = evaluation(evaluators, dataset, args.runners,
+        eval_result = evaluation(evaluators, dataset, CONFIG.model.runners,
                                  execution_results, output_data)
         if eval_result:
             print_final_evaluation(dataset.name, eval_result)
