@@ -7,8 +7,7 @@ specified by the experiment configuration
 import collections
 from inspect import signature, isclass, isfunction
 
-import neuralmonkey.config.parsing as parsing
-from neuralmonkey.logging import log, debug
+from neuralmonkey.logging import debug
 from neuralmonkey.config.exceptions import (ConfigInvalidValueException,
                                             ConfigBuildException)
 
@@ -115,18 +114,6 @@ def instantiate_class(name, all_dicts, existing_objects, depth):
           "configBuild")
 
     return obj
-
-
-def load_config_file(config_file):
-    """ Loads the configuration
-
-    Arguments:
-        config_file: The configuration file
-    """
-    with open(config_file, 'r', encoding='utf-8') as file:
-        config_dicts = parsing.parse_file(file)
-    log("INI file is parsed.")
-    return config_dicts
 
 
 def build_config(config_dicts, ignore_names):

@@ -145,7 +145,7 @@ def _parse_value(string):
     return string
 
 
-def parse_config(config_file, filename=""):
+def _parse_ini(config_file, filename=""):
     """ Parses an INI file into a dictionary """
 
     line_numbers = (line.strip() + " " + str(i + 1)
@@ -167,12 +167,12 @@ def parse_config(config_file, filename=""):
 
 
 def parse_file(config_file):
-    """ Parses an INI file into a dictionary """
+    """ Parses an INI file and creates all values """
 
     parsed_dicts = dict()
     time_stamp = time.strftime("%Y-%m-%d-%H-%M-%S")
 
-    config = parse_config(config_file)
+    config = _parse_ini(config_file)
 
     for section in config:
         parsed_dicts[section] = dict()

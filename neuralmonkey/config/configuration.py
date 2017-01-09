@@ -2,7 +2,8 @@ import traceback
 from argparse import Namespace
 
 from neuralmonkey.logging import log
-from neuralmonkey.config.config_loader import load_config_file, build_config
+from neuralmonkey.config.config_builder import build_config
+from neuralmonkey.config.parsing import parse_file
 
 
 class Configuration(object):
@@ -59,9 +60,10 @@ class Configuration(object):
         log("Loading INI file: '{}'".format(path), color='blue')
 
         try:
-            self.config_dict = load_config_file(path)
+            with open(path, 'r', encoding='utf-8') as file:
+                self.config_dict = parse_file(file)
+            log("INI file is parsed.")
             arguments = self.make_namespace(self.config_dict['main'])
-            log("INI file loaded.", color='blue')
         # pylint: disable=broad-except
         except Exception as exc:
             log("Failed to load INI file: {}".format(exc), color='red')
