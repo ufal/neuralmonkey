@@ -34,11 +34,11 @@ experiment logs.
 TensorBoard
 -----------
 
-The TensorBoard [https://www.tensorflow.org/versions/r0
-.9/how_tos/summaries_and_tensorboard/index.html]. You can use TensorBoard to
-visualize your TensorFlow graph, see summaries of quantitative metrics about
-the execution of your graph, and show additional data like images that pass
-through it.
+You can use [TensorBoard]
+(https://www.tensorflow.org/versions/r0.9/how_tos/summaries_and_tensorboard/index.html)
+to visualize your TensorFlow graph, see summaries of quantitative metrics
+about the execution of your graph, and show additional data like images that
+pass through it.
 
 You can start it by following command::
 
@@ -46,10 +46,22 @@ You can start it by following command::
 
 And then you can navigate in your browser to `http://localhost:6006/` (or if
 the TensorBoard assigns different port) and view all the summaries about your
- experiment.
+experiment.
 
 How to read TensorBoard
 ***********************
 
 The `step` in the TensorBoard is describing how many inputs (not batches) was
- processed.
+processed.
+
+Attention visualization
+***********************
+
+If you are using an attention decoder, visualization of the soft alignment of
+each sentence in the first validation batch will appear in the *Images* tab
+in TensorBoard. The images might look like this:
+
+TODO: Add image
+
+Here, the source sentence is on the vertical axis and the target sentence on
+the horizontal axis.
