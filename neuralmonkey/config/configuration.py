@@ -2,7 +2,7 @@ import traceback
 from argparse import Namespace
 
 from neuralmonkey.logging import log
-from neuralmonkey.config.config_builder import build_config
+from neuralmonkey.config.builder import build_config
 from neuralmonkey.config.parsing import parse_file
 
 
