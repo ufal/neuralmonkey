@@ -1,10 +1,10 @@
 Visualization
 =============
 
-Logbook
+LogBook
 -------
 
-_Neural Monkey LogBook_ is a simple web application for preview the outputs of
+*Neural Monkey LogBook* is a simple web application for preview the outputs of
 the experiments in the browser.
 
 The experiment data are stored in a directory structure, where each experiment
@@ -12,7 +12,7 @@ directory contains the experiment configuration, state of the git repository,
 the experiment was executed with, detailed log of the computation and other
 files necessary to execute the model that has been trained.
 
-LogBook is meant as a complement to using TensorBoard, whose summaries are
+LogBook is meant as a complement to using TensorBoard_, whose summaries are
 stored in the same directory structure.
 
 How to run it
@@ -54,13 +54,15 @@ The `step` in the TensorBoard is describing how many inputs (not batches) was
 processed.
 
 Attention visualization
-***********************
+-----------------------
 
 If you are using an attention decoder, visualization of the soft alignment of
 each sentence in the first validation batch will appear in the *Images* tab
-in TensorBoard. The images might look like this:
+in TensorBoard_. The images might look like this:
 
 .. image:: attention.png
 
 Here, the source sentence is on the vertical axis and the target sentence on
-the horizontal axis.
+the horizontal axis, hence the 12th and following rows are totally blank
+(decoding is hard stopped after emitting end-of-sentence mark) while the trailing columns occasionally get some minor attention (the decoder is free to look beyond the last input word).
+
