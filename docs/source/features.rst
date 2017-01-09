@@ -1,8 +1,8 @@
 .. _features:
 
-========
-Features
-========
+=================
+Advanced Features
+=================
 
 Byte Pair Encoding
 ------------------
@@ -32,7 +32,7 @@ or::
   ...
 
 Pervasive Dropout
-*****************
+-----------------
 
 Detailed information in https://arxiv.org/abs/1512.05287
 
@@ -44,3 +44,7 @@ If you want allow dropout on the recurrent layer of your encoder, you can add us
   use_pervasive_dropout=True
   ...
 
+Attention Seeded by GIZA++ Word Alignments
+------------------------------------------
+
+todo: OC to reference the paper and describe how to use this in NM
