@@ -331,7 +331,8 @@ class Decoder(ModelPart):
             cell_output, state = cell(x, prev_state)
 
             # Run the attention mechanism.
-            attns = [a.attention(cell_output) for a in att_objects]
+            attns = [a.attention(cell_output, prev_state, x)
+                     for a in att_objects]
 
             if self._conditional_gru:
                 x_2 = linear(

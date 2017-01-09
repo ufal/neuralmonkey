@@ -10,11 +10,12 @@ from neuralmonkey.nn.projection import linear
 
 class EncoderWrapper(Attentive):
 
-    def __init__(self, name, encoders, multi_attention_type, attention_state_size):
+    def __init__(self, name, encoders, multi_attention_type, attention_state_size, use_sentinels=False):
         self.name = name
         self.encoders = encoders
         self._multi_attention_type = multi_attention_type
         self._attention_state_size = attention_state_size
+        self._use_sentinels = use_sentinels
 
         self.encoded = tf.concat(1, [e.encoded for e in encoders])
 
@@ -23,7 +24,8 @@ class EncoderWrapper(Attentive):
             [e._attention_tensor for e in self.encoders],
             [e._attention_mask for e in self.encoders],
             self._attention_state_size,
-            "attention_{}".format(self.name))
+            "attention_{}".format(self.name),
+            use_sentinels=self._use_sentinels)
 
     def feed_dict(*args, **kwargs):
         return {}
@@ -45,7 +47,8 @@ class MultiAttention(metaclass=ABCMeta):
                  encoders_tensors: List[tf.Tensor],
                  encoders_masks: List[tf.Tensor],
                  state_size: int,
-                 scope: Union[tf.VariableScope, str]) -> None:
+                 scope: Union[tf.VariableScope, str],
+                 **kwargs) -> None:
         self._encoders_tensors = encoders_tensors
         self._encoders_masks = encoders_masks
         self._state_size = state_size
@@ -72,6 +75,9 @@ class FlatMultiAttention(MultiAttention):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+        if "use_sentinels" in kwargs:
+            self._use_sentinels = kwargs.get("use_sentinels")
 
         with tf.variable_scope(self._scope):
             self.attn_v = tf.get_variable(
@@ -115,7 +121,7 @@ class FlatMultiAttention(MultiAttention):
 
             self.masks_concat = tf.concat(1, self._encoders_masks)
 
-    def attention(self, decoder_state, decoder_input=None):
+    def attention(self, decoder_state, decoder_prev_state, decoder_input):
 
         with tf.variable_scope(self._scope):
             projected_state = linear(decoder_state, self._state_size)
@@ -131,6 +137,24 @@ class FlatMultiAttention(MultiAttention):
                 logits.append(tf.reduce_sum(
                     self.attn_v * tf.tanh(projected_state + proj), [2]) + bias)
 
+            if self._use_sentinels:
+                sentinel_value = self._sentinel(decoder_state,
+                                                decoder_prev_state,
+                                                decoder_input)
+
+                sentinel_bias = tf.get_variable(
+                    "sentinel_bias", [],
+                    initializer=tf.constant_initializer(0.0))
+
+                projected_sentinel = linear(sentinel_value, self._state_size,
+                                            scope="sentinel_projection")
+                sentinel_logit = tf.reduce_sum(
+                    self.attn_v * tf.tanh(projected_state
+                                          + projected_sentinel),
+                    [1]) + sentinel_bias
+
+                logits.append(tf.expand_dims(sentinel_logit, 1))
+
             logits_concat = tf.concat(1, logits)
             softmax_concat = tf.nn.softmax(logits_concat) * self.masks_concat
             norm = tf.reduce_sum(softmax_concat, 1, keep_dims=True) + 1e-8
@@ -144,6 +168,19 @@ class FlatMultiAttention(MultiAttention):
                 tf.expand_dims(attentions, 2) * projections_concat, [1])
 
             return contexts
+
+
+    def _sentinel(self, state, prev_state, input_):
+
+        with tf.variable_scope("sentinel"):
+
+            decoder_state_size = state.get_shape()[-1].value
+            concatenation = tf.concat(1, [prev_state, input_])
+
+            gate = tf.nn.sigmoid(linear(concatenation, decoder_state_size))
+            sentinel_value = gate * state
+
+            return sentinel_value
 
 
 class HierarchicalMultiAttention(MultiAttention):
