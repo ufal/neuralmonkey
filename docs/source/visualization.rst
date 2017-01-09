@@ -63,6 +63,23 @@ in TensorBoard_. The images might look like this:
 .. image:: attention.png
 
 Here, the source sentence is on the vertical axis and the target sentence on
-the horizontal axis, hence the 12th and following rows are totally blank
-(decoding is hard stopped after emitting end-of-sentence mark) while the trailing columns occasionally get some minor attention (the decoder is free to look beyond the last input word).
+the horizontal axis. The size of each image is ``max_output_len * max_input_len`` so most of the time, there will be some blank rows at the bottom and some trailing columns with "phantom" attention (corresponding to positions after the end of the output sentence).
 
+You can use the ``tf_save_images.py`` script to save the whole history of images as a sequence of PNG files:
+
+.. code:: bash
+
+  # For the first sentence in the batch
+  scripts/tf_save_images.py events.out attention_0/image/0 --prefix images/attention_0_
+
+Use ``feh`` to view the images as a time-lapse:
+
+.. code:: bash
+
+  feh -g 300x300 -Z --force-aliasing --slideshow-delay 0.2 images/attention_0_*.png
+  
+Or enlarge them and turn them into an animated GIF using:
+
+.. code:: bash
+
+  convert images/attention_0_*.png -scale 300x300 images/attention_0.gif
