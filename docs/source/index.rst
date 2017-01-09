@@ -8,6 +8,9 @@ Welcome to Neural Monkey's documentation!
 
 Neural Monkey is an open-source toolkit for sequence learning using Tensorflow.
 
+.. image:: gorilla-1050384_960_720.png
+   :align:left
+   :scale: 30%
 
 Getting Started
 ---------------
