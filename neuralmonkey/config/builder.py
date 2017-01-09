@@ -2,15 +2,52 @@
 This module is responsible for instantiating objects
 specified by the experiment configuration
 """
-# tests: lint, mypy
 
 import collections
+import importlib
 from inspect import signature, isclass, isfunction
 
-import neuralmonkey.config.parsing as parsing
-from neuralmonkey.logging import log, debug
+from neuralmonkey.logging import debug
 from neuralmonkey.config.exceptions import (ConfigInvalidValueException,
                                             ConfigBuildException)
+
+
+# pylint:disable=too-few-public-methods
+class ClassSymbol(object):
+    """
+    Represents a class (or other callable) in configuration.
+    """
+
+    def __init__(self, string):
+        self.clazz = string
+
+    def create(self):
+        class_parts = self.clazz.split(".")
+        class_name = class_parts[-1]
+
+        # TODO should we not assume that everything is from neuralmonkey?
+        module_name = ".".join(["neuralmonkey"] + class_parts[:-1])
+
+        try:
+            module = importlib.import_module(module_name)
+        except ImportError as exc:
+            # if the problem is really importing the module
+            if exc.name == module_name:
+                raise Exception(
+                    ("Interpretation '{}' as type name, module '{}' "
+                     "does not exist. Did you mean file './{}'? \n{}")
+                    .format(self.clazz,
+                            module_name, self.clazz, exc)) from None
+            else:
+                raise
+
+        try:
+            clazz = getattr(module, class_name)
+        except AttributeError as exc:
+            raise Exception(("Interpretation '{}' as type name, class '{}' "
+                             "does not exist. Did you mean file './{}'? \n{}")
+                            .format(self.clazz, class_name, self.clazz, exc))
+        return clazz
 
 
 # pylint: disable=too-many-return-statements
@@ -63,6 +100,9 @@ def build_object(value, all_dicts, existing_objects, depth):
         existing_objects[value] = obj
         return obj
 
+    if isinstance(value, ClassSymbol):
+        return value.create()
+
     return value
 
 
@@ -78,7 +118,7 @@ def instantiate_class(name, all_dicts, existing_objects, depth):
 
     if 'class' not in this_dict:
         raise ConfigInvalidValueException(name, "Undefined object type")
-    clazz = this_dict['class']
+    clazz = this_dict['class'].create()
 
     if not isclass(clazz) and not isfunction(clazz):
         raise ConfigInvalidValueException(
@@ -115,18 +155,6 @@ def instantiate_class(name, all_dicts, existing_objects, depth):
           "configBuild")
 
     return obj
-
-
-def load_config_file(config_file):
-    """ Loads the configuration
-
-    Arguments:
-        config_file: The configuration file
-    """
-    with open(config_file, 'r', encoding='utf-8') as file:
-        config_dicts = parsing.parse_file(file)
-    log("INI file is parsed.")
-    return config_dicts
 
 
 def build_config(config_dicts, ignore_names):

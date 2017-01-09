@@ -18,7 +18,7 @@ from neuralmonkey.dataset import Dataset
 from neuralmonkey.tf_manager import TensorFlowManager
 
 
-def create_config():
+def create_config() -> Configuration:
     config = Configuration()
 
     # training loop arguments
@@ -47,7 +47,7 @@ def create_config():
     return config
 
 
-def main():
+def main() -> None:
     if len(sys.argv) != 2:
         print("Usage: train.py <ini_file>")
         exit(1)
@@ -55,56 +55,56 @@ def main():
     # define valid parameters and defaults
     cfg = create_config()
     # load the params from the config file, getting also the simple arguments
-    args = cfg.load_file(sys.argv[1])
+    cfg.load_file(sys.argv[1])
     # various things like randseed or summarywriter should be set up here
     # so that graph building can be recorded
     # build all the objects specified in the config
 
-    if args.random_seed is None:
-        args.random_seed = 2574600
-    random.seed(args.random_seed)
-    np.random.seed(args.random_seed)
-    tf.set_random_seed(args.random_seed)
+    if cfg.args.random_seed is None:
+        cfg.args.random_seed = 2574600
+    random.seed(cfg.args.random_seed)
+    np.random.seed(cfg.args.random_seed)
+    tf.set_random_seed(cfg.args.random_seed)
 
-    args = cfg.build_model()
+    cfg.build_model()
 
     # pylint: disable=no-member
-    if (os.path.isdir(args.output) and
-            os.path.exists(os.path.join(args.output, "experiment.ini"))):
-        if args.overwrite_output_dir:
+    if (os.path.isdir(cfg.model.output) and
+            os.path.exists(os.path.join(cfg.model.output, "experiment.ini"))):
+        if cfg.model.overwrite_output_dir:
             # we do not want to delete the directory contents
             log("Directory with experiment.ini '{}' exists, "
                 "overwriting enabled, proceeding."
-                .format(args.output))
+                .format(cfg.model.output))
         else:
             log("Directory with experiment.ini '{}' exists, "
                 "overwriting disabled."
-                .format(args.output), color='red')
+                .format(cfg.model.output), color='red')
             exit(1)
 
     try:
-        check_dataset_and_coders(args.train_dataset,
-                                 args.runners)
-        check_dataset_and_coders(args.val_dataset,
-                                 args.runners)
+        check_dataset_and_coders(cfg.model.train_dataset,
+                                 cfg.model.runners)
+        check_dataset_and_coders(cfg.model.val_dataset,
+                                 cfg.model.runners)
     except CheckingException as exc:
         log(str(exc), color='red')
         exit(1)
 
     # pylint: disable=broad-except
-    if not os.path.isdir(args.output):
+    if not os.path.isdir(cfg.model.output):
         try:
-            os.mkdir(args.output)
+            os.mkdir(cfg.model.output)
         except Exception as exc:
             log("Failed to create experiment directory: {}. Exception: {}"
-                .format(args.output, exc), color='red')
+                .format(cfg.model.output, exc), color='red')
             exit(1)
 
-    log_file = "{}/experiment.log".format(args.output)
-    ini_file = "{}/experiment.ini".format(args.output)
-    git_commit_file = "{}/git_commit".format(args.output)
-    git_diff_file = "{}/git_diff".format(args.output)
-    variables_file_prefix = "{}/variables.data".format(args.output)
+    log_file = "{}/experiment.log".format(cfg.model.output)
+    ini_file = "{}/experiment.ini".format(cfg.model.output)
+    git_commit_file = "{}/git_commit".format(cfg.model.output)
+    git_diff_file = "{}/git_diff".format(cfg.model.output)
+    variables_file_prefix = "{}/variables.data".format(cfg.model.output)
 
     cont_index = 0
 
@@ -116,17 +116,20 @@ def main():
            or os.path.exists("{}.0".format(variables_file_prefix))):
         cont_index += 1
 
-        log_file = "{}/experiment.log.cont-{}".format(args.output, cont_index)
-        ini_file = "{}/experiment.ini.cont-{}".format(args.output, cont_index)
+        log_file = "{}/experiment.log.cont-{}".format(
+            cfg.model.output, cont_index)
+        ini_file = "{}/experiment.ini.cont-{}".format(
+            cfg.model.output, cont_index)
         git_commit_file = "{}/git_commit.cont-{}".format(
-            args.output, cont_index)
-        git_diff_file = "{}/git_diff.cont-{}".format(args.output, cont_index)
+            cfg.model.output, cont_index)
+        git_diff_file = "{}/git_diff.cont-{}".format(
+            cfg.model.output, cont_index)
         variables_file_prefix = "{}/variables.data.cont-{}".format(
-            args.output, cont_index)
+            cfg.model.output, cont_index)
 
     copyfile(sys.argv[1], ini_file)
     Logging.set_log_file(log_file)
-    Logging.print_header(args.name)
+    Logging.print_header(cfg.model.name)
 
     # this points inside the neuralmonkey/ dir inside the repo, but
     # it does not matter for git.
@@ -140,20 +143,20 @@ def main():
 
     link_best_vars = "{}.best".format(variables_file_prefix)
 
-    training_loop(tf_manager=args.tf_manager,
-                  epochs=args.epochs,
-                  trainer=args.trainer,
-                  batch_size=args.batch_size,
-                  train_dataset=args.train_dataset,
-                  val_dataset=args.val_dataset,
-                  log_directory=args.output,
-                  evaluators=args.evaluation,
-                  runners=args.runners,
-                  test_datasets=args.test_datasets,
+    training_loop(tf_manager=cfg.model.tf_manager,
+                  epochs=cfg.model.epochs,
+                  trainer=cfg.model.trainer,
+                  batch_size=cfg.model.batch_size,
+                  train_dataset=cfg.model.train_dataset,
+                  val_dataset=cfg.model.val_dataset,
+                  log_directory=cfg.model.output,
+                  evaluators=cfg.model.evaluation,
+                  runners=cfg.model.runners,
+                  test_datasets=cfg.model.test_datasets,
                   link_best_vars=link_best_vars,
                   vars_prefix=variables_file_prefix,
-                  logging_period=args.logging_period,
-                  validation_period=args.validation_period,
-                  postprocess=args.postprocess,
-                  runners_batch_size=args.runners_batch_size,
-                  minimize_metric=args.minimize)
+                  logging_period=cfg.model.logging_period,
+                  validation_period=cfg.model.validation_period,
+                  postprocess=cfg.model.postprocess,
+                  runners_batch_size=cfg.model.runners_batch_size,
+                  minimize_metric=cfg.model.minimize)

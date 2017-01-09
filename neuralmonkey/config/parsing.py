@@ -1,11 +1,10 @@
 """ Module responsible for INI parsing """
-# tests: mypy, lint
 
 import configparser
-import importlib
 import re
 import time
 
+from neuralmonkey.config.builder import ClassSymbol
 from neuralmonkey.config.exceptions import IniError
 
 LINE_NUM = re.compile(r"^(.*) ([0-9]+)$")
@@ -15,6 +14,7 @@ INTEGER = re.compile(r"^[0-9]+$")
 FLOAT = re.compile(r"^[0-9]*\.[0-9]*(e[+-]?[0-9]+)?$")
 LIST = re.compile(r"\[([^]]*)\]")
 TUPLE = re.compile(r"\(([^]]+)\)")
+STRING = re.compile(r"^\"(.*)\"$")
 CLASS_NAME = re.compile(
     r"^_*[a-zA-Z][a-zA-Z0-9_]*(\._*[a-zA-Z][a-zA-Z0-9_]*)+$")
 
@@ -32,6 +32,7 @@ def _keyval_parser_dict():
     return {
         INTEGER: int,
         FLOAT: float,
+        STRING: lambda x: STRING.match(x).group(1),
         CLASS_NAME: _parse_class_name,
         OBJECT_REF: lambda x: "object:" + OBJECT_REF.match(x).group(1),
         LIST: _parse_list,
@@ -98,34 +99,8 @@ def _parse_tuple(string):
 
 def _parse_class_name(string):
     """ Parse the string as a module or class name.
-    Raises Exception when the class (or module) cannot be imported.
     """
-
-    class_parts = string.split(".")
-    class_name = class_parts[-1]
-
-    # TODO should we not assume that everything is from neuralmonkey?
-    module_name = ".".join(["neuralmonkey"] + class_parts[:-1])
-
-    try:
-        module = importlib.import_module(module_name)
-    except ImportError as exc:
-        # if the problem is really importing the module
-        if exc.name == module_name:
-            raise Exception(
-                ("Interpretation '{}' as type name, module '{}' "
-                 "does not exist. Did you mean file './{}'? \n{}")
-                .format(string, module_name, string, exc)) from None
-        else:
-            raise
-
-    try:
-        clazz = getattr(module, class_name)
-    except AttributeError as exc:
-        raise Exception(("Interpretation '{}' as type name, class '{}' "
-                         "does not exist. Did you mean file './{}'? \n{}")
-                        .format(string, class_name, string, exc))
-    return clazz
+    return ClassSymbol(string)
 
 
 def _parse_value(string):
@@ -142,10 +117,10 @@ def _parse_value(string):
         if matcher.match(string):
             return parser(string)
 
-    return string
+    raise Exception("Cannot parse value: '{}'.".format(string)) from None
 
 
-def parse_config(config_file, filename=""):
+def _parse_ini(config_file, filename=""):
     """ Parses an INI file into a dictionary """
 
     line_numbers = (line.strip() + " " + str(i + 1)
@@ -167,12 +142,12 @@ def parse_config(config_file, filename=""):
 
 
 def parse_file(config_file):
-    """ Parses an INI file into a dictionary """
+    """ Parses an INI file and creates all values """
 
     parsed_dicts = dict()
     time_stamp = time.strftime("%Y-%m-%d-%H-%M-%S")
 
-    config = parse_config(config_file)
+    config = _parse_ini(config_file)
 
     for section in config:
         parsed_dicts[section] = dict()
@@ -187,7 +162,7 @@ def parse_file(config_file):
                 raise
             except Exception as exc:
                 raise IniError(
-                    lineno, "Cannot parse value: '{}'".format(value_string),
+                    lineno, "Cannot parse value: '{}'.".format(value_string),
                     exc) from None
 
             parsed_dicts[section][key] = value

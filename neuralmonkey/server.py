@@ -51,7 +51,7 @@ def post_request():
     return response
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(
         description="Runs Neural Monkey as a web server.")
     parser.add_argument("--port", type=int, default=5000)
@@ -62,8 +62,8 @@ def main():
     print("")
 
     # pylint: disable=no-member
-    args = CONFIG.load_file(cli_args.configuration)
-    args = CONFIG.build_model()
-    initialize_for_running(args.output, args.tf_manager, None)
-    APP.config['args'] = args
+    CONFIG.load_file(cli_args.configuration)
+    CONFIG.build_model()
+    initialize_for_running(CONFIG.model.output, CONFIG.model.tf_manager, None)
+    APP.config['args'] = CONFIG.model
     APP.run(port=cli_args.port, host=cli_args.host)
