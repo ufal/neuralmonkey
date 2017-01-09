@@ -3,7 +3,7 @@ This module contains different variants of projection of encoders into the
 initial state of the decoder.
 """
 # tests: lint
-from typing import List, Optional, Callable
+from typing import List, Optional, Callable, Any
 
 import tensorflow as tf
 
@@ -16,7 +16,7 @@ from neuralmonkey.logging import log
 # The function must conform the API
 def empty_initial_state(train_mode: tf.Tensor,
                         rnn_size: Optional[int],
-                        encoders: Optional[List[object]]=None) -> tf.Tensor:
+                        encoders: Optional[List[Any]]=None) -> tf.Tensor:
     """Return an empty vector
 
     Arguments:
@@ -32,7 +32,7 @@ def empty_initial_state(train_mode: tf.Tensor,
 
 def linear_encoder_projection(
         dropout_keep_prob: float) -> Callable[
-            [tf.Tensor, Optional[int], Optional[List[object]]],
+            [tf.Tensor, Optional[int], Optional[List[Any]]],
             tf.Tensor]:
     """Return a projection function which applies dropout on concatenated
     encoder final states and returns a linear projection to a rnn_size-sized
@@ -43,7 +43,7 @@ def linear_encoder_projection(
     """
     def func(train_mode: tf.Tensor,
              rnn_size: Optional[int]=None,
-             encoders: Optional[List[object]]=None) -> tf.Tensor:
+             encoders: Optional[List[Any]]=None) -> tf.Tensor:
         """Linearly project the encoders' encoded value to rnn_size
         and apply dropout
 
@@ -73,7 +73,7 @@ def linear_encoder_projection(
 def concat_encoder_projection(
         train_mode: tf.Tensor,
         rnn_size: Optional[int]=None,
-        encoders: Optional[List[object]]=None) -> tf.Tensor:
+        encoders: Optional[List[Any]]=None) -> tf.Tensor:
     """Create the initial state by concatenating the encoders' encoded values
 
     Arguments:

@@ -1,6 +1,6 @@
 # tests: lint
 
-from typing import List, Callable, Optional, Union, Tuple
+from typing import List, Callable, Optional, Union, Any, Tuple
 import math
 
 import tensorflow as tf
@@ -26,7 +26,7 @@ class Decoder(object):
 
     # pylint: disable=too-many-arguments,too-many-locals
     def __init__(self,
-                 encoders: List[object],
+                 encoders: List[Any],
                  vocabulary: Vocabulary,
                  data_id: str,
                  name: str,
@@ -37,10 +37,10 @@ class Decoder(object):
                  output_projection: Optional[Callable[
                      [tf.Tensor, tf.Tensor, List[tf.Tensor]], tf.Tensor]]=None,
                  encoder_projection: Optional[Callable[
-                     [tf.Tensor, Optional[int], Optional[List[object]]],
+                     [tf.Tensor, Optional[int], Optional[List[Any]]],
                      tf.Tensor]]=None,
                  use_attention: bool=False,
-                 embeddings_encoder: Optional[object]=None):
+                 embeddings_encoder: Optional[Any]=None) -> None:
         """Creates a refactored version of monster decoder.
 
         Arguments:
@@ -135,6 +135,7 @@ class Decoder(object):
 
             # fetch train attention objects
             self._train_attention_objects = {}
+            # type: Dict[Attentive, tf.Tensor]
             if self.use_attention:
                 self._train_attention_objects = {
                     e: e.create_attention_object()
@@ -150,6 +151,7 @@ class Decoder(object):
 
             # fetch runtime attention objects
             self._runtime_attention_objects = {}
+            # type: Dict[Attentive, tf.Tensor]
             if self.use_attention:
                 self._runtime_attention_objects = {
                     e: e.create_attention_object()
