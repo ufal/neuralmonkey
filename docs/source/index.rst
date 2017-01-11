@@ -23,6 +23,7 @@ Getting Started
    tutorial
    machine_translation
    development
+   configuration
    api
    visualization
    features
