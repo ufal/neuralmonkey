@@ -119,6 +119,10 @@ class FlatMultiAttention(MultiAttention):
 
                 self.encoder_attn_biases.append(attn_bias)
 
+            if self._use_sentinels:
+                self._encoders_masks.append(
+                    tf.ones([tf.shape(self._encoders_masks[0])[0], 1]))
+
             self.masks_concat = tf.concat(1, self._encoders_masks)
 
     def attention(self, decoder_state, decoder_prev_state, decoder_input):
@@ -146,14 +150,16 @@ class FlatMultiAttention(MultiAttention):
                     "sentinel_bias", [],
                     initializer=tf.constant_initializer(0.0))
 
-                projected_sentinel = linear(sentinel_value, self._state_size,
-                                            scope="sentinel_projection")
+                projected_sentinel = tf.expand_dims(
+                    linear(sentinel_value, self._state_size,
+                           scope="sentinel_projection"), 1)
                 sentinel_logit = tf.reduce_sum(
-                    self.attn_v * tf.tanh(projected_state
-                                          + projected_sentinel),
-                    [1]) + sentinel_bias
+                    self.attn_v *
+                    tf.tanh(projected_state + projected_sentinel),
+                    [2]) + sentinel_bias
+                assert_shape(sentinel_logit, [None, 1])
 
-                logits.append(tf.expand_dims(sentinel_logit, 1))
+                logits.append(sentinel_logit)
 
             logits_concat = tf.concat(1, logits)
             softmax_concat = tf.nn.softmax(logits_concat) * self.masks_concat
@@ -162,7 +168,9 @@ class FlatMultiAttention(MultiAttention):
 
             self.attentions_in_time.append(attentions)
 
-            projections_concat = tf.concat(1, self.encoder_state_projections)
+            projections_concat = tf.concat(
+                1, self.encoder_state_projections +
+                [projected_sentinel] if self._use_sentinels else [])
 
             contexts = tf.reduce_sum(
                 tf.expand_dims(attentions, 2) * projections_concat, [1])
@@ -179,6 +187,8 @@ class FlatMultiAttention(MultiAttention):
 
             gate = tf.nn.sigmoid(linear(concatenation, decoder_state_size))
             sentinel_value = gate * state
+
+            assert_shape(sentinel_value, [None, decoder_state_size])
 
             return sentinel_value
 
