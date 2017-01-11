@@ -5,6 +5,7 @@ from typing import Optional, Dict, Any, Tuple
 import tensorflow as tf
 
 from neuralmonkey.encoders.attentive import Attentive
+from neuralmonkey.model.model_part import ModelPart
 from neuralmonkey.logging import log
 from neuralmonkey.nn.noisy_gru_cell import NoisyGRUCell
 from neuralmonkey.nn.ortho_gru_cell import OrthoGRUCell
@@ -19,7 +20,7 @@ RNNCellTuple = Tuple[tf.nn.rnn_cell.RNNCell, tf.nn.rnn_cell.RNNCell]
 
 
 # pylint: disable=too-many-instance-attributes
-class SentenceEncoder(Attentive):
+class SentenceEncoder(ModelPart, Attentive):
     """A class that manages parts of the computation graph that are
     used for encoding of input sentences. It uses a bidirectional RNN.
 
@@ -29,9 +30,9 @@ class SentenceEncoder(Attentive):
 
     # pylint: disable=too-many-arguments,too-many-locals
     def __init__(self,
+                 name: str,
                  vocabulary: Vocabulary,
                  data_id: str,
-                 name: str,
                  max_input_len: int,
                  embedding_size: int,
                  rnn_size: int,
@@ -39,7 +40,9 @@ class SentenceEncoder(Attentive):
                  attention_type: Optional[AttType]=None,
                  attention_fertility: int=3,
                  use_noisy_activations: bool=False,
-                 parent_encoder: Optional["SentenceEncoder"]=None) -> None:
+                 parent_encoder: Optional["SentenceEncoder"]=None,
+                 save_checkpoint: Optional[str]=None,
+                 load_checkpoint: Optional[str]=None) -> None:
         """Createes a new instance of the sentence encoder
 
         Arguments:
@@ -62,12 +65,12 @@ class SentenceEncoder(Attentive):
             attention_fertility: Fertility parameter used with
                 CoverageAttention (default 3).
         """
-        super().__init__(
-            attention_type, attention_fertility=attention_fertility)
+        ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
+        Attentive.__init__(
+            self, attention_type, attention_fertility=attention_fertility)
 
         self.vocabulary = vocabulary
         self.data_id = data_id
-        self.name = name
 
         self.max_input_len = max_input_len
         self.embedding_size = embedding_size
