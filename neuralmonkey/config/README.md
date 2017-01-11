@@ -56,6 +56,6 @@ the section references) are interpreted as their Python counterparts. The
 section references are interpreted as references to objects which are results
 of section interpretation.
 
-Every section needs to contain key `class` with a value of Python name which is
-a callable (e.g., a class constructor or a function). The other keys are used
-as named arguments of the callable.
+Every section except the `[main]` needs to contain key `class` with a value of
+Python name which is a callable (e.g., a class constructor or a function). The
+other keys are used as named arguments of the callable.
