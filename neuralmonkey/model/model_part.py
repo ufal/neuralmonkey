@@ -1,6 +1,6 @@
 """Basic functionality of all model parts."""
 
-from abc import ABCMeta, abstractproperty
+from abc import ABCMeta
 from typing import Any, Dict, Optional
 
 import tensorflow as tf
@@ -30,7 +30,6 @@ class ModelPart(metaclass=ABCMeta):
         """Name of the model part and its variable scope."""
         return self._name
 
-    @abstractproperty
     def feed_dict(self, dataset: Dataset, train: bool) -> FeedDict:
         """Prepare feed dicts for part's placeholders from a dataset."""
         raise NotImplementedError("Abstract base class.")
