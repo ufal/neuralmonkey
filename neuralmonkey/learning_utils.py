@@ -11,6 +11,8 @@ from neuralmonkey.dataset import Dataset
 from neuralmonkey.tf_manager import TensorFlowManager
 from neuralmonkey.runners.base_runner import BaseRunner, ExecutionResult
 
+from neuralmonkey.tf_utils import gpu_memusage
+
 # pylint: disable=invalid-name
 Evaluation = Dict[str, float]
 EvalConfiguration = List[Union[Tuple[str, Any], Tuple[str, str, Any]]]
@@ -338,10 +340,13 @@ def _log_continuous_evaluation(tb_writer: tf.train.SummaryWriter,
 
     color, prefix = ("yellow", "train") if train else ("blue", "val")
 
+    meminfo = gpu_memusage()
+
     eval_string = _format_evaluation_line(eval_result, main_metric)
-    eval_string = "Epoch {}/{}    Instances {}    {}".format(epoch, max_epochs,
+    eval_string = "Epoch {}/{}  Instances {}  {}  {}".format(epoch, max_epochs,
                                                              seen_instances,
-                                                             eval_string)
+                                                             eval_string,
+                                                             meminfo)
     log(eval_string, color=color)
 
     if tb_writer:
