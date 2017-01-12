@@ -82,13 +82,17 @@ class SequenceClassifier(ModelPart):
         return self.decoded_seq
 
     def feed_dict(self, dataset: Dataset, train: bool=False) -> FeedDict:
-        sentences = list(
-            cast(Iterable[List[str]],
-                 dataset.get_series(self.data_id, allow_none=True)))
+        sentences = cast(Iterable[List[str]],
+                         dataset.get_series(self.data_id, allow_none=True))
+        if sentences is not None:
+            sentences_list = list(sentences)
+        else:
+            sentences_list = None
+
         fd = {}  # type: FeedDict
 
         label_tensors, _ = self.vocabulary.sentences_to_tensor(
-            sentences, self.max_output_len)
+            sentences_list, self.max_output_len)
 
         fd[self.gt_inputs[0]] = label_tensors[0]
 

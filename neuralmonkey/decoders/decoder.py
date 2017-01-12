@@ -433,9 +433,13 @@ class Decoder(ModelPart):
             dataset: The dataset to use for the decoder.
             train: Boolean flag, telling whether this is a training run
         """
-        sentences = list(
-            cast(Iterable[List[str]],
-                 dataset.get_series(self.data_id, allow_none=True)))
+        sentences = cast(Iterable[List[str]],
+                         dataset.get_series(self.data_id, allow_none=True))
+        if sentences is not None:
+            sentences_list = list(sentences)
+        else:
+            sentences_list = None
+
         if sentences is None and train:
             raise ValueError("When training, you must feed "
                              "reference sentences")
@@ -450,11 +454,11 @@ class Decoder(ModelPart):
         if sentences is not None:
             # train_mode=False, since we don't want to <unk>ize target words!
             inputs, weights = self.vocabulary.sentences_to_tensor(
-                sentences, self.max_output_len, train_mode=False,
+                sentences_list, self.max_output_len, train_mode=False,
                 add_start_symbol=False, add_end_symbol=True)
 
-            assert inputs.shape == (self.max_output_len, len(sentences))
-            assert weights.shape == (self.max_output_len, len(sentences))
+            assert inputs.shape == (self.max_output_len, len(sentences_list))
+            assert weights.shape == (self.max_output_len, len(sentences_list))
 
             res[self.train_inputs] = inputs
             res[self.train_padding] = weights
