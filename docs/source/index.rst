@@ -3,15 +3,15 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
+.. image:: gorilla-small.jpg
+   :align: right
+   :width: 60px
+   :alt: Gorilla Logo
+
 Welcome to Neural Monkey's documentation!
 =========================================
 
 Neural Monkey is an open-source toolkit for sequence learning using Tensorflow.
-
-.. image:: gorilla-small.jpg
-   :align: left
-   :width: 60px
-   :alt: Gorilla Logo
 
 Getting Started
 ---------------
