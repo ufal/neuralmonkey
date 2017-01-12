@@ -81,17 +81,19 @@ class SentenceEncoder(Attentive):
 
         with tf.variable_scope(self.name):
             self._create_input_placeholders()
-            self._create_embedding_matrix()
+            with tf.variable_scope('input_projection'):
+                self._create_embedding_matrix()
+                embedded_inputs = self._embed(self.inputs)  # type: tf.Tensor
 
-            embedded_inputs = self._embed(self.inputs)  # type: tf.Tensor
             fw_cell, bw_cell = self.rnn_cells()  # type: RNNCellTuple
-
             outputs_bidi_tup, encoded_tup = tf.nn.bidirectional_dynamic_rnn(
                 fw_cell, bw_cell, embedded_inputs, self.sentence_lengths,
                 dtype=tf.float32)
 
-            self.__attention_tensor = tf.concat(2, outputs_bidi_tup)
-            self.__attention_tensor = self._dropout(self.__attention_tensor)
+            with tf.variable_scope('attention_tensor'):
+                self.__attention_tensor = tf.concat(2, outputs_bidi_tup)
+                self.__attention_tensor = self._dropout(
+                    self.__attention_tensor)
 
             self.encoded = tf.concat(1, encoded_tup)
 
