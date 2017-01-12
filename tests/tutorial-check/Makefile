@@ -3,14 +3,17 @@ SHELL=/bin/bash
 
 TUTORIALS=tutorial # machine_translation
 
-all-checks: $(TUTORIALS:%=%.check)
+all: $(TUTORIALS:%=%.check)
 
 all-extracts: $(TUTORIALS:%=%.extract)
 
+# This generic goal extracts inis from any tutorial:
 .PRECIOUS: %.ini
 %.extract: ../../docs/source/%.rst
 	./extract_inis.pl < $<
 	touch $@
 
-%.check: %.ini
-	../../bin/neuralmonkey-train $<
+# Once the inis are ready, test them
+
+tutorial.check:
+	../../bin/neuralmonkey-train pe.ini
