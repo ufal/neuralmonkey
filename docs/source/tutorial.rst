@@ -219,8 +219,9 @@ respective set of sentences.
 It is assumed that all series within a given dataset have the same number of
 elements (i.e. sentences in our case).
 
-The configuration of the datasets looks like this::
+The configuration of the datasets looks like this:
 
+.. code-block:: ini
 
   [train_dataset]
   class=config.utils.dataset_from_files
@@ -233,6 +234,7 @@ The configuration of the datasets looks like this::
   s_source="exp-nm-ape/data/dev/dev.src"
   s_translated="exp-nm-ape/data/dev/dev.mt"
   s_edits="exp-nm-ape/data/dev/dev.edits"
+.. TUTCHECKEND
 
 Note that series names (`source`, `translated`, and `edits`) are arbitrary and
 defined by their first mention. The ``s_`` prefix stands for "series" and
@@ -253,7 +255,9 @@ the training data. Note that apart the special ``<keep>`` and ``<delete>``
 tokens, the vocabularies for the `translated` and `edits` series are from the
 same language. We can save some memory and perhaps improve quality of the target
 language embeddings by share vocabularies for these datasets. Therefore, we need
-to create only two vocabulary objects::
+to create only two vocabulary objects:
+
+.. code-block:: ini
 
   [source_vocabulary]
   class=vocabulary.from_dataset
@@ -266,6 +270,7 @@ to create only two vocabulary objects::
   datasets=[<train_dataset>]
   series_ids=["edits", "translated"]
   max_size=50000
+.. TUTCHECKEND
 
 The first vocabulary object (called ``source_vocabulary``) represents the
 (English) vocabulary used for this task. The 50,000 is the maximum size of the
@@ -295,7 +300,9 @@ Our network will have two inputs. Therefore, we must design two separate
 encoders. The first encoder will process source sentences, and the second will
 process translated sentences, i.e. the candidate translations that we are
 expected to post-edit. This is the configuration of the encoder for
-the source sentences::
+the source sentences:
+
+.. code-block:: ini
 
   [src_encoder]
   class=encoders.sentence_encoder.SentenceEncoder
@@ -307,6 +314,7 @@ the source sentences::
   data_id="source"
   name="src_encoder"
   vocabulary=<source_vocabulary>
+.. TUTCHECKEND
 
 This configuration initializes a new instance of sentence encoder with the
 hidden state size set to 300 and the maximum input length set to 50. (Longer
@@ -318,7 +326,9 @@ embeddings and from the attention vectors computed over the hidden states of
 this encoder. Note the ``name`` attribute must be set in each encoder and
 decoder in order to prevent collisions of the names of Tensorflow graph nodes.
 
-The configuration of the second encoder follows::
+The configuration of the second encoder follows:
+
+.. code-block:: ini
 
   [trans_encoder]
   class=encoders.sentence_encoder.SentenceEncoder
@@ -330,6 +340,7 @@ The configuration of the second encoder follows::
   data_id="translated"
   name="trans_encoder"
   vocabulary=<target_vocabulary>
+.. TUTCHECKEND
 
 This config creates a second encoder for the ``translated`` data series. The
 setting is the same as for the first encoder, except for the different
@@ -340,7 +351,9 @@ vocabulary and name.
 ***********
 
 Now, we configure perhaps the most important object of the training - the
-decoder. Without further ado, here it goes::
+decoder. Without further ado, here it goes:
+
+.. code-block:: ini
 
   [decoder]
   class=decoders.decoder.Decoder
@@ -353,6 +366,7 @@ decoder. Without further ado, here it goes::
   use_attention=True
   data_id="edits"
   vocabulary=<target_vocabulary>
+.. TUTCHECKEND
 
 As in the case of encoders, the decoder needs its RNN and embedding size
 settings, maximum output length, dropout parameter, and vocabulary settings.
@@ -386,7 +400,9 @@ regularization (controlled by the ``l2_weight`` parameter of the
 trainer). The runner is used to process a dataset by the model and return the
 decoded sentences, and (if possible) decoder losses.
 
-We define these two objects like this::
+We define these two objects like this:
+
+.. code-block:: ini
 
   [trainer]
   class=trainers.cross_entropy_trainer.CrossEntropyTrainer
@@ -397,6 +413,8 @@ We define these two objects like this::
   class=runners.runner.GreedyRunner
   decoder=<decoder>
   output_series="greedy_edits"
+.. TUTCHECKEND
+
 
 Note that a runner can only have one decoder, but during training you can train
 several decoders, all contributing to the loss function.
@@ -416,7 +434,9 @@ During validation, the whole validation dataset gets processed by the models and
 the decoded sentences are evaluated against a reference to provide the user with
 the state of the training. For this, we need to specify evaluator objects which
 will be used to score the outputted sentences. In our case, we will use BLEU and
-TER::
+TER:
+
+.. code-block:: ini
 
   [bleu]
   class=evaluators.bleu.BLEUEvaluator
@@ -425,6 +445,7 @@ TER::
   [ter]
   class=evaluators.edit_distance.EditDistance
   name="TER"
+.. TUTCHECKEND
 
 TODO check if the TER evaluator works as expected
 
@@ -433,13 +454,16 @@ TODO check if the TER evaluator works as expected
 ******************
 
 In order to handle global variables such as how many CPU cores
-TensorFlow should use, you need to specify a "TensorFlow manager"::
+TensorFlow should use, you need to specify a "TensorFlow manager":
+
+.. code-block:: ini
 
   [tf_manager]
   class=tf_manager.TensorFlowManager
   num_threads=4
   num_sessions=1
   save_n_best=3
+.. TUTCHECKEND
 
 
 8 - Main Configuration Section
@@ -447,7 +471,9 @@ TensorFlow should use, you need to specify a "TensorFlow manager"::
 
 Almost there! The last part of the configuration puts all the pieces
 together. It is called ``main`` and specifies the rest of the training
-parameters::
+parameters:
+
+.. code-block:: ini
 
   [main]
   name="post editing"
@@ -464,6 +490,7 @@ parameters::
   epochs=100
   validation_period=1000
   logging_period=20
+.. TUTCHECKEND
 
 The ``output`` parameter specifies the directory, in which all the files generated by
 the training (used for replicability of the experiment, logging, and saving best
