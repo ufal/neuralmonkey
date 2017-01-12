@@ -1,37 +1,50 @@
-from typing import cast, Any, Iterable, List
+import math
+from typing import cast, Iterable, List, Optional
 
 import tensorflow as tf
 
 from neuralmonkey.dataset import Dataset
-from neuralmonkey.model.model_part import FeedDict
-from neuralmonkey.decoders.decoder import Decoder
+from neuralmonkey.model.model_part import ModelPart, FeedDict
+from neuralmonkey.encoders.sentence_encoder import SentenceEncoder
 from neuralmonkey.vocabulary import Vocabulary
 
 
 # pylint: disable=too-many-instance-attributes,too-few-public-methods
-class SequenceLabeler(Decoder):
+class SequenceLabeler(ModelPart):
     """Classifier assing a label to each encoder's state."""
 
-    # pylint: disable=super-init-not-called
+    # pylint: disable=too-many-locals
     def __init__(self,
-                 encoder: Any,
+                 name: str,
+                 encoder: SentenceEncoder,
                  vocabulary: Vocabulary,
-                 data_id: str, **kwargs) -> None:
+                 data_id: str,
+                 dropout_keep_prob: float=1.0,
+                 save_checkpoint: Optional[str]=None,
+                 load_checkpoint: Optional[str]=None) -> None:
+
+        ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
 
         self.encoder = encoder
         self.vocabulary = vocabulary
         self.data_id = data_id
 
-        dropout_keep_prob = kwargs.get("dropout_keep_prob", 1.0)
-
         self.rnn_size = self.encoder.rnn_size * 2
         self.max_output_len = self.encoder.max_input_len
+        vocabulary_size = len(vocabulary)
 
-        # pylint: disable=no-member
-        self.weights, self.biases = self._state_to_output()
+        weights = tf.get_variable(
+            name="state_to_word_W",
+            shape=[self.rnn_size, vocabulary_size],
+            initializer=tf.random_uniform_initializer(-0.5, 0.5))
 
-        logits = [tf.tanh(tf.matmul(state, self.weights) + self.biases)
-                  for state in self.encoder.outputs_bidi]
+        biases = tf.get_variable(
+            name="state_to_word_b",
+            shape=[vocabulary_size],
+            initializer=tf.constant_initializer(- math.log(vocabulary_size)))
+
+        logits = [tf.tanh(tf.matmul(state, weights) + biases)
+                  for state in self.encoder.hidden_states]
 
         # [:, 1:] -- bans generating the start symbol (index 0 in
         #            the vocabulary; The start symbol is automatically
@@ -64,13 +77,6 @@ class SequenceLabeler(Decoder):
 
         self.train_loss = sum(summed_losses_in_time)
         self.runtime_loss = self.train_loss
-
-        # Learning step
-        # TODO was here only because of scheduled sampling.
-        # needs to be refactored out
-        self.learning_step = tf.get_variable(
-            "learning_step", [], initializer=tf.constant_initializer(0),
-            trainable=False)
 
         self.dropout_placeholder = tf.placeholder_with_default(
             tf.constant(dropout_keep_prob, tf.float32),
