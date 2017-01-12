@@ -1,7 +1,11 @@
-# tests: lint, mypy
+from typing import cast, Any, Iterable, List
+
 import tensorflow as tf
 
+from neuralmonkey.dataset import Dataset
+from neuralmonkey.model.model_part import FeedDict
 from neuralmonkey.decoders.decoder import Decoder
+from neuralmonkey.vocabulary import Vocabulary
 
 
 # pylint: disable=too-many-instance-attributes,too-few-public-methods
@@ -9,7 +13,10 @@ class SequenceLabeler(Decoder):
     """Classifier assing a label to each encoder's state."""
 
     # pylint: disable=super-init-not-called
-    def __init__(self, encoder, vocabulary, data_id, **kwargs):
+    def __init__(self,
+                 encoder: Any,
+                 vocabulary: Vocabulary,
+                 data_id: str, **kwargs) -> None:
 
         self.encoder = encoder
         self.vocabulary = vocabulary
@@ -40,7 +47,7 @@ class SequenceLabeler(Decoder):
                                              name="seq_lab_{}".format(i))
                               for i in range(self.max_output_len)]
 
-        train_onehots = [tf.one_hot(t, self.vocabulary_size)
+        train_onehots = [tf.one_hot(t, len(vocabulary))
                          for t in self.train_targets]
 
         self.train_weights = [
@@ -69,11 +76,12 @@ class SequenceLabeler(Decoder):
             tf.constant(dropout_keep_prob, tf.float32),
             shape=[], name="decoder_dropout_placeholder")
 
-    def feed_dict(self, dataset, train=False):
+    def feed_dict(self, dataset: Dataset, train: bool=False) -> FeedDict:
+        fd = {}  # type: FeedDict
 
-        fd = {}
-
-        sentences = dataset.get_series(self.data_id, allow_none=True)
+        sentences = list(
+            cast(Iterable[List[str]],
+                 dataset.get_series(self.data_id, allow_none=True)))
 
         if sentences is not None:
             inputs, weights = self.vocabulary.sentences_to_tensor(

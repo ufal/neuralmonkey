@@ -1,11 +1,11 @@
 # tests: lint, mypy
 
-from typing import Optional, Dict, Any, Tuple
+from typing import Optional, Any, Tuple
 
 import tensorflow as tf
 
 from neuralmonkey.encoders.attentive import Attentive
-from neuralmonkey.model.model_part import ModelPart
+from neuralmonkey.model.model_part import ModelPart, FeedDict
 from neuralmonkey.logging import log
 from neuralmonkey.nn.noisy_gru_cell import NoisyGRUCell
 from neuralmonkey.nn.ortho_gru_cell import OrthoGRUCell
@@ -14,7 +14,6 @@ from neuralmonkey.vocabulary import Vocabulary
 
 # pylint: disable=invalid-name
 AttType = Any  # Type[] or union of types do not work here
-FeedDict = Dict[tf.Tensor, Any]
 RNNCellTuple = Tuple[tf.nn.rnn_cell.RNNCell, tf.nn.rnn_cell.RNNCell]
 # pylint: enable=invalid-name
 
