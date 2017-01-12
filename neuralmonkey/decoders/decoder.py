@@ -40,7 +40,8 @@ class Decoder(object):
                      [tf.Tensor, Optional[int], Optional[List[Any]]],
                      tf.Tensor]]=None,
                  use_attention: bool=False,
-                 embeddings_encoder: Optional[Any]=None) -> None:
+                 embeddings_encoder: Optional[Any]=None,
+                 attention_on_input: bool=True) -> None:
         """Creates a refactored version of monster decoder.
 
         Arguments:
@@ -61,6 +62,8 @@ class Decoder(object):
             use_attention: Flag whether to look at attention vectors of the
                 encoders
             embeddings_encoder: Encoder to take embeddings from
+            attention_on_input: Flag whether attention from previous decoding
+                step should be combined with the input in the next step.
         """
         log("Initializing decoder, name: '{}'".format(name))
 
@@ -143,7 +146,9 @@ class Decoder(object):
                     if isinstance(e, Attentive)}
 
             train_rnn_outputs, _ = self._attention_decoder(
-                embedded_go_symbols, train_inputs=embedded_train_inputs,
+                embedded_go_symbols,
+                attention_on_input=attention_on_input,
+                train_inputs=embedded_train_inputs,
                 train_mode=True)
 
             assert not tf.get_variable_scope().reuse
@@ -160,7 +165,9 @@ class Decoder(object):
 
             (self.runtime_rnn_outputs,
              self.runtime_rnn_states) = self._attention_decoder(
-                 embedded_go_symbols, train_mode=False)
+                 embedded_go_symbols,
+                 attention_on_input=attention_on_input,
+                 train_mode=False)
 
             self.hidden_states = self.runtime_rnn_outputs
 
@@ -289,6 +296,7 @@ class Decoder(object):
             self,
             go_symbols: tf.Tensor,
             train_inputs: tf.Tensor=None,
+            attention_on_input=True,
             train_mode: bool=False,
             scope: Union[str, tf.VariableScope]=None) -> Tuple[
                 List[tf.Tensor], List[tf.Tensor]]:
@@ -298,6 +306,8 @@ class Decoder(object):
             go_symbols: The tensor of start symbols of shape (1, batch_size)
             train_inputs: Training inputs to feed the decoder with. These are
                 not used when `train_mode = False`
+            attention_on_input: Flag whether attention from previous time step
+                is fed to the input in the next step.
             train_mode: Boolean flag whether the decoder is running in
                 train (with ground truth inputs) or runtime mode (with inputs
                 decoded using the loop function)
@@ -335,7 +345,10 @@ class Decoder(object):
 
                 # Merge input and previous attentions into one vector of the
                 # right size.
-                x = linear([inp] + attns, self.embedding_size)
+                if attention_on_input:
+                    x = linear([inp] + attns, self.embedding_size)
+                else:
+                    x = inp
                 # Run the RNN.
 
                 cell_output, state = cell(x, state)
