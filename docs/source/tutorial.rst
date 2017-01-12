@@ -583,7 +583,7 @@ procedure is simple:
    ``val_dataset`` configuration from the ``[main]`` section.
 
 Now we have to make another file specifying the testing dataset
-configuration. We will call this file ``test_datasets.ini``::
+configuration. We will call this file ``test_datasets.ini``:
 
 .. code-block:: ini
 
