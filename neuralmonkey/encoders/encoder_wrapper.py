@@ -1,36 +1,38 @@
-from abc import ABCMeta, abstractproperty
-from typing import Any, List, Union, Type
+from abc import ABCMeta
+from typing import Any, List, Union
 import tensorflow as tf
 
 from neuralmonkey.encoders.attentive import Attentive
 from neuralmonkey.checking import assert_shape
 from neuralmonkey.nn.projection import linear
 
+
 class EncoderWrapper(Attentive):
 
     def __init__(self,
                  name: str,
                  encoders: List[Any],
-                 multi_attention_type: Type,
                  attention_state_size: int,
-                 use_sentinels=False) -> None:
-        super().__init__(multi_attention_type)
+                 use_sentinels=False,
+                 share_attn_projections=False) -> None:
+        super().__init__(FlatMultiAttention)
         self.name = name
         self.encoders = encoders
-        self._multi_attention_type = multi_attention_type
         self._attention_state_size = attention_state_size
         self._use_sentinels = use_sentinels
+        self._share_attn_projections = share_attn_projections
 
         self.encoded = tf.concat(1, [e.encoded for e in encoders])
 
     # pylint: disable=unused-argument,protected-access
     def create_attention_object(self):
-        return self._multi_attention_type(
+        return FlatMultiAttention(
             [e._attention_tensor for e in self.encoders],
             [e._attention_mask for e in self.encoders],
             self._attention_state_size,
             "attention_{}".format(self.name),
-            use_sentinels=self._use_sentinels)
+            use_sentinels=self._use_sentinels,
+            share_projections=self._share_attn_projections)
     # pylint: enable=unused-argument,protected-access
 
     # pylint: disable=unused-argument,no-method-argument,no-self-use
@@ -51,6 +53,7 @@ class EncoderWrapper(Attentive):
 
 class MultiAttention(metaclass=ABCMeta):
 
+    # pylint: disable=unused-argument
     def __init__(self,
                  encoders_tensors: List[tf.Tensor],
                  encoders_masks: List[tf.Tensor],
@@ -68,9 +71,8 @@ class MultiAttention(metaclass=ABCMeta):
 
         for e_t in self._encoders_tensors:
             assert_shape(e_t, [None, -1, -1])
+    # pylint: enable=unused-argument
 
-
-    @abstractproperty
     def attention(self, decoder_state, decoder_prev_state, decoder_input):
         raise NotImplementedError("Abstract method")
 
@@ -84,17 +86,35 @@ class FlatMultiAttention(MultiAttention):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        if "use_sentinels" in kwargs:
-            self._use_sentinels = kwargs.get("use_sentinels")
+        self._use_sentinels = kwargs.get("use_sentinels", False)
+        self._share_projections = kwargs.get("_share_projections", False)
 
         with tf.variable_scope(self._scope):
             self.attn_v = tf.get_variable(
                 "attn_v", [1, 1, self._state_size],
                 initializer=tf.random_normal_initializer(stddev=.001))
 
-            self.encoder_state_projections = []
+            self.encoder_projections_for_logits = \
+                self.get_encoder_projections("logits_projections")
+
+            if self._share_projections:
+                self.encoder_projections_for_ctx = \
+                    self.encoder_projections_for_logits
+            else:
+                self.encoder_projections_for_ctx = \
+                    self.get_encoder_projections("context_projections")
+
             self.encoder_attn_biases = []
 
+            if self._use_sentinels:
+                self._encoders_masks.append(
+                    tf.ones([tf.shape(self._encoders_masks[0])[0], 1]))
+
+            self.masks_concat = tf.concat(1, self._encoders_masks)
+
+    def get_encoder_projections(self, scope):
+        encoder_projections = []
+        with tf.variable_scope(scope):
             for i, encoder_tensor in enumerate(self._encoders_tensors):
                 encoder_state_size = encoder_tensor.get_shape()[2].value
                 encoder_tensor_shape = tf.shape(encoder_tensor)
@@ -119,20 +139,10 @@ class FlatMultiAttention(MultiAttention):
                                                        encoder_tensor_shape[1],
                                                        self._state_size])
 
-                self.encoder_state_projections.append(projection)
+                encoder_projections.append(projection)
+            return encoder_projections
 
-                attn_bias = tf.get_variable(
-                    "attn_bias_{}".format(i), [],
-                    initializer=tf.constant_initializer(0.0))
-
-                self.encoder_attn_biases.append(attn_bias)
-
-            if self._use_sentinels:
-                self._encoders_masks.append(
-                    tf.ones([tf.shape(self._encoders_masks[0])[0], 1]))
-
-            self.masks_concat = tf.concat(1, self._encoders_masks)
-
+    # pylint: disable=too-many-locals
     def attention(self, decoder_state, decoder_prev_state, decoder_input):
 
         with tf.variable_scope(self._scope):
@@ -143,7 +153,7 @@ class FlatMultiAttention(MultiAttention):
 
             logits = []
 
-            for proj, bias in zip(self.encoder_state_projections,
+            for proj, bias in zip(self.encoder_projections_for_logits,
                                   self.encoder_attn_biases):
 
                 logits.append(tf.reduce_sum(
@@ -163,13 +173,14 @@ class FlatMultiAttention(MultiAttention):
             self.attentions_in_time.append(attentions)
 
             projections_concat = tf.concat(
-                1, self.encoder_state_projections +
+                1, self.encoder_projections_for_ctx +
                 [projected_sentinel] if self._use_sentinels else [])
 
             contexts = tf.reduce_sum(
                 tf.expand_dims(attentions, 2) * projections_concat, [1])
 
             return contexts
+    # pylint: enable=too-many-locals
 
     def _sentinel_logit(self,
                         projected_decoder_state,
@@ -185,15 +196,23 @@ class FlatMultiAttention(MultiAttention):
                 "sentinel_bias", [],
                 initializer=tf.constant_initializer(0.0))
 
-            projected_sentinel = tf.expand_dims(
+            proj_sentinel_for_logit = tf.expand_dims(
                 linear(sentinel_value, self._state_size,
                        scope="sentinel_projection"), 1)
+
+            if self._share_projections:
+                proj_sentinel_for_ctx = proj_sentinel_for_logit
+            else:
+                proj_sentinel_for_ctx = tf.expand_dims(
+                    linear(sentinel_value, self._state_size,
+                           scope="sentinel_ctx_proj"), 1)
+
             sentinel_logit = tf.reduce_sum(
                 self.attn_v *
-                tf.tanh(projected_decoder_state + projected_sentinel),
+                tf.tanh(projected_decoder_state + proj_sentinel_for_logit),
                 [2]) + sentinel_bias
             assert_shape(sentinel_logit, [None, 1])
-            return projected_sentinel, sentinel_logit
+            return proj_sentinel_for_ctx, sentinel_logit
 
 
 def _sentinel(state, prev_state, input_):
@@ -209,7 +228,6 @@ def _sentinel(state, prev_state, input_):
         assert_shape(sentinel_value, [None, decoder_state_size])
 
         return sentinel_value
-
 
 
 class HierarchicalMultiAttention(MultiAttention):
