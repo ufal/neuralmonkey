@@ -5,14 +5,12 @@ TUTORIALS=tutorial # machine_translation
 
 all-checks: $(TUTORIALS:%=%.check)
 
-all-inis: $(TUTORIALS:%=%.ini)
+all-extracts: $(TUTORIALS:%=%.extract)
 
 .PRECIOUS: %.ini
-%.ini: ../../docs/source/%.rst
-	cat $< \
-	| sed -n '/code-block::/,/TUTCHECKEND/p' \
-	| grep -v 'code-block::\|TUTCHECKEND' \
-	> $@
+%.extract: ../../docs/source/%.rst
+	./extract_inis.pl < $<
+	touch $@
 
 %.check: %.ini
 	../../bin/neuralmonkey-train $<
