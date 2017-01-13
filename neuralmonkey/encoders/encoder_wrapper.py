@@ -97,14 +97,18 @@ class FlatMultiAttention(MultiAttention):
             self.encoder_projections_for_logits = \
                 self.get_encoder_projections("logits_projections")
 
+            self.encoder_attn_biases = [
+                tf.get_variable(name="attn_bias_{}".format(i),
+                                shape=[],
+                                initializer=tf.constant_initializer(0.))
+                for i in range(len(self._encoders_tensors))]
+
             if self._share_projections:
                 self.encoder_projections_for_ctx = \
                     self.encoder_projections_for_logits
             else:
                 self.encoder_projections_for_ctx = \
                     self.get_encoder_projections("context_projections")
-
-            self.encoder_attn_biases = []
 
             if self._use_sentinels:
                 self._encoders_masks.append(
@@ -174,7 +178,7 @@ class FlatMultiAttention(MultiAttention):
 
             projections_concat = tf.concat(
                 1, self.encoder_projections_for_ctx +
-                [projected_sentinel] if self._use_sentinels else [])
+                ([projected_sentinel] if self._use_sentinels else []))
 
             contexts = tf.reduce_sum(
                 tf.expand_dims(attentions, 2) * projections_concat, [1])
