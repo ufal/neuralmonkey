@@ -1,15 +1,15 @@
-""" Small helper functions for TensorFlow
-"""
+"""Small helper functions for TensorFlow."""
 
 from subprocess import check_output
 from tensorflow.python.client import device_lib as _device_lib
 
 
-__has_gpu_result = None
+__HAS_GPU_RESULT = None
 
 
 def has_gpu():
-    """ Check if TensorFlow can access GPU
+    """Check if TensorFlow can access GPU.
+
     The test is based on
         https://github.com/tensorflow/tensorflow/blob/master/tensorflow/python/platform/test.py
     ...but we are interested only in CUDA GPU devices.
@@ -17,15 +17,18 @@ def has_gpu():
     Returns:
         True, if TF can access the GPU
     """
-    global __has_gpu_result
-    if __has_gpu_result is None:
-        __has_gpu_result = any((x.device_type == 'GPU')
+    # pylint: disable=global-statement
+    global __HAS_GPU_RESULT
+    # pylint: enable=global-statement
+    if __HAS_GPU_RESULT is None:
+        __HAS_GPU_RESULT = any((x.device_type == 'GPU')
                                for x in _device_lib.list_local_devices())
-    return __has_gpu_result
+    return __HAS_GPU_RESULT
 
 
 def gpu_memusage():
-    """ Return '' or a string showing current GPU memory usage
+    """Return '' or a string showing current GPU memory usage.
+
     nvidia-smi result parsing based on https://github.com/wookayin/gpustat
     """
     if not has_gpu():
@@ -45,14 +48,14 @@ def gpu_memusage():
         if not line:
             continue
         query_results = line.split(',')
-        g = {col_name: col_value.strip()
-             for (col_name, col_value)
-             in zip(gpu_query_columns, query_results)}
-        gpu_list.append(g)
+        gpu_res = {col_name: col_value.strip()
+                   for (col_name, col_value)
+                   in zip(gpu_query_columns, query_results)}
+        gpu_list.append(gpu_res)
 
     if len(gpu_list) == 1:
-        e = gpu_list[0]
-        info = ['{}/{}'.format(e['memory.used'], e['memory.total'])]
+        stats = gpu_list[0]
+        info = ['{}/{}'.format(stats['memory.used'], stats['memory.total'])]
     else:
         info = ['{}:{}/{}'.format(e['index'],
                                   e['memory.used'], e['memory.total'])
