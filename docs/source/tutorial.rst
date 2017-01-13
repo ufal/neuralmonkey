@@ -357,6 +357,15 @@ decoder. Without further ado, here it goes::
 As in the case of encoders, the decoder needs its RNN and embedding size
 settings, maximum output length, dropout parameter, and vocabulary settings.
 
+The outputs of the individual encoders are by default simply concatenated
+and projected to the decoder hidden state (of ``rnn_size``). Internally,
+the code is ready to support arbitrary mappings by adding one more parameter
+here: ``encoder_projection``.
+
+Note that you may set ``rnn_size`` to ``None``. Neural Monkey will then directly
+use the concatenation of encoder states without any mapping. This is particularly
+useful when you have just one encoder as in MT.
+
 The line ``reuse_word_embeddings=True`` means that the embeddings (including
 embedding size) are shared with the from the first
 encoder in the list (here ``trans_encoder``).
