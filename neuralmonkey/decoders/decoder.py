@@ -331,8 +331,14 @@ class Decoder(ModelPart):
             cell_output, state = cell(x, prev_state)
 
             # Run the attention mechanism.
-            attns = [a.attention(cell_output, prev_state, x)
-                     for a in att_objects]
+            if self._rnn_cell == 'GRU':
+                attns = [a.attention(cell_output, prev_state, x)
+                         for a in att_objects]
+            elif self._rnn_cell == 'LSTM':
+                attns = [a.attention(cell_output, prev_state.c, x)
+                         for a in att_objects]
+            else:
+                raise ValueError("Unknown RNN cell.")
 
             if self._conditional_gru:
                 x_2 = linear(
