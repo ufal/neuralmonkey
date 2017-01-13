@@ -7,7 +7,7 @@ from tensorflow.python.client import device_lib as _device_lib
 __HAS_GPU_RESULT = None
 
 
-def has_gpu():
+def has_gpu() -> bool:
     """Check if TensorFlow can access GPU.
 
     The test is based on
@@ -26,7 +26,7 @@ def has_gpu():
     return __HAS_GPU_RESULT
 
 
-def gpu_memusage():
+def gpu_memusage() -> str:
     """Return '' or a string showing current GPU memory usage.
 
     nvidia-smi result parsing based on https://github.com/wookayin/gpustat
