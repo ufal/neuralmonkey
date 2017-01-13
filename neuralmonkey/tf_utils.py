@@ -43,7 +43,8 @@ def gpu_memusage():
         shell=True).decode().strip()
 
     for line in smi_output.split('\n'):
-        if not line: continue
+        if not line:
+            continue
         query_results = line.split(',')
         g = {col_name: col_value.strip()
              for (col_name, col_value)
