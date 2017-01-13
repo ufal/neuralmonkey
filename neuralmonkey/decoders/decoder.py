@@ -54,7 +54,8 @@ class Decoder(object):
             dropout_keep_prob: Probability of keeping a value during dropout
 
         Keyword arguments:
-            rnn_size: Size of the decoder hidden state
+            rnn_size: Size of the decoder hidden state, if None set
+                according to encoders.
             embedding_size: Size of embedding vectors for target words
             output_projection: How to generate distribution over vocabulary
                 from decoder rnn_outputs
@@ -103,10 +104,14 @@ class Decoder(object):
                 log("No rnn_size or encoder_projection: Using concatenation of"
                     " encoded states")
                 self.encoder_projection = concat_encoder_projection
+                self.rnn_size = sum(e.encoded.get_shape()[1].value
+                                    for e in encoders)
             else:
                 log("Using linear projection of encoders as the initial state")
                 self.encoder_projection = linear_encoder_projection(
                     self.dropout_keep_prob)
+
+        assert self.rnn_size is not None
 
         if self.output_projection is None:
             log("No output projection specified - using simple concatenation")
@@ -120,7 +125,7 @@ class Decoder(object):
 
             with tf.name_scope("output_projection"):
                 self.decoding_w = tf.get_variable(
-                    "state_to_word_W", [rnn_size, len(self.vocabulary)],
+                    "state_to_word_W", [self.rnn_size, len(self.vocabulary)],
                     initializer=tf.random_uniform_initializer(-0.5, 0.5))
 
                 self.decoding_b = tf.get_variable(
