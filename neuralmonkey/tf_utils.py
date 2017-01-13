@@ -1,9 +1,8 @@
 """ Small helper functions for TensorFlow
 """
 
-from tensorflow.python.client import device_lib as _device_lib
-
 from subprocess import check_output
+from tensorflow.python.client import device_lib as _device_lib
 
 
 __has_gpu_result = None
