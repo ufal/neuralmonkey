@@ -224,15 +224,15 @@ The configuration of the datasets looks like this::
 
   [train_dataset]
   class=config.utils.dataset_from_files
-  s_source=exp-nm-ape/data/train/train.src
-  s_translated=exp-nm-ape/data/train/train.mt
-  s_edits=exp-nm-ape/data/train/train.edits
+  s_source="exp-nm-ape/data/train/train.src"
+  s_translated="exp-nm-ape/data/train/train.mt"
+  s_edits="exp-nm-ape/data/train/train.edits"
 
   [val_dataset]
   class=config.utils.dataset_from_files
-  s_source=exp-nm-ape/data/dev/dev.src
-  s_translated=exp-nm-ape/data/dev/dev.mt
-  s_edits=exp-nm-ape/data/dev/dev.edits
+  s_source="exp-nm-ape/data/dev/dev.src"
+  s_translated="exp-nm-ape/data/dev/dev.mt"
+  s_edits="exp-nm-ape/data/dev/dev.edits"
 
 Note that series names (`source`, `translated`, and `edits`) are arbitrary and
 defined by their first mention. The ``s_`` prefix stands for "series" and
@@ -258,13 +258,13 @@ to create only two vocabulary objects::
   [source_vocabulary]
   class=vocabulary.from_dataset
   datasets=[<train_dataset>]
-  series_ids=[source]
+  series_ids=["source"]
   max_size=50000
 
   [target_vocabulary]
   class=vocabulary.from_dataset
   datasets=[<train_dataset>]
-  series_ids=[edits, translated]
+  series_ids=["edits", "translated"]
   max_size=50000
 
 The first vocabulary object (called ``source_vocabulary``) represents the
@@ -304,8 +304,8 @@ the source sentences::
   embedding_size=300
   dropout_keep_prob=0.8
   attention_type=decoding_function.Attention
-  data_id=source
-  name=src_encoder
+  data_id="source"
+  name="src_encoder"
   vocabulary=<source_vocabulary>
 
 This configuration initializes a new instance of sentence encoder with the
@@ -327,8 +327,8 @@ The configuration of the second encoder follows::
   embedding_size=300
   dropout_keep_prob=0.8
   attention_type=decoding_function.Attention
-  data_id=translated
-  name=trans_encoder
+  data_id="translated"
+  name="trans_encoder"
   vocabulary=<target_vocabulary>
 
 This config creates a second encoder for the ``translated`` data series. The
@@ -344,14 +344,14 @@ decoder. Without further ado, here it goes::
 
   [decoder]
   class=decoders.decoder.Decoder
-  name=decoder
+  name="decoder"
   encoders=[<trans_encoder>, <src_encoder>]
   rnn_size=300
   max_output_len=50
   reuse_word_embeddings=True
   dropout_keep_prob=0.8
   use_attention=True
-  data_id=edits
+  data_id="edits"
   vocabulary=<target_vocabulary>
 
 As in the case of encoders, the decoder needs its RNN and embedding size
@@ -387,7 +387,7 @@ We define these two objects like this::
   [runner]
   class=runners.runner.GreedyRunner
   decoder=<decoder>
-  output_series=greedy_edits
+  output_series="greedy_edits"
 
 Note that a runner can only have one decoder, but during training you can train
 several decoders, all contributing to the loss function.
@@ -411,11 +411,11 @@ TER::
 
   [bleu]
   class=evaluators.bleu.BLEUEvaluator
-  name=BLEU-4
+  name="BLEU-4"
 
   [ter]
   class=evaluators.edit_distance.EditDistance
-  name=TER
+  name="TER"
 
 TODO check if the TER evaluator works as expected
 
@@ -441,14 +441,14 @@ together. It is called ``main`` and specifies the rest of the training
 parameters::
 
   [main]
-  name=post editing
-  output=exp-nm-ape/training
+  name="post editing"
+  output="exp-nm-ape/training"
   runners=[<runner>]
   tf_manager=<tf_manager>
   trainer=<trainer>
   train_dataset=<train_dataset>
   val_dataset=<val_dataset>
-  evaluation=[(greedy_edits,edits,<bleu>), (greedy_edits,edits,<ter>)]
+  evaluation=[("greedy_edits", "edits", <bleu>), ("greedy_edits", "edits", <ter>)]
   minimize=True
   batch_size=128
   runners_batch_size=256
@@ -554,9 +554,9 @@ configuration. We will call this file ``test_datasets.ini``::
 
   [eval_data]
   class=config.utils.dataset_from_files
-  s_source=exp-nm-ape/data/test/test.src
-  s_translated=exp-nm-ape/data/test/test.mt
-  s_greedy_edits_out=exp-nm-ape/test_output.edits
+  s_source="exp-nm-ape/data/test/test.src"
+  s_translated="exp-nm-ape/data/test/test.mt"
+  s_greedy_edits_out="exp-nm-ape/test_output.edits"
 
 The dataset specifies the two input series ``s_source`` and ``s_translated`` (the
 candidate MT output output to be post-edited) as in the training. The series
