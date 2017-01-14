@@ -47,6 +47,8 @@ def gpu_memusage() -> str:
     for line in smi_output.split('\n'):
         if not line:
             continue
+        if line == "fake modprobe":
+            continue
         query_results = line.split(',')
         gpu_res = {col_name: col_value.strip()
                    for (col_name, col_value)

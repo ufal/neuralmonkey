@@ -132,7 +132,8 @@ def training_loop(tf_manager: TensorFlowManager,
                         evaluators, batch_dataset, runners,
                         train_results, train_outputs)
 
-                    _log_continuous_evaluation(tb_writer, main_metric,
+                    _log_continuous_evaluation(tb_writer, tf_manager,
+                                               main_metric,
                                                train_evaluation,
                                                seen_instances, epoch_n,
                                                epochs, trainer_result,
@@ -191,7 +192,8 @@ def training_loop(tf_manager: TensorFlowManager,
                     log("Validation (epoch {}, batch number {}):"
                         .format(epoch_n, batch_n), color='blue')
 
-                    _log_continuous_evaluation(tb_writer, main_metric,
+                    _log_continuous_evaluation(tb_writer, tf_manager,
+                                               main_metric,
                                                val_evaluation,
                                                seen_instances, epoch_n,
                                                epochs,
@@ -329,6 +331,7 @@ def evaluation(evaluators, dataset, runners, execution_results, result_data):
 
 
 def _log_continuous_evaluation(tb_writer: tf.train.SummaryWriter,
+                               tf_manager: TensorFlowManager,
                                main_metric: str,
                                eval_result: Evaluation,
                                seen_instances: int,
@@ -340,13 +343,16 @@ def _log_continuous_evaluation(tb_writer: tf.train.SummaryWriter,
 
     color, prefix = ("yellow", "train") if train else ("blue", "val")
 
-    meminfo = gpu_memusage()
+    if tf_manager.report_gpu_memory_consumption:
+        meminfostr = "  "+gpu_memusage()
+    else:
+        meminfostr = ""
 
     eval_string = _format_evaluation_line(eval_result, main_metric)
-    eval_string = "Epoch {}/{}  Instances {}  {}  {}".format(epoch, max_epochs,
-                                                             seen_instances,
-                                                             eval_string,
-                                                             meminfo)
+    eval_string = "Epoch {}/{}  Instances {}  {}".format(epoch, max_epochs,
+                                                         seen_instances,
+                                                         eval_string)
+    eval_string = eval_string+meminfostr
     log(eval_string, color=color)
 
     if tb_writer:

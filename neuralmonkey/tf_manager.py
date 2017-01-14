@@ -6,14 +6,13 @@ execution in existing sessions.
 """
 
 # pylint: disable=unused-import
-from typing import Any, List, Union
+from typing import List, Union
 
-import numpy as np
 import tensorflow as tf
 from neuralmonkey.logging import log
 from neuralmonkey.dataset import Dataset
 
-from neuralmonkey.runners.base_runner import (Executable, ExecutionResult,
+from neuralmonkey.runners.base_runner import (ExecutionResult,
                                               reduce_execution_results)
 
 # tests: pylint,mypy
@@ -28,7 +27,8 @@ class TensorFlowManager(object):
 
     def __init__(self, num_sessions, num_threads, save_n_best=1,
                  variable_files=None, gpu_allow_growth=True,
-                 per_process_gpu_memory_fraction=1.0):
+                 per_process_gpu_memory_fraction=1.0,
+                 report_gpu_memory_consumption=True):
         """Initialize a TensorflowManager.
 
         At this moment the graph must already exist. This method initializes
@@ -39,6 +39,10 @@ class TensorFlowManager(object):
             num_sessions: Number of sessions to be initialized.
             num_threads: Number of threads sessions will run in.
             variable_files: List of variable files.
+            gpu_allow_growth: TF to allocate incrementally, not all at once.
+            per_process_gpu_memory_fraction: Limit TF memory use.
+            report_gpu_memory_consumption: Report overall GPU memory at every
+                logging
         """
 
         session_cfg = tf.ConfigProto()
@@ -49,6 +53,7 @@ class TensorFlowManager(object):
         session_cfg.gpu_options.allow_growth = gpu_allow_growth
         session_cfg.gpu_options.per_process_gpu_memory_fraction = \
             per_process_gpu_memory_fraction
+        self.report_gpu_memory_consumption = report_gpu_memory_consumption
 
         self.saver_max_to_keep = save_n_best
         self.sessions = [tf.Session(config=session_cfg)
