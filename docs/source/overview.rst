@@ -5,7 +5,7 @@ Package Overview
 ================
 
 This overview should provide you with the basic insight on how Neural Monkey
-conceptualize the problem of sequence-to-sequence learning how the data flow
+conceptualizes the problem of sequence-to-sequence learning how the data flow
 during training and look like.
 
 -------------------------------
@@ -18,7 +18,7 @@ desired output of a model. In the simple case of machine translation, there are
 two series: sequence of source-language sentences and a sequence of
 target-language sequences.
 
-The following scheme captures how we create a dataset is created from input
+The following scheme captures how a dataset is created from input
 data.
 
 .. image:: dataset_creation.svg
@@ -27,18 +27,19 @@ The dataset is created in the following steps:
 
 - An input file is read using a *reader*. Reader can e.g., load a file
   containing paths to JPEG images and load them as ``numpy`` arrays, or just
-  read a tokenized text as a list of lists of string tokens.
+  read a tokenized text as a list of lists (sentences) of string tokens.
 
 - Series created by the readers can be pre-processed by some *series-level
-  pre-proCessors*. And example of such preprocessing is byte-pair encoding
-  which loads a list of merges and re-tokenize the text accordingly.
+  pre-processors*. An example of such pre-processing is byte-pair encoding
+  which loads a list of merges and re-tokenizes the text accordingly.
 
 - The final step before creating a dataset is applying *dataset-level*
   preprocessors which can take more series and output a new series.
 
 Currently there are two implementations of a dataset. An in-memory dataset
-which stores all data in the memory and a lazy dataset which continuously read
-the input files and only the batches necessary for the computation are stored
+which stores all data in the memory and a lazy dataset which reads
+the input files step by step and only the batches necessary for the computation
+are stored
 in the memory.
 
 ----------------------------
@@ -52,11 +53,11 @@ their interconnection can be seen in the following scheme.
 
 The dataset series can be used to create a *vocabulary*. A vocabulary
 represents an indexed set of tokens and provides functionality for converting
-lists of tokenized sentences into matrices of the tokens indices and vice
+lists of tokenized sentences into matrices of token indices and vice
 versa. Vocabularies are used by encoders and decoders for feeding the provided
 series into the neural network.
 
-The model itself if defined by *encoders* and *decoders*. Most of the
+The model itself is defined by *encoders* and *decoders*. Most of the
 TensorFlow code is in the encoders and decoders. Encoders are parts of the
 model which take some input and compute a representation of it. Decoders are
 model parts that produce some outputs. Our definition of encoders and decoders
@@ -76,5 +77,5 @@ be subject of further *post-processing*.
 A *trainer* is a special case of a runner, the only one that actually modifies
 the model. It collects the objective functions and use them in an optimizer.
 
-All of this is managed by a *TenforFlow manager*. Its basic capability is to
-executed runners on provided dataset.
+All of this is managed by a *TensorFlow manager*. Its basic capability is to
+execute runners on provided datasets.
