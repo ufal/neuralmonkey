@@ -126,15 +126,15 @@ For training, we prepare two datasets. Since we are using BPE, we need to
 
   [train_data]
   class=config.utils.dataset_from_files
-  s_source=exp-nm-mt/data/train/Batch1a_en.txt.gz
-  s_target=exp-nm-mt/data/train/Batch1a_cs.txt.gz
-  preprocessors=[(source, source_bpe, <bpe_preprocess>), (target, target_bpe, <bpe_preprocess>)]
+  s_source="exp-nm-mt/data/train/Batch1a_en.txt.gz"
+  s_target="exp-nm-mt/data/train/Batch1a_cs.txt.gz"
+  preprocessors=[("source", "source_bpe", <bpe_preprocess>), ("target", "target_bpe", <bpe_preprocess>)]
 
   [val_data]
   class=config.utils.dataset_from_files
-  s_source=exp-nm-mt/data/dev/Batch2a_en.txt.gz
-  s_target=exp-nm-mt/data/dev/Batch2a_cs.txt.gz
-  preprocessors=[(source, source_bpe, <bpe_preprocess>), (target, target_bpe, <bpe_preprocess>)]
+  s_source="exp-nm-mt/data/dev/Batch2a_en.txt.gz"
+  s_target="exp-nm-mt/data/dev/Batch2a_cs.txt.gz"
+  preprocessors=[("source", "source_bpe", <bpe_preprocess>), ("target", "target_bpe", <bpe_preprocess>)]
 
 2 - Preprocessor and Postprocessor
 **********************************
@@ -144,7 +144,7 @@ postprocessing due to the BPE::
 
   [bpe_preprocess]
   class=processors.bpe.BPEPreprocessor
-  merge_file=exp-nm-mt/data/merge_file.bpe
+  merge_file="exp-nm-mt/data/merge_file.bpe"
 
   [bpe_postprocess]
   class=processors.bpe.BPEPostprocessor
@@ -158,7 +158,7 @@ merges::
 
   [shared_vocabulary]
   class=vocabulary.from_bpe
-  path=exp-nm-mt/data/merge_file.bpe
+  path="exp-nm-mt/data/merge_file.bpe"
 
 4 - Encoder and Decoder
 ***********************
@@ -168,22 +168,22 @@ The encoder and decored are similar to those from
 
   [encoder]
   class=encoders.sentence_encoder.SentenceEncoder
-  name=sentence_encoder
+  name="sentence_encoder"
   rnn_size=300
   max_input_len=50
   embedding_size=300
   attention_type=decoding_function.Attention
-  data_id=source_bpe
+  data_id="source_bpe"
   vocabulary=<shared_vocabulary>
 
   [decoder]
   class=decoders.decoder.Decoder
-  name=decoder
+  name="decoder"
   encoders=[<encoder>]
   rnn_size=256
   embedding_size=300
   use_attention=True
-  data_id=target_bpe
+  data_id="target_bpe"
   vocabulary=<shared_vocabulary>
   max_output_len=50
 
@@ -204,16 +204,16 @@ The following sections are described in more detail in
   [runner]
   class=runners.runner.GreedyRunner
   decoder=<decoder>
-  output_series=series_named_greedy
+  output_series="series_named_greedy"
   postprocess=<bpe_postprocess>
 
   [bleu]
   class=evaluators.bleu.BLEUEvaluator
-  name=BLEU-4
+  name="BLEU-4"
 
   [ter]
   class=evaluators.edit_distance.EditDistance
-  name=TER
+  name="TER"
 
   [tf_manager]
   class=tf_manager.TensorFlowManager
@@ -225,14 +225,14 @@ The following sections are described in more detail in
 As for the main configuration section do not forget to add BPE postprocessing::
 
   [main]
-  name=machine translation
-  output=exp-nm-mt/out-example-translation
+  name="machine translation"
+  output="exp-nm-mt/out-example-translation"
   runners=[<runner>]
   tf_manager=<tf_manager>
   trainer=<trainer>
   train_dataset=<train_data>
   val_dataset=<val_data>
-  evaluation=[(series_named_greedy,target,<bleu>), (series_named_greedy, target, <ter>)]
+  evaluation=[("series_named_greedy", "target", <bleu>), ("series_named_greedy", "target", <ter>)]
   minimize=False
   batch_size=80
   runners_batch_size=256
@@ -254,7 +254,7 @@ As for the evaluation, you need to create ``test_datasets.ini``::
 
   [eval_data]
   class=config.utils.dataset_from_files
-  s_source=exp-nm-mt/data/test/batch3.gz
+  s_source="exp-nm-mt/data/test/batch3.gz"
 
 and run::
 
