@@ -3,6 +3,7 @@
 from typing import Optional, Dict, Any, Tuple
 
 import tensorflow as tf
+import numpy as np
 
 from neuralmonkey.encoders.attentive import Attentive
 from neuralmonkey.logging import log
@@ -97,6 +98,21 @@ class SentenceEncoder(Attentive):
 
             self.encoded = tf.concat(1, encoded_tup)
 
+        self.fd_counter = 0
+        self.reduce_every = 3
+        siz = self.vocabulary_size
+        # create fake reduction matrix
+        mod = 2
+        self.reduction_steps = siz // mod
+        self.curr_reduction = self.reduction_steps - 1
+        # the index to the last column
+        mat = np.zeros((siz, self.reduction_steps), dtype=np.int)
+        mat[:, 0] = np.arange(siz)
+        for i in range(1, siz // mod):
+            mat[:, i] = np.mod(mat[:, i-1], (siz-i)//(mod+1))
+        self.reduction_matrix = mat
+        print("REDUCTION MATRIX: ", mat)
+
         log("Sentence encoder initialized")
 
     @property
@@ -181,7 +197,7 @@ class SentenceEncoder(Attentive):
         return (OrthoGRUCell(self.rnn_size),
                 OrthoGRUCell(self.rnn_size))
 
-    def feed_dict(self, dataset: Dataset, train: bool=False) -> FeedDict:
+    def feed_dict(self, dataset: Dataset, train: bool=False, sess: tf.Session=None) -> FeedDict:
         """Populate the feed dictionary with the encoder inputs.
 
         Encoder input placeholders:
@@ -202,8 +218,51 @@ class SentenceEncoder(Attentive):
         fd[self.train_mode] = train
         sentences = dataset.get_series(self.data_id)
 
+        self.fd_counter = self.fd_counter+1
+        # log("Called feed_dict: counter: {}".format(self.fd_counter))
+
         vectors, paddings = self.vocabulary.sentences_to_tensor(
             list(sentences), self.max_input_len, train_mode=train)
+
+        # apply vocabulary reduction by current step
+        if self.curr_reduction > 0:
+            if self.fd_counter % self.reduce_every == 0:
+                # need to go one more reduction deeper
+                # get the previous reduction vector
+                old_reduction = self.reduction_matrix[:, self.curr_reduction]
+                # print("MOVING TO NEXT REDUCTION")
+                # print("OLD REDUCTION: ", old_reduction)
+                self.curr_reduction = self.curr_reduction - 1
+                # collect all variables, i.e. the enlarge the reduced embedding
+                # matrix to full size
+                # print("FULL MATRIX: ", sess.run(self.embedding_matrix))
+                gather = tf.gather(self.embedding_matrix,
+                                   tf.constant(old_reduction))
+                # print("GATHERED: ", sess.run(gather))
+                # now populate the full embedding matrix, copying values
+                # for words that previously shared them
+                updated_embeddings = tf.scatter_update(self.embedding_matrix,
+                    tf.constant(np.arange(self.vocabulary_size)),
+                    gather)
+                # subsequent steps will again possible use only some of the
+                # variables
+                # Now run the update to modify the embedding matrix
+                sess.run(updated_embeddings)
+                # print("UPDATED FULL MATRIX: ", sess.run(self.embedding_matrix))
+                if self.curr_reduction == 0:
+                    log("FD{}: now at full vocabulary".format(self.fd_counter))
+
+            # reducing the vocabulary by the current
+            reduction = self.reduction_matrix[:, self.curr_reduction]
+            # print("REDUCTION VECTOR: ", reduction)
+            # print("BEFORE REDUCTION: ", vectors)
+            reduced_vectors = reduction[vectors]
+            # print("AFTER REDUCTION:  ", reduced_vectors)
+            unired = np.unique(reduction)
+            univectors = np.unique(vectors)
+            uniredvectors = np.unique(reduced_vectors)
+            log("FD{}: reduction {}: voc {}->{}, this batch {}->{}".format(self.fd_counter, self.curr_reduction, self.vocabulary_size, unired.size, univectors.size, uniredvectors.size))
+            vectors = reduced_vectors
 
         # as sentences_to_tensor returns lists of shape (time, batch),
         # we need to transpose

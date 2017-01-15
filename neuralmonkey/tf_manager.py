@@ -102,7 +102,9 @@ class TensorFlowManager(object):
                     else:
                         tensor_list_lengths.append(0)
 
-                feed_dict = _feed_dicts(batch, all_feedables, train=train)
+                feed_dict = _feed_dicts(batch, all_feedables, train=train,
+                    sess=self.sessions[0])
+                # hack: provide feed_dicts with just the first of all sessions
                 for fdict in additional_feed_dicts:
                     feed_dict.update(fdict)
 
@@ -154,7 +156,7 @@ class TensorFlowManager(object):
             self.saver.restore(sess, file_name)
 
 
-def _feed_dicts(dataset, coders, train=False):
+def _feed_dicts(dataset, coders, train=False, sess: tf.Session=None):
     """
     This function ensures all encoder and decoder objects feed their the data
     they need from the dataset.
@@ -162,6 +164,6 @@ def _feed_dicts(dataset, coders, train=False):
     res = {}
 
     for coder in coders:
-        res.update(coder.feed_dict(dataset, train=train))
+        res.update(coder.feed_dict(dataset, train=train, sess=sess))
 
     return res

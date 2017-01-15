@@ -398,7 +398,7 @@ class Decoder(object):
                 collections=["summary_val_plots"],
                 max_images=256)
 
-    def feed_dict(self, dataset, train=False):
+    def feed_dict(self, dataset, train=False, sess=None):
         """Populate the feed dictionary for the decoder object
 
         Arguments:
