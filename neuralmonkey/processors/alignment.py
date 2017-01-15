@@ -9,6 +9,22 @@ import numpy as np
 ID_SEP = re.compile(r"[-:]")
 
 class WordAlignmentPreprocessor(object):
+    """A preprocessor for word alignments in a text format.
+
+    One of the following formats is expected:
+
+        s1-t1 s2-t2 ...
+
+        s1:1/w1 s2:t2/w2 ...
+
+    where each `s` and `t` is the index of a word in the source and target
+    sentence, respectively, and `w` is the corresponding weight. If the weight
+    is not given, it is assumend to be 1. The separators `-` and `:` are
+    interchangeable.
+
+    The output of the preprocessor is an alignment matrix of the fixed shape
+    (target_len, source_len) for each sentence.
+    """
 
     def __init__(self, source_len, target_len, dtype=np.float32,
                  normalize=True, zero_based=True):
