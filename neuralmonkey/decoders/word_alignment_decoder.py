@@ -58,7 +58,6 @@ class WordAlignmentDecoder(object):
     def cost(self):
         return self.train_loss
 
-    # pylint: disable=unused-argument
     def feed_dict(self, dataset, train=False):
         fd = {}
 
