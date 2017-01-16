@@ -46,7 +46,7 @@ def image_reader(prefix="",
 
                     if len(image_np.shape) == 2:
                         channels = 1
-                        image = np.expand_dims(image_np, 2)
+                        image_np = np.expand_dims(image_np, 2)
                     elif len(image_np.shape) == 3:
                         channels = image_np.shape[2]
                     else:
