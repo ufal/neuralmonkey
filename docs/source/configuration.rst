@@ -30,13 +30,13 @@ The atomic values are:
 -  integers: strings that could be interpreted as integers by Python
    (e.g., ``1``, ``002``)
 
--  floats: string that could be interpreted as floats by Python (e.g.,
+-  floats: strings that could be interpreted as floats by Python (e.g.,
    ``1.0``, ``.123``, ``2.``, ``2.34e-12``)
 
 -  strings: string literals in quotes (e.g., ``"walrus"``, ``"5"``)
 
 -  section references: string literals in angle brackets (e.g.,
-   ``<encoder>``), section are later interpreted as Python objects
+   ``<encoder>``), sections are later interpreted as Python objects
 
 -  Python names: strings without quotes which are neither booleans, integers
    and floats, nor section references (e.g.,
