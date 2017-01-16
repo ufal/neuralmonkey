@@ -6,7 +6,8 @@ execution in existing sessions.
 """
 
 # pylint: disable=unused-import
-from typing import List, Union
+from typing import Any, List, Union
+# pylint: enable=unused-import
 
 import tensorflow as tf
 from neuralmonkey.logging import log
