@@ -35,12 +35,12 @@ The atomic values are:
 
 -  strings: string literals in quotes (e.g., ``"walrus"``, ``"5"``)
 
--  Python names: string literals without quotes which are neither
-   booleans, integers and floats (e.g.,
-   ``neuraLmonkey.encoders.SentenceEncoder``)
-
 -  section references: string literals in angle brackets (e.g.,
    ``<encoder>``), section are later interpreted as Python objects
+
+-  Python names: strings without quotes which are neither booleans, integers
+   and floats, nor section references (e.g.,
+   ``neuraLmonkey.encoders.SentenceEncoder``)
 
 On top of that there are two compound types syntax from Python:
 
