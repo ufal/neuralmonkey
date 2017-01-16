@@ -1,7 +1,7 @@
 # This Makefile extracts config file from each tutorial in ../../docs/source/
 SHELL=/bin/bash
 
-TUTORIALS=tutorial # machine_translation
+TUTORIALS=tutorial machine_translation # machine_translation
 
 all: $(TUTORIALS:%=%.check)
 
@@ -16,4 +16,5 @@ all-extracts: $(TUTORIALS:%=%.extract)
 # Once the inis are ready, test them
 
 tutorial.check:
-	../../bin/neuralmonkey-train pe.ini
+	../../bin/neuralmonkey-train post-edit.ini
+	../../bin/neuralmonkey-train translation.ini
