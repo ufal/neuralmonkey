@@ -137,7 +137,7 @@ For training, we prepare two datasets. Since we are using BPE, we need to
   s_source="exp-nm-mt/data/dev/Batch2a_en.txt.gz"
   s_target="exp-nm-mt/data/dev/Batch2a_cs.txt.gz"
   preprocessors=[("source", "source_bpe", <bpe_preprocess>), ("target", "target_bpe", <bpe_preprocess>)]
-.. TUTCHECK translation
+.. TUTCHECK exp-nm-mt/translation.ini
 
 
 2 - Preprocessor and Postprocessor
@@ -154,7 +154,7 @@ postprocessing due to the BPE:
 
   [bpe_postprocess]
   class=processors.bpe.BPEPostprocessor
-.. TUTCHECK translation
+.. TUTCHECK exp-nm-mt/translation.ini
 
 3 - Vocabularies
 ****************
@@ -167,7 +167,7 @@ merges:
   [shared_vocabulary]
   class=vocabulary.from_bpe
   path="exp-nm-mt/data/merge_file.bpe"
-.. TUTCHECK translation
+.. TUTCHECK exp-nm-mt/translation.ini
 
 
 4 - Encoder and Decoder
@@ -198,7 +198,7 @@ The encoder and decored are similar to those from
   data_id="target_bpe"
   vocabulary=<shared_vocabulary>
   max_output_len=50
-.. TUTCHECK translation
+.. TUTCHECK exp-nm-mt/translation.ini
 
 You can notice that both encoder and decoder uses as input data id the data
 preprocessed by `<bpe_preprocess>`.
@@ -235,7 +235,7 @@ The following sections are described in more detail in
   num_threads=4
   num_sessions=1
   save_n_best=3
-.. TUTCHECK translation
+.. TUTCHECK exp-nm-mt/translation.ini
 
 As for the main configuration section do not forget to add BPE postprocessing:
 
@@ -256,7 +256,7 @@ As for the main configuration section do not forget to add BPE postprocessing:
   epochs=10
   validation_period=5000
   logging_period=80
-.. TUTCHECK translation
+.. TUTCHECK exp-nm-mt/translation.ini
 
 Part III. - Running and Evaluation of the Experiment
 ----------------------------------------------------
@@ -275,7 +275,7 @@ As for the evaluation, you need to create ``translation_run.ini``:
   [eval_data]
   class=config.utils.dataset_from_files
   s_source="exp-nm-mt/data/test/batch3.gz"
-.. TUTCHECK translation_run
+.. TUTCHECK exp-nm-mt/translation_run.ini
 
 and run::
 
