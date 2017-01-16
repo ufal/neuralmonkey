@@ -5,6 +5,7 @@ a CNN, followed by a sequential processing by RNN.
 
 import numpy as np
 import tensorflow as tf
+from neuralmonkey.checking import assert_shape
 from neuralmonkey.encoders.attentive import Attentive
 from neuralmonkey.decoding_function import Attention
 
@@ -142,6 +143,7 @@ class CNNEncoder(Attentive):
             # channels from the last convolution
             self.encoded = tf.reduce_mean(last_layer, [1, 2])
             # TODO assert shape
+            assert_shape(self.encoded, [None, self.convolutions[-1][1]])
 
             self.__attention_tensor = tf.reshape(
                 last_layer, [-1, image_width,
@@ -189,7 +191,11 @@ def _convolution(last_layer: tf.Tensor, last_n_channels: int,
                              initializer=tf.constant_initializer(.1))
     conv_activation = tf.nn.conv2d(
         last_layer, conv_w, [1, 1, 1, 1], "SAME") + conv_b
-    # TODO assert shape
+    assert_shape(conv_activation, [
+        None,
+        last_layer.get_shape()[1].value,
+        last_layer.get_shape()[2].value,
+        filter_size])
     return tf.nn.relu(conv_activation)
 
 
