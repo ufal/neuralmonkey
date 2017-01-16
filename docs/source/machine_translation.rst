@@ -184,6 +184,7 @@ The encoder and decored are similar to those from
   rnn_size=300
   max_input_len=50
   embedding_size=300
+  dropout_keep_prob=0.8
   attention_type=decoding_function.Attention
   data_id="source_bpe"
   vocabulary=<shared_vocabulary>
@@ -194,6 +195,7 @@ The encoder and decored are similar to those from
   encoders=[<encoder>]
   rnn_size=256
   embedding_size=300
+  dropout_keep_prob=0.8
   use_attention=True
   data_id="target_bpe"
   vocabulary=<shared_vocabulary>
