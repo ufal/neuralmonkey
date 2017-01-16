@@ -15,7 +15,7 @@ Loading and Processing Datasets
 We call a *dataset* a collection of named data *series*. By a series we a mean
 a sequence of data items of the same type representing one type of input or
 desired output of a model. In the simple case of machine translation, there are
-two series: sequence of source-language sentences and a sequence of
+two series: a sequence of source-language sentences and a sequence of
 target-language sequences.
 
 The following scheme captures how a dataset is created from input
@@ -75,7 +75,7 @@ employing different runners over the decoders. The outputs of the runners can
 be subject of further *post-processing*.
 
 A *trainer* is a special case of a runner, the only one that actually modifies
-the model. It collects the objective functions and use them in an optimizer.
+the model. It collects the objective functions and uses them in an optimizer.
 
 All of this is managed by a *TensorFlow manager*. Its basic capability is to
 execute runners on provided datasets.
