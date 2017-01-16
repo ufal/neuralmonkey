@@ -41,6 +41,7 @@ class Decoder(object):
                      tf.Tensor]]=None,
                  use_attention: bool=False,
                  embeddings_encoder: Optional[Any]=None,
+                 rnn_cell: str='GRU',
                  attention_on_input: bool=True) -> None:
         """Creates a refactored version of monster decoder.
 
@@ -63,6 +64,7 @@ class Decoder(object):
             use_attention: Flag whether to look at attention vectors of the
                 encoders
             embeddings_encoder: Encoder to take embeddings from
+            rnn_cell: RNN Cell used by the decoder (GRU or LSTM)
             attention_on_input: Flag whether attention from previous decoding
                 step should be combined with the input in the next step.
         """
@@ -80,6 +82,7 @@ class Decoder(object):
         self.encoder_projection = encoder_projection
         self.use_attention = use_attention
         self.embeddings_encoder = embeddings_encoder
+        self._rnn_cell = rnn_cell
 
         if self.embedding_size is None and self.embeddings_encoder is None:
             raise ValueError("You must specify either embedding size or the "
@@ -306,7 +309,12 @@ class Decoder(object):
         return tf.matmul(state, self.decoding_w) + self.decoding_b
 
     def _get_rnn_cell(self) -> tf.nn.rnn_cell.RNNCell:
-        return tf.nn.rnn_cell.GRUCell(self.rnn_size)
+        if self._rnn_cell == 'GRU':
+            return tf.nn.rnn_cell.GRUCell(self.rnn_size)
+        elif self._rnn_cell == 'LSTM':
+            return tf.nn.rnn_cell.LSTMCell(self.rnn_size)
+        else:
+            raise ValueError("Unknown RNN cell: {}".format(self._rnn_cell))
 
     def get_attention_object(self, encoder, train_mode: bool):
         if train_mode:
@@ -314,6 +322,7 @@ class Decoder(object):
         else:
             return self._runtime_attention_objects.get(encoder)
 
+    # pylint: disable=too-many-branches
     def _attention_decoder(
             self,
             go_symbols: tf.Tensor,
@@ -342,7 +351,16 @@ class Decoder(object):
         cell = self._get_rnn_cell()
 
         with tf.variable_scope(scope or "attention_decoder"):
-            state = self.initial_state
+            if self._rnn_cell == 'GRU':
+                state = self.initial_state
+            elif self._rnn_cell == 'LSTM':
+                # pylint: disable=redefined-variable-type
+                state = tf.nn.rnn_cell.LSTMStateTuple(
+                    self.initial_state, self.initial_state)
+                # pylint: enable=redefined-variable-type
+            else:
+                raise ValueError("Unknown RNN cell.")
+
             outputs = []
             prev = None
 
@@ -375,7 +393,8 @@ class Decoder(object):
                 cell_output, state = cell(x, state)
                 states.append(state)
                 # Run the attention mechanism.
-                attns = [a.attention(state) for a in att_objects]
+
+                attns = [a.attention(cell_output) for a in att_objects]
 
                 with tf.name_scope("rnn_output_projection"):
                     if attns:
