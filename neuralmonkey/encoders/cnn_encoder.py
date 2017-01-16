@@ -5,6 +5,7 @@ a CNN, followed by a sequential processing by RNN.
 
 import numpy as np
 import tensorflow as tf
+from neuralmonkey.checking import assert_shape
 from neuralmonkey.encoders.attentive import Attentive
 from neuralmonkey.decoding_function import Attention
 
@@ -42,50 +43,30 @@ class CNNEncoder(Attentive):
     """
 
     # pylint: disable=too-many-arguments, too-many-locals
-    def __init__(self, data_id, convolutions, rnn_layers,
+    def __init__(self, data_id, convolutions,
                  image_height, image_width, pixel_dim,
-                 name, concatenate_rnns=False,
-                 bidirectional=True,
+                 name,
                  batch_normalization=True,
                  local_response_normalization=True,
                  dropout_keep_prob=0.5,
                  attention_type=Attention):
-        """
-        Initilizes and configures the computational graph creator.
+        """Initialize a convolutional network for image processing.
 
-        Arguments:
-
+        Args:
             convolutions (list): Configuration convolutional layers. It is a
                 list of tripplets of integers where the values are: size of the
                 convolutional window, number of convolutional filters, and size
                 of max-pooling window. If the max-pooling size is set to None,
                 no pooling is performed.
-
             data_id: Identifier of the data series in the dataset.
-
-            rnn_layers (list): List of sizes of RNN layer encoded the image
-                projection.
-
-            image_height (int): Height of the input image in pixels.
-
-            image_width (int): Width of the images (padded)
-
-            pixel_dim (int): Number of color channels in the input images.
-
-            concatenate_rnns (bool): Flag whether to concatenate the outputs
-                of the RNN layers. If 'False', only the outputs of the last
-                layer are used.
-
-            biderectional (bool): Flag whether the bidirectional RNN encoder
-                should be used.
-
-            batch_normalization (bool): Flag whether the batch normalization
+            image_height: Height of the input image in pixels.
+            image_width: Width of the images (padded)
+            pixel_dim: Number of color channels in the input images.
+            batch_normalization: Flag whether the batch normalization
                 should be used between the convolutional layers.
-
-            local_response_normalization (bool): Flag whether to use local
+            local_response_normalization: Flag whether to use local
                 response normalization between the convolutional layers.
-
-            dropout_placeholder (tf.Placeholder): Placeholder keeping the
+            dropout_placeholder: Placeholder keeping the
                 dropout keeping probability
 
         """
@@ -93,15 +74,9 @@ class CNNEncoder(Attentive):
 
         self.convolutions = convolutions
         self.data_id = data_id
-        self.rnn_layers = rnn_layers
         self.image_height = image_height
         self.image_width = image_width
         self.pixel_dim = pixel_dim
-        self.concatenate_rnns = concatenate_rnns
-        self.concatenate_rnns = concatenate_rnns
-        self.bidirectional = bidirectional
-        self.batch_normalization = batch_normalization
-        self.local_response_normalization = local_response_normalization
         self.dropout_keep_prob = dropout_keep_prob
         self.name = name
 
@@ -109,16 +84,15 @@ class CNNEncoder(Attentive):
             self.dropout_placeholder = tf.placeholder(
                 tf.float32, name="dropout")
             self.is_training = tf.placeholder(tf.bool, name="is_training")
-            self.input_op = \
-                tf.placeholder(tf.float32,
-                               shape=(None, image_height,
-                                      image_width, pixel_dim),
-                               name="input_images")
+            self.input_op = tf.placeholder(
+                tf.float32,
+                shape=(None, image_height, image_width, pixel_dim),
+                name="input_images")
 
-            self.padding_masks = \
-                tf.placeholder(tf.float32,
-                               shape=(None, image_height, image_width, 1),
-                               name="padding_masks")
+            self.padding_masks = tf.placeholder(
+                tf.float32,
+                shape=(None, image_height, image_width, 1),
+                name="padding_masks")
 
             last_layer = self.input_op
             last_padding_masks = self.padding_masks
@@ -132,23 +106,14 @@ class CNNEncoder(Attentive):
                         n_filters,
                         pool_size) in enumerate(convolutions):
                     with tf.variable_scope("cnn_layer_{}".format(i)):
-                        conv_w = tf.get_variable(
-                            "wieghts",
-                            shape=[filter_size, filter_size,
-                                   last_n_channels, n_filters],
-                            initializer=tf.truncated_normal_initializer(
-                                stddev=.1))
-                        conv_b = tf.get_variable(
-                            "biases",
-                            shape=[n_filters],
-                            initializer=tf.constant_initializer(.1))
-                        conv_activation = tf.nn.conv2d(
-                            last_layer, conv_w, [1, 1, 1, 1], "SAME") + conv_b
-                        last_layer = tf.nn.relu(conv_activation)
+                        last_layer = _convolution(
+                            last_layer, last_n_channels, filter_size,
+                            n_filters)
                         last_n_channels = n_filters
                         self.image_processing_layers.append(last_layer)
 
                         if pool_size:
+                            # TODO do the pooling properly
                             last_layer = tf.nn.max_pool(
                                 last_layer, [1, 2, 2, 1], [1, 2, 2, 1], "SAME")
                             last_padding_masks = tf.nn.max_pool(
@@ -165,57 +130,20 @@ class CNNEncoder(Attentive):
                                 last_layer)
 
                         if batch_normalization:
-                            last_layer = batch_norm(
+                            last_layer = _batch_norm(
                                 last_layer, n_filters, self.is_training)
 
                         last_layer = tf.nn.dropout(
                             last_layer, keep_prob=self.dropout_placeholder)
 
+                # last_layer shape is batch X height X width X channels
                 last_layer = last_layer * last_padding_masks
-            last_layer_size = last_n_channels * image_height * image_width
 
-            with tf.variable_scope("rnn_inputs"):
-                encoder_ins = [
-                    tf.reshape(x, [-1, last_n_channels * image_height])
-                    for x in tf.split(2, image_width,
-                                      last_layer, name='split_input')]
-
-            def rnn_encoder(inputs, last_layer_size, scope):
-                with tf.variable_scope(scope):
-                    encoder_layers = []
-                    for size in rnn_layers:
-                        cell_g = tf.nn.rnn_cell.GRUCell(size, last_layer_size)
-                        last_layer_size = size
-                        cell = tf.nn.rnn_cell.DropoutWrapper(
-                            cell_g, output_keep_prob=self.dropout_placeholder)
-                        encoder_layers.append(cell)
-
-                    encoder_cell = tf.nn.rnn_cell.MultiRNNCell(encoder_layers)
-                    last_layer_size = len(encoder_layers) * last_layer_size
-                    # MultiRNNCell concatenates output of all the recurent
-                    # layers,but we want only the very last one
-                    _, encoder_state_concatenated = tf.nn.rnn(
-                        encoder_cell, inputs, dtype=tf.float32)
-
-                    if concatenate_rnns:
-                        encoder_state = encoder_state_concatenated
-                    else:
-                        encoder_state = encoder_state_concatenated[
-                            :, sum(rnn_layers[:-1]):]
-                    return encoder_state
-
-            encoder_state = rnn_encoder(
-                encoder_ins, last_layer_size, "encoder-forward")
-
-            # pylint: disable=redefined-variable-type
-            if bidirectional:
-                backward_encoder_state = rnn_encoder(
-                    list(reversed(encoder_ins)),
-                    last_layer_size, "encoder-backward")
-                encoder_state = tf.concat(
-                    1, [encoder_state, backward_encoder_state])
-
-            self.encoded = encoder_state
+            # we average out by the image size -> shape is number
+            # channels from the last convolution
+            self.encoded = tf.reduce_mean(last_layer, [1, 2])
+            # TODO assert shape
+            assert_shape(self.encoded, [None, self.convolutions[-1][1]])
 
             self.__attention_tensor = tf.reshape(
                 last_layer, [-1, image_width,
@@ -251,12 +179,31 @@ class CNNEncoder(Attentive):
         f_dict[self.is_training] = train
         return f_dict
 
+
+def _convolution(last_layer: tf.Tensor, last_n_channels: int,
+                 filter_size: int, n_filters: int) -> tf.Tensor:
+    """Applies convolution on a filter bank."""
+    conv_w = tf.get_variable(
+        "wieghts",
+        shape=[filter_size, filter_size, last_n_channels, n_filters],
+        initializer=tf.truncated_normal_initializer(stddev=.1))
+    conv_b = tf.get_variable("biases", shape=[n_filters],
+                             initializer=tf.constant_initializer(.1))
+    conv_activation = tf.nn.conv2d(
+        last_layer, conv_w, [1, 1, 1, 1], "SAME") + conv_b
+    assert_shape(conv_activation, [
+        None,
+        last_layer.get_shape()[1].value,
+        last_layer.get_shape()[2].value,
+        filter_size])
+    return tf.nn.relu(conv_activation)
+
+
 # pylint: disable=too-many-locals
 
 
-def batch_norm(tensor, n_out, phase_train, scope='bn', scale_after_norm=True):
-    """
-    Batch normalization on convolutional maps.
+def _batch_norm(tensor, n_out, phase_train, scope='bn', scale_after_norm=True):
+    """ Batch normalization on convolutional maps.
 
     Taken from
     http://stackoverflow.com/questions/33949786/how-could-i-use-batch-normalization-in-tensorflow
