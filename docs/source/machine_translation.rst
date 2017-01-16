@@ -122,7 +122,9 @@ We mention only the differences from the main post-editing tutorial.
 ************
 
 For training, we prepare two datasets. Since we are using BPE, we need to
- define the preprocessor. The configuration of the datasets looks like this::
+ define the preprocessor. The configuration of the datasets looks like this:
+
+.. code-block:: ini
 
   [train_data]
   class=config.utils.dataset_from_files
@@ -135,12 +137,16 @@ For training, we prepare two datasets. Since we are using BPE, we need to
   s_source="exp-nm-mt/data/dev/Batch2a_en.txt.gz"
   s_target="exp-nm-mt/data/dev/Batch2a_cs.txt.gz"
   preprocessors=[("source", "source_bpe", <bpe_preprocess>), ("target", "target_bpe", <bpe_preprocess>)]
+.. TUTCHECK translation
+
 
 2 - Preprocessor and Postprocessor
 **********************************
 
 We need to tell the Neural Monkey how it should handle preprocessing and
-postprocessing due to the BPE::
+postprocessing due to the BPE:
+
+.. code-block:: ini
 
   [bpe_preprocess]
   class=processors.bpe.BPEPreprocessor
@@ -148,23 +154,29 @@ postprocessing due to the BPE::
 
   [bpe_postprocess]
   class=processors.bpe.BPEPostprocessor
-
+.. TUTCHECK translation
 
 3 - Vocabularies
 ****************
 
 For both encoder and decoder we use shared vocabulary created from BPE
-merges::
+merges:
+
+.. code-block:: ini
 
   [shared_vocabulary]
   class=vocabulary.from_bpe
   path="exp-nm-mt/data/merge_file.bpe"
+.. TUTCHECK translation
+
 
 4 - Encoder and Decoder
 ***********************
 
 The encoder and decored are similar to those from
-:ref:`the post-editing tutorial <post-editing>`::
+:ref:`the post-editing tutorial <post-editing>`:
+
+.. code-block:: ini
 
   [encoder]
   class=encoders.sentence_encoder.SentenceEncoder
@@ -186,6 +198,7 @@ The encoder and decored are similar to those from
   data_id="target_bpe"
   vocabulary=<shared_vocabulary>
   max_output_len=50
+.. TUTCHECK translation
 
 You can notice that both encoder and decoder uses as input data id the data
 preprocessed by `<bpe_preprocess>`.
@@ -194,7 +207,9 @@ preprocessed by `<bpe_preprocess>`.
 *********************
 
 The following sections are described in more detail in
-:ref:`the post-editing tutorial <post-editing>`::
+:ref:`the post-editing tutorial <post-editing>`:
+
+.. code-block:: ini
 
   [trainer]
   class=trainers.cross_entropy_trainer.CrossEntropyTrainer
@@ -220,9 +235,11 @@ The following sections are described in more detail in
   num_threads=4
   num_sessions=1
   save_n_best=3
+.. TUTCHECK translation
 
+As for the main configuration section do not forget to add BPE postprocessing:
 
-As for the main configuration section do not forget to add BPE postprocessing::
+.. code-block:: ini
 
   [main]
   name="machine translation"
@@ -239,6 +256,7 @@ As for the main configuration section do not forget to add BPE postprocessing::
   epochs=10
   validation_period=5000
   logging_period=80
+.. TUTCHECK translation
 
 Part III. - Running and Evaluation of the Experiment
 ----------------------------------------------------
@@ -247,7 +265,9 @@ The training can be run as simply as::
 
   bin/neuralmonkey-train exp-nm-mt/translation.ini
 
-As for the evaluation, you need to create ``test_datasets.ini``::
+As for the evaluation, you need to create ``translation_run.ini``:
+
+.. code-block:: ini
 
   [main]
   test_datasets=[<eval_data>]
@@ -255,9 +275,10 @@ As for the evaluation, you need to create ``test_datasets.ini``::
   [eval_data]
   class=config.utils.dataset_from_files
   s_source="exp-nm-mt/data/test/batch3.gz"
+.. TUTCHECK translation_run
 
 and run::
 
- bin/neuralmonkey-run exp-nm-mt/translation.ini exp-nm-mt/test_datasets.ini
+ bin/neuralmonkey-run exp-nm-mt/translation.ini exp-nm-mt/translation_run.ini
 
 You are ready to experiment with your own models.
