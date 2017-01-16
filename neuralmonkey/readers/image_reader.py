@@ -46,16 +46,16 @@ def image_reader(prefix="",
 
                     if len(image_np.shape) == 2:
                         channels = 1
-                        image = np.expand_dims(image, 2)
+                        image = np.expand_dims(image_np, 2)
                     elif len(image_np.shape) == 3:
-                        channels = image.shape[2]
+                        channels = image_np.shape[2]
                     else:
                         raise ValueError(
                             ("Image should have either 2 (black and white) "
                              "or three dimensions (color channels), has {} "
                              "dimension.").format(len(image_np.shape)))
 
-                    yield _pad(image, pad_w, pad_h, channels)
+                    yield _pad(image_np, pad_w, pad_h, channels)
 
     return load
 
@@ -71,8 +71,12 @@ def _crop(image, pad_w, pad_h):
     w_shift = max(orig_w - pad_w, 0) // 2
     h_shift = max(orig_h - pad_h, 0) // 2
 
+    even_w = max(orig_w - pad_w, 0) % 2
+    even_h = max(orig_h - pad_h, 0) % 2
+
     return image.crop(
-        (w_shift, h_shift, orig_w - w_shift, orig_h - h_shift))
+        (w_shift, h_shift, orig_w - w_shift - even_w,
+         orig_h - h_shift - even_h))
 
 
 def _pad(image, pad_w, pad_h, channels):
