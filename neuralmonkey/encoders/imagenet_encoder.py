@@ -5,9 +5,15 @@ from typing import Optional, Type
 import numpy as np
 import tensorflow as tf
 import tensorflow.contrib.slim as tf_slim
+# pylint: disable=unused-import
+# Workaround of missing slim's import
+# see https://github.com/tensorflow/tensorflow/issues/6064
+import tensorflow.contrib.slim.nets
+# pylint: enable=unused-import
 
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.encoders.attentive import Attentive
+from neuralmonkey.decoding_function import Attention
 from neuralmonkey.model.model_part import ModelPart, FeedDict
 
 SUPPORTED_NETWORKS = {
@@ -46,9 +52,9 @@ class ImageNet(ModelPart, Attentive):
                  data_id: str,
                  network_type: str,
                  output_layer: str,
-                 load_checkpoint: str,
-                 attention_type: Type,
+                 attention_type: Type=Attention,
                  fine_tune: bool=False,
+                 load_checkpoint: Optional[str]=None,
                  save_checkpoint: Optional[str]=None) -> None:
         ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
         Attentive.__init__(self, attention_type)
@@ -67,14 +73,25 @@ class ImageNet(ModelPart, Attentive):
             _, end_points = net_function(self.input_plc)
 
         with tf.variable_scope(self.name):
-            self.net_output = end_points[output_layer]
+            net_output = end_points[output_layer]
             if not fine_tune:
-                self.net_output = tf.stop_gradient(self.net_output)
+                net_output = tf.stop_gradient(net_output)
+                # pylint: disable=no-member
+                shape = [s.value for s in net_output.get_shape()[1:]]
+                # pylint: enable=no-member
+                self.__attention_tensor = tf.reshape(
+                    net_output, [-1, shape[0] * shape[1], shape[2]])
+
+            self.encoded = tf.reduce_mean(net_output, [1, 2])
     # pylint: enable=too-many-arguments
 
     @property
     def _attention_tensor(self) -> tf.Tensor:
-        return self.net_output
+        return self.__attention_tensor
+
+    @property
+    def _attention_mask(self):
+        return None
 
     def feed_dict(self, dataset: Dataset, train: bool=False) -> FeedDict:
         images = np.array(dataset.get_series(self.data_id))
