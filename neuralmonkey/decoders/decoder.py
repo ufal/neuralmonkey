@@ -308,6 +308,12 @@ class Decoder(object):
     def _get_rnn_cell(self) -> tf.nn.rnn_cell.RNNCell:
         return tf.nn.rnn_cell.GRUCell(self.rnn_size)
 
+    def get_attention_object(self, encoder, train_mode: bool):
+        if train_mode:
+            return self._train_attention_objects.get(encoder)
+        else:
+            return self._runtime_attention_objects.get(encoder)
+
     def _attention_decoder(
             self,
             go_symbols: tf.Tensor,
@@ -329,10 +335,9 @@ class Decoder(object):
                 decoded using the loop function)
             scope: Variable scope to use
         """
-        if train_mode:
-            att_objects = self._train_attention_objects.values()
-        else:
-            att_objects = self._runtime_attention_objects.values()
+        att_objects = [self.get_attention_object(e, train_mode)
+                       for e in self.encoders]
+        att_objects = [a for a in att_objects if a is not None]
 
         cell = self._get_rnn_cell()
 
