@@ -71,7 +71,8 @@ class GenericTrainer(object):
             if clip_norm:
                 assert clip_norm > 0.0
                 gradients = [(tf.clip_by_norm(grad, clip_norm), var)
-                             for grad, var in gradients]
+                             for grad, var in gradients
+                             if grad is not None]
 
             self.all_coders = set.union(*(collect_encoders(obj.decoder)
                                           for obj in objectives))
