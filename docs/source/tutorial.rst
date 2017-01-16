@@ -361,7 +361,7 @@ decoder. Without further ado, here it goes:
   encoders=[<trans_encoder>, <src_encoder>]
   rnn_size=300
   max_output_len=50
-  reuse_word_embeddings=True
+  embeddings_encoder=<trans_encoder>
   dropout_keep_prob=0.8
   use_attention=True
   data_id="edits"
@@ -380,9 +380,9 @@ Note that you may set ``rnn_size`` to ``None``. Neural Monkey will then directly
 use the concatenation of encoder states without any mapping. This is particularly
 useful when you have just one encoder as in MT.
 
-The line ``reuse_word_embeddings=True`` means that the embeddings (including
-embedding size) are shared with the from the first
-encoder in the list (here ``trans_encoder``).
+The line ``embeddings_encoder=<trans_encoder>`` means that the embeddings (including
+embedding size) are shared with ``trans_encoder``.
+
 
 The loss of the decoder is computed
 against the ``edits`` data series of whatever dataset the decoder will be
