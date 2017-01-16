@@ -5,6 +5,8 @@
 # Blocks with code-block:: to be ignored should end with TUTCHECK IGNORE
 
 use strict;
+use File::Basename;
+use File::Path qw/make_path/;
 
 my %data;
 
@@ -31,9 +33,11 @@ die "Missed TUTCHECK end after code-block at line $blockstart"
   if $in_block;
 
 foreach my $fn (keys %data) {
-  open OUTF, ">$fn.ini" or die "Can't write $fn.ini";
+  my $dir = dirname($fn);
+  make_path($dir);
+  open OUTF, ">$fn" or die "Can't write $fn";
   print OUTF $data{$fn};
   close OUTF;
-  print STDERR "Saved $fn.ini\n";
+  print STDERR "Saved $fn\n";
 }
 
