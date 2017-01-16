@@ -79,7 +79,6 @@ class CNNEncoder(ModelPart, Attentive):
         self.image_width = image_width
         self.pixel_dim = pixel_dim
         self.dropout_keep_prob = dropout_keep_prob
-        self.name = name
 
         with tf.variable_scope(name):
             self.dropout_placeholder = tf.placeholder(
@@ -100,7 +99,7 @@ class CNNEncoder(ModelPart, Attentive):
             last_n_channels = pixel_dim
 
             self.is_training = tf.placeholder(tf.bool, name="is_training")
-            self.image_processing_layers = []
+            self.image_processing_layers = []  # type: List[tf.Tensor]
 
             with tf.variable_scope("convolutions"):
                 for i, (filter_size,
@@ -122,9 +121,9 @@ class CNNEncoder(ModelPart, Attentive):
                                 [1, 2, 2, 1], "SAME")
                             self.image_processing_layers.append(last_layer)
                             assert image_height % 2 == 0
-                            image_height /= 2
+                            image_height //= 2
                             assert image_width % 2 == 0
-                            image_width /= 2
+                            image_width //= 2
 
                         if local_response_normalization:
                             last_layer = tf.nn.local_response_normalization(
