@@ -45,6 +45,7 @@ class Decoder(ModelPart):
                  embeddings_encoder: Optional[Any]=None,
                  attention_on_input: bool=True,
                  rnn_cell: str='GRU',
+                 conditional_gru: bool=False,
                  save_checkpoint: Optional[str]=None,
                  load_checkpoint: Optional[str]=None) -> None:
         """Create a refactored version of monster decoder.
@@ -69,6 +70,8 @@ class Decoder(ModelPart):
                 encoders
             embeddings_encoder: Encoder to take embeddings from
             rnn_cell: RNN Cell used by the decoder (GRU or LSTM)
+            conditional_gru: Flag whether to use the Conditional GRU
+                architecture
             attention_on_input: Flag whether attention from previous decoding
                 step should be combined with the input in the next step.
         """
@@ -162,6 +165,7 @@ class Decoder(ModelPart):
             train_rnn_outputs, _ = self._attention_decoder(
                 embedded_go_symbols,
                 attention_on_input=attention_on_input,
+                conditional_gru=conditional_gru,
                 train_inputs=embedded_train_inputs,
                 train_mode=True)
 
@@ -181,6 +185,7 @@ class Decoder(ModelPart):
              self.runtime_rnn_states) = self._attention_decoder(
                  embedded_go_symbols,
                  attention_on_input=attention_on_input,
+                 conditional_gru=conditional_gru,
                  train_mode=False)
 
             self.hidden_states = self.runtime_rnn_outputs
@@ -332,6 +337,7 @@ class Decoder(ModelPart):
             go_symbols: tf.Tensor,
             train_inputs: tf.Tensor=None,
             attention_on_input=True,
+            conditional_gru: bool=False,
             train_mode: bool=False,
             scope: Union[str, tf.VariableScope]=None) -> Tuple[
                 List[tf.Tensor], List[tf.Tensor]]:
@@ -343,6 +349,7 @@ class Decoder(ModelPart):
                 not used when `train_mode = False`
             attention_on_input: Flag whether attention from previous time step
                 is fed to the input in the next step.
+            conditional_gru: Flag that enables conditional GRU architecture
             train_mode: Boolean flag whether the decoder is running in
                 train (with ground truth inputs) or runtime mode (with inputs
                 decoded using the loop function)
@@ -392,13 +399,21 @@ class Decoder(ModelPart):
                     x = linear([inp] + attns, self.embedding_size)
                 else:
                     x = inp
+
                 # Run the RNN.
-
                 cell_output, state = cell(x, state)
-                states.append(state)
-                # Run the attention mechanism.
 
+                # Run the attention mechanism.
                 attns = [a.attention(cell_output) for a in att_objects]
+
+                if conditional_gru:
+                    x_2 = linear(
+                        attns, self.embedding_size, scope="cond_gru_2_linproj")
+                    # Run the RNN for the second time
+                    cell_output, state = cell(
+                        x_2, state, scope="cond_gru_2_cell")
+
+                states.append(state)
 
                 with tf.name_scope("rnn_output_projection"):
                     if attns:
