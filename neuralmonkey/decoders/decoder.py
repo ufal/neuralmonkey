@@ -45,6 +45,7 @@ class Decoder(ModelPart):
                  embeddings_encoder: Optional[Any]=None,
                  rnn_cell: str='GRU',
                  attention_on_input: bool=True,
+                 rnn_cell: str='GRU',
                  save_checkpoint: Optional[str]=None,
                  load_checkpoint: Optional[str]=None) -> None:
         """Create a refactored version of monster decoder.
