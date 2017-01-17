@@ -41,8 +41,7 @@ def piecewise_function(param, values, changepoints, name=None,
     with tf.name_scope(name, "PiecewiseFunction",
                        [param, values, changepoints]) as name:
         values = [tf.convert_to_tensor(y, dtype=dtype) for y in values]
-
-        predicates = [tf.less(param, x) for x in changepoints]
         lambdas = [lambda y=y: y for y in values]
+        predicates = [tf.less(param, x) for x in changepoints]
         return tf.case(list(zip(predicates, lambdas[:-1])), lambdas[-1],
                        name=name)
