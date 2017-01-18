@@ -17,20 +17,20 @@ from neuralmonkey.decoding_function import Attention
 from neuralmonkey.model.model_part import ModelPart, FeedDict
 
 SUPPORTED_NETWORKS = {
-    "alexnet": (tf_slim.nets.alexnet.alexnet_v2_arg_scope,
+    "AlexNet": (tf_slim.nets.alexnet.alexnet_v2_arg_scope,
                 tf_slim.nets.alexnet.alexnet_v2),
-    "resnet_50": (tf_slim.nets.resnet_v1.resnet_arg_scope,
-                  tf_slim.nets.resnet_v1.resnet_v1_50),
-    "resnet_101": (tf_slim.nets.resnet_v1.resnet_arg_scope,
-                   tf_slim.nets.resnet_v1.resnet_v1_101),
-    "resnet_152": (tf_slim.nets.resnet_v1.resnet_arg_scope,
-                   tf_slim.nets.resnet_v1.resnet_v1_152),
-    "inception_v1": (tf_slim.nets.inception.inception_v1_arg_scope,
-                     tf_slim.nets.inception.inception_v1),
-    "inception_v2": (tf_slim.nets.inception.inception_v2_arg_scope,
-                     tf_slim.nets.inception.inception_v2),
-    "inception_v3": (tf_slim.nets.inception.inception_v3_arg_scope,
-                     tf_slim.nets.inception.inception_v3),
+    "Resnet50": (tf_slim.nets.resnet_v1.resnet_arg_scope,
+                 tf_slim.nets.resnet_v1.resnet_v1_50),
+    "Resnet101": (tf_slim.nets.resnet_v1.resnet_arg_scope,
+                  tf_slim.nets.resnet_v1.resnet_v1_101),
+    "Resnet152": (tf_slim.nets.resnet_v1.resnet_arg_scope,
+                  tf_slim.nets.resnet_v1.resnet_v1_152),
+    "InceptionV1": (tf_slim.nets.inception.inception_v1_arg_scope,
+                    tf_slim.nets.inception.inception_v1),
+    "InceptionV2": (tf_slim.nets.inception.inception_v2_arg_scope,
+                    tf_slim.nets.inception.inception_v2),
+    "InceptionV3": (tf_slim.nets.inception.inception_v3_arg_scope,
+                    tf_slim.nets.inception.inception_v3),
     # "inception_v4": (tf_slim.nets.inception.inception_v4_arg_scope,
     #                  tf_slim.nets.inception.inception_v4),
     "vgg_16": (tf_slim.nets.vgg.vgg_arg_scope,
@@ -60,6 +60,7 @@ class ImageNet(ModelPart, Attentive):
         Attentive.__init__(self, attention_type)
 
         self.data_id = data_id
+        self._network_type = network_type
         self.input_plc = tf.placeholder(
             tf.float32, [None, self.HEIGHT, self.WIDTH, 3])
 
@@ -84,6 +85,16 @@ class ImageNet(ModelPart, Attentive):
 
             self.encoded = tf.reduce_mean(net_output, [1, 2])
     # pylint: enable=too-many-arguments
+
+    def _init_saver(self) -> None:
+        if not self._saver:
+            with tf.variable_scope(self._name, reuse=True):
+                local_variables = tf.get_collection(
+                    tf.GraphKeys.VARIABLES, scope=self._name)
+                slim_variables = tf.get_collection(
+                    tf.GraphKeys.VARIABLES, scope=self._network_type)
+                self._saver = tf.train.Saver(
+                    var_list=local_variables + slim_variables)
 
     @property
     def _attention_tensor(self) -> tf.Tensor:
