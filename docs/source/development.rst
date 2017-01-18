@@ -77,7 +77,7 @@ Creating a branch
 
 Prior to writing code (or at least before the first commit), you should create a
 branch for solution of the issue. This command creates a new branch called
-``new_branch_name`` and switches your working copy to that branch:
+``your_branch_name`` and switches your working copy to that branch:
 
 .. code-block:: bash
 
