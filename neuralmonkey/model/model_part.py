@@ -23,7 +23,7 @@ class ModelPart(metaclass=ABCMeta):
         self._save_checkpoint = save_checkpoint
         self._load_checkpoint = load_checkpoint
 
-        self.__saver = None  # type: Optional[tf.train.Saver]
+        self._saver = None  # type: Optional[tf.train.Saver]
 
     @property
     def name(self):
@@ -34,18 +34,18 @@ class ModelPart(metaclass=ABCMeta):
         """Prepare feed dicts for part's placeholders from a dataset."""
         raise NotImplementedError("Abstract base class.")
 
-    def __init_saver(self) -> None:
-        if not self.__saver:
+    def _init_saver(self) -> None:
+        if not self._saver:
             with tf.variable_scope(self._name, reuse=True):
                 parts_variables = tf.get_collection(
                     tf.GraphKeys.VARIABLES, scope=self._name)
-                self.__saver = tf.train.Saver(var_list=parts_variables)
+                self._saver = tf.train.Saver(var_list=parts_variables)
 
     def save(self, session: tf.Session) -> None:
         """Save model part to a checkpoint file."""
         if self._save_checkpoint:
-            self.__init_saver()
-            self.__saver.save(session, self._save_checkpoint)
+            self._init_saver()
+            self._saver.save(session, self._save_checkpoint)
 
             log("Variables of '{}' saved to '{}'".format(
                 self.name, self._save_checkpoint))
@@ -53,8 +53,8 @@ class ModelPart(metaclass=ABCMeta):
     def load(self, session: tf.Session) -> None:
         """Load model part from a checkpoint file."""
         if self._load_checkpoint:
-            self.__init_saver()
-            self.__saver.restore(session, self._load_checkpoint)
+            self._init_saver()
+            self._saver.restore(session, self._load_checkpoint)
 
             log("Variables of '{}' loaded from '{}'".format(
-                self.name, self._save_checkpoint))
+                self.name, self._load_checkpoint))
