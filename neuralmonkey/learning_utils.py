@@ -92,6 +92,7 @@ def training_loop(tf_manager: TensorFlowManager,
         saved_scores = [-np.inf for _ in range(save_n_best_vars)]
         best_score = -np.inf
 
+    tf_manager.initialize_model_parts(runners + [trainer])
     tf_manager.save(variables_files[0])
 
     if os.path.islink(link_best_vars):

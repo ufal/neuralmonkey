@@ -159,6 +159,14 @@ class TensorFlowManager(object):
             log("Loading variables from {}".format(file_name))
             self.saver.restore(sess, file_name)
 
+    def initialize_model_parts(self, runners) -> None:
+        """Initialize model parts variables from their checkpoints."""
+
+        all_coders = set.union(*[rnr.all_coders for rnr in runners])
+        for coder in all_coders:
+            for session in self.sessions:
+                coder.load(session)
+
 
 def _feed_dicts(dataset, coders, train=False):
     """
