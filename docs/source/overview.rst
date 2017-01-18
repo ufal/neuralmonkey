@@ -6,7 +6,7 @@ Package Overview
 
 This overview should provide you with the basic insight on how Neural Monkey
 conceptualizes the problem of sequence-to-sequence learning and how the data
-flow during training and running models look like.
+flow during training and running models looks like.
 
 -------------------------------
 Loading and Processing Datasets
@@ -16,7 +16,7 @@ We call a *dataset* a collection of named data *series*. By a series we mean a
 list of data items of the same type representing one type of input or desired
 output of a model. In the simple case of machine translation, there are two
 series: a list of source-language sentences and a list of target-language
-sentetnces.
+sentences.
 
 The following scheme captures how a dataset is created from input
 data.
@@ -59,13 +59,14 @@ series into the neural network.
 The model itself is defined by *encoders* and *decoders*. Most of the
 TensorFlow code is in the encoders and decoders. Encoders are parts of the
 model which take some input and compute a representation of it. Decoders are
-modpel parts that produce some outputs. Our definition of encoders and decoders
+model parts that produce some outputs. Our definition of encoders and decoders
 is more general than in the classical sequence-to-sequence learning. An encoder
-can be also a convolutional network processing an image. The RNN decoder is for
+can be for example a convolutional network processing an image. The RNN decoder
+is for
 us only a special type of decoder, it can be also a sequence labeler or a
 simple multilayer-perceptron classifier.
 
-Decoders can be executed using the so called *runners*. Different runners
+Decoders are executed using so-called *runners*. Different runners
 represent different ways of running the model. We might want to get a single
 best estimation, get an ``n``-best list or a sample from the model. We might
 want to use an RNN decoder to get the decoded sequences or we might be
