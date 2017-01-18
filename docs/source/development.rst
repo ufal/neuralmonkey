@@ -77,7 +77,7 @@ Creating a branch
 
 Prior to writing code (or at least before the first commit), you should create a
 branch for solution of the issue. This command creates a new branch called
-``new_branch_name`` and switches your working copy to that branch::
+``new_branch_name`` and switches your working copy to that branch:
 
 .. code-block:: bash
 
@@ -158,7 +158,7 @@ contribute, the reviewer roles are not considered exclusive.
 After all of the reviewers' comments have been addressed and the reviewers
 approved the pull request, the pull request can be merged. It is usually a good
 idea to rebase the code to the recent version of master. Assuming your working
-copy is switched to the **master** branch, do::
+copy is switched to the **master** branch, do:
 
 .. code-block:: bash
 $ git pull --rebase
@@ -177,7 +177,7 @@ branch.
              absolutely sure that you know what are you doing. Usually if you
              work on a branch alone, rebasing is a safe procedure.
 
-When the branch is rebased, you have to force-push it to the repository::
+When the branch is rebased, you have to force-push it to the repository:
 
 .. code-block:: bash
 $ git push -f origin your_branch_name
