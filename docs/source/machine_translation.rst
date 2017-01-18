@@ -37,7 +37,7 @@ test set::
 
     1. ``Batch1a_cs.txt and Batch1a_en.txt`` as our Training set
     2. ``Batch2a_cs.txt and Batch2a_en.txt`` as a Validation set
-    3. ``Batch3`` as a Test set
+    3. ``Batch3a_en.txt`` as a Test set
 
 Now - before we start, let's make our experiment directory, in which we place
 all our work. Let's call it ``exp-nm-mt``.
@@ -61,7 +61,7 @@ files and put arrange them into the following directory structure::
       |
       \== test
           |
-          \== batch3.gz
+          \== Batch3a_en.txt.gz
 
 The gzipping is not necessary, if you put the dataset there in plaintext, it
  will work the same way. Neural Monkey recognizes gzipped files by their MIME
@@ -284,7 +284,7 @@ As for the evaluation, you need to create ``translation_run.ini``:
 
   [eval_data]
   class=config.utils.dataset_from_files
-  s_source="exp-nm-mt/data/test/batch3.gz"
+  s_source="exp-nm-mt/data/test/Batch3a_en.txt.gz"
 .. TUTCHECK exp-nm-mt/translation_run.ini
 
 and run:
