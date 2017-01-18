@@ -1,4 +1,4 @@
-from typing import cast, Any, Iterable, Optional, List
+from typing import cast, Any, Callable, Iterable, Optional, List
 
 import tensorflow as tf
 
@@ -25,7 +25,7 @@ class SequenceClassifier(ModelPart):
                  vocabulary: Vocabulary,
                  data_id: str,
                  layers: Optional[List[int]]=None,
-                 activation=tf.tanh,
+                 activation: Callable[[tf.Tensor], tf.Tensor]=tf.tanh,
                  dropout_keep_prob: float=0.5,
                  save_checkpoint: Optional[str]=None,
                  load_checkpoint: Optional[str]=None) -> None:
