@@ -443,11 +443,9 @@ TER:
   name="BLEU-4"
 
   [ter]
-  class=evaluators.edit_distance.EditDistance
+  class=evaluators.ter.TEREvaluator
   name="TER"
 .. TUTCHECK exp-nm-ape/post-edit.ini
-
-TODO check if the TER evaluator works as expected
 
 
 7 - TensorFlow Manager
@@ -613,27 +611,21 @@ The line ``s_greedy_edits_out=`` specifies the file where the output should be s
 the Neural Monkey package root dir.)
 
 We have all that we need to run the trained model on the evaluation
-dataset. From the root directory of the Neural Monkey repository, run:
-
-.. code-block:: bash
+dataset. From the root directory of the Neural Monkey repository, run::
 
   bin/neuralmonkey-run exp-nm-ape/post-edit.test.ini exp-nm-ape/post-edit_run.ini
-.. TUTCHECK IGNORE
 
 At the end, you should see a new file ``exp-nm-ape/test_output.edits``.
 As you notice, the contents of this file are the
 sequences of edit operations, which if applied to the machine translated
 sentences, generate the output that we want. The final step is to call the
 provided post-processing script. Again, feel free to write your own as a simple
-exercise:
-
-.. code-block:: bash
+exercise::
 
   scripts/postedit_reconstruct_data.py \
     --edits=exp-nm-ape/test_output.edits \
     --translated-sentences=exp-nm-ape/data/test/test.mt \
       > test_output.pe
-.. TUTCHECK IGNORE
 
 Now, you can run the official tools (like mteval or the tercom software
 available on the `WMT 16 website <http://www.statmt.org/wmt16/ape-task.html>`_)
