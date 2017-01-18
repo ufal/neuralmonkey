@@ -4,11 +4,61 @@
 Developers' guidelines
 ======================
 
-.. warning:: This document is far from finished. For now, it should serve as a
-             collection of hints for new developers.
+This is a brief document about the Neural Monkey development workflow. Its
+primary aim is to describe the environment around the Github repository
+(e.g. continuous integration tests, documentation), pull requests, code-review,
+etc.
+
+This document is written chronologically, from the point of view of a
+contributor.
 
 
-This is a brief document describing the Neural Monkey development workflow.
+Creating an issue
+-----------------
+
+Everytime there is a need to change the codebase, the contributor should create
+a corresponing issue on Github.
+
+The name of the issue should be comprehensive, and should summarize the issue in
+less than 10 words.  In the issue description, all the relevant information
+should be mentioned, and, if applicable, a sketch of the solution should be
+given so the fasion and method of the solution can be subject to further
+discussion.
+
+Labels
+******
+
+There is a number of label tags to use to provide an easier way to orient among
+the issues. Here is an explanation of some of them, so they are not used
+incorrectly (notably, there is a slight difference between "enhancement" and
+"feature").
+
+- bug: Use when there is something wrong in the current codebase that needs to
+  be fixed. For example, "Random seeds are not working"
+- documentation: Use when the main topic of the issue or pull request is to
+  contribute to the documentation (be it a rst document or a request for more
+  docstrings)
+- tests: Similarly to documentation, use if the main topic of the issue is to
+  write a test or to do changes to the testing process itself.
+- feature: A request for implementing a feature regarding the training of the
+  models or the models themselves, e.g. "Minimum risk training" or
+  "Implementation of conditional GRU".
+- enhancement: A request for implementing a feature to Neural Monkey aimed at
+  improving the user experience with the package, e.g. "GPU profiling" or
+  "Logging of config building".
+- help wanted: Used as an additional label, which specify that solving the issue
+  is suitable either for new contributors or for researchers who want to try out
+  a feature, which would be otherwise implemented after a longer time.
+- refactor: Refactor issues are requests for cleaning the codebase, using better
+  ways to achieve the same results, conforming to a future API, etc. For example,
+  "Rewrite decoder using decorators"
+
+
+
+Selecting an issue to work on and assigning people
+--------------------------------------------------
+
+
 
 
 Commiting code
