@@ -83,7 +83,9 @@ for splitting out-of-vocabulary words. Example of such splitting::
 
   basketball => basket@@ ball
 
-Postprocessing can be manually done by::
+Postprocessing can be manually done by:
+
+.. code-block:: bash
 
   sed "s/@@ //g"
 
@@ -94,15 +96,19 @@ BPE Generation
 
 In order to use BPE, you must first generate `merge_file`, over all data. This
 file is generated on both source and target dataset.
-You can generate it by running following script::
+You can generate it by running following script:
+
+.. code-block:: bash
 
   neuralmonkey/lib/subword_nmt/learn_bpe.py -s 50000 < DATA > merge_file.bpe
 
-With the data from this tutorial it would be the following command::
+With the data from this tutorial it would be the following command:
 
-  paste Batch1a_en.txt Batch1a_cs.txt |
-  neuralmonkey/lib/subword_nmt/learn_bpe.py -s 8000 >
-  exp-nm-mt/data/merge_file.bpe
+.. code-block:: bash
+
+  paste Batch1a_en.txt Batch1a_cs.txt \
+  | neuralmonkey/lib/subword_nmt/learn_bpe.py -s 8000 \
+  > exp-nm-mt/data/merge_file.bpe
 
 You can change number of merges, this number is equivalent to the size of the
 vocabulary. Do not forget that as an input is the file containing both source
@@ -263,7 +269,9 @@ As for the main configuration section do not forget to add BPE postprocessing:
 Part III. - Running and Evaluation of the Experiment
 ----------------------------------------------------
 
-The training can be run as simply as::
+The training can be run as simply as:
+
+.. code-block:: bash
 
   bin/neuralmonkey-train exp-nm-mt/translation.ini
 
@@ -279,7 +287,9 @@ As for the evaluation, you need to create ``translation_run.ini``:
   s_source="exp-nm-mt/data/test/batch3.gz"
 .. TUTCHECK exp-nm-mt/translation_run.ini
 
-and run::
+and run:
+
+.. code-block:: bash
 
  bin/neuralmonkey-run exp-nm-mt/translation.ini exp-nm-mt/translation_run.ini
 

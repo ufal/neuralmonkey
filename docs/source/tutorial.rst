@@ -166,7 +166,9 @@ during training. We apply the Levenshtein algorithm to find the shortest edit
 path from the translated sentence to the post-edited sentence. As a little
 coding excercise, you can implement your own script that does the job, or you
 may use our preprocessing script from the Neural Monkey package. For this, in the
-neuralmonkey root directory, run::
+neuralmonkey root directory, run:
+
+.. code-block:: bash
 
   scripts/postedit_prepare_data.py \
     --translated-sentences=exp-nm-ape/data/train/train.mt \
@@ -535,7 +537,9 @@ Part V. - Running an Experiment
 
 Now that we have prepared the data and the experiment INI file, we can run the
 training. If your Neural Monkey installation is OK, you can just run this
-command from the root directory of the Neural Monkey repository::
+command from the root directory of the Neural Monkey repository:
+
+.. code-block:: bash
 
   bin/neuralmonkey-train exp-nm-ape/post-edit.ini
 
@@ -611,7 +615,9 @@ The line ``s_greedy_edits_out=`` specifies the file where the output should be s
 the Neural Monkey package root dir.)
 
 We have all that we need to run the trained model on the evaluation
-dataset. From the root directory of the Neural Monkey repository, run::
+dataset. From the root directory of the Neural Monkey repository, run:
+
+.. code-block:: bash
 
   bin/neuralmonkey-run exp-nm-ape/post-edit.test.ini exp-nm-ape/post-edit_run.ini
 
@@ -620,7 +626,9 @@ As you notice, the contents of this file are the
 sequences of edit operations, which if applied to the machine translated
 sentences, generate the output that we want. The final step is to call the
 provided post-processing script. Again, feel free to write your own as a simple
-exercise::
+exercise:
+
+.. code-block:: bash
 
   scripts/postedit_reconstruct_data.py \
     --edits=exp-nm-ape/test_output.edits \

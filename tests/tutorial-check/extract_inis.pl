@@ -3,6 +3,7 @@
 # The contents are identified by starting with code-block::
 # and ending with TUTCHECK <name>
 # Blocks with code-block:: to be ignored should end with TUTCHECK IGNORE
+## Now limited to code-block:: ini
 
 use strict;
 use File::Basename;
@@ -16,7 +17,7 @@ my $thisblock;
 my $nr = 0;
 while (<>) {
   $nr++;
-  if (/code-block::/) {
+  if (/code-block:: ini/) {
     $in_block = 1;
     $blockstart = $nr;
     next;
