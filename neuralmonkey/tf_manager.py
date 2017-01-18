@@ -29,7 +29,7 @@ class TensorFlowManager(object):
     def __init__(self, num_sessions, num_threads, save_n_best=1,
                  variable_files=None, gpu_allow_growth=True,
                  per_process_gpu_memory_fraction=1.0,
-                 report_gpu_memory_consumption=True):
+                 report_gpu_memory_consumption=False):
         """Initialize a TensorflowManager.
 
         At this moment the graph must already exist. This method initializes
