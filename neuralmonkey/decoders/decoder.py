@@ -43,7 +43,6 @@ class Decoder(ModelPart):
                      tf.Tensor]]=None,
                  use_attention: bool=False,
                  embeddings_encoder: Optional[Any]=None,
-                 rnn_cell: str='GRU',
                  attention_on_input: bool=True,
                  rnn_cell: str='GRU',
                  save_checkpoint: Optional[str]=None,
