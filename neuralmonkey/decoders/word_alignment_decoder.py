@@ -1,22 +1,31 @@
 import numpy as np
 import tensorflow as tf
 
+from neuralmonkey.dataset import Dataset
+from neuralmonkey.encoders.sentence_encoder import SentenceEncoder
+from neuralmonkey.decoders.decoder import Decoder
 from neuralmonkey.logging import log
+from neuralmonkey.model.model_part import ModelPart, FeedDict
 
 # tests: mypy
 
 
-class WordAlignmentDecoder(object):
+class WordAlignmentDecoder(ModelPart):
     """
     A decoder that computes soft alignment from an attentive encoder. Loss is
     computed as cross-entropy against a reference alignment.
     """
 
-    def __init__(self, encoder, decoder, data_id, name):
+    def __init__(self,
+                 encoder: SentenceEncoder,
+                 decoder: Decoder,
+                 data_id: str,
+                 name: str) -> None:
+        ModelPart.__init__(self, name, None, None)
+
         self.encoder = encoder
         self.decoder = decoder
         self.data_id = data_id
-        self.name = name
 
         self.ref_alignment = tf.placeholder(
             tf.float32,
@@ -55,10 +64,10 @@ class WordAlignmentDecoder(object):
         return alignment, loss
 
     @property
-    def cost(self):
+    def cost(self) -> tf.Tensor:
         return self.train_loss
 
-    def feed_dict(self, dataset, train=False):
+    def feed_dict(self, dataset: Dataset, train: bool=False) -> FeedDict:
         fd = {}
 
         alignment = dataset.get_series(self.data_id, allow_none=True)
