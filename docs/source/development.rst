@@ -80,8 +80,7 @@ branch for solution of the issue. This command creates a new branch called
 ``new_branch_name`` and switches your working copy to that branch:
 
 .. code-block:: bash
-
-$ git checkout -b your_branch_name
+		$ git checkout -b your_branch_name
 
 
 Writing code
@@ -109,9 +108,9 @@ This is a usual mantra that you can use for committing and pushing to the remote
 branch in the repository:
 
 .. code-block:: bash
-$ git add .
-$ git commit -m 'your commit message'
-$ git push origin your_branch_name
+		$ git add .
+		$ git commit -m 'your commit message'
+		$ git push origin your_branch_name
 
 .. note:: If you are working on a branch with someone else, it is always a good
           idea to do a ``git pull --rebase`` before pushing. This command
@@ -161,9 +160,9 @@ idea to rebase the code to the recent version of master. Assuming your working
 copy is switched to the **master** branch, do:
 
 .. code-block:: bash
-$ git pull --rebase
-$ git checkout your_branch_name
-$ git rebase master
+		$ git pull --rebase
+		$ git checkout your_branch_name
+		$ git rebase master
 
 These commands first update your local copy of master from the remote
 repository, then switch your working copy to the ``your_branch_name`` branch,
@@ -180,7 +179,7 @@ branch.
 When the branch is rebased, you have to force-push it to the repository:
 
 .. code-block:: bash
-$ git push -f origin your_branch_name
+		$ git push -f origin your_branch_name
 
 This command overwrites the your branch in the remote repository with your local
 branch (which is now rebased on master, and therefore, up-to-date)
