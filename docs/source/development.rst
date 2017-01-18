@@ -200,11 +200,11 @@ Documentation
 -------------
 
 Documentation related to GitHub is written in `Markdown
-<https://daringfireball.net/projects/markdown/>` files, Python documentation
+<https://daringfireball.net/projects/markdown/>`_ files, Python documentation
 using `reStructuredText
-<http://docutils.sourceforge.net/docs/ref/rst/restructuredtext.html>`. This
-concerns both the standalone documents (in `/docs/`) and the docstrings in
+<http://docutils.sourceforge.net/docs/ref/rst/restructuredtext.html>`_. This
+concerns both the standalone documents (in ``/docs/``) and the docstrings in
 source code.
 
 Style of the Markdown files is automatically checked using `Markdownlint
-<https://github.com/mivok/markdownlint>`.
+<https://github.com/mivok/markdownlint>`_.
