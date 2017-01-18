@@ -85,13 +85,13 @@ class SequenceLabeler(ModelPart):
     def feed_dict(self, dataset: Dataset, train: bool=False) -> FeedDict:
         fd = {}  # type: FeedDict
 
-        sentences = list(
-            cast(Iterable[List[str]],
-                 dataset.get_series(self.data_id, allow_none=True)))
+        sentences = cast(Iterable[List[str]],
+                         dataset.get_series(self.data_id, allow_none=True))
 
         if sentences is not None:
+            sentences_list = list(sentences) if sentences is not None else None
             inputs, weights = self.vocabulary.sentences_to_tensor(
-                sentences, self.max_output_len)
+                sentences_list, self.max_output_len)
 
             assert len(weights) == len(self.train_weights)
             assert len(inputs) == len(self.train_targets)

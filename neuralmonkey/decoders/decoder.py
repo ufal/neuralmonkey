@@ -435,21 +435,19 @@ class Decoder(ModelPart):
         """
         sentences = cast(Iterable[List[str]],
                          dataset.get_series(self.data_id, allow_none=True))
-        if sentences is not None:
-            sentences_list = list(sentences)
-        else:
-            sentences_list = None
 
         if sentences is None and train:
             raise ValueError("When training, you must feed "
                              "reference sentences")
 
-        res = {}
-        res[self.train_mode] = train
+        sentences_list = list(sentences) if sentences is not None else None
+
+        fd = {}  # type: FeedDict
+        fd[self.train_mode] = train
 
         go_symbol_idx = self.vocabulary.get_word_index(START_TOKEN)
-        res[self.go_symbols] = np.full([1, len(dataset)], go_symbol_idx,
-                                       dtype=np.int32)
+        fd[self.go_symbols] = np.full([1, len(dataset)], go_symbol_idx,
+                                      dtype=np.int32)
 
         if sentences is not None:
             # train_mode=False, since we don't want to <unk>ize target words!
@@ -460,7 +458,7 @@ class Decoder(ModelPart):
             assert inputs.shape == (self.max_output_len, len(sentences_list))
             assert weights.shape == (self.max_output_len, len(sentences_list))
 
-            res[self.train_inputs] = inputs
-            res[self.train_padding] = weights
+            fd[self.train_inputs] = inputs
+            fd[self.train_padding] = weights
 
-        return res
+        return fd

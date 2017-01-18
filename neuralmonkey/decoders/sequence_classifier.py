@@ -84,10 +84,8 @@ class SequenceClassifier(ModelPart):
     def feed_dict(self, dataset: Dataset, train: bool=False) -> FeedDict:
         sentences = cast(Iterable[List[str]],
                          dataset.get_series(self.data_id, allow_none=True))
-        if sentences is not None:
-            sentences_list = list(sentences)
-        else:
-            sentences_list = None
+
+        sentences_list = list(sentences) if sentences is not None else None
 
         fd = {}  # type: FeedDict
 
