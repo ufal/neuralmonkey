@@ -15,6 +15,14 @@ all-extracts: $(TUTORIALS:%=%.extract) $(TUTORIALS:%=%.dataset)
 
 # Prepare data for tutorial
 tutorial.dataset: 
+	mkdir -p exp-nm-ape/data/test
+	cp -r /net/data/WMT16/WMT16_APE_Shared_Task_Data/ exp-nm-ape/data/
+	chmod -R u+w exp-nm-ape/data/WMT16_APE_Shared_Task_Data
+	mv exp-nm-ape/data/WMT16_APE_Shared_Task_Data/TrainDev/* exp-nm-ape/data/
+	mv exp-nm-ape/data/WMT16_APE_Shared_Task_Data/Test/* exp-nm-ape/data/test/
+	mv exp-nm-ape/data/WMT16_APE_Shared_Task_Data/test_pe/* exp-nm-ape/data/test/
+	../../scripts/postedit_prepare_data.py --translated-sentences=exp-nm-ape/data/train/train.mt --target-sentences=exp-nm-ape/data/train/train.pe > exp-nm-ape/data/train/train.edits
+	../../scripts/postedit_prepare_data.py --translated-sentences=exp-nm-ape/data/dev/dev.mt --target-sentences=exp-nm-ape/data/dev/dev.pe > exp-nm-ape/data/dev/dev.edits
 	touch $@
 
 machine_translation.dataset:
