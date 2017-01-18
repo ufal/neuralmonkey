@@ -1,6 +1,9 @@
+from typing import List, Optional
+
 import tensorflow as tf
 
 from neuralmonkey.checking import assert_shape
+from neuralmonkey.model.model_part import ModelPart
 from neuralmonkey.encoders.attentive import Attentive
 from neuralmonkey.logging import log
 from neuralmonkey.nn.bidirectional_rnn_layer import BidirectionalRNNLayer
@@ -14,13 +17,20 @@ from neuralmonkey.vocabulary import Vocabulary
 # pylint: disable=too-many-instance-attributes
 
 
-class FactoredEncoder(Attentive):
-    """Implementation of a generic encoder that processes an arbitrary
-    number of input sequences.
-    """
+class FactoredEncoder(ModelPart, Attentive):
+    """Generic encoder processessig an arbitrary number of input sequences."""
 
-    def __init__(self, max_input_len, vocabularies, data_ids, embedding_sizes,
-                 rnn_size, **kwargs):
+    # pylint: disable=too-many-arguments
+    def __init__(self,
+                 name: str,
+                 max_input_len: int,
+                 vocabularies: List[Vocabulary],
+                 data_ids: List[str],
+                 embedding_sizes: List[int],
+                 rnn_size: int,
+                 save_checkpoint: Optional[str]=None,
+                 load_checkpoint: Optional[str]=None,
+                 **kwargs) -> None:
         """Construct a new instance of the factored encoder.
 
         Args:
@@ -48,9 +58,8 @@ class FactoredEncoder(Attentive):
             dropout_keep_prob: 1 - Dropout probability [1]
         """
         attention_type = kwargs.get("attention_type", None)
-        attention_fertility = kwargs.get("attention_fertility", 3)
-        super().__init__(
-            attention_type, attention_fertility=attention_fertility)
+        ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
+        Attentive.__init__(attention_type, **kwargs)
         for vocabulary in vocabularies:
             assert_type(self, 'vocabulary', vocabulary, Vocabulary)
 
@@ -61,7 +70,6 @@ class FactoredEncoder(Attentive):
         self.max_input_len = max_input_len
         self.rnn_size = rnn_size
 
-        self.name = kwargs.get("name", "sentence_encoder")
         self.dropout_keep_prob = kwargs.get("dropout_keep_prob", 1)
 
         self.use_noisy_activations = kwargs.get("use_noisy_activations", False)
@@ -74,6 +82,7 @@ class FactoredEncoder(Attentive):
             # Attention mechanism
 
             log("Encoder graph constructed.")
+    # pylint: enable=too-many-arguments
 
     @property
     def _attention_mask(self):

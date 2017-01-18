@@ -1,15 +1,26 @@
+from typing import List, Optional
+
 import tensorflow as tf
 
+from neuralmonkey.dataset import Dataset
 from neuralmonkey.encoders.attentive import Attentive
+from neuralmonkey.model.model_part import ModelPart, FeedDict
 
 # tests: lint, mypy
 
 # pylint: disable=too-few-public-methods
 
 
-class VectorEncoder(object):
+class VectorEncoder(ModelPart):
 
-    def __init__(self, dimension, output_shape, data_id):
+    def __init__(self,
+                 name: str,
+                 dimension: int,
+                 output_shape: int,
+                 data_id: str,
+                 save_checkpoint: Optional[str]=None,
+                 load_checkpoint: Optional[str]=None) -> None:
+        ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
         self.image_features = tf.placeholder(
             tf.float32, shape=[None, dimension])
         self.dimension = dimension
@@ -28,28 +39,36 @@ class VectorEncoder(object):
         self.encoded = tf.tanh(tf.matmul(self.flat, project_w) + project_b)
 
     # pylint: disable=unused-argument
-    def feed_dict(self, dataset, train=False):
+    def feed_dict(self, dataset: Dataset, train: bool=False) -> FeedDict:
         return {self.image_features: dataset.get_series(self.data_id)}
 
 
-class PostCNNImageEncoder(Attentive):
-
-    def __init__(self, input_shape, output_shape, data_id, name,
-                 dropout_keep_prob=1.0, attention_type=None):
+class PostCNNImageEncoder(ModelPart, Attentive):
+    # pylint: disable=too-many-arguments
+    def __init__(self,
+                 name: str,
+                 input_shape: List[int],
+                 output_shape: int,
+                 data_id: str,
+                 dropout_keep_prob: float=1.0,
+                 attention_type=None,
+                 save_checkpoint: Optional[str]=None,
+                 load_checkpoint: Optional[str]=None) -> None:
         assert len(input_shape) == 3
-        super().__init__(attention_type)
+        ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
+        Attentive.__init__(attention_type, {})
 
         self.input_shape = input_shape
         self.output_shape = output_shape
         self.data_id = data_id
         self.dropout_keep_prob = dropout_keep_prob
         self.attention_type = attention_type
-        self.name = name
 
         with tf.variable_scope(self.name):
             self.dropout_placeholder = tf.placeholder(tf.float32)
+            features_shape = [None] + input_shape  # type: ignore
             self.image_features = tf.placeholder(tf.float32,
-                                                 shape=[None] + input_shape,
+                                                 shape=features_shape,
                                                  name="image_input")
 
             self.flat = tf.reduce_mean(self.image_features,
@@ -75,8 +94,9 @@ class PostCNNImageEncoder(Attentive):
     def _attention_tensor(self):
         return self.__attention_tensor
 
-    def feed_dict(self, dataset, train=False):
-        res = {self.image_features: dataset.get_series(self.data_id)}
+    def feed_dict(self, dataset: Dataset, train: bool=False) -> FeedDict:
+        res = {}  # type: FeedDict
+        res[self.image_features] = dataset.get_series(self.data_id)
 
         if train:
             res[self.dropout_placeholder] = self.dropout_keep_prob

@@ -1,5 +1,10 @@
+from typing import cast, Any, Callable, Iterable, Optional, List
+
 import tensorflow as tf
 
+from neuralmonkey.dataset import Dataset
+from neuralmonkey.vocabulary import Vocabulary
+from neuralmonkey.model.model_part import ModelPart, FeedDict
 from neuralmonkey.nn.mlp import MultilayerPerceptron
 
 # tests: lint, mypy
@@ -7,23 +12,31 @@ from neuralmonkey.nn.mlp import MultilayerPerceptron
 # pylint: disable=too-many-instance-attributes
 
 
-class SequenceClassifier(object):
-    """
-    This is a implementation of a simple MLP classifier over encoders. The API
-    pretends it is an RNN decoder which always generates a sequence of length
-    exactly one.
-    """
-    # pylint: disable=dangerous-default-value
+class SequenceClassifier(ModelPart):
+    """A simple MLP classifier over encoders.
 
-    def __init__(self, encoders, vocabulary, data_id, name,
-                 layers=[], activation=tf.tanh, dropout_keep_prob=0.5):
+    The API pretends it is an RNN decoder which always generates a sequence of
+    length exactly one.
+    """
+    # pylint: disable=too-many-arguments
+    def __init__(self,
+                 name: str,
+                 encoders: List[Any],
+                 vocabulary: Vocabulary,
+                 data_id: str,
+                 layers: Optional[List[int]]=None,
+                 activation: Callable[[tf.Tensor], tf.Tensor]=tf.tanh,
+                 dropout_keep_prob: float=0.5,
+                 save_checkpoint: Optional[str]=None,
+                 load_checkpoint: Optional[str]=None) -> None:
+        ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
+
         self.encoders = encoders
         self.vocabulary = vocabulary
         self.data_id = data_id
         self.layers = layers
         self.activation = activation
         self.dropout_keep_prob = dropout_keep_prob
-        self.name = name
         self.max_output_len = 1
 
         with tf.variable_scope(name):
@@ -54,6 +67,7 @@ class SequenceClassifier(object):
             tf.scalar_summary(
                 'train_optimization_cost',
                 self.cost, collections=["summary_train"])
+    # pylint: enable=too-many-arguments
 
     @property
     def train_loss(self):
@@ -67,12 +81,16 @@ class SequenceClassifier(object):
     def decoded(self):
         return self.decoded_seq
 
-    def feed_dict(self, dataset, train=False):
-        sentences = dataset.get_series(self.data_id, allow_none=True)
-        fd = {}
+    def feed_dict(self, dataset: Dataset, train: bool=False) -> FeedDict:
+        sentences = cast(Iterable[List[str]],
+                         dataset.get_series(self.data_id, allow_none=True))
+
+        sentences_list = list(sentences) if sentences is not None else None
+
+        fd = {}  # type: FeedDict
 
         label_tensors, _ = self.vocabulary.sentences_to_tensor(
-            sentences, self.max_output_len)
+            sentences_list, self.max_output_len)
 
         fd[self.gt_inputs[0]] = label_tensors[0]
 

@@ -1,12 +1,14 @@
 # tests: lint
 
-from typing import List, Callable, Optional, Union, Any, Tuple
+from typing import cast, Iterable, List, Callable, Optional, Union, Any, Tuple
 import math
 
 import tensorflow as tf
 import numpy as np
 
+from neuralmonkey.dataset import Dataset
 from neuralmonkey.vocabulary import Vocabulary, START_TOKEN
+from neuralmonkey.model.model_part import ModelPart, FeedDict
 from neuralmonkey.logging import log
 from neuralmonkey.nn.utils import dropout
 from neuralmonkey.encoders.attentive import Attentive
@@ -19,7 +21,7 @@ from neuralmonkey.decoders.output_projection import no_deep_output
 # pylint: disable=too-many-instance-attributes,too-few-public-methods
 # Big decoder cannot be simpler. Not sure if refactoring
 # it into smaller units would be helpful
-class Decoder(object):
+class Decoder(ModelPart):
     """A class that manages parts of the computation graph that are
     used for the decoding.
     """
@@ -42,8 +44,10 @@ class Decoder(object):
                  use_attention: bool=False,
                  embeddings_encoder: Optional[Any]=None,
                  rnn_cell: str='GRU',
-                 attention_on_input: bool=True) -> None:
-        """Creates a refactored version of monster decoder.
+                 attention_on_input: bool=True,
+                 save_checkpoint: Optional[str]=None,
+                 load_checkpoint: Optional[str]=None) -> None:
+        """Create a refactored version of monster decoder.
 
         Arguments:
             encoders: Input encoders of the decoder
@@ -68,12 +72,12 @@ class Decoder(object):
             attention_on_input: Flag whether attention from previous decoding
                 step should be combined with the input in the next step.
         """
+        ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
         log("Initializing decoder, name: '{}'".format(name))
 
         self.encoders = encoders
         self.vocabulary = vocabulary
         self.data_id = data_id
-        self.name = name
         self.max_output_len = max_output_len
         self.dropout_keep_prob = dropout_keep_prob
         self.embedding_size = embedding_size
@@ -422,35 +426,39 @@ class Decoder(object):
                 collections=["summary_val_plots"],
                 max_images=256)
 
-    def feed_dict(self, dataset, train=False):
+    def feed_dict(self, dataset: Dataset, train: bool=False) -> FeedDict:
         """Populate the feed dictionary for the decoder object
 
         Arguments:
             dataset: The dataset to use for the decoder.
             train: Boolean flag, telling whether this is a training run
         """
-        sentences = dataset.get_series(self.data_id, allow_none=True)
+        sentences = cast(Iterable[List[str]],
+                         dataset.get_series(self.data_id, allow_none=True))
+
         if sentences is None and train:
             raise ValueError("When training, you must feed "
                              "reference sentences")
 
-        res = {}
-        res[self.train_mode] = train
+        sentences_list = list(sentences) if sentences is not None else None
+
+        fd = {}  # type: FeedDict
+        fd[self.train_mode] = train
 
         go_symbol_idx = self.vocabulary.get_word_index(START_TOKEN)
-        res[self.go_symbols] = np.full([1, len(dataset)], go_symbol_idx,
-                                       dtype=np.int32)
+        fd[self.go_symbols] = np.full([1, len(dataset)], go_symbol_idx,
+                                      dtype=np.int32)
 
         if sentences is not None:
             # train_mode=False, since we don't want to <unk>ize target words!
             inputs, weights = self.vocabulary.sentences_to_tensor(
-                sentences, self.max_output_len, train_mode=False,
+                sentences_list, self.max_output_len, train_mode=False,
                 add_start_symbol=False, add_end_symbol=True)
 
-            assert inputs.shape == (self.max_output_len, len(sentences))
-            assert weights.shape == (self.max_output_len, len(sentences))
+            assert inputs.shape == (self.max_output_len, len(sentences_list))
+            assert weights.shape == (self.max_output_len, len(sentences_list))
 
-            res[self.train_inputs] = inputs
-            res[self.train_padding] = weights
+            fd[self.train_inputs] = inputs
+            fd[self.train_padding] = weights
 
-        return res
+        return fd

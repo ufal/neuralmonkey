@@ -1,55 +1,55 @@
-"""
-Module conatining an image encoder proceesing the image with
-a CNN, followed by a sequential processing by RNN.
-"""
+"""CNN for image processing."""
+
+from typing import List, Tuple, Type, Optional
 
 import numpy as np
 import tensorflow as tf
+
 from neuralmonkey.checking import assert_shape
+from neuralmonkey.dataset import Dataset
 from neuralmonkey.encoders.attentive import Attentive
 from neuralmonkey.decoding_function import Attention
+from neuralmonkey.model.model_part import ModelPart, FeedDict
 
 # tests: lint, mypy
 
 # pylint: disable=too-many-instance-attributes, too-few-public-methods
 
 
-class CNNEncoder(Attentive):
-    """
+class CNNEncoder(ModelPart, Attentive):
+    """An image encoder.
 
-    An image encoder. It projects the input image through a serie of
-    convolutioal operations. The projected image is vertically cut and fed to
-    stacked RNN layers which encode the image into a single vector.
+    It projects the input image through a serie of convolutioal operations. The
+    projected image is vertically cut and fed to stacked RNN layers which
+    encode the image into a single vector.
 
     Attributes:
 
         input_op: Placeholder for the batch of input images
-
         padding_masks: Placeholder for matrices capturing telling where the
             image has been padded.
-
         image_processing_layers: List of TensorFlow operator that are
             visualizable image transformations.
-
         encoded: Operator that returns a batch of ecodede image (intended
             as an input for the decoder).
-
         attention_tensor: Tensor computing a batch of attention
             matrices for the decoder.
-
         is_training: Placeholder for boolean telleing whether the training
             is running.
-
     """
 
     # pylint: disable=too-many-arguments, too-many-locals
-    def __init__(self, data_id, convolutions,
-                 image_height, image_width, pixel_dim,
-                 name,
-                 batch_normalization=True,
-                 local_response_normalization=True,
-                 dropout_keep_prob=0.5,
-                 attention_type=Attention):
+    def __init__(self,
+                 name: str,
+                 data_id: str,
+                 convolutions: List[Tuple[int, int, Optional[int]]],
+                 image_height: int, image_width: int, pixel_dim: int,
+                 batch_normalization: bool=True,
+                 local_response_normalization: bool=True,
+                 dropout_keep_prob: float=0.5,
+                 attention_type: Type=Attention,
+                 save_checkpoint: Optional[str]=None,
+                 load_checkpoint: Optional[str]=None) -> None:
         """Initialize a convolutional network for image processing.
 
         Args:
@@ -70,7 +70,8 @@ class CNNEncoder(Attentive):
                 dropout keeping probability
 
         """
-        super().__init__(attention_type)
+        ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
+        Attentive.__init__(self, attention_type)
 
         self.convolutions = convolutions
         self.data_id = data_id
@@ -78,7 +79,6 @@ class CNNEncoder(Attentive):
         self.image_width = image_width
         self.pixel_dim = pixel_dim
         self.dropout_keep_prob = dropout_keep_prob
-        self.name = name
 
         with tf.variable_scope(name):
             self.dropout_placeholder = tf.placeholder(
@@ -99,7 +99,7 @@ class CNNEncoder(Attentive):
             last_n_channels = pixel_dim
 
             self.is_training = tf.placeholder(tf.bool, name="is_training")
-            self.image_processing_layers = []
+            self.image_processing_layers = []  # type: List[tf.Tensor]
 
             with tf.variable_scope("convolutions"):
                 for i, (filter_size,
@@ -121,9 +121,9 @@ class CNNEncoder(Attentive):
                                 [1, 2, 2, 1], "SAME")
                             self.image_processing_layers.append(last_layer)
                             assert image_height % 2 == 0
-                            image_height /= 2
+                            image_height //= 2
                             assert image_width % 2 == 0
-                            image_width /= 2
+                            image_width //= 2
 
                         if local_response_normalization:
                             last_layer = tf.nn.local_response_normalization(
@@ -153,14 +153,14 @@ class CNNEncoder(Attentive):
                 tf.reduce_prod(last_padding_masks, [1]), [2])
 
     @property
-    def _attention_tensor(self):
+    def _attention_tensor(self) -> tf.Tensor:
         return self.__attention_tensor
 
     @property
-    def _attention_mask(self):
+    def _attention_mask(self) -> tf.Tensor:
         return self.__attention_mask
 
-    def feed_dict(self, dataset, train=False):
+    def feed_dict(self, dataset: Dataset, train: bool=False) -> FeedDict:
         # if it is from the pickled file, it is list, not numpy tensor,
         # so convert it as as a prevention
         images = np.array(dataset.get_series(self.data_id))

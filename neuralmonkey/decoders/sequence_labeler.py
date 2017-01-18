@@ -1,30 +1,50 @@
-# tests: lint, mypy
+import math
+from typing import cast, Iterable, List, Optional
+
 import tensorflow as tf
 
-from neuralmonkey.decoders.decoder import Decoder
+from neuralmonkey.dataset import Dataset
+from neuralmonkey.model.model_part import ModelPart, FeedDict
+from neuralmonkey.encoders.sentence_encoder import SentenceEncoder
+from neuralmonkey.vocabulary import Vocabulary
 
 
 # pylint: disable=too-many-instance-attributes,too-few-public-methods
-class SequenceLabeler(Decoder):
+class SequenceLabeler(ModelPart):
     """Classifier assing a label to each encoder's state."""
 
-    # pylint: disable=super-init-not-called
-    def __init__(self, encoder, vocabulary, data_id, **kwargs):
+    # pylint: disable=too-many-locals
+    def __init__(self,
+                 name: str,
+                 encoder: SentenceEncoder,
+                 vocabulary: Vocabulary,
+                 data_id: str,
+                 dropout_keep_prob: float=1.0,
+                 save_checkpoint: Optional[str]=None,
+                 load_checkpoint: Optional[str]=None) -> None:
+
+        ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
 
         self.encoder = encoder
         self.vocabulary = vocabulary
         self.data_id = data_id
 
-        dropout_keep_prob = kwargs.get("dropout_keep_prob", 1.0)
-
         self.rnn_size = self.encoder.rnn_size * 2
         self.max_output_len = self.encoder.max_input_len
+        vocabulary_size = len(vocabulary)
 
-        # pylint: disable=no-member
-        self.weights, self.biases = self._state_to_output()
+        weights = tf.get_variable(
+            name="state_to_word_W",
+            shape=[self.rnn_size, vocabulary_size],
+            initializer=tf.random_uniform_initializer(-0.5, 0.5))
 
-        logits = [tf.tanh(tf.matmul(state, self.weights) + self.biases)
-                  for state in self.encoder.outputs_bidi]
+        biases = tf.get_variable(
+            name="state_to_word_b",
+            shape=[vocabulary_size],
+            initializer=tf.constant_initializer(- math.log(vocabulary_size)))
+
+        logits = [tf.tanh(tf.matmul(state, weights) + biases)
+                  for state in self.encoder.hidden_states]
 
         # [:, 1:] -- bans generating the start symbol (index 0 in
         #            the vocabulary; The start symbol is automatically
@@ -40,7 +60,7 @@ class SequenceLabeler(Decoder):
                                              name="seq_lab_{}".format(i))
                               for i in range(self.max_output_len)]
 
-        train_onehots = [tf.one_hot(t, self.vocabulary_size)
+        train_onehots = [tf.one_hot(t, len(vocabulary))
                          for t in self.train_targets]
 
         self.train_weights = [
@@ -58,26 +78,20 @@ class SequenceLabeler(Decoder):
         self.train_loss = sum(summed_losses_in_time)
         self.runtime_loss = self.train_loss
 
-        # Learning step
-        # TODO was here only because of scheduled sampling.
-        # needs to be refactored out
-        self.learning_step = tf.get_variable(
-            "learning_step", [], initializer=tf.constant_initializer(0),
-            trainable=False)
-
         self.dropout_placeholder = tf.placeholder_with_default(
             tf.constant(dropout_keep_prob, tf.float32),
             shape=[], name="decoder_dropout_placeholder")
 
-    def feed_dict(self, dataset, train=False):
+    def feed_dict(self, dataset: Dataset, train: bool=False) -> FeedDict:
+        fd = {}  # type: FeedDict
 
-        fd = {}
-
-        sentences = dataset.get_series(self.data_id, allow_none=True)
+        sentences = cast(Iterable[List[str]],
+                         dataset.get_series(self.data_id, allow_none=True))
 
         if sentences is not None:
+            sentences_list = list(sentences) if sentences is not None else None
             inputs, weights = self.vocabulary.sentences_to_tensor(
-                sentences, self.max_output_len)
+                sentences_list, self.max_output_len)
 
             assert len(weights) == len(self.train_weights)
             assert len(inputs) == len(self.train_targets)
