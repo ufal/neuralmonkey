@@ -7,7 +7,12 @@ TUTORIALS=tutorial machine_translation
 all: $(TUTORIALS:%=%.run)
 
 # Alternative goal, just extract all inis
-all-extracts: $(TUTORIALS:%=%.extract) $(TUTORIALS:%=%.dataset)
+all-extracts: $(TUTORIALS:%=%.extract)
+
+# Remove touchfiles etc
+clean:
+	rm -rf exp-nm-ape exp-nm-mt
+	rm -f $(TUTORIALS:%=%.extract) $(TUTORIALS:%=%.dataset)
 
 # This generic goal extracts inis from any tutorial:
 .PRECIOUS: %.ini
@@ -39,6 +44,7 @@ tutorial.run: tutorial.dataset tutorial.extract
 
 # Prepare data for MT tutorial
 machine_translation.dataset:
+	mkdir -p exp-nm-mt/data/
 	wget http://ufallab.ms.mff.cuni.cz/~popel/batch1and2.zip
 	unzip -u batch1and2.zip -d exp-nm-mt/data/
 	rm batch1and2.zip
