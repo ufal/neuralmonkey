@@ -9,3 +9,4 @@ dependencies:
    - ansiconv
    - numpy
    - https://storage.googleapis.com/tensorflow/linux/cpu/tensorflow-0.11.0-cp35-cp35m-linux_x86_64.whl
+   - sphinx==1.5.1
