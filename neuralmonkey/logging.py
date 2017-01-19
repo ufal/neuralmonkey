@@ -14,7 +14,7 @@ class Logging(object):
 
     # 'all' and 'none' are special symbols,
     # others are filtered according the labels
-    debug_enabled = ['all']
+    debug_enabled = ['none']  # type: List[str]
     debug_disabled = []  # type: List[str]
 
     @staticmethod
