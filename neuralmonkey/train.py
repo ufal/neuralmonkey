@@ -87,7 +87,6 @@ def main() -> None:
                 .format(cfg.args.output), color='red')
             exit(1)
 
-
     # pylint: disable=broad-except
     if not os.path.isdir(cfg.args.output):
         try:
