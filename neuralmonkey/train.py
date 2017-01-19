@@ -73,45 +73,35 @@ def main() -> None:
     np.random.seed(cfg.args.random_seed)
     tf.set_random_seed(cfg.args.random_seed)
 
-    cfg.build_model()
-
     # pylint: disable=no-member
-    if (os.path.isdir(cfg.model.output) and
-            os.path.exists(os.path.join(cfg.model.output, "experiment.ini"))):
-        if cfg.model.overwrite_output_dir:
+    if (os.path.isdir(cfg.args.output) and
+            os.path.exists(os.path.join(cfg.args.output, "experiment.ini"))):
+        if cfg.args.overwrite_output_dir:
             # we do not want to delete the directory contents
             log("Directory with experiment.ini '{}' exists, "
                 "overwriting enabled, proceeding."
-                .format(cfg.model.output))
+                .format(cfg.args.output))
         else:
             log("Directory with experiment.ini '{}' exists, "
                 "overwriting disabled."
-                .format(cfg.model.output), color='red')
+                .format(cfg.args.output), color='red')
             exit(1)
 
-    try:
-        check_dataset_and_coders(cfg.model.train_dataset,
-                                 cfg.model.runners)
-        check_dataset_and_coders(cfg.model.val_dataset,
-                                 cfg.model.runners)
-    except CheckingException as exc:
-        log(str(exc), color='red')
-        exit(1)
 
     # pylint: disable=broad-except
-    if not os.path.isdir(cfg.model.output):
+    if not os.path.isdir(cfg.args.output):
         try:
-            os.mkdir(cfg.model.output)
+            os.mkdir(cfg.args.output)
         except Exception as exc:
             log("Failed to create experiment directory: {}. Exception: {}"
-                .format(cfg.model.output, exc), color='red')
+                .format(cfg.args.output, exc), color='red')
             exit(1)
 
-    log_file = "{}/experiment.log".format(cfg.model.output)
-    ini_file = "{}/experiment.ini".format(cfg.model.output)
-    git_commit_file = "{}/git_commit".format(cfg.model.output)
-    git_diff_file = "{}/git_diff".format(cfg.model.output)
-    variables_file_prefix = "{}/variables.data".format(cfg.model.output)
+    log_file = "{}/experiment.log".format(cfg.args.output)
+    ini_file = "{}/experiment.ini".format(cfg.args.output)
+    git_commit_file = "{}/git_commit".format(cfg.args.output)
+    git_diff_file = "{}/git_diff".format(cfg.args.output)
+    variables_file_prefix = "{}/variables.data".format(cfg.args.output)
 
     cont_index = 0
 
@@ -124,19 +114,18 @@ def main() -> None:
         cont_index += 1
 
         log_file = "{}/experiment.log.cont-{}".format(
-            cfg.model.output, cont_index)
+            cfg.args.output, cont_index)
         ini_file = "{}/experiment.ini.cont-{}".format(
-            cfg.model.output, cont_index)
+            cfg.args.output, cont_index)
         git_commit_file = "{}/git_commit.cont-{}".format(
-            cfg.model.output, cont_index)
+            cfg.args.output, cont_index)
         git_diff_file = "{}/git_diff.cont-{}".format(
-            cfg.model.output, cont_index)
+            cfg.args.output, cont_index)
         variables_file_prefix = "{}/variables.data.cont-{}".format(
-            cfg.model.output, cont_index)
+            cfg.args.output, cont_index)
 
     copyfile(sys.argv[1], ini_file)
     Logging.set_log_file(log_file)
-    Logging.print_header(cfg.model.name)
 
     # this points inside the neuralmonkey/ dir inside the repo, but
     # it does not matter for git.
@@ -149,6 +138,19 @@ def main() -> None:
               .format(repodir, git_diff_file))
 
     link_best_vars = "{}.best".format(variables_file_prefix)
+
+    cfg.build_model()
+
+    try:
+        check_dataset_and_coders(cfg.model.train_dataset,
+                                 cfg.model.runners)
+        check_dataset_and_coders(cfg.model.val_dataset,
+                                 cfg.model.runners)
+    except CheckingException as exc:
+        log(str(exc), color='red')
+        exit(1)
+
+    Logging.print_header(cfg.model.name)
 
     # runners_batch_size must be set to avoid problems on GPU
     if cfg.model.runners_batch_size is None:
