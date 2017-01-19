@@ -17,7 +17,7 @@ my $thisblock;
 my $nr = 0;
 while (<>) {
   $nr++;
-  if (/code-block:: ini/) {
+  if (/code-block::\s*ini/) {
     $in_block = 1;
     $blockstart = $nr;
     next;
