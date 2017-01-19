@@ -74,7 +74,8 @@ interested in the word alignment obtained by its attention model. This is all
 done by employing different runners over the decoders. The outputs of the
 runners can be subject of further *post-processing*.
 
-A *trainer* is a special case of a runner, the only one that actually modifies
+Additionally to runners, each training experiment has to have its *trainer*.  A
+*trainer* is a special case of a runner that actually modifies the parameters of
 the model. It collects the objective functions and uses them in an optimizer.
 
 Neural Monkey manages TensorFlow sessions using an object called *TensorFlow
