@@ -21,7 +21,7 @@ sentences.
 The following scheme captures how a dataset is created from input
 data.
 
-.. image:: dataset_creation.svg
+.. image:: img/dataset_creation.svg
 
 The dataset is created in the following steps:
 
@@ -48,7 +48,7 @@ Training and Running a Model
 This section describes the training and running workflow. The main concepts and
 their interconnection can be seen in the following scheme.
 
-.. image:: model_workflow.svg
+.. image:: img/model_workflow.svg
 
 The dataset series can be used to create a *vocabulary*. A vocabulary
 represents an indexed set of tokens and provides functionality for converting

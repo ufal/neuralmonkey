@@ -60,7 +60,7 @@ If you are using an attention decoder, visualization of the soft alignment of
 each sentence in the first validation batch will appear in the *Images* tab
 in TensorBoard_. The images might look like this:
 
-.. image:: attention.png
+.. image:: img/attention.png
 
 Here, the source sentence is on the vertical axis and the target sentence on
 the horizontal axis. The size of each image is ``max_output_len * max_input_len`` so most of the time, there will be some blank rows at the bottom and some trailing columns with "phantom" attention (corresponding to positions after the end of the output sentence).
@@ -77,7 +77,7 @@ Use ``feh`` to view the images as a time-lapse:
 .. code:: bash
 
   feh -g 300x300 -Z --force-aliasing --slideshow-delay 0.2 images/attention_0_*.png
-  
+
 Or enlarge them and turn them into an animated GIF using:
 
 .. code:: bash
