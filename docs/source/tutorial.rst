@@ -443,10 +443,6 @@ TER:
   [bleu]
   class=evaluators.bleu.BLEUEvaluator
   name="BLEU-4"
-
-  [ter]
-  class=evaluators.ter.TEREvaluator
-  name="TER"
 .. TUTCHECK exp-nm-ape/post-edit.ini
 
 
@@ -483,7 +479,7 @@ parameters:
   trainer=<trainer>
   train_dataset=<train_dataset>
   val_dataset=<val_dataset>
-  evaluation=[("greedy_edits", "edits", <bleu>), ("greedy_edits", "edits", <ter>)]
+  evaluation=[("greedy_edits", "edits", <bleu>), ("greedy_edits", "edits", evaluators.ter.TER)]
   minimize=True
   batch_size=128
   runners_batch_size=256
@@ -503,7 +499,7 @@ The ``runners``, ``tf_manager``, ``trainer``, ``train_dataset`` and ``val_datase
 The parameter ``evaluation`` takes list of tuples, where each tuple contains:
 - the name of output series (as produced by some runner), ``greedy_edits`` here,
 - the name of the reference series of the dataset, ``edits`` here,
-- the reference to the evaluation algorithm, ``<bleu>`` and ``<ter>`` in the two tuples here.
+- the reference to the evaluation algorithm, ``<bleu>`` and ``evaluators.ter.TER`` in the two tuples here.
 
 The ``batch_size`` parameter controls how many sentences will be in one training
 mini-batch. When the model does not fit into GPU memory, it might be a good idea to

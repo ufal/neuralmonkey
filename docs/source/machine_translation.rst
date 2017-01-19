@@ -234,10 +234,6 @@ The following sections are described in more detail in
   class=evaluators.bleu.BLEUEvaluator
   name="BLEU-4"
 
-  [ter]
-  class=evaluators.edit_distance.EditDistance
-  name="TER"
-
   [tf_manager]
   class=tf_manager.TensorFlowManager
   num_threads=4
@@ -257,7 +253,7 @@ As for the main configuration section do not forget to add BPE postprocessing:
   trainer=<trainer>
   train_dataset=<train_data>
   val_dataset=<val_data>
-  evaluation=[("series_named_greedy", "target", <bleu>), ("series_named_greedy", "target", <ter>)]
+  evaluation=[("series_named_greedy", "target", <bleu>), ("series_named_greedy", "target", evaluators.ter.TER)]
   minimize=False
   batch_size=80
   runners_batch_size=256
