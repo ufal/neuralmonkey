@@ -20,6 +20,7 @@ Getting Started
    :maxdepth: 1
 
    install
+   overview
    tutorial
    machine_translation
    development
