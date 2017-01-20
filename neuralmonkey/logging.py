@@ -3,6 +3,8 @@
 import time
 import codecs
 import sys
+import os
+
 # pylint: disable=unused-import
 from typing import Any, Optional
 from termcolor import colored
@@ -14,8 +16,10 @@ class Logging(object):
 
     # 'all' and 'none' are special symbols,
     # others are filtered according the labels
-    debug_enabled = ['all']
-    debug_disabled = []  # type: List[str]
+    debug_enabled = [
+        os.environ.get("NEURALMONKEY_DEBUG_ENABLE", "none")]  # type: List[str]
+    debug_disabled = [
+        os.environ.get("NEURALMONKEY_DEBUG_DISABLE", "")]  # type: List[str]
 
     @staticmethod
     def set_log_file(path):
