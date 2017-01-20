@@ -34,6 +34,12 @@ def create_config() -> Configuration:
     config.add_argument('test_datasets', list, required=False, default=[])
     config.add_argument('logging_period', int, required=False, default=20)
     config.add_argument('validation_period', int, required=False, default=500)
+    config.add_argument('val_preview_input_series', list,
+                        required=False, default=None)
+    config.add_argument('val_preview_output_series', list,
+                        required=False, default=None)
+    config.add_argument('val_preview_num_examples', int,
+                        required=False, default=15)
     config.add_argument('runners_batch_size', int,
                         required=False, default=None)
     config.add_argument('minimize', bool, required=False, default=False)
@@ -148,20 +154,24 @@ def main() -> None:
     if cfg.model.runners_batch_size is None:
         cfg.model.runners_batch_size = cfg.model.batch_size
 
-    training_loop(tf_manager=cfg.model.tf_manager,
-                  epochs=cfg.model.epochs,
-                  trainer=cfg.model.trainer,
-                  batch_size=cfg.model.batch_size,
-                  train_dataset=cfg.model.train_dataset,
-                  val_dataset=cfg.model.val_dataset,
-                  log_directory=cfg.model.output,
-                  evaluators=cfg.model.evaluation,
-                  runners=cfg.model.runners,
-                  test_datasets=cfg.model.test_datasets,
-                  link_best_vars=link_best_vars,
-                  vars_prefix=variables_file_prefix,
-                  logging_period=cfg.model.logging_period,
-                  validation_period=cfg.model.validation_period,
-                  postprocess=cfg.model.postprocess,
-                  runners_batch_size=cfg.model.runners_batch_size,
-                  minimize_metric=cfg.model.minimize)
+    training_loop(
+        tf_manager=cfg.model.tf_manager,
+        epochs=cfg.model.epochs,
+        trainer=cfg.model.trainer,
+        batch_size=cfg.model.batch_size,
+        train_dataset=cfg.model.train_dataset,
+        val_dataset=cfg.model.val_dataset,
+        log_directory=cfg.model.output,
+        evaluators=cfg.model.evaluation,
+        runners=cfg.model.runners,
+        test_datasets=cfg.model.test_datasets,
+        link_best_vars=link_best_vars,
+        vars_prefix=variables_file_prefix,
+        logging_period=cfg.model.logging_period,
+        validation_period=cfg.model.validation_period,
+        val_preview_input_series=cfg.model.val_preview_input_series,
+        val_preview_output_series=cfg.model.val_preview_output_series,
+        val_preview_num_examples=cfg.model.val_preview_num_examples,
+        postprocess=cfg.model.postprocess,
+        runners_batch_size=cfg.model.runners_batch_size,
+        minimize_metric=cfg.model.minimize)
