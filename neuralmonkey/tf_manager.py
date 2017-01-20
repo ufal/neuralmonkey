@@ -1,5 +1,4 @@
-"""
-==================
+"""==================
 TensorFlow Manager
 ==================
 
@@ -7,10 +6,10 @@ TensorFlow manager is a helper object in Neural Monkey which manages TensorFlow
 sessions, execution of the computation graph, and saving and restoring of model
 variables.
 
-This document describes
-TensorFlow Manager from the users' perspective: what can be configured in Neural Monkey with respect to TensorFlow.
-The configuration of the TensorFlow manager is specified
-within the INI file in section with class ``tf_manager.TensorFlowManager``::
+This document describes TensorFlow Manager from the users' perspective: what
+can be configured in Neural Monkey with respect to TensorFlow.  The
+configuration of the TensorFlow manager is specified within the INI file in
+section with class ``tf_manager.TensorFlowManager``::
 
   [session_manager]
   class=tf_manager.TensorFlowManager
@@ -26,8 +25,8 @@ section of the configuration::
 Training on GPU
 ---------------
 
-You can easily switch between CPU and GPU version by running your experiments in
-virtual environment containing either CPU or GPU version of TensorFlow
+You can easily switch between CPU and GPU version by running your experiments
+in virtual environment containing either CPU or GPU version of TensorFlow
 without any changes to config files.
 
 Similarly, standard techniques like setting the environment variable
@@ -70,6 +69,7 @@ The line::
   num_threads=4
 
 indicates that 4 CPUs should be used for TensorFlow computations.
+
 """
 
 # pylint: disable=unused-import
