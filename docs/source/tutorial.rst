@@ -56,7 +56,7 @@ source sentence was. The second view regards this as an ordinary machine
 translation task, with a little help from another MT system.
 
 In our tutorial, we will assume the MT system used to produce the sentence
-``e'`` was good enough. We thus generally trust it and expect only to make 
+``e'`` was good enough. We thus generally trust it and expect only to make
 small edits to the
 translated sentence in order to make it fully correct. This means that we don't need
 to train a whole new MT system that would translate the source sentences from
@@ -653,8 +653,9 @@ editing one of those examples as well.
 
 If you want to dig in the code, you can browse the `repository
 <https://github.com/ufal/neuralmonkey>`_ Please feel free to fork the repository
-and to send us pull requests. The `API
-manual <http://neural-monkey.readthedocs.io/>`_ is currently under construction,
-but it should contain something very soon.
+and to send us pull requests. The `API documentation
+<http://neural-monkey.readthedocs.io/>`_ is currently under construction, but it
+already contains a little information about Neural Monkey objects and their
+configuraiton options.
 
 Have fun!
