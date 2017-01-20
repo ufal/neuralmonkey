@@ -19,12 +19,11 @@ body {
 #contentBox {
     margin: 5px;
     margin-top: 10px;
-    background: #222;
+    background: #eee;
     padding: 5px;
 }
 
 #content {
-    color: #CCC;
     font-family: "Lucida Console", Monaco, monospace;
 }
 

@@ -5,7 +5,11 @@ import os
 import html
 import json
 from flask import Flask, Response
+from pygments import highlight
+from pygments.lexers.configs import IniLexer
+from pygments.formatters import HtmlFormatter
 import ansiconv
+
 
 APP = Flask(__name__)
 APP.config.from_object(__name__)
@@ -56,9 +60,11 @@ def get_experiment(path):
         if path.endswith(".log"):
             result = ansiconv.to_html(file_content)
         elif path.endswith(".ini"):
-            result = html.escape(file_content)
+            lexer = IniLexer()
+            formatter = HtmlFormatter(linenos=True)
+            result = highlight(file_content, lexer, formatter)
         else:
-            result = "Unknow file type: '{}'.".format(complete_path)
+            result = "Unknown file type: '{}'.".format(complete_path)
     else:
         result = "File '{}' does not exist.".format(complete_path)
     return Response(result, mimetype='text/html', status=200)
