@@ -100,10 +100,6 @@ class ImageNet(ModelPart, Attentive):
     def _attention_tensor(self) -> tf.Tensor:
         return self.__attention_tensor
 
-    @property
-    def _attention_mask(self):
-        return None
-
     def feed_dict(self, dataset: Dataset, train: bool=False) -> FeedDict:
         images = np.array(dataset.get_series(self.data_id))
         assert images.shape[1:] == (self.HEIGHT, self.WIDTH, 3)
