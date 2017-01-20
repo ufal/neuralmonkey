@@ -40,4 +40,4 @@ class Attentive(metaclass=ABCMeta):
     @property
     def _attention_mask(self):
         """Zero/one masking the attention logits."""
-        return tf.ones(tf.shape(self._attention_tensor))
+        return tf.ones(tf.shape(self._attention_tensor)[:-1])
