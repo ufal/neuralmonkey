@@ -78,6 +78,7 @@ class TensorFlowManager(object):
                 train=False,
                 compute_losses=True,
                 summaries=True,
+                profiling=False,
                 batch_size=None) -> List[ExecutionResult]:
         if batch_size is None:
             batch_size = len(dataset)
@@ -112,9 +113,16 @@ class TensorFlowManager(object):
                 for fdict in additional_feed_dicts:
                     feed_dict.update(fdict)
 
-                session_results = [sess.run(all_tensors_to_execute,
-                                            feed_dict=feed_dict)
-                                   for sess in self.sessions]
+                runopts = (tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
+                           if profiling else None)
+                run_metadata = tf.RunMetadata() if profiling else None
+
+                session_results = [
+                    sess.run(all_tensors_to_execute,
+                             feed_dict=feed_dict,
+                             options=runopts,
+                             run_metadata=run_metadata)
+                    for sess in self.sessions]
 
                 for executable in executables:
                     if executable.result is None:
@@ -128,7 +136,7 @@ class TensorFlowManager(object):
         for result_list in batch_results:
             collected_results.append(reduce_execution_results(result_list))
 
-        return collected_results
+        return collected_results, run_metadata
 
     def save(self, variable_files: Union[str, List[str]]) -> None:
         if isinstance(variable_files, str) and len(self.sessions) == 1:

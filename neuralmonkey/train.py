@@ -34,6 +34,7 @@ def create_config() -> Configuration:
     config.add_argument('test_datasets', list, required=False, default=[])
     config.add_argument('logging_period', int, required=False, default=20)
     config.add_argument('validation_period', int, required=False, default=500)
+    config.add_argument('profiling_period', int, required=False, default=200)
     config.add_argument('runners_batch_size', int,
                         required=False, default=None)
     config.add_argument('minimize', bool, required=False, default=False)
@@ -162,6 +163,7 @@ def main() -> None:
                   vars_prefix=variables_file_prefix,
                   logging_period=cfg.model.logging_period,
                   validation_period=cfg.model.validation_period,
+                  profiling_period=cfg.model.profiling_period,
                   postprocess=cfg.model.postprocess,
                   runners_batch_size=cfg.model.runners_batch_size,
                   minimize_metric=cfg.model.minimize)

@@ -34,6 +34,7 @@ def training_loop(tf_manager: TensorFlowManager,
                   vars_prefix="/tmp/variables.data",
                   logging_period: int=20,
                   validation_period: int=500,
+                  profiling_period: int=200,
                   runners_batch_size: Optional[int]=None,
                   postprocess: Callable=None,
                   minimize_metric: bool=False):
@@ -122,10 +123,21 @@ def training_loop(tf_manager: TensorFlowManager,
 
                 step += 1
                 seen_instances += len(batch_dataset)
-                if step % logging_period == logging_period - 1:
-                    trainer_result = tf_manager.execute(
-                        batch_dataset, [trainer], train=True,
-                        summaries=True)
+
+                logging = step % logging_period == logging_period - 1
+                validating = step % validation_period == validation_period - 1
+                profiling = step % profiling_period == profiling_period - 1
+
+                trainer_result, run_metadata = tf_manager.execute(
+                    batch_dataset, [trainer], train=True, summaries=logging,
+                    profiling=profiling)
+
+                assert not profiling or run_metadata is not None
+                if profiling:
+                    tb_writer.add_run_metadata(
+                        run_metadata, "step-{}".format(step), step)
+
+                if logging:
                     train_results, train_outputs = run_on_dataset(
                         tf_manager, runners, batch_dataset,
                         postprocess, write_out=False)
@@ -139,11 +151,8 @@ def training_loop(tf_manager: TensorFlowManager,
                                                seen_instances, epoch_n,
                                                epochs, trainer_result,
                                                train=True)
-                else:
-                    tf_manager.execute(batch_dataset, [trainer],
-                                       train=True, summaries=False)
 
-                if step % validation_period == validation_period - 1:
+                if validating:
                     val_results, val_outputs = run_on_dataset(
                         tf_manager, runners, val_dataset,
                         postprocess, write_out=False,
@@ -265,7 +274,7 @@ def run_on_dataset(tf_manager: TensorFlowManager,
     contains_targets = all(dataset.has_series(runner.decoder_data_id)
                            for runner in runners)
 
-    all_results = tf_manager.execute(dataset, runners,
+    all_results, _ = tf_manager.execute(dataset, runners,
                                      compute_losses=contains_targets,
                                      batch_size=batch_size)
 
