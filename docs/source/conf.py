@@ -297,7 +297,7 @@ def run_apidoc(_):
     print(module)
 
     from sphinx.apidoc import main
-    main(['-e', '-o', cur_dir, module, '--force'])
+    main(['--separate', '-o', cur_dir, module, '--force'])
 
 def setup(app):
     app.connect('builder-inited', run_apidoc)
