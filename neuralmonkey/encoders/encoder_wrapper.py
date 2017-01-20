@@ -2,12 +2,13 @@ from abc import ABCMeta
 from typing import Any, List, Union
 import tensorflow as tf
 
+from neuralmonkey.model.model_part import ModelPart
 from neuralmonkey.encoders.attentive import Attentive
 from neuralmonkey.checking import assert_shape
 from neuralmonkey.nn.projection import linear
 
 
-class EncoderWrapper(Attentive):
+class EncoderWrapper(ModelPart, Attentive):
 
     def __init__(self,
                  name: str,
@@ -15,8 +16,8 @@ class EncoderWrapper(Attentive):
                  attention_state_size: int,
                  use_sentinels=False,
                  share_attn_projections=False) -> None:
-        super().__init__(FlatMultiAttention)
-        self.name = name
+        ModelPart.__init__(self, name, None, None)
+        Attentive.__init__(self, FlatMultiAttention)
         self.encoders = encoders
         self._attention_state_size = attention_state_size
         self._use_sentinels = use_sentinels
@@ -36,7 +37,7 @@ class EncoderWrapper(Attentive):
     # pylint: enable=unused-argument,protected-access
 
     # pylint: disable=unused-argument,no-method-argument,no-self-use
-    def feed_dict(*args, **kwargs):
+    def feed_dict(self, dataset, train):
         return {}
     # pylint: enable=unused-argument,no-method-argument,no-self-use
 
