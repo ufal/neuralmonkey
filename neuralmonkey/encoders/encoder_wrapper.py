@@ -80,13 +80,14 @@ class MultiAttention(metaclass=ABCMeta):
         return self._state_size
 
     def _vector_logit(self,
-                      projected_decoder_state,
-                      vector_value):
+                      projected_decoder_state: tf.Tensor,
+                      vector_value: tf.Tensor,
+                      scope: str) -> tf.Tensor:
         """Get logit for a single vector, e.g., sentinel vector."""
         assert_shape(projected_decoder_state, [None, 1, -1])
         assert_shape(vector_value, [None, -1])
 
-        with tf.variable_scope("vector_logit"):
+        with tf.variable_scope("{}_logit".format(scope)):
             vector_bias = tf.get_variable(
                 "vector_bias", [],
                 initializer=tf.constant_initializer(0.0))
@@ -201,7 +202,7 @@ class FlatMultiAttention(MultiAttention):
                                            decoder_prev_state,
                                            decoder_input)
                 projected_sentinel, sentinel_logit = self._vector_logit(
-                    projected_state, sentinel_value)
+                    projected_state, sentinel_value, scope="sentinel")
                 logits.append(sentinel_logit)
 
             attentions = self._renorm_softmax(tf.concat(1, logits))
@@ -246,5 +247,46 @@ class HierarchicalMultiAttention(MultiAttention):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
+        with tf.variable_scope(self._scope):
+            self._attn_objs = [
+                e.create_attention_object() for e in self._encoders]
+
     def attention(self, decoder_state, decoder_prev_state, decoder_input):
-        raise NotImplementedError("Abstract method")
+        with tf.variable_scope(self._scope):
+            projected_state = linear(decoder_state, self._state_size)
+            projected_state = tf.expand_dims(projected_state, 1)
+
+            assert_shape(projected_state, [None, 1, self._state_size])
+            attn_ctx_vectors = [
+                a.attention(decoder_state, decoder_prev_state, decoder_input)
+                for a in self._attn_objs]
+            proj_ctxs, attn_logits = zip(*[
+                self._vector_logit(projected_state, ctx_vec, scope=enc.name)
+                for ctx_vec, enc in zip(attn_ctx_vectors, self._encoders)])
+
+            if self._use_sentinels:
+                sentinel_value = _sentinel(decoder_state,
+                                           decoder_prev_state,
+                                           decoder_input)
+                proj_sentinel, sentinel_logit = self._vector_logit(
+                    projected_state, sentinel_value, scope="sentinel")
+                proj_ctxs.append(proj_sentinel)
+                attn_logits.append(sentinel_logit)
+
+            attention_distr = tf.nn.softmax(tf.concat(1, attn_logits))
+            self.attentions_in_time.append(attention_distr)
+
+            if self._share_projections:
+                output_cxts = proj_ctxs
+            else:
+                output_cxts = [
+                    tf.expand_dims(
+                        linear(ctx_vec, self._state_size,
+                               scope="proj_attn_{}".format(enc.name)), 1)
+                    for ctx_vec, enc in zip(attn_ctx_vectors, self._encoders)]
+
+            projections_concat = tf.concat(1, output_cxts)
+            context = tf.reduce_sum(
+                tf.expand_dims(attention_distr, 2) * projections_concat, [1])
+
+            return context

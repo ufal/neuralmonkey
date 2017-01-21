@@ -61,7 +61,7 @@ class Attention(object):
             self.v_bias = tf.get_variable(
                 "AttnV_b", [], initializer=tf.constant_initializer(0))
 
-    def attention(self, query_state, _a, _b) -> tf.Tensor:
+    def attention(self, query_state, prev_state, _) -> tf.Tensor:
         """Put attention masks on att_states_reshaped
            using hidden_features and query.
         """
