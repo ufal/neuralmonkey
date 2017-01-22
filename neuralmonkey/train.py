@@ -130,10 +130,13 @@ def main() -> None:
     # it does not matter for git.
     repodir = os.path.dirname(os.path.realpath(__file__))
 
-    os.system("cd {}/..; git log -1 --format=%H > {}"
+    # we need to execute the git log command in subshell, because if
+    # the log file is specified via relative path, we need to do the
+    # redirection of the git-log output to the right file
+    os.system("(cd {}; git log -1 --format=%H) > {}"
               .format(repodir, git_commit_file))
 
-    os.system("cd {}/..; git --no-pager diff --color=always > {}"
+    os.system("(cd {}; git --no-pager diff --color=always) > {}"
               .format(repodir, git_diff_file))
 
     link_best_vars = "{}.best".format(variables_file_prefix)
