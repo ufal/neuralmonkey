@@ -65,6 +65,8 @@ def training_loop(tf_manager: TensorFlowManager,
             means the generated and dataset series have the same name.
     """
 
+    log("Model has {} trainable parameters.".format(trainer.n_parameters))
+
     if validation_period < logging_period:
         raise AssertionError(
             "Logging period can't smaller than validation period.")
