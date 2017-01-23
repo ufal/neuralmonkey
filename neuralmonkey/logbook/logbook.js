@@ -44,9 +44,24 @@ function loadContent() {
     }
 }
 
+function zoom(out) {
+    var fontSize = parseInt($("#contentBox").css("font-size"));
+    if (out) {
+        fontSize = (fontSize - 1) + "px";
+    }
+    else {
+        fontSize = (fontSize + 1) + "px";
+    }
+    $("#contentBox").css({'font-size':fontSize});
+}
+
+
 $(document).ready(function() {
     loadExperiments();
-    $("#showConfiguration").click(function() {selectTopButton($(this), "experiment.ini")})
-    $("#showLog").click(function() {selectTopButton($(this), "experiment.log")})
-    selectTopButton($("#showLog"), "experiment.log")
+    $("#showConfiguration").click(function() {selectTopButton($(this), "experiment.ini")});
+    $("#showLog").click(function() {selectTopButton($(this), "experiment.log")});
+    selectTopButton($("#showLog"), "experiment.log");
+    $("#zoomIn").click(function() {zoom(false);});
+    $("#zoomOut").click(function() {zoom(true);});
+    $("#toggleLeftMenu").click(function() { $("#experiments").toggle("slow") });
 });
