@@ -27,7 +27,7 @@ class GenericTrainer(object):
 
     def __init__(self, objectives: List[Objective],
                  l1_weight: float=0.0, l2_weight: float=0.0,
-                 clip_norm: bool=False, optimizer=None,
+                 clip_norm: Optional[float]=None, optimizer=None,
                  global_step=None) -> None:
 
         with tf.name_scope("trainer"):
@@ -145,7 +145,7 @@ def _scale_gradients(gradients: Gradients,
     return result
 
 
-def _number_of_params(gradients: List[Gradients]) -> int:
+def _number_of_params(gradients: Gradients) -> int:
     n_parameters = 0
     for grad, var in gradients:
         if grad is not None:
