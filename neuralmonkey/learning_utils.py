@@ -66,7 +66,13 @@ def training_loop(tf_manager: TensorFlowManager,
             means the generated and dataset series have the same name.
     """
 
-    log("Model has {} trainable parameters.".format(trainer.n_parameters))
+    if tf_manager.report_gpu_memory_consumption:
+        meminfostr = ", GPU memory usage: "+gpu_memusage()
+    else:
+        meminfostr = ""
+
+    log("Model has {} trainable parameters{}."
+        .format(trainer.n_parameters, meminfostr))
 
     if validation_period < logging_period:
         raise AssertionError(
