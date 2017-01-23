@@ -58,7 +58,7 @@ def get_experiment(path):
     if os.path.isfile(complete_path):
         file_content = get_file(complete_path)
         if path.endswith(".log"):
-            result = ansiconv.to_html(file_content)
+            result = ansiconv.to_html(html.escape(file_content))
         elif path.endswith(".ini"):
             lexer = IniLexer()
             formatter = HtmlFormatter(linenos=True)

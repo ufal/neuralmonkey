@@ -9,6 +9,7 @@ body {
 
 #experiments {
     width: 20%;
+    float:left
 }
 
 #main_panel {
@@ -19,8 +20,9 @@ body {
 #contentBox {
     margin: 5px;
     margin-top: 10px;
-    background: #eee;
+    background: #bbb;
     padding: 5px;
+    font-size: 10pt
 }
 
 #content {
