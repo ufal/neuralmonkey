@@ -13,7 +13,6 @@ from neuralmonkey.dataset import Dataset
 from neuralmonkey.tf_manager import TensorFlowManager
 from neuralmonkey.runners.base_runner import BaseRunner, ExecutionResult
 from neuralmonkey.trainers.generic_trainer import GenericTrainer
-
 from neuralmonkey.tf_utils import gpu_memusage
 
 # pylint: disable=invalid-name
@@ -65,18 +64,15 @@ def training_loop(tf_manager: TensorFlowManager,
             the evaluation function. If only one series names is provided, it
             means the generated and dataset series have the same name.
     """
-
-    if tf_manager.report_gpu_memory_consumption:
-        meminfostr = ", GPU memory usage: "+gpu_memusage()
-    else:
-        meminfostr = ""
-
-    log("Model has {} trainable parameters{}."
-        .format(trainer.n_parameters, meminfostr))
-
     if validation_period < logging_period:
         raise AssertionError(
             "Logging period can't smaller than validation period.")
+
+    paramstr = "Model has {} trainable parameters".format(trainer.n_parameters)
+    if tf_manager.report_gpu_memory_consumption:
+        paramstr += ", GPU memory usage: {}".format(gpu_memusage())
+
+    log(paramstr)
 
     # TODO DOCUMENT_THIS
     if runners_batch_size is None:
