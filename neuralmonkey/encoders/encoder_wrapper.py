@@ -260,9 +260,10 @@ class HierarchicalMultiAttention(MultiAttention):
             attn_ctx_vectors = [
                 a.attention(decoder_state, decoder_prev_state, decoder_input)
                 for a in self._attn_objs]
-            proj_ctxs, attn_logits = zip(*[
+
+            proj_ctxs, attn_logits = [list(t) for t in zip(*[
                 self._vector_logit(projected_state, ctx_vec, scope=enc.name)
-                for ctx_vec, enc in zip(attn_ctx_vectors, self._encoders)])
+                for ctx_vec, enc in zip(attn_ctx_vectors, self._encoders)])]
 
             if self._use_sentinels:
                 sentinel_value = _sentinel(decoder_state,
