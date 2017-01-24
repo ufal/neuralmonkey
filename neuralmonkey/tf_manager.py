@@ -1,7 +1,10 @@
-"""Interface between the data and TF session.
+"""==================
+TensorFlow Manager
+==================
 
-This module impelements the TensorFlow manager which encapsulates the graph
-execution in existing sessions.
+TensorFlow manager is a helper object in Neural Monkey which manages TensorFlow
+sessions, execution of the computation graph, and saving and restoring of model
+variables.
 
 """
 
