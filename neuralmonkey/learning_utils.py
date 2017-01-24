@@ -9,7 +9,7 @@ import tensorflow as tf
 from termcolor import colored
 
 from neuralmonkey.logging import log, log_print
-from neuralmonkey.dataset import Dataset, LazyDataset
+from neuralmonkey.dataset import Dataset
 from neuralmonkey.tf_manager import TensorFlowManager
 from neuralmonkey.runners.base_runner import BaseRunner, ExecutionResult
 from neuralmonkey.trainers.generic_trainer import GenericTrainer
@@ -18,6 +18,7 @@ from neuralmonkey.tf_utils import gpu_memusage
 # pylint: disable=invalid-name
 Evaluation = Dict[str, float]
 EvalConfiguration = List[Union[Tuple[str, Any], Tuple[str, str, Any]]]
+Postprocess = Optional[List[Tuple[str, Callable]]]
 # pylint: enable=invalid-name
 
 
@@ -40,7 +41,7 @@ def training_loop(tf_manager: TensorFlowManager,
                   val_preview_output_series: Optional[List[str]]=None,
                   val_preview_num_examples: int=15,
                   runners_batch_size: Optional[int]=None,
-                  postprocess: Callable=None,
+                  postprocess: Postprocess=None,
                   minimize_metric: bool=False):
 
     # TODO finish the list
@@ -255,7 +256,7 @@ def training_loop(tf_manager: TensorFlowManager,
 def run_on_dataset(tf_manager: TensorFlowManager,
                    runners: List[BaseRunner],
                    dataset: Dataset,
-                   postprocess: Callable,
+                   postprocess: Postprocess,
                    write_out: bool=False,
                    batch_size: Optional[int]=None) \
                                                 -> Tuple[List[ExecutionResult],
