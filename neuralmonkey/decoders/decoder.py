@@ -5,6 +5,7 @@ import math
 
 import tensorflow as tf
 import numpy as np
+from typeguard import check_argument_types
 
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.vocabulary import Vocabulary, START_TOKEN
@@ -74,6 +75,8 @@ class Decoder(ModelPart):
         """
         ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
         log("Initializing decoder, name: '{}'".format(name))
+
+        assert check_argument_types()
 
         self.encoders = encoders
         self.vocabulary = vocabulary
