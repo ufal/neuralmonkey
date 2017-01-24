@@ -77,11 +77,11 @@ class ImageNet(ModelPart, Attentive):
             net_output = end_points[output_layer]
             if not fine_tune:
                 net_output = tf.stop_gradient(net_output)
-                # pylint: disable=no-member
-                shape = [s.value for s in net_output.get_shape()[1:]]
-                # pylint: enable=no-member
-                self.__attention_tensor = tf.reshape(
-                    net_output, [-1, shape[0] * shape[1], shape[2]])
+            # pylint: disable=no-member
+            shape = [s.value for s in net_output.get_shape()[1:]]
+            # pylint: enable=no-member
+            self.__attention_tensor = tf.reshape(
+                net_output, [-1, shape[0] * shape[1], shape[2]])
 
             self.encoded = tf.reduce_mean(net_output, [1, 2])
     # pylint: enable=too-many-arguments
