@@ -81,9 +81,9 @@ def load_dataset_from_files(
         # pylint: disable=redefined-variable-type
         dataset = Dataset(name, series, series_outputs)
         # pylint: enable=redefined-variable-type
+        log("Dataset length: {}".format(len(dataset)))
 
     _preprocessed_datasets(dataset, kwargs)
-    log("Dataset length: {}".format(len(dataset)))
 
     return dataset
 
