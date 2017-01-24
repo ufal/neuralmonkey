@@ -14,6 +14,7 @@ from neuralmonkey.readers.plain_text_reader import UtfPlainTextReader
 
 SERIES_SOURCE = re.compile("s_([^_]*)$")
 SERIES_OUTPUT = re.compile("s_(.*)_out")
+PREPROCESSED_SERIES = re.compile("pre_([^_]*)$")
 
 
 def load_dataset_from_files(
@@ -58,25 +59,30 @@ def load_dataset_from_files(
         name = _get_name_from_paths(series_paths_and_readers)
 
     if lazy:
-        return LazyDataset(name, series_paths_and_readers, series_outputs,
-                           preprocessors)
+        dataset = LazyDataset(name, series_paths_and_readers, series_outputs,
+                              preprocessors)
+        # type: Dataset
+    else:
+        series = {key: list(reader(paths))
+                  for key, (paths, reader) in series_paths_and_readers.items()}
 
-    series = {key: list(reader(paths))
-              for key, (paths, reader) in series_paths_and_readers.items()}
+        if preprocessors is not None:
+            for src_id, tgt_id, function in preprocessors:
+                if src_id == tgt_id:
+                    raise Exception(
+                        "Attempt to rewrite series '{}'".format(src_id))
+                if src_id not in series:
+                    raise Exception(
+                        ("The source series ({}) of the '{}' preprocessor "
+                         "is not defined in the dataset.").format(
+                             src_id, function.__name__))
+                series[tgt_id] = list(map(function, series[src_id]))
 
-    if preprocessors is not None:
-        for src_id, tgt_id, function in preprocessors:
-            if src_id == tgt_id:
-                raise Exception(
-                    "Attempt to rewrite series '{}'".format(src_id))
-            if src_id not in series:
-                raise Exception(
-                    ("The source series ({}) of the '{}' preprocessor "
-                     "is not defined in the dataset.").format(
-                         src_id, function.__name__))
-            series[tgt_id] = list(map(function, series[src_id]))
+        # pylint: disable=redefined-variable-type
+        dataset = Dataset(name, series, series_outputs)
+        # pylint: enable=redefined-variable-type
 
-    dataset = Dataset(name, series, series_outputs)
+    _preprocessed_datasets(dataset, kwargs)
     log("Dataset length: {}".format(len(dataset)))
 
     return dataset
@@ -285,6 +291,12 @@ class Dataset(collections.Sized):
             batch_index += 1
             yield dataset
 
+    def add_series(self, name: str, series: List[Any]) -> None:
+        if name in self._series:
+            raise ValueError(
+                "Can't series that already exist: {}".format(name))
+        self._series[name] = series
+
 
 class LazyDataset(Dataset):
     """Implements the lazy dataset.
@@ -395,3 +407,22 @@ class LazyDataset(Dataset):
     def series_ids(self) -> Iterable[str]:
         return (list(self.series_paths_and_readers.keys()) +
                 list(self.preprocess_series.keys()))
+
+    def add_series(self, name: str, series: Iterable[Any]) -> None:
+        raise NotImplementedError(
+            "Lazy dataset does not support adding series.")
+
+
+def _preprocessed_datasets(dataset: Dataset, kwargs: Dict[str, Any]) -> None:
+    """Apply dataset-level preprocessing."""
+    keys = [key for key in kwargs.keys() if PREPROCESSED_SERIES.match(key)]
+
+    for key in keys:
+        name = PREPROCESSED_SERIES.match(key).group(1)
+        preprocessor = kwargs[key]
+
+        if isinstance(dataset, Dataset):
+            new_series = preprocessor(dataset)
+            dataset.add_series(name, new_series)
+        elif isinstance(dataset, LazyDataset):
+            dataset.preprocess_series[name] = (None, preprocessor)
