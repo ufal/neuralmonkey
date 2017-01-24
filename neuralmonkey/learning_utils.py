@@ -17,7 +17,10 @@ from neuralmonkey.tf_utils import gpu_memusage
 
 # pylint: disable=invalid-name
 Evaluation = Dict[str, float]
-EvalConfiguration = List[Union[Tuple[str, Any], Tuple[str, str, Any]]]
+SeriesName = str
+EvalConfiguration = List[Union[Tuple[SeriesName, Any],
+                               Tuple[SeriesName, SeriesName, Any]]]
+Postprocess = Optional[List[Tuple[SeriesName, Callable]]]
 # pylint: enable=invalid-name
 
 
@@ -40,7 +43,7 @@ def training_loop(tf_manager: TensorFlowManager,
                   val_preview_output_series: Optional[List[str]]=None,
                   val_preview_num_examples: int=15,
                   runners_batch_size: Optional[int]=None,
-                  postprocess: Callable=None,
+                  postprocess: Postprocess=None,
                   minimize_metric: bool=False):
 
     # TODO finish the list
@@ -67,6 +70,7 @@ def training_loop(tf_manager: TensorFlowManager,
     if validation_period < logging_period:
         raise AssertionError(
             "Logging period can't smaller than validation period.")
+    _check_series_collisions(runners, postprocess)
 
     paramstr = "Model has {} trainable parameters".format(trainer.n_parameters)
     if tf_manager.report_gpu_memory_consumption:
@@ -129,7 +133,6 @@ def training_loop(tf_manager: TensorFlowManager,
             train_batched_datasets = train_dataset.batch_dataset(batch_size)
 
             for batch_n, batch_dataset in enumerate(train_batched_datasets):
-
                 step += 1
                 seen_instances += len(batch_dataset)
                 if step % logging_period == logging_period - 1:
@@ -139,6 +142,9 @@ def training_loop(tf_manager: TensorFlowManager,
                     train_results, train_outputs = run_on_dataset(
                         tf_manager, runners, batch_dataset,
                         postprocess, write_out=False)
+                    # ensure train outputs are iterable more than once
+                    train_outputs = {k: list(v) for k, v
+                                     in train_outputs.items()}
                     train_evaluation = evaluation(
                         evaluators, batch_dataset, runners,
                         train_results, train_outputs)
@@ -158,6 +164,8 @@ def training_loop(tf_manager: TensorFlowManager,
                         tf_manager, runners, val_dataset,
                         postprocess, write_out=False,
                         batch_size=runners_batch_size)
+                    # ensure val outputs are iterable more than once
+                    val_outputs = {k: list(v) for k, v in val_outputs.items()}
                     val_evaluation = evaluation(
                         evaluators, val_dataset, runners, val_results,
                         val_outputs)
@@ -248,10 +256,30 @@ def training_loop(tf_manager: TensorFlowManager,
     log("Finished.")
 
 
+def _check_series_collisions(runners: List[BaseRunner],
+                             postprocess: Postprocess) -> None:
+    """Check if output series names do not collide."""
+    runners_outputs = set()  # type: Set[str]
+    for runner in runners:
+        series = runner.output_series
+        if series in runners_outputs:
+            raise Exception(("Output series '{}' is multiple times among the "
+                             "runners' outputs.").format(series))
+        else:
+            runners_outputs.add(series)
+    if postprocess is not None:
+        for series, _ in postprocess:
+            if series in runners_outputs:
+                raise Exception(("Postprocess output series '{}' "
+                                 "already exists.").format(series))
+            else:
+                runners_outputs.add(series)
+
+
 def run_on_dataset(tf_manager: TensorFlowManager,
                    runners: List[BaseRunner],
                    dataset: Dataset,
-                   postprocess: Callable,
+                   postprocess: Postprocess,
                    write_out: bool=False,
                    batch_size: Optional[int]=None) \
                                                 -> Tuple[List[ExecutionResult],
@@ -282,13 +310,13 @@ def run_on_dataset(tf_manager: TensorFlowManager,
                                      compute_losses=contains_targets,
                                      batch_size=batch_size)
 
-    result_data_raw = {runner.output_series: result.outputs
-                       for runner, result in zip(runners, all_results)}
+    result_data = {runner.output_series: result.outputs
+                   for runner, result in zip(runners, all_results)}
 
     if postprocess is not None:
-        result_data = postprocess(dataset, result_data_raw)
-    else:
-        result_data = result_data_raw
+        for series_name, postprocessor in postprocess:
+            postprocessed = postprocessor(dataset, result_data)
+            result_data[series_name] = postprocessed
 
     if write_out:
         for series_id, data in result_data.items():
@@ -496,7 +524,7 @@ def _print_examples(dataset: Dataset,
 
         # Output series = magenta
         for series_id in sorted(output_series_names):
-            data = outputs[series_id]
+            data = list(outputs[series_id])
             model_output = data[i]
             print_line(series_id, "magenta", model_output)
 
