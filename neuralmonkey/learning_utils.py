@@ -17,8 +17,10 @@ from neuralmonkey.tf_utils import gpu_memusage
 
 # pylint: disable=invalid-name
 Evaluation = Dict[str, float]
-EvalConfiguration = List[Union[Tuple[str, Any], Tuple[str, str, Any]]]
-Postprocess = Optional[List[Tuple[str, Callable]]]
+SeriesName = str
+EvalConfiguration = List[Union[Tuple[SeriesName, Any],
+                               Tuple[SeriesName, SeriesName, Any]]]
+Postprocess = Optional[List[Tuple[SeriesName, Callable]]]
 # pylint: enable=invalid-name
 
 
@@ -68,6 +70,7 @@ def training_loop(tf_manager: TensorFlowManager,
     if validation_period < logging_period:
         raise AssertionError(
             "Logging period can't smaller than validation period.")
+    _check_series_collisions(runners, postprocess)
 
     paramstr = "Model has {} trainable parameters".format(trainer.n_parameters)
     if tf_manager.report_gpu_memory_consumption:
@@ -251,6 +254,26 @@ def training_loop(tf_manager: TensorFlowManager,
         print_final_evaluation(dataset.name, eval_result)
 
     log("Finished.")
+
+
+def _check_series_collisions(runners: List[BaseRunner],
+                             postprocess: Postprocess) -> None:
+    """Check if output series names do not collide."""
+    runners_outputs = set()  # type: Set[str]
+    for runner in runners:
+        series = runner.output_series
+        if series in runners_outputs:
+            raise Exception(("Output series '{}' is multiple times among the "
+                             "runners' outputs.").format(series))
+        else:
+            runners_outputs.add(series)
+    if postprocess is not None:
+        for series, _ in postprocess:
+            if series in runners_outputs:
+                raise Exception(("Postprocess output series '{}' "
+                                 "already exists.").format(series))
+            else:
+                runners_outputs.add(series)
 
 
 def run_on_dataset(tf_manager: TensorFlowManager,
