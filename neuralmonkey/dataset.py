@@ -422,7 +422,7 @@ def _preprocessed_datasets(dataset: Dataset, kwargs: Dict[str, Any]) -> None:
         preprocessor = kwargs[key]
 
         if isinstance(dataset, Dataset):
-            new_series = preprocessor(dataset)
+            new_series = list(preprocessor(dataset))
             dataset.add_series(name, new_series)
         elif isinstance(dataset, LazyDataset):
             dataset.preprocess_series[name] = (None, preprocessor)

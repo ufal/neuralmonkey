@@ -9,7 +9,7 @@ import tensorflow as tf
 from termcolor import colored
 
 from neuralmonkey.logging import log, log_print
-from neuralmonkey.dataset import Dataset
+from neuralmonkey.dataset import Dataset, LazyDataset
 from neuralmonkey.tf_manager import TensorFlowManager
 from neuralmonkey.runners.base_runner import BaseRunner, ExecutionResult
 from neuralmonkey.trainers.generic_trainer import GenericTrainer
@@ -129,7 +129,6 @@ def training_loop(tf_manager: TensorFlowManager,
             train_batched_datasets = train_dataset.batch_dataset(batch_size)
 
             for batch_n, batch_dataset in enumerate(train_batched_datasets):
-
                 step += 1
                 seen_instances += len(batch_dataset)
                 if step % logging_period == logging_period - 1:
@@ -139,6 +138,9 @@ def training_loop(tf_manager: TensorFlowManager,
                     train_results, train_outputs = run_on_dataset(
                         tf_manager, runners, batch_dataset,
                         postprocess, write_out=False)
+                    # ensure train outputs are iterable more than once
+                    train_outputs = {k: list(v) for k, v
+                                     in train_outputs.items()}
                     train_evaluation = evaluation(
                         evaluators, batch_dataset, runners,
                         train_results, train_outputs)
@@ -158,6 +160,8 @@ def training_loop(tf_manager: TensorFlowManager,
                         tf_manager, runners, val_dataset,
                         postprocess, write_out=False,
                         batch_size=runners_batch_size)
+                    # ensure val outputs are iterable more than once
+                    val_outputs = {k: list(v) for k, v in val_outputs.items()}
                     val_evaluation = evaluation(
                         evaluators, val_dataset, runners, val_results,
                         val_outputs)
@@ -282,13 +286,13 @@ def run_on_dataset(tf_manager: TensorFlowManager,
                                      compute_losses=contains_targets,
                                      batch_size=batch_size)
 
-    result_data_raw = {runner.output_series: result.outputs
-                       for runner, result in zip(runners, all_results)}
+    result_data = {runner.output_series: result.outputs
+                   for runner, result in zip(runners, all_results)}
 
     if postprocess is not None:
-        result_data = postprocess(dataset, result_data_raw)
-    else:
-        result_data = result_data_raw
+        for series_name, postprocessor in postprocess:
+            postprocessed = postprocessor(dataset, result_data)
+            result_data[series_name] = postprocessed
 
     if write_out:
         for series_id, data in result_data.items():
@@ -496,7 +500,7 @@ def _print_examples(dataset: Dataset,
 
         # Output series = magenta
         for series_id in sorted(output_series_names):
-            data = outputs[series_id]
+            data = list(outputs[series_id])
             model_output = data[i]
             print_line(series_id, "magenta", model_output)
 
