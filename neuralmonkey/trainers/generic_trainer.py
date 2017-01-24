@@ -1,3 +1,4 @@
+from functools import reduce
 from typing import Any, Dict, List, NamedTuple, Optional, Tuple, Union
 import re
 
@@ -25,8 +26,9 @@ BIAS_REGEX = re.compile(r'[Bb]ias')
 class GenericTrainer(object):
 
     def __init__(self, objectives: List[Objective],
-                 l1_weight=0.0, l2_weight=0.0,
-                 clip_norm=False, optimizer=None, global_step=None) -> None:
+                 l1_weight: float=0.0, l2_weight: float=0.0,
+                 clip_norm: Optional[float]=None, optimizer=None,
+                 global_step=None) -> None:
 
         with tf.name_scope("trainer"):
             self.optimizer = optimizer or tf.train.AdamOptimizer(1e-4)
@@ -73,6 +75,8 @@ class GenericTrainer(object):
                 gradients = [(tf.clip_by_norm(grad, clip_norm), var)
                              for grad, var in gradients
                              if grad is not None]
+
+            self.n_parameters = _number_of_params(gradients)
 
             self.all_coders = set.union(*(collect_encoders(obj.decoder)
                                           for obj in objectives))
@@ -139,6 +143,15 @@ def _scale_gradients(gradients: Gradients,
             result.append((tensor, var))
 
     return result
+
+
+def _number_of_params(gradients: Gradients) -> int:
+    n_parameters = 0
+    for grad, var in gradients:
+        if grad is not None:
+            int_shape = [dim.value for dim in var.get_shape()]
+            n_parameters += reduce(lambda a, b: a * b, int_shape, 1)
+    return n_parameters
 
 
 class TrainExecutable(Executable):
