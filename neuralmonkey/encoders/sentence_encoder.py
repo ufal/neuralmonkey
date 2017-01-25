@@ -3,6 +3,7 @@
 from typing import Optional, Any, Tuple
 
 import tensorflow as tf
+from typeguard import check_argument_types
 
 from neuralmonkey.encoders.attentive import Attentive
 from neuralmonkey.model.model_part import ModelPart, FeedDict
@@ -67,6 +68,8 @@ class SentenceEncoder(ModelPart, Attentive):
         ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
         Attentive.__init__(
             self, attention_type, attention_fertility=attention_fertility)
+
+        assert check_argument_types()
 
         self.vocabulary = vocabulary
         self.data_id = data_id

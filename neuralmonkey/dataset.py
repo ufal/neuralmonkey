@@ -1,5 +1,5 @@
 """ Implementation of the dataset class. """
-# tests: lint, mypy
+
 import random
 import re
 import collections
@@ -7,6 +7,7 @@ import collections
 from typing import Any, List, Callable, Iterable, Dict, Tuple
 
 import numpy as np
+from typeguard import check_argument_types
 
 from neuralmonkey.logging import log
 from neuralmonkey.readers.utils import Reader
@@ -20,7 +21,7 @@ PREPROCESSED_SERIES = re.compile("pre_([^_]*)$")
 def load_dataset_from_files(
         name: str=None, lazy: bool=False,
         preprocessors: List[Tuple[str, str, Callable]]=None,
-        **kwargs: str) -> 'Dataset':
+        **kwargs: Dict[str, Any]) -> 'Dataset':
     """Load a dataset from the files specified by the provided arguments.
     Paths to the data are provided in a form of dictionary.
 
@@ -46,6 +47,9 @@ def load_dataset_from_files(
     Raises:
         Exception when no input files are provided.
     """
+
+    assert check_argument_types()
+
     series_paths_and_readers = _get_series_paths_and_readers(kwargs)
     series_outputs = _get_series_outputs(kwargs)
 
@@ -144,7 +148,7 @@ def _get_series_paths_and_readers(
     return series_sources
 
 
-def _get_series_outputs(kwargs: Dict[str, str]) -> Dict[str, str]:
+def _get_series_outputs(kwargs: Dict[str, Any]) -> Dict[str, str]:
     """Get paths to series outputs from the dataset keyword argument specs.
     Output file for a series named 'xxx' is specified by parameter 's_xxx_out'
 

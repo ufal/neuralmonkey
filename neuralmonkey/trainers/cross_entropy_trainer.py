@@ -1,9 +1,9 @@
 from typing import Any, List, Optional
 
+from typeguard import check_argument_types
+
 from neuralmonkey.trainers.generic_trainer import (GenericTrainer, Objective,
                                                    ObjectiveWeight)
-
-# tests: lint, mypy
 
 
 def xent_objective(decoder, weight=None) -> Objective:
@@ -25,6 +25,8 @@ class CrossEntropyTrainer(GenericTrainer):
                  decoder_weights: Optional[List[ObjectiveWeight]]=None,
                  l1_weight=0., l2_weight=0.,
                  clip_norm=False, optimizer=None, global_step=None) -> None:
+
+        assert check_argument_types()
 
         if decoder_weights is None:
             decoder_weights = [None for _ in decoders]

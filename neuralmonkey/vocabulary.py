@@ -1,15 +1,16 @@
 """This module implements the Vocabulary class and the helper functions that
 can be used to obtain a Vocabulary instance.
 """
-# tests: lint, mypy
+
+import collections
+import os
+import pickle as pickle
+import random
 
 from typing import List, Tuple
 
-import os
-import collections
-import random
-import pickle as pickle
 import numpy as np
+from typeguard import check_argument_types
 
 from neuralmonkey.logging import log
 from neuralmonkey.dataset import Dataset, LazyDataset
@@ -83,6 +84,9 @@ def from_dataset(datasets: List[Dataset], series_ids: List[str], max_size: int,
     Returns:
         The new Vocabulary instance.
     """
+
+    assert check_argument_types()
+
     vocabulary = Vocabulary(unk_sample_prob=unk_sample_prob)
 
     for dataset in datasets:
