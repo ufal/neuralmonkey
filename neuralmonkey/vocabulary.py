@@ -2,13 +2,14 @@
 can be used to obtain a Vocabulary instance.
 """
 
-from typing import List, Tuple
-
 import collections
-import numpy as np
 import os
 import pickle as pickle
 import random
+
+from typing import List, Tuple
+
+import numpy as np
 from typeguard import check_argument_types
 
 from neuralmonkey.logging import log
@@ -83,7 +84,7 @@ def from_dataset(datasets: List[Dataset], series_ids: List[str], max_size: int,
     Returns:
         The new Vocabulary instance.
     """
-    
+
     assert check_argument_types()
 
     vocabulary = Vocabulary(unk_sample_prob=unk_sample_prob)

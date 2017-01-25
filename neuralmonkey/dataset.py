@@ -21,7 +21,7 @@ PREPROCESSED_SERIES = re.compile("pre_([^_]*)$")
 def load_dataset_from_files(
         name: str=None, lazy: bool=False,
         preprocessors: List[Tuple[str, str, Callable]]=None,
-        **kwargs: str) -> 'Dataset':
+        **kwargs: Dict[str, Any]) -> 'Dataset':
     """Load a dataset from the files specified by the provided arguments.
     Paths to the data are provided in a form of dictionary.
 
@@ -148,7 +148,7 @@ def _get_series_paths_and_readers(
     return series_sources
 
 
-def _get_series_outputs(kwargs: Dict[str, str]) -> Dict[str, str]:
+def _get_series_outputs(kwargs: Dict[str, Any]) -> Dict[str, str]:
     """Get paths to series outputs from the dataset keyword argument specs.
     Output file for a series named 'xxx' is specified by parameter 's_xxx_out'
 

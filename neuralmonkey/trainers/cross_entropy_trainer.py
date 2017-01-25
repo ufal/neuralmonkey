@@ -5,6 +5,7 @@ from typeguard import check_argument_types
 from neuralmonkey.trainers.generic_trainer import (GenericTrainer, Objective,
                                                    ObjectiveWeight)
 
+
 def xent_objective(decoder, weight=None) -> Objective:
     """Get XENT objective from decoder with cost."""
     return Objective(
