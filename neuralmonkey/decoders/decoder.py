@@ -1,10 +1,8 @@
-# tests: lint
-
-from typing import cast, Iterable, List, Callable, Optional, Union, Any, Tuple
 import math
+from typing import cast, Iterable, List, Callable, Optional, Union, Any, Tuple
 
-import tensorflow as tf
 import numpy as np
+import tensorflow as tf
 from typeguard import check_argument_types
 
 from neuralmonkey.dataset import Dataset

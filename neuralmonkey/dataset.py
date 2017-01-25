@@ -1,5 +1,5 @@
 """ Implementation of the dataset class. """
-# tests: lint, mypy
+
 import random
 import re
 import collections
@@ -7,6 +7,7 @@ import collections
 from typing import Any, List, Callable, Iterable, Dict, Tuple
 
 import numpy as np
+from typeguard import check_argument_types
 
 from neuralmonkey.logging import log
 from neuralmonkey.readers.utils import Reader
@@ -46,6 +47,9 @@ def load_dataset_from_files(
     Raises:
         Exception when no input files are provided.
     """
+
+    assert check_argument_types()
+
     series_paths_and_readers = _get_series_paths_and_readers(kwargs)
     series_outputs = _get_series_outputs(kwargs)
 
