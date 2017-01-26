@@ -113,7 +113,7 @@ documentation as well.
   running Neural Machine Translation models
 
 ![Ape is not a
-monkey.](http://ufallab.ms.mff.cuni.cz/~helcl/gorila2.png)
+monkey.](http://ufallab.ms.mff.cuni.cz/~helcl/gorila2.png){float: left}
 
 ## License
 
