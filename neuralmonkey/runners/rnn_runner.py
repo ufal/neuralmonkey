@@ -102,11 +102,14 @@ def _score_expanded(n: int,
                 candidate_hypotheses, expanded_hypotheses[n_best_indices])
             candidate_logprobs = _try_append(
                 candidate_logprobs, expanded_logprobs[n_best_indices])
+            assert len(candidate_hypotheses.shape) == 2
 
         n_best_indices = _n_best_indices(candidate_scores, n)
         n_best_hypotheses = candidate_hypotheses[n_best_indices]
         n_best_logprobs = candidate_logprobs[n_best_indices]
 
+        assert len(n_best_hypotheses.shape) == 2
+        assert n_best_hypotheses.shape == n_best_logprobs.shape
         next_beam_hypotheses.append(n_best_hypotheses)
         next_beam_logprobs.append(n_best_logprobs)
     return next_beam_hypotheses, next_beam_logprobs
@@ -116,7 +119,7 @@ def _try_append(first, second):
     if first is None:
         return second
     else:
-        return np.append(first, second)
+        return np.append(first, second, axis=0)
 
 
 def likelihood_beam_score(decoded, logprobs):
@@ -169,6 +172,8 @@ def n_best(n: int,
     for rank in range(n):
         hypotheses = np.array([beam[rank] for beam in next_beam_hypotheses])
         logprobs = np.array([beam[rank] for beam in next_beam_logprobs])
+        assert len(hypotheses.shape) == 2
+        assert hypotheses.shape == logprobs.shape
         beam_batches.append(BeamBatch(hypotheses, logprobs))
 
     return beam_batches
