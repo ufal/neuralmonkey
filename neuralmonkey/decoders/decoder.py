@@ -433,6 +433,9 @@ class Decoder(ModelPart):
         att_objects = self._runtime_attention_objects.values()
 
         for i, a in enumerate(att_objects):
+            if not hasattr(a, "attentions_in_time"):
+                continue
+
             alignments = tf.expand_dims(tf.transpose(
                 tf.stack(a.attentions_in_time), perm=[1, 2, 0]), -1)
 
