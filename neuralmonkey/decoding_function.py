@@ -7,6 +7,7 @@ See http://arxiv.org/abs/1606.07481
 
 import tensorflow as tf
 from neuralmonkey.nn.projection import linear
+from neuralmonkey.nn.ortho_gru_cell import OrthoGRUCell
 
 
 class Attention(object):
@@ -134,3 +135,56 @@ class CoverageAttention(Attention):
             [2, 3])
 
         return logits
+
+
+class RecurrentAttention(object):
+    """From article `Recurrent Neural Machine Translation
+    `<https://arxiv.org/pdf/1607.08725v1.pdf>`_
+
+    In time i of the decoder with state s_i-1, and encoder states h_j, we run
+    a bidirectional RNN with initial state set to
+
+    c_0 = tanh(V*s_i-1 + b_0)
+
+    Then we run the GRU net (in paper just forward, we do bidi)
+    and we get N+1 hidden states c_0 ... c_N
+
+    to compute the context vector, they try either last state or mean of
+    all the states. Last state was better in their experiments so that's what
+    we're gonna use.
+    """
+    def __init__(self, attention_tensor, scope, input_weights, **kwargs):
+        self._attention_tensor = attention_tensor
+        self._scope = scope
+        self._input_mask = input_weights
+
+        if "attention_state_size" not in kwargs:
+            raise ValueError("RecurrentAttention need attention_state_size"
+                             " in kwargs")
+
+        self._state_size = kwargs["attention_state_size"]
+        self.attn_size = 2 * self._state_size
+
+        self.fw_cell = OrthoGRUCell(self._state_size)
+        self.bw_cell = OrthoGRUCell(self._state_size)
+
+    def attention(self, query_state, prev_state, _):
+
+        with tf.variable_scope(
+                self._scope + "/RecurrentAttention") as varscope:
+            initial_state = linear(query_state, self._state_size, varscope)
+            initial_state = tf.tanh(initial_state)
+
+            # TODO dropout?
+            # we'd need the train_mode and dropout_keep_prob parameters
+
+            sentence_lengths = tf.to_int32(tf.reduce_sum(self._input_mask, 1))
+
+            _, encoded_tup = tf.nn.bidirectional_dynamic_rnn(
+                self.fw_cell, self.bw_cell, self._attention_tensor,
+                sequence_length=sentence_lengths,
+                initial_state_fw=initial_state,
+                initial_state_bw=initial_state,
+                dtype=tf.float32)
+
+            return tf.concat(1, encoded_tup)

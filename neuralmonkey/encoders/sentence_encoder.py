@@ -32,6 +32,7 @@ class SentenceEncoder(ModelPart, Attentive):
                  data_id: str,
                  embedding_size: int,
                  rnn_size: int,
+                 attention_state_size: int,
                  max_input_len: Optional[int] = None,
                  dropout_keep_prob: float = 1.0,
                  attention_type: Optional[Any] = None,
@@ -64,7 +65,8 @@ class SentenceEncoder(ModelPart, Attentive):
         """
         ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
         Attentive.__init__(
-            self, attention_type, attention_fertility=attention_fertility)
+            self, attention_type, attention_fertility=attention_fertility,
+            attention_state_size=attention_state_size)
 
         assert check_argument_types()
 
