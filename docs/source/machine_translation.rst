@@ -133,13 +133,13 @@ For training, we prepare two datasets. Since we are using BPE, we need to
 .. code-block:: ini
 
   [train_data]
-  class=config.utils.dataset_from_files
+  class=dataset.load_dataset_from_files
   s_source="exp-nm-mt/data/train/Batch1a_en.txt.gz"
   s_target="exp-nm-mt/data/train/Batch1a_cs.txt.gz"
   preprocessors=[("source", "source_bpe", <bpe_preprocess>), ("target", "target_bpe", <bpe_preprocess>)]
 
   [val_data]
-  class=config.utils.dataset_from_files
+  class=dataset.load_dataset_from_files
   s_source="exp-nm-mt/data/dev/Batch2a_en.txt.gz"
   s_target="exp-nm-mt/data/dev/Batch2a_cs.txt.gz"
   preprocessors=[("source", "source_bpe", <bpe_preprocess>), ("target", "target_bpe", <bpe_preprocess>)]
@@ -279,7 +279,7 @@ As for the evaluation, you need to create ``translation_run.ini``:
   test_datasets=[<eval_data>]
 
   [eval_data]
-  class=config.utils.dataset_from_files
+  class=dataset.load_dataset_from_files
   s_source="exp-nm-mt/data/test/Batch3a_en.txt.gz"
 .. TUTCHECK exp-nm-mt/translation_run.ini
 

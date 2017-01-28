@@ -226,13 +226,13 @@ The configuration of the datasets looks like this:
 .. code-block:: ini
 
   [train_dataset]
-  class=config.utils.dataset_from_files
+  class=dataset.load_dataset_from_files
   s_source="exp-nm-ape/data/train/train.src"
   s_translated="exp-nm-ape/data/train/train.mt"
   s_edits="exp-nm-ape/data/train/train.edits"
 
   [val_dataset]
-  class=config.utils.dataset_from_files
+  class=dataset.load_dataset_from_files
   s_source="exp-nm-ape/data/dev/dev.src"
   s_translated="exp-nm-ape/data/dev/dev.mt"
   s_edits="exp-nm-ape/data/dev/dev.edits"
@@ -589,7 +589,7 @@ configuration. We will call this file ``post-edit_run.ini``:
   test_datasets=[<eval_data>]
 
   [eval_data]
-  class=config.utils.dataset_from_files
+  class=dataset.load_dataset_from_files
   s_source="exp-nm-ape/data/test/test.src"
   s_translated="exp-nm-ape/data/test/test.mt"
   s_greedy_edits_out="exp-nm-ape/test_output.edits"
