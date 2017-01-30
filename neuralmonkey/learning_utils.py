@@ -381,7 +381,7 @@ def run_on_dataset(tf_manager: TensorFlowManager,
                     np.save(path, data)
                     log('Result saved as numpy array to "{}"'.format(path))
                 else:
-                    with open(path, 'w') as f_out:
+                    with open(path, 'w', encoding='utf-8') as f_out:
                         f_out.writelines(
                             [" ".join(sent) + "\n" for sent in data])
                     log("Result saved as plain text \"{}\"".format(path))
