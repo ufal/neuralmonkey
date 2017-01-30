@@ -274,7 +274,7 @@ DatasetPostprocess = Callable[[Dataset, Dict[str, Iterable[Any]]],
                               Iterable[Any]]
 ReaderDef = Union[str, List[str],
                   Tuple[str, Reader], Tuple[List[str], Reader]]
-Kwargs = Dict[str, Union[ReaderDef, DatasetPreprocess]]
+SeriesConfig = Dict[str, Union[ReaderDef, DatasetPreprocess]]
 # pylint: enable=invalid-name
 
 SERIES_SOURCE = re.compile("s_([^_]*)$")
@@ -285,7 +285,8 @@ PREPROCESSED_SERIES = re.compile("pre_([^_]*)$")
 def load_dataset_from_files(
         name: str=None, lazy: bool=False,
         preprocessors: List[Tuple[str, str, Callable]]=None,
-        **kwargs: Kwargs) -> Dataset:
+        **kwargs) -> Dataset:
+
     """Load a dataset from the files specified by the provided arguments.
     Paths to the data are provided in a form of dictionary.
 
@@ -378,7 +379,7 @@ def _get_name_from_paths(series_paths: Dict[str, Tuple[List[str],
 
 
 def _get_series_paths_and_readers(
-        kwargs: Kwargs) -> Dict[str, Tuple[List[str], Reader]]:
+        series_config: SeriesConfig) -> Dict[str, Tuple[List[str], Reader]]:
     """Get paths to files that contain data from the dataset kwargs.
 
     Input file for a serie named 'xxx' is specified by parameter 's_xxx'. The
@@ -387,18 +388,19 @@ def _get_series_paths_and_readers(
     second memeber is a reader function.
 
     Arguments:
-        kwargs: A dictionary containing the dataset keyword argument specs.
+        series_config: A dictionary containing the dataset keyword argument
+            specs.
 
     Returns:
         A dictionary which maps serie names to the paths of their input files
         and readers..
     """
-    keys = [k for k in list(kwargs.keys()) if SERIES_SOURCE.match(k)]
+    keys = [k for k in list(series_config.keys()) if SERIES_SOURCE.match(k)]
     names = [SERIES_SOURCE.match(k).group(1) for k in keys]
 
     series_sources = {}
     for name, key in zip(names, keys):
-        value = cast(ReaderDef, kwargs[key])
+        value = cast(ReaderDef, series_config[key])
 
         if isinstance(value, tuple):
             paths, reader = value  # type: ignore
@@ -414,19 +416,20 @@ def _get_series_paths_and_readers(
     return series_sources
 
 
-def _get_series_outputs(kwargs: Kwargs) -> Dict[str, str]:
+def _get_series_outputs(series_config: SeriesConfig) -> Dict[str, str]:
     """Get paths to series outputs from the dataset keyword argument specs.
     Output file for a series named 'xxx' is specified by parameter 's_xxx_out'
 
     Arguments:
-        kwargs: A dictionary containing the dataset keyword argument specs.
+        series_config: A dictionary containing the dataset keyword argument
+           specs.
 
     Returns:
         A dictionary which maps serie names to the paths for their output
         files.
     """
     outputs = {}
-    for key, value in kwargs.items():
+    for key, value in series_config.items():
         matcher = SERIES_OUTPUT.match(key)
         if matcher:
             name = matcher.group(1)
@@ -440,13 +443,14 @@ def _get_series_outputs(kwargs: Kwargs) -> Dict[str, str]:
 
 def _preprocessed_datasets(
         dataset: Dataset,
-        kwargs: Kwargs) -> None:
+        series_config: SeriesConfig) -> None:
     """Apply dataset-level preprocessing."""
-    keys = [key for key in kwargs.keys() if PREPROCESSED_SERIES.match(key)]
+    keys = [key for key in series_config.keys()
+            if PREPROCESSED_SERIES.match(key)]
 
     for key in keys:
         name = PREPROCESSED_SERIES.match(key).group(1)
-        preprocessor = cast(DatasetPreprocess, kwargs[key])
+        preprocessor = cast(DatasetPreprocess, series_config[key])
 
         if isinstance(dataset, Dataset):
             new_series = list(preprocessor(dataset))
