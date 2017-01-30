@@ -28,7 +28,7 @@ class Postprocess(object):
         self._edits_id = edits_id
         self._result_postprocess = result_postprocess
 
-    def __call__(
+    def _do_postprocess(
             self, dataset: Dataset,
             generated_series: Dict[str, Iterable[Any]]) -> Iterable[List[str]]:
 
@@ -39,10 +39,18 @@ class Postprocess(object):
 
         for src_seq, edit_seq in zip(source_series, edits_series):
             reconstructed = reconstruct(src_seq, edit_seq)
-            if self._result_postprocess is not None:
-                yield self._result_postprocess(reconstructed)
-            else:
-                yield reconstructed
+            yield reconstructed
+
+    def __call__(
+            self, dataset: Dataset,
+            generated_series: Dict[str, Iterable[Any]]) -> Iterable[List[str]]:
+
+        reconstructed_seq = self._do_postprocess(dataset, generated_series)
+
+        if self._result_postprocess is not None:
+            return self._result_postprocess(reconstructed_seq)
+        else:
+            return reconstructed_seq
 # pylint: enable=too-few-public-methods
 
 
