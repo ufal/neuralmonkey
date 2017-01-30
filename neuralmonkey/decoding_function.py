@@ -16,7 +16,7 @@ class Attention(object):
 
     # For maintaining the same API as in CoverageAttention
 
-    def __init__(self, attention_states, scope,
+    def __init__(self, attention_states, scope, attention_state_size,
                  input_weights=None, attention_fertility=None) -> None:
         """Create the attention object.
 
@@ -43,7 +43,7 @@ class Attention(object):
             self.att_states_reshaped = tf.expand_dims(self.attention_states, 2)
 
             # Size of query vectors for attention.
-            self.attention_vec_size = self.attn_size
+            self.attention_vec_size = attention_state_size
 
             # This variable corresponds to Bahdanau's U_a in the paper
             k = tf.get_variable(
