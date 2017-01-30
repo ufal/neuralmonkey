@@ -23,6 +23,7 @@ class ClassSymbol(object):
 
     def create(self):
         class_parts = self.clazz.split(".")
+
         class_name = class_parts[-1]
 
         # TODO should we not assume that everything is from neuralmonkey?

@@ -2,11 +2,10 @@
 
 import re
 
-try:
-    # pylint: disable=unused-import,bare-except,import-error
-    from typing import Dict
-except:
-    pass
+# pylint: disable=unused-import
+from typing import Dict
+# pylint: enable=unused-import
+
 
 CONTRACTIONS = ["am", "ans", "beim", "im", "ins", "vom", "zum", "zur"]
 CONTRACTIONS_SET = set(CONTRACTIONS)
