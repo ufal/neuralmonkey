@@ -7,25 +7,33 @@ Installation
 Before you start, make sure that you already have installed Python 3.5, pip
 and git.
 
-Create and activate a virtual environment to install the package into::
+Create and activate a virtual environment to install the package into:
 
-        $ python3 -m venv nm
-	$ source nm/bin/activate
-	# after this, your prompt should change
+.. code-block:: bash
 
-Then clone Neural Monkey from GitHub and switch to its root directory::
+   $ python3 -m venv nm
+   $ source nm/bin/activate
+   # after this, your prompt should change
 
-	(nm)$ git clone https://github.com/ufal/neuralmonkey
-	(nm)$ cd neuralmonkey
+Then clone Neural Monkey from GitHub and switch to its root directory:
+
+.. code-block:: bash
+
+   (nm)$ git clone https://github.com/ufal/neuralmonkey
+   (nm)$ cd neuralmonkey
 
 Run pip to install all requirements. For the CPU version install
-dependencies by this command::
+dependencies by this command:
 
-	(nm)$ pip install --upgrade -r --requirements.txt
+.. code-block:: bash
 
-For the GPU version install dependencies ty this command::
+   (nm)$ pip install --upgrade -r --requirements.txt
 
-	(nm)$ pip install --upgrade -r --requirements-gpu.txt
+For the GPU version install dependencies ty this command:
+
+.. code-block:: bash
+
+   (nm)$ pip install --upgrade -r --requirements-gpu.txt
 
 If you are using the GPU version, make sure that the ``LD_LIBRARY_PATH``
 environment variable points to ``lib`` and ``lib64`` directories of your CUDA
