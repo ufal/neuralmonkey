@@ -175,7 +175,7 @@ class TensorFlowManager(object):
                 summaries=True,
                 batch_size=None) -> List[ExecutionResult]:
         if batch_size is None:
-            batch_size = len(dataset)
+            batch_size = 1
         batched_dataset = dataset.batch_dataset(batch_size)
 
         batch_results = [
