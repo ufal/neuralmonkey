@@ -9,7 +9,7 @@ import tensorflow as tf
 from termcolor import colored
 
 from neuralmonkey.logging import log, log_print
-from neuralmonkey.dataset import Dataset
+from neuralmonkey.dataset import Dataset, LazyDataset
 from neuralmonkey.tf_manager import TensorFlowManager
 from neuralmonkey.runners.base_runner import BaseRunner, ExecutionResult
 from neuralmonkey.trainers.generic_trainer import GenericTrainer
@@ -42,6 +42,7 @@ def training_loop(tf_manager: TensorFlowManager,
                   val_preview_input_series: Optional[List[str]]=None,
                   val_preview_output_series: Optional[List[str]]=None,
                   val_preview_num_examples: int=15,
+                  train_start_offset: int=0,
                   runners_batch_size: Optional[int]=None,
                   postprocess: Postprocess=None,
                   minimize_metric: bool=False):
@@ -131,6 +132,28 @@ def training_loop(tf_manager: TensorFlowManager,
 
             train_dataset.shuffle()
             train_batched_datasets = train_dataset.batch_dataset(batch_size)
+
+            if epoch_n == 1 and isinstance(train_dataset, LazyDataset):
+                skipped_instances = 0
+                if train_start_offset:
+                    log("Skipping first {} training instances".format(
+                        train_start_offset))
+
+                while skipped_instances < train_start_offset:
+                    try:
+                        skipped_instances += len(next(train_batched_datasets))
+                    except StopIteration:
+                        log("Warning: Trying to skip more instances than the "
+                            "size of the training data", color="red")
+                        train_batched_datasets = train_dataset.batch_dataset(
+                            batch_size)
+                if skipped_instances > 0:
+                    log("Skipped {} training instances".format(
+                        skipped_instances))
+
+            elif epoch_n == 1 and train_start_offset:
+                log("Warning: Not skipping training instances with shuffled "
+                    "in-memory dataset", color="red")
 
             for batch_n, batch_dataset in enumerate(train_batched_datasets):
                 step += 1
