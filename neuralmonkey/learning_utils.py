@@ -2,7 +2,7 @@
 # pylint: disable=too-many-lines
 # There are too many lines because of these pylint directives.
 
-from typing import Any, Callable, Dict, List, Tuple, Optional, Union
+from typing import Any, Callable, Dict, List, Tuple, Optional, Union, Iterable
 import os
 import numpy as np
 import tensorflow as tf
@@ -133,28 +133,12 @@ def training_loop(tf_manager: TensorFlowManager,
             train_dataset.shuffle()
             train_batched_datasets = train_dataset.batch_dataset(batch_size)
 
-            if epoch_n == 1 and isinstance(train_dataset, LazyDataset):
-                skipped_instances = 0
-                if train_start_offset:
-                    log("Skipping first {} training instances".format(
-                        train_start_offset))
-
-                while skipped_instances < train_start_offset:
-                    try:
-                        skipped_instances += len(
-                            next(train_batched_datasets))  # type: ignore
-                    except StopIteration:
-                        log("Warning: Trying to skip more instances than the "
-                            "size of the training data", color="red")
-                        train_batched_datasets = train_dataset.batch_dataset(
-                            batch_size)
-                if skipped_instances > 0:
-                    log("Skipped {} training instances".format(
-                        skipped_instances))
-
-            elif epoch_n == 1 and train_start_offset:
-                log("Warning: Not skipping training instances with shuffled "
-                    "in-memory dataset", color="red")
+            if epoch_n == 1 and train_start_offset:
+                if not isinstance(train_dataset, LazyDataset):
+                    log("Warning: Not skipping training instances with shuffled "
+                        "in-memory dataset", color="red")
+                else:
+                    _skip_lines(train_start_offset, train_batched_datasets)
 
             for batch_n, batch_dataset in enumerate(train_batched_datasets):
                 step += 1
@@ -559,3 +543,25 @@ def _print_examples(dataset: Dataset,
             print_line(series_id + " (ref)", "red", desired_output)
 
         log_print("")
+
+
+def _skip_lines(start_offset: int,
+                batched_datasets: Iterable[Dataset]) -> None:
+    """Skip training instances from the beginning.
+
+    Arguments:
+        start_offset: How many training instances to skip (minimum)
+        batched_datasets: From where to throw away batches
+    """
+    log("Skipping first {} instances in the dataset".format(start_offset))
+
+    skipped_instances = 0
+    while skipped_instances < start_offset:
+        try:
+            skipped_instances += len( next(batched_datasets))  # type: ignore
+        except StopIteration:
+            raise ValueError("Trying to skip more instances than "
+                             "the size of the dataset")
+
+    if skipped_instances > 0:
+        log("Skipped {} instances".format(skipped_instances))
