@@ -28,17 +28,29 @@ neuralmonkey-logbook --logdir <EXPERIMENTS_DIR> [OPTION] ...
 
 - You need Python 3.5 to run _Neural Monkey_.
 
-- For GPU version: Install dependencies by typing `pip install -r
-  requirements-gpu.txt`.
+- When using virtual environment, execute these commands to install the Python
+  dependencies:
 
-- For CPU version, run `pip install -r requirements.txt` instead.
+  ```bash
+  $ source path/to/virtualenv/bin/activate
+
+  # For GPU-enabled version
+  (virtualenv)$ pip install --upgrade -r requirements-gpu.txt
+
+  # For CPU-only version
+  (virtualenv)$ pip install --upgrade -r requirements.txt
+  ```
 
 - If you are using the GPU version, make sure that the `LD_LIBRARY_PATH`
   environment variable points to `lib` and `lib64` directories of your CUDA and
-  CuDNN installations. Similarly, your `PATH` variable should point to the
-  `bin` subdirectory of the CUDA installation directory.
+  CuDNN installations. Similarly, your `PATH` variable should point to the `bin`
+  subdirectory of the CUDA installation directory.
 
-- If the training crashes on an unknown dependency, just install it with pip.
+- If the training crashes on an unknown dependency, just install it with
+  pip. Remember to keep your virtual environment up-to-date with the package
+  requirements file, which may be changed over time. To update the dependencies,
+  re-run the `pip install` command from above (pay attention to the distinction
+  between GPU and non-GPU versions).
 
 ## Getting Started
 
