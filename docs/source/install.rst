@@ -29,7 +29,7 @@ dependencies by this command:
 
    (nm)$ pip install --upgrade -r --requirements.txt
 
-For the GPU version install dependencies ty this command:
+For the GPU version install dependencies try this command:
 
 .. code-block:: bash
 
