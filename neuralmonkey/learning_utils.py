@@ -141,7 +141,8 @@ def training_loop(tf_manager: TensorFlowManager,
 
                 while skipped_instances < train_start_offset:
                     try:
-                        skipped_instances += len(next(train_batched_datasets))
+                        skipped_instances += len(
+                            next(train_batched_datasets))  # type: ignore
                     except StopIteration:
                         log("Warning: Trying to skip more instances than the "
                             "size of the training data", color="red")
