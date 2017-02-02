@@ -1,5 +1,6 @@
 """ Module responsible for INI parsing """
 
+from collections import OrderedDict
 import configparser
 import re
 import time
@@ -130,9 +131,9 @@ def _parse_ini(config_file, filename=""):
     config = configparser.ConfigParser()
     config.read_file(line_numbers, source=filename)
 
-    new_config = dict()
+    new_config = OrderedDict()
     for section in config.sections():
-        new_config[section] = dict()
+        new_config[section] = OrderedDict()
 
         for key in config[section]:
             match = LINE_NUM.match(config[section][key])
@@ -144,13 +145,13 @@ def _parse_ini(config_file, filename=""):
 def parse_file(config_file):
     """ Parses an INI file and creates all values """
 
-    parsed_dicts = dict()
+    parsed_dicts = OrderedDict()
     time_stamp = time.strftime("%Y-%m-%d-%H-%M-%S")
 
     config = _parse_ini(config_file)
 
     for section in config:
-        parsed_dicts[section] = dict()
+        parsed_dicts[section] = OrderedDict()
         for key, (lineno, value_string) in config[section].items():
             # expansion
             # TODO do this using **kwargs with dict from names to values
