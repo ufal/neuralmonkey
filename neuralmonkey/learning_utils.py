@@ -135,8 +135,8 @@ def training_loop(tf_manager: TensorFlowManager,
 
             if epoch_n == 1 and train_start_offset:
                 if not isinstance(train_dataset, LazyDataset):
-                    log("Warning: Not skipping training instances with shuffled "
-                        "in-memory dataset", color="red")
+                    log("Warning: Not skipping training instances with "
+                        "shuffled in-memory dataset", color="red")
                 else:
                     _skip_lines(train_start_offset, train_batched_datasets)
 
@@ -558,7 +558,7 @@ def _skip_lines(start_offset: int,
     skipped_instances = 0
     while skipped_instances < start_offset:
         try:
-            skipped_instances += len( next(batched_datasets))  # type: ignore
+            skipped_instances += len(next(batched_datasets))  # type: ignore
         except StopIteration:
             raise ValueError("Trying to skip more instances than "
                              "the size of the dataset")
