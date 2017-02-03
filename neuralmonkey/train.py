@@ -40,6 +40,7 @@ def create_config() -> Configuration:
                         required=False, default=None)
     config.add_argument('val_preview_num_examples', int,
                         required=False, default=15)
+    config.add_argument('train_start_offset', int, required=False, default=0)
     config.add_argument('runners_batch_size', int,
                         required=False, default=None)
     config.add_argument('minimize', bool, required=False, default=False)
@@ -177,5 +178,6 @@ def main() -> None:
         val_preview_output_series=cfg.model.val_preview_output_series,
         val_preview_num_examples=cfg.model.val_preview_num_examples,
         postprocess=cfg.model.postprocess,
+        train_start_offset=cfg.model.train_start_offset,
         runners_batch_size=cfg.model.runners_batch_size,
         minimize_metric=cfg.model.minimize)
