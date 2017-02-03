@@ -257,6 +257,8 @@ def training_loop(tf_manager: TensorFlowManager,
         test_results, test_outputs = run_on_dataset(
             tf_manager, runners, dataset, postprocess,
             write_out=True, batch_size=runners_batch_size)
+        # ensure test outputs are iterable more than once
+        test_outputs = {k: list(v) for k, v in test_outputs.items()}
         eval_result = evaluation(evaluators, dataset, runners,
                                  test_results, test_outputs)
         print_final_evaluation(dataset.name, eval_result)
