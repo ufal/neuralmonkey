@@ -43,6 +43,7 @@ def training_loop(tf_manager: TensorFlowManager,
                   val_preview_output_series: Optional[List[str]]=None,
                   val_preview_num_examples: int=15,
                   runners_batch_size: Optional[int]=None,
+                  initial_variables: Optional[Union[str, List[str]]]=None,
                   postprocess: Postprocess=None,
                   minimize_metric: bool=False):
 
@@ -106,8 +107,13 @@ def training_loop(tf_manager: TensorFlowManager,
         saved_scores = [-np.inf for _ in range(save_n_best_vars)]
         best_score = -np.inf
 
-    tf_manager.initialize_model_parts(runners + [trainer])  # type: ignore
-    tf_manager.save(variables_files[0])
+    if initial_variables is None:
+        # Assume we don't look at coder checkpoints when global
+        # initial variables are supplied
+        tf_manager.initialize_model_parts(runners + [trainer])  # type: ignore
+        tf_manager.save(variables_files[0])
+    else:
+        tf_manager.restore(initial_variables)
 
     if os.path.islink(link_best_vars):
         # if overwriting output dir
