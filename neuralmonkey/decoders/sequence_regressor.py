@@ -53,9 +53,8 @@ class SequenceRegressor(ModelPart):
 
             assert_shape(mlp.logits, [-1, 1])
 
-            self.decoded_logit = mlp.logits
+            self.prediction = mlp.logits
             self.cost = tf.reduce_mean(tf.square(mlp.logits - self.gt_inputs))
-            self.decoded_logprobs = [tf.zeros(tf.shape(self.gt_inputs)[0])]
 
             tf.scalar_summary(
                 'val_optimization_cost', self.cost,
