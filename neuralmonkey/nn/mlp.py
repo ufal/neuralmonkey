@@ -46,7 +46,8 @@ class MultilayerPerceptron(object):
                     "W_out", shape=[last_layer_size, output_size])
 
                 b_out = tf.get_variable(
-                    "b_out", tf.zeros_initializer([output_size]))
+                    "b_out",
+                    initializer=tf.zeros_initializer([output_size]))
 
                 self.logits = tf.matmul(last_layer, w_out) + b_out
 

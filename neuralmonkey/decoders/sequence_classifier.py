@@ -60,6 +60,7 @@ class SequenceClassifier(ModelPart):
 
             self.decoded_seq = [mlp.classification]
             self.decoded_logits = [mlp.logits]
+            self.runtime_logprobs = [tf.nn.log_softmax(mlp.logits)]
 
             tf.scalar_summary(
                 'val_optimization_cost', self.cost,
