@@ -1,4 +1,3 @@
-from functools import reduce
 from typing import Any, Dict, List, NamedTuple, Optional, Tuple, Union
 import re
 
