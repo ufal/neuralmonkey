@@ -340,9 +340,8 @@ class Decoder(ModelPart):
                 raise ValueError("Unknown RNN cell.")
 
             if self._conditional_gru:
-                x_2 = dropout(
-                    linear(attns, self.embedding_size,
-                           scope="cond_gru_2_linproj")
+                x_2 = linear(attns, self.embedding_size,
+                             scope="cond_gru_2_linproj")
 
                 # Run the RNN for the second time
                 cell_output, state = cell(
