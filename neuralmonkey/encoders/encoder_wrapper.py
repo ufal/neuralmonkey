@@ -277,11 +277,13 @@ class HierarchicalMultiAttention(MultiAttention):
             if self._share_projections:
                 output_cxts = proj_ctxs
             else:
-                output_cxts = [
-                    tf.expand_dims(
+                output_cxts = (
+                    [tf.expand_dims(
                         linear(ctx_vec, self._state_size,
                                scope="proj_attn_{}".format(enc.name)), 1)
-                    for ctx_vec, enc in zip(attn_ctx_vectors, self._encoders)]
+                     for ctx_vec, enc in zip(attn_ctx_vectors, self._encoders)] +
+                    [tf.expand_dims(linear(sentinel_value, self._state_size,
+                                           scope="proj_sentinel"), 1)])
 
             projections_concat = tf.concat(1, output_cxts)
             context = tf.reduce_sum(
