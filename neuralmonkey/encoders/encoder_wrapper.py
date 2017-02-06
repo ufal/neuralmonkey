@@ -64,7 +64,7 @@ class MultiAttention(metaclass=ABCMeta):
         self._scope = scope
         self.attentions_in_time = []
         self._share_projections = share_projections
-        self._use_sentinels = share_projections
+        self._use_sentinels = use_sentinels
 
         with tf.variable_scope(self._scope):
             self.attn_v = tf.get_variable(
@@ -114,9 +114,6 @@ class MultiAttention(metaclass=ABCMeta):
 class FlatMultiAttention(MultiAttention):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-
-        self._use_sentinels = kwargs.get("use_sentinels", False)
-        self._share_projections = kwargs.get("_share_projections", False)
 
         # pylint: disable=protected-access
         self._encoders_tensors = [e._attention_tensor for e in self._encoders]
