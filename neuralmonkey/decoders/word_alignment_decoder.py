@@ -4,10 +4,8 @@ import tensorflow as tf
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.encoders.sentence_encoder import SentenceEncoder
 from neuralmonkey.decoders.decoder import Decoder
-from neuralmonkey.logging import log
+from neuralmonkey.logging import warning
 from neuralmonkey.model.model_part import ModelPart, FeedDict
-
-# tests: mypy
 
 
 class WordAlignmentDecoder(ModelPart):
@@ -73,7 +71,7 @@ class WordAlignmentDecoder(ModelPart):
         alignment = dataset.get_series(self.data_id, allow_none=True)
         if alignment is None:
             if train:
-                log("Warning: training alignment not present", color="red")
+                warning("Training alignment not present!")
 
             alignment = np.zeros((len(dataset),
                                   self.decoder.max_output_len,

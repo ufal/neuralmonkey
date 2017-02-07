@@ -8,7 +8,7 @@ from typeguard import check_argument_types
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.vocabulary import Vocabulary, START_TOKEN
 from neuralmonkey.model.model_part import ModelPart, FeedDict
-from neuralmonkey.logging import log
+from neuralmonkey.logging import log, warning
 from neuralmonkey.nn.utils import dropout
 from neuralmonkey.encoders.attentive import Attentive
 from neuralmonkey.nn.projection import linear
@@ -100,9 +100,8 @@ class Decoder(ModelPart):
 
         if self.embeddings_encoder is not None:
             if self.embedding_size is not None:
-                log("Warning: Overriding the embedding_size parameter with the"
-                    " size of the reused embeddings from the encoder.",
-                    color="red")
+                warning("Overriding the embedding_size parameter with the"
+                        " size of the reused embeddings from the encoder.")
 
             self.embedding_size = (
                 self.embeddings_encoder.embedding_matrix.get_shape()[1].value)

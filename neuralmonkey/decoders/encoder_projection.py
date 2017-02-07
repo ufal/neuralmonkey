@@ -2,14 +2,15 @@
 This module contains different variants of projection of encoders into the
 initial state of the decoder.
 """
-# tests: lint
+
+
 from typing import List, Optional, Callable, Any
 
 import tensorflow as tf
 
 from neuralmonkey.nn.utils import dropout
 from neuralmonkey.nn.projection import linear
-from neuralmonkey.logging import log
+from neuralmonkey.logging import log, warning
 
 
 # pylint: disable=unused-argument
@@ -86,8 +87,8 @@ def concat_encoder_projection(
                          "of encoder projection")
 
     if rnn_size is not None:
-        log("Warning: The rnn_size argument is ignored in this type of "
-            "encoder projection", color="red")
+        warning("The rnn_size argument is ignored in this type of "
+                "encoder projection")
 
     encoded_concat = tf.concat(1, [e.encoded for e in encoders])
 

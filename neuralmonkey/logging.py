@@ -46,6 +46,12 @@ class Logging(object):
             time.strftime("%Y-%m-%d %H:%M:%S"), color), message))
 
     @staticmethod
+    def warning(message):
+        """Logs a warning."""
+        log_print(colored("{}: Warning! {}".format(
+            time.strftime("%Y-%m-%d %H:%M:%S"), message), color='red'))
+
+    @staticmethod
     def print_header(title):
         """Prints the title of the experiment and
         the set of arguments it uses.
@@ -82,3 +88,4 @@ class Logging(object):
 log = Logging.log
 log_print = Logging.log_print
 debug = Logging.debug
+warning = Logging.warning
