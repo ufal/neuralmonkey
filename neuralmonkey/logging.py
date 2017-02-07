@@ -20,6 +20,8 @@ class Logging(object):
         os.environ.get("NEURALMONKEY_DEBUG_ENABLE", "none")]  # type: List[str]
     debug_disabled = [
         os.environ.get("NEURALMONKEY_DEBUG_DISABLE", "")]  # type: List[str]
+    strict_mode = [
+        os.environ.get("NEURALMONKEY_STRICT")]  # type: List[str]
 
     @staticmethod
     def set_log_file(path):
@@ -48,6 +50,9 @@ class Logging(object):
     @staticmethod
     def warning(message):
         """Logs a warning."""
+        if Logging.strict_mode != [None]:
+            raise Exception(
+                "Encountered a warning in strict mode: " + message)
         log_print(colored("{}: Warning! {}".format(
             time.strftime("%Y-%m-%d %H:%M:%S"), message), color='red'))
 
