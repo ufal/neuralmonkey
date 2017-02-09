@@ -12,12 +12,12 @@ prototyping of sequential models in NLP which can be used e.g. for neural
 machine translation or sentence classification.
 
 The higher-level API brings together a collection of standard building blocks
-(RNN encoder and decoder, multi-layer percetpron) and a simple way of adding new
+(RNN encoder and decoder, multi-layer perceptron) and a simple way of adding new
 building blocks implemented directly in TensorFlow.
 
 ## Usage
 
-```
+```bash
 neuralmonkey-train <EXPERIMENT_INI>
 neuralmonkey-run <EXPERIMENT_INI> <DATASETS_INI>
 neuralmonkey-server <EXPERIMENT_INI> [OPTION] ...
