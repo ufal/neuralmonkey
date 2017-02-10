@@ -1,5 +1,3 @@
-# tests: lint, mypy
-
 import time
 import codecs
 import sys
@@ -20,8 +18,7 @@ class Logging(object):
         os.environ.get("NEURALMONKEY_DEBUG_ENABLE", "none")]  # type: List[str]
     debug_disabled = [
         os.environ.get("NEURALMONKEY_DEBUG_DISABLE", "")]  # type: List[str]
-    strict_mode = [
-        os.environ.get("NEURALMONKEY_STRICT")]  # type: List[str]
+    strict_mode = os.environ.get("NEURALMONKEY_STRICT")  # type: str
 
     @staticmethod
     def set_log_file(path):
@@ -48,13 +45,13 @@ class Logging(object):
             time.strftime("%Y-%m-%d %H:%M:%S"), color), message))
 
     @staticmethod
-    def warning(message):
+    def warn(message):
         """Logs a warning."""
-        if Logging.strict_mode != [None]:
-            raise Exception(
-                "Encountered a warning in strict mode: " + message)
         log_print(colored("{}: Warning! {}".format(
             time.strftime("%Y-%m-%d %H:%M:%S"), message), color='red'))
+        if Logging.strict_mode:
+            raise Exception(
+                "Encountered a warning in strict mode: " + message)
 
     @staticmethod
     def print_header(title):
@@ -93,4 +90,4 @@ class Logging(object):
 log = Logging.log
 log_print = Logging.log_print
 debug = Logging.debug
-warning = Logging.warning
+warn = Logging.warn

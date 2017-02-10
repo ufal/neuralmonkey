@@ -9,7 +9,7 @@ from typing import List, Optional
 
 import tensorflow as tf
 
-from neuralmonkey.logging import log, debug, warning
+from neuralmonkey.logging import log, debug, warn
 
 
 class CheckingException(Exception):
@@ -27,8 +27,8 @@ def check_dataset_and_coders(dataset, runners):
             elif hasattr(c, "data_ids"):
                 data_list.extend([(d, c) for d in c.data_ids])
             else:
-                warning(("Coder: {} does not have"
-                         "a data attribute").format(c))
+                warn(("Coder: {} does not have"
+                      "a data attribute").format(c))
 
     debug("Found series: {}".format(str(data_list)), "checking")
     missing = []

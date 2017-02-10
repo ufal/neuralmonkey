@@ -10,7 +10,7 @@ import tensorflow as tf
 
 from neuralmonkey.nn.utils import dropout
 from neuralmonkey.nn.projection import linear
-from neuralmonkey.logging import log, warning
+from neuralmonkey.logging import log, warn
 
 
 # pylint: disable=unused-argument
@@ -87,8 +87,8 @@ def concat_encoder_projection(
                          "of encoder projection")
 
     if rnn_size is not None:
-        warning("The rnn_size argument is ignored in this type of "
-                "encoder projection")
+        warn("The rnn_size argument is ignored in this type of "
+             "encoder projection")
 
     encoded_concat = tf.concat(1, [e.encoded for e in encoders])
 

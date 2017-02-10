@@ -6,17 +6,17 @@ directly would be inconvinent or impossible.
 import tensorflow as tf
 
 
-from neuralmonkey.logging import warning
+from neuralmonkey.logging import warn
 import neuralmonkey.vocabulary as vocabulary
 import neuralmonkey.dataset as dataset
 
 
 def deprecated(func):
     def dep_func(*args, **kwargs):
-        warning("Use of deprecated function from "
-                + "'neuralmonkey.config.utils'. " +
-                "Use '{}' instead.".format(func.__module__[13:]
-                                           + '.' + func.__name__))
+        warn("Use of deprecated function from "
+             + "'neuralmonkey.config.utils'. " +
+             "Use '{}' instead.".format(func.__module__[13:]
+                                        + '.' + func.__name__))
         return func(*args, **kwargs)
     return dep_func
 
