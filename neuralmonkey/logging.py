@@ -21,6 +21,10 @@ class Logging(object):
     strict_mode = os.environ.get("NEURALMONKEY_STRICT")  # type: str
 
     @staticmethod
+    def _get_time():
+        return time.strftime("%Y-%m-%d %H:%M:%S")
+
+    @staticmethod
     def set_log_file(path):
         """Sets up the file where the logging will be done."""
         Logging.log_file = codecs.open(path, 'w', 'utf-8', buffering=0)
@@ -42,13 +46,13 @@ class Logging(object):
     def log(message, color='yellow'):
         """Logs message with a colored timestamp."""
         log_print("{}: {}".format(colored(
-            time.strftime("%Y-%m-%d %H:%M:%S"), color), message))
+            Logging._get_time(), color), message))
 
     @staticmethod
     def warn(message):
         """Logs a warning."""
         log_print(colored("{}: Warning! {}".format(
-            time.strftime("%Y-%m-%d %H:%M:%S"), message), color='red'))
+            Logging._get_time(), message), color='red'))
         if Logging.strict_mode:
             raise Exception(
                 "Encountered a warning in strict mode: " + message)
@@ -61,7 +65,7 @@ class Logging(object):
         log_print(colored("".join("=" for _ in range(80)), 'green'))
         log_print(colored(title.upper(), 'green'))
         log_print(colored("".join("=" for _ in range(80)), 'green'))
-        log_print("Launched at {}".format(time.strftime("%Y-%m-%d %H:%M:%S")))
+        log_print("Launched at {}".format(Logging._get_time()))
 
         log_print("")
 
