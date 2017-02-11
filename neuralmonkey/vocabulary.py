@@ -12,7 +12,7 @@ from typing import List, Tuple
 import numpy as np
 from typeguard import check_argument_types
 
-from neuralmonkey.logging import log
+from neuralmonkey.logging import log, warn
 from neuralmonkey.dataset import Dataset, LazyDataset
 
 PAD_TOKEN = "<pad>"
@@ -91,7 +91,7 @@ def from_dataset(datasets: List[Dataset], series_ids: List[str], max_size: int,
 
     for dataset in datasets:
         if isinstance(dataset, LazyDataset):
-            log("Warning: inferring vocabulary from lazy dataset", color="red")
+            warn("Inferring vocabulary from lazy dataset!")
 
         for series_id in series_ids:
             series = dataset.get_series(series_id, allow_none=True)
@@ -181,8 +181,8 @@ def initialize_vocabulary(directory: str, name: str,
     Returns:
         The new vocabulary
     """
-    log("Warning! Use of deprecated initialize_vocabulary method. "
-        "Did you think this through?", color="red")
+    warn("Use of deprecated initialize_vocabulary method. "
+         "Did you think this through?")
 
     file_name = os.path.join(directory, name + ".pickle")
     if os.path.exists(file_name):

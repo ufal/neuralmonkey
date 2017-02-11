@@ -4,13 +4,12 @@ This module servers as a library of API checks used as assertions during
 constructing the computational graph.
 """
 
-# tests: lint, mypy
 
 from typing import List, Optional
 
 import tensorflow as tf
 
-from neuralmonkey.logging import log, debug
+from neuralmonkey.logging import log, debug, warn
 
 
 class CheckingException(Exception):
@@ -28,8 +27,8 @@ def check_dataset_and_coders(dataset, runners):
             elif hasattr(c, "data_ids"):
                 data_list.extend([(d, c) for d in c.data_ids])
             else:
-                log(("Warning: Coder: {} does not have"
-                     "a data attribute").format(c))
+                warn(("Coder: {} does not have"
+                      "a data attribute").format(c))
 
     debug("Found series: {}".format(str(data_list)), "checking")
     missing = []

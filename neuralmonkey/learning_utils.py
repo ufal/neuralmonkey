@@ -1,4 +1,3 @@
-# tests: lint, mypy
 # pylint: disable=too-many-lines
 # There are too many lines because of these pylint directives.
 
@@ -8,7 +7,7 @@ import numpy as np
 import tensorflow as tf
 from termcolor import colored
 
-from neuralmonkey.logging import log, log_print
+from neuralmonkey.logging import log, log_print, warn
 from neuralmonkey.dataset import Dataset, LazyDataset
 from neuralmonkey.tf_manager import TensorFlowManager
 from neuralmonkey.runners.base_runner import BaseRunner, ExecutionResult
@@ -141,8 +140,8 @@ def training_loop(tf_manager: TensorFlowManager,
 
             if epoch_n == 1 and train_start_offset:
                 if not isinstance(train_dataset, LazyDataset):
-                    log("Warning: Not skipping training instances with "
-                        "shuffled in-memory dataset", color="red")
+                    warn("Not skipping training instances with "
+                         "shuffled in-memory dataset")
                 else:
                     _skip_lines(train_start_offset, train_batched_datasets)
 
@@ -506,16 +505,13 @@ def _print_examples(dataset: Dataset,
                                if s in val_preview_output_series]
 
     if not target_series_names:
-        log("Warning! No reference series to preview during validation",
-            color="red")
+        warn("No reference series to preview during validation")
 
     if not source_series_names:
-        log("Warning! No source series to preview during validation",
-            color="red")
+        warn("No source series to preview during validation")
 
     if not output_series_names:
-        log("Warning! No output series to preview during validation",
-            color="red")
+        warn("No output series to preview during validation")
 
     # for further indexing we need to make sure, all relevant
     # dataset series are lists
