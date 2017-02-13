@@ -78,7 +78,11 @@ def from_wordlist(path: str, encoding: str="utf-8") -> 'Vocabulary':
 
     with open(path, encoding=encoding) as wordlist:
         for line in wordlist:
-            vocabulary.add_word(line.strip())
+            line = line.strip()
+            # check if line is empty
+            if not line:
+                continue
+            vocabulary.add_word(line)
 
     log("Vocabulary from wordlist loaded, containing {} words"
         .format(len(vocabulary)))
