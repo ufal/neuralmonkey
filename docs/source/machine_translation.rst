@@ -277,6 +277,10 @@ As for the evaluation, you need to create ``translation_run.ini``:
 
   [main]
   test_datasets=[<eval_data>]
+  
+  [bpe_preprocess]
+  class=processors.bpe.BPEPreprocessor
+  merge_file="exp-nm-mt/data/merge_file.bpe"
 
   [eval_data]
   class=dataset.load_dataset_from_files
