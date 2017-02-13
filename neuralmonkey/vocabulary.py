@@ -64,6 +64,28 @@ def from_file(path: str) -> 'Vocabulary':
     return vocabulary
 
 
+def from_wordlist(path: str, encoding: str="utf-8") -> 'Vocabulary':
+    """Loads vocabulary from a wordlist.
+
+    Arguments:
+        path: The path to the wordlist file
+        encoding: The encoding of the merge file (defaults to UTF-8)
+
+    Returns:
+        The new Vocabulary instance.
+    """
+    vocabulary = Vocabulary()
+
+    with open(path, encoding=encoding) as wordlist:
+        for line in wordlist:
+            vocabulary.add_word(line.strip())
+
+    log("Vocabulary from wordlist loaded, containing {} words"
+        .format(len(vocabulary)))
+    vocabulary.log_sample()
+    return vocabulary
+
+
 # pylint: disable=too-many-arguments
 # helper function, this number of parameters is needed
 def from_dataset(datasets: List[Dataset], series_ids: List[str], max_size: int,
