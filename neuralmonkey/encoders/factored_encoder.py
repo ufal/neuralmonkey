@@ -9,8 +9,8 @@ from neuralmonkey.encoders.attentive import Attentive
 from neuralmonkey.logging import log
 from neuralmonkey.nn.bidirectional_rnn_layer import BidirectionalRNNLayer
 from neuralmonkey.nn.noisy_gru_cell import NoisyGRUCell
-from neuralmonkey.checking import assert_type
 from neuralmonkey.vocabulary import Vocabulary
+
 
 # tests: lint, mypy
 
@@ -28,8 +28,8 @@ class FactoredEncoder(ModelPart, Attentive):
                  data_ids: List[str],
                  embedding_sizes: List[int],
                  rnn_size: int,
-                 save_checkpoint: Optional[str]=None,
-                 load_checkpoint: Optional[str]=None,
+                 save_checkpoint: Optional[str] = None,
+                 load_checkpoint: Optional[str] = None,
                  **kwargs) -> None:
         """Construct a new instance of the factored encoder.
 
@@ -70,6 +70,7 @@ class FactoredEncoder(ModelPart, Attentive):
         with tf.variable_scope(self.name):
             self._create_encoder_graph()
             log("Encoder graph constructed.")
+
     # pylint: enable=too-many-arguments
 
     @property
@@ -110,8 +111,8 @@ class FactoredEncoder(ModelPart, Attentive):
         self.factor_inputs = {}
         factors = []
 
-        assert len(self.data_ids) == len(self.vocabularies) == \
-               len(self.embedding_sizes)
+        assert len(self.data_ids) == len(self.vocabularies) == len(
+            self.embedding_sizes)
 
         for data_id, vocabulary, embedding_size in zip(
                 self.data_ids, self.vocabularies, self.embedding_sizes):
