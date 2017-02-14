@@ -12,11 +12,7 @@ from neuralmonkey.nn.noisy_gru_cell import NoisyGRUCell
 from neuralmonkey.vocabulary import Vocabulary
 
 
-# tests: lint, mypy
-
 # pylint: disable=too-many-instance-attributes
-
-
 class FactoredEncoder(ModelPart, Attentive):
     """Generic encoder processing an arbitrary number of input sequences."""
 
@@ -28,8 +24,8 @@ class FactoredEncoder(ModelPart, Attentive):
                  data_ids: List[str],
                  embedding_sizes: List[int],
                  rnn_size: int,
-                 save_checkpoint: Optional[str] = None,
-                 load_checkpoint: Optional[str] = None,
+                 save_checkpoint: Optional[str]=None,
+                 load_checkpoint: Optional[str]=None,
                  **kwargs) -> None:
         """Construct a new instance of the factored encoder.
 
@@ -70,7 +66,6 @@ class FactoredEncoder(ModelPart, Attentive):
         with tf.variable_scope(self.name):
             self._create_encoder_graph()
             log("Encoder graph constructed.")
-
     # pylint: enable=too-many-arguments
 
     @property
@@ -179,15 +174,6 @@ class FactoredEncoder(ModelPart, Attentive):
         factors = {data_id: dataset.get_series(data_id)
                    for data_id in self.data_ids}
 
-        # this method should be responsible for checking if the factored
-        # sentences are of the same length
-
-        fd = {}
-        # we assume that all factors have equal word counts
-        # this is removed as res should only contain placeholders as keys
-        # res[self.sentence_lengths] = np.array(
-        #     [min(self.max_input_len, len(s)) +
-        #      2 for s in factors[self.data_ids[0]]])
         factor_vectors_and_weights = {
             data_id: vocabulary.sentences_to_tensor(factors[data_id],
                                                     self.max_input_len,
@@ -212,6 +198,7 @@ class FactoredEncoder(ModelPart, Attentive):
                     raise Exception("Sentence lengths are not the same for"
                                     "different factors.")
 
+        fd = {}
         for data_id in self.data_ids:
             inputs = self.factor_inputs[data_id]
             vectors, _ = factor_vectors_and_weights[data_id]
