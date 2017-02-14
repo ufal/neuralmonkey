@@ -66,7 +66,7 @@ class MultEvalWrapper(object):
                                          stderr=subprocess.PIPE,
                                          stdout=subprocess.PIPE)
 
-            proc_stdout = output_proc.stdout.decode("utf-8")
+            proc_stdout = output_proc.stdout.decode("utf-8")  # type: ignore
             lines = proc_stdout.splitlines()
 
             if len(lines) == 0:
