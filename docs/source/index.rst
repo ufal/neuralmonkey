@@ -29,3 +29,4 @@ Getting Started
    visualization
    features
    tf_manager
+   benchmark
