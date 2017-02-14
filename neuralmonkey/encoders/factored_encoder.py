@@ -152,7 +152,8 @@ class FactoredEncoder(ModelPart, Attentive):
             # Create embeddings for this factor and embed the placeholders
             # NOTE the initialization
             embeddings = tf.get_variable(
-                "embeddings_{}".format(data_id), shape=[len(vocabulary), embedding_size],
+                "embeddings_{}".format(data_id), shape=[len(vocabulary),
+                                                        embedding_size],
                 initializer=tf.random_normal_initializer(stddev=0.01))
 
             embedded_inputs = [tf.nn.embedding_lookup(embeddings, i)
