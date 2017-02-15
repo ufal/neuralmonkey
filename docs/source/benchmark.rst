@@ -5,10 +5,10 @@ GPU benchmarks
 ==============
 
 We have done some benchmarks on our department to find out differences between GPUs and we have
-decided to shared them here. Therefore they do not test speed of NeuralMonkey, but they 
+decided to shared them here. Therefore they do not test speed of Neural Monkey, but they 
 test different GPU cards with the same setup in Neural Monkey.
 
-The benchmark test consisted of one epoch of Machine Translation training in NeuralMonkey
+The benchmark test consisted of one epoch of Machine Translation training in Neural Monkey
 on a set of fixed data. The size of the model nicely fit into the 2GB memory, therefore
 GPUs with more memory could have better results with bigger models in comparison to CPUs. 
 All GPUs have CUDA8.0
