@@ -90,7 +90,7 @@ class GLEUEvaluator(object):
 
     @staticmethod
     def gleu(hypotheses, references, ngrams=4, case_sensitive=True):
-        # Type: (List[List[str]], List[List[List[str]]]) -> float
+        # type: (List[List[str]], List[List[List[str]]]) -> float
         """Computes GLEU on a corpus with multiple references. No smoothing.
 
         Arguments:
