@@ -1,4 +1,5 @@
 from typing import List, Optional
+from typeguard import check_argument_types
 
 import tensorflow as tf
 
@@ -8,17 +9,12 @@ from neuralmonkey.encoders.attentive import Attentive
 from neuralmonkey.logging import log
 from neuralmonkey.nn.bidirectional_rnn_layer import BidirectionalRNNLayer
 from neuralmonkey.nn.noisy_gru_cell import NoisyGRUCell
-from neuralmonkey.nn.pervasive_dropout_wrapper import PervasiveDropoutWrapper
-from neuralmonkey.checking import assert_type
 from neuralmonkey.vocabulary import Vocabulary
 
-# tests: lint, mypy
 
 # pylint: disable=too-many-instance-attributes
-
-
 class FactoredEncoder(ModelPart, Attentive):
-    """Generic encoder processessig an arbitrary number of input sequences."""
+    """Generic encoder processing an arbitrary number of input sequences."""
 
     # pylint: disable=too-many-arguments
     def __init__(self,
@@ -35,33 +31,25 @@ class FactoredEncoder(ModelPart, Attentive):
 
         Args:
             max_input_len: Maximum input length (longer sequences are trimmed)
-
             vocabularies: List of vocabularies indexed
             data_ids: List of data series IDs
             embedding_sizes: List of embedding sizes for each data series
-
+            name: The name for this encoder. [sentence_encoder]
             rnn_size: The size of the hidden state
 
         Keyword arguments:
             use_noisy_activations: Boolean flag whether to use noisy activation
                                    functions in RNN cells.
                                    (see neuralmonkey.nn.noisy_gru_cell) [False]
-
-            use_pervasive_dropout: Boolean flag whether to use pervasive
-                                   dropout
-                                   (see arxiv.org/abs/1606.02891) [False]
-
             attention_type: The attention to use. [None]
             attention_fertility: Fertility for CoverageAttention (if used). [3]
-
-            name: The name for this encoder. [sentence_encoder]
             dropout_keep_prob: 1 - Dropout probability [1]
         """
         attention_type = kwargs.get("attention_type", None)
+        Attentive.__init__(self, attention_type)
         ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
-        Attentive.__init__(attention_type, **kwargs)
-        for vocabulary in vocabularies:
-            assert_type(self, 'vocabulary', vocabulary, Vocabulary)
+
+        assert check_argument_types()
 
         self.vocabularies = vocabularies
         self.data_ids = data_ids
@@ -73,14 +61,10 @@ class FactoredEncoder(ModelPart, Attentive):
         self.dropout_keep_prob = kwargs.get("dropout_keep_prob", 1)
 
         self.use_noisy_activations = kwargs.get("use_noisy_activations", False)
-        self.use_pervasive_dropout = kwargs.get("use_pervasive_dropout", False)
 
         log("Building encoder graph, name: '{}'.".format(self.name))
         with tf.variable_scope(self.name):
             self._create_encoder_graph()
-
-            # Attention mechanism
-
             log("Encoder graph constructed.")
     # pylint: enable=too-many-arguments
 
@@ -99,19 +83,6 @@ class FactoredEncoder(ModelPart, Attentive):
             cell = NoisyGRUCell(self.rnn_size, self.is_training)
         else:
             cell = tf.nn.rnn_cell.GRUCell(self.rnn_size)
-
-        if self.use_pervasive_dropout:
-            # pylint: disable=no-member, undefined-variable
-            # TODO fix this
-            shape = tf.concat(0, [tf.shape(self.inputs[0]), [rnn_size]])
-            # TODO shape needs recomputing
-
-            dropout_mask = tf.floor(tf.random_uniform(shape, 0.0, 1.0)
-                                    + self.dropout_placeholder)
-
-            scale = tf.inv(self.dropout_placeholder)
-            cell = PervasiveDropoutWrapper(cell, dropout_mask, scale)
-
         return cell
 
     def _get_birnn_cells(self):
@@ -128,23 +99,26 @@ class FactoredEncoder(ModelPart, Attentive):
 
         self.padding_weights = [
             tf.placeholder(tf.float32, shape=[None], name="input_{}".format(i))
-            for i in range(self.max_input_len + 2)]
+            for i in range(self.max_input_len + 1)]
 
         sentence_lengths = tf.to_int64(sum(self.padding_weights))
 
         self.factor_inputs = {}
         factors = []
 
+        assert len(self.data_ids) == len(self.vocabularies) == len(
+            self.embedding_sizes)
+
         for data_id, vocabulary, embedding_size in zip(
                 self.data_ids, self.vocabularies, self.embedding_sizes):
-            # Create data placehoders. The tensors' length is max_input_len+2
+            # Create data placeholders. The tensors' length is max_input_len+1
             # because we add explicit start and end symbols.
             prefix = ""
             if len(self.data_ids) > 1:
                 prefix = "{}_".format(data_id)
 
             names = ["{}input_{}".format(prefix, i)
-                     for i in range(self.max_input_len + 2)]
+                     for i in range(self.max_input_len + 1)]
 
             inputs = [tf.placeholder(tf.int32, shape=[None], name=n)
                       for n in names]
@@ -152,7 +126,8 @@ class FactoredEncoder(ModelPart, Attentive):
             # Create embeddings for this factor and embed the placeholders
             # NOTE the initialization
             embeddings = tf.get_variable(
-                "word_embeddings", shape=[len(vocabulary), embedding_size],
+                "embeddings_{}".format(data_id), shape=[len(vocabulary),
+                                                        embedding_size],
                 initializer=tf.random_normal_initializer(stddev=0.01))
 
             embedded_inputs = [tf.nn.embedding_lookup(embeddings, i)
@@ -163,7 +138,6 @@ class FactoredEncoder(ModelPart, Attentive):
                 for i in embedded_inputs]
 
             # Resulting shape is batch x embedding_size
-            assert_shape(dropped_embedded_inputs, [None, embedding_size])
             factors.append(dropped_embedded_inputs)
 
             # Add inputs and weights to self to be able to feed them
@@ -200,19 +174,12 @@ class FactoredEncoder(ModelPart, Attentive):
         factors = {data_id: dataset.get_series(data_id)
                    for data_id in self.data_ids}
 
-        # this method should be responsible for checking if the factored
-        # sentences are of the same length
-
-        fd = {}
-        # we asume that all factors have equal word counts
-        # this is removed as res should only contain placeholders as keys
-        # res[self.sentence_lengths] = np.array(
-        #     [min(self.max_input_len, len(s)) +
-        #      2 for s in factors[self.data_ids[0]]])
         factor_vectors_and_weights = {
             data_id: vocabulary.sentences_to_tensor(factors[data_id],
                                                     self.max_input_len,
-                                                    train_mode=train)
+                                                    train_mode=train,
+                                                    add_start_symbol=True,
+                                                    add_end_symbol=True)
             for data_id, vocabulary in zip(self.data_ids, self.vocabularies)}
 
         # check input lengths
@@ -228,9 +195,10 @@ class FactoredEncoder(ModelPart, Attentive):
                 lengths_this = [sum(p) for p in padding_weights]
 
                 if lengths_this != lengths:
-                    raise Exception("Sentence lenghts are not the same for"
+                    raise Exception("Sentence lengths are not the same for"
                                     "different factors.")
 
+        fd = {}
         for data_id in self.data_ids:
             inputs = self.factor_inputs[data_id]
             vectors, _ = factor_vectors_and_weights[data_id]
