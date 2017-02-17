@@ -1,6 +1,7 @@
 # tests: lint, mypy
 
 from collections import Counter
+# pylint: disable=unused-import
 from typing import List, Tuple
 import numpy as np
 
@@ -23,7 +24,7 @@ class BLEUEvaluator(object):
         listed_references = [[s] for s in references]
 
         if self.deduplicate:
-            decoded = BLEUEvaluator._deduplicate_sentences(decoded)
+            decoded = BLEUEvaluator.deduplicate_sentences(decoded)
 
         return 100 * BLEUEvaluator.bleu(decoded, listed_references, self.n)
 
@@ -39,8 +40,9 @@ class BLEUEvaluator(object):
             delimiter: delimiter to use to create counter entries
         """
 
-        counts = Counter()  # type: Counter[None]
+        counts = Counter()  # type: Counter
 
+        # pylint: disable=too-many-locals
         for begin in range(len(sentence) - n + 1):
             ngram = delimiter.join(sentence[begin:begin + n])
             if lowercase:
@@ -69,8 +71,8 @@ class BLEUEvaluator(object):
         """Computes the modified n-gram precision on a list of sentences
 
         Arguments:
-            hypothesis: List of output sentences as lists of words
-            references: List of lists of reference sentences (as lists of
+            hypotheses: List of output sentences as lists of words
+            references_list: List of lists of reference sentences (as lists of
                 words)
             n: n-gram order
             case_sensitive: Whether to perform case-sensitive computation
@@ -112,7 +114,7 @@ class BLEUEvaluator(object):
 
         Arguments:
             hypotheses: List of output sentences as lists of words
-            references: List of lists of references (as lists of words)
+            references_list: List of lists of references (as lists of words)
         """
 
         eff_ref_length = 0
@@ -144,7 +146,7 @@ class BLEUEvaluator(object):
 
         Arguments:
             hypotheses: List of output sentences as lists of words
-            references: List of lists of references (as lists of words)
+            references_list: List of lists of references (as lists of words)
         """
 
         eff_ref_length = 0
@@ -171,7 +173,7 @@ class BLEUEvaluator(object):
             hypotheses: List of hypotheses
             references: LIst of references. There can be more than one
                 reference.
-            ngram: Maximum order of n-grams. Default 4.
+            ngrams: Maximum order of n-grams. Default 4.
             case_sensitive: Perform case-sensitive computation. Default True.
         """
         log_bleu = 0
@@ -201,7 +203,7 @@ class BLEUEvaluator(object):
         return np.exp(log_bleu)
 
     @staticmethod
-    def _deduplicate_sentences(sentences):
+    def deduplicate_sentences(sentences):
         # type: (List[List[str]]) -> List[List[str]]
         deduplicated_sentences = []
 
