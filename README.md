@@ -1,4 +1,4 @@
-# Neural Monkey
+<h1> <img alt="Ape is not a monkey." title="Ape is not a monkey." height="60px" src="http://ufallab.ms.mff.cuni.cz/~helcl/gorila2.png" style="float: left;"/> Neural Monkey</h1>
 
 Neural Sequence Learning Using TensorFlow
 
@@ -123,10 +123,7 @@ documentation as well.
 
 - [Nematus](https://github.com/rsennrich/nematus) - A tool for training and
   running Neural Machine Translation models
-
-![Ape is not a
-monkey.](http://ufallab.ms.mff.cuni.cz/~helcl/gorila2.png)
-
+  
 ## License
 
 The software is distributed under the [BSD
