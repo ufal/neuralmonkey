@@ -1,15 +1,11 @@
-# tests: lint, mypy
-
-# pylint: disable=unused-import
 from typing import List, Tuple
-
 from neuralmonkey.evaluators.bleu import BLEUEvaluator
 
 
 class GLEUEvaluator(object):
     """
     Sentence-level evaluation metric that correlates with BLEU on corpus-level.
-    From "Google’s Neural Machine Translation System: Bridging the Gap
+    From "Google's Neural Machine Translation System: Bridging the Gap
     between Human and Machine Translation" by Wu et al.
     (https://arxiv.org/pdf/1609.08144v2.pdf)
 
@@ -30,8 +26,9 @@ class GLEUEvaluator(object):
             if self.deduplicate:
                 self.name += "-dedup"
 
-    def __call__(self, decoded, references):
-        # type: (List[List[str]], List[List[str]]) -> float
+    def __call__(self,
+                 decoded: List[List[str]],
+                 references: List[List[str]]) -> float:
         listed_references = [[s] for s in references]
 
         if self.deduplicate:
@@ -41,11 +38,11 @@ class GLEUEvaluator(object):
 
     # pylint: disable=too-many-locals
     @staticmethod
-    def total_precision_recall(hypotheses: List[List[str]],
-                               references_list: List[List[List[str]]],
-                               ngrams: int,
-                               case_sensitive: bool) \
-            -> Tuple[float, float]:
+    def total_precision_recall(
+            hypotheses: List[List[str]],
+            references_list: List[List[List[str]]],
+            ngrams: int,
+            case_sensitive: bool) -> Tuple[float, float]:
         """Computes the modified n-gram precision and recall
            on a list of sentences
 
@@ -89,8 +86,10 @@ class GLEUEvaluator(object):
                 corpus_true_positives / corpus_target_length)
 
     @staticmethod
-    def gleu(hypotheses, references, ngrams=4, case_sensitive=True):
-        # type: (List[List[str]], List[List[List[str]]]) -> float
+    def gleu(hypotheses: List[List[str]],
+             references: List[List[List[str]]],
+             ngrams: int=4,
+             case_sensitive: bool=True) -> float:
         """Computes GLEU on a corpus with multiple references. No smoothing.
 
         Arguments:
