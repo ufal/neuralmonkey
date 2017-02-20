@@ -1,4 +1,4 @@
-<h1> <img alt="Ape is not a monkey." title="Ape is not a monkey." height="60px" src="http://ufallab.ms.mff.cuni.cz/~helcl/gorila2.png" style="float: left;"/> Neural Monkey</h1>
+# &nbsp; ![Ape is not a monkey](http://ufallab.ms.mff.cuni.cz/~helcl/gorila3.png) Neural Monkey
 
 Neural Sequence Learning Using TensorFlow
 
