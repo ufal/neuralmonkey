@@ -48,7 +48,7 @@ def create_config() -> Configuration:
     config.add_argument('postprocess')
     config.add_argument('name', str)
     config.add_argument('random_seed', int, required=False)
-    config.add_argument('initial_variables', Union[List[str], str],
+    config.add_argument('initial_variables', None,
                         required=False, default=None)
     config.add_argument('overwrite_output_dir', bool, required=False,
                         default=False)
