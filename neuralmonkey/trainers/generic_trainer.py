@@ -34,7 +34,7 @@ class GenericTrainer(object):
             with tf.name_scope('regularization'):
                 regularizable = [v for v in tf.trainable_variables()
                                  if BIAS_REGEX.findall(v.name)
-                                 and not v.name.startswith("vgg_16")]
+                                 and not v.name.startswith("resnet_v1_50")]
                 l1_value = sum(tf.reduce_sum(abs(v)) for v in regularizable)
                 l1_cost = l1_weight * l1_value if l1_weight > 0 else 0.0
 
