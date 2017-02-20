@@ -8,7 +8,8 @@ class Accuracy(object):
     def __init__(self, name="Accuracy"):
         self.name = name
 
-    def __call__(self, decoded: List[List[Any]],
+    def __call__(self,
+                 decoded: List[List[Any]],
                  references: List[List[Any]]) -> float:
         return np.mean([d == r
                         for dec, ref in zip(decoded, references)

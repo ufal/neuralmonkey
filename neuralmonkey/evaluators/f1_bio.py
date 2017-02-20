@@ -2,7 +2,11 @@ from typing import List, Set
 
 
 class F1Evaluator(object):
-    """ F1 evaluator for BIO tagging, e.g. NP chunking """
+    """ F1 evaluator for BIO tagging, e.g. NP chunking.
+
+    The entities in the are annotated as beginning of the entity (B),
+    cotinuation of the entity (I), the rest is outside the entitiy (O).
+    """
 
     def __init__(self, name="F1 measure"):
         self.name = name
@@ -50,3 +54,8 @@ class F1Evaluator(object):
         precision = true_positives / len(set_dec)
         recall = true_positives / len(set_ref)
         return 2.0 * precision * recall / (precision + recall)
+
+
+# pylint: disable=invalid-name
+BIOF1Score = F1Evaluator()
+# pylint: enable=invalid-name

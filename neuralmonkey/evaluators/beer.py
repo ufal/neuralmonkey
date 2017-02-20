@@ -8,12 +8,23 @@ from neuralmonkey.logging import log
 # pylint: disable=too-few-public-methods
 
 class BeerWrapper(object):
-    """Wrapper for BEER scorer."""
-    # https://github.com/stanojevic/beer
+    """Wrapper for BEER scorer.
 
-    def __init__(self, wrapper: str,
+    Paper: http://aclweb.org/anthology/D14-1025
+    Code: https://github.com/stanojevic/beer
+    """
+
+    def __init__(self,
+                 wrapper: str,
                  name: str="BEER",
                  encoding: str="utf-8") -> None:
+        """Initialize the BEER wrapper.
+
+        Args:
+            name: Name of the evaluator.
+            wrapper: Path to the BEER's executable.
+            encoding: Data encoding.
+        """
         self.wrapper = wrapper
         self.encoding = encoding
         self.name = name

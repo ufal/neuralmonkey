@@ -1,6 +1,3 @@
-#!/usr/bin/env python3
-
-
 import codecs
 import re
 from typing import List
@@ -12,7 +9,11 @@ from lib.subword_nmt.apply_bpe import BPE, encode
 
 
 class BPEPreprocessor(object):
-    """Wrapper class for Byte-Pair-Encoding from Edinburgh """
+    """Wrapper class for Byte-Pair-Encoding.
+
+    Paper: https://arxiv.org/abs/1508.07909
+    Code: https://github.com/rsennrich/subword-nmt
+    """
 
     def __init__(self, **kwargs):
 
