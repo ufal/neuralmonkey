@@ -1,4 +1,4 @@
-from typing import Callable, List, Optional
+from typing import Callable, Iterable, List, Optional
 import os
 import numpy as np
 from PIL import Image
@@ -26,7 +26,7 @@ def image_reader(prefix="",
         pad_h x pad_w x number of channels.
     """
 
-    def load(list_files: List[str]):
+    def load(list_files: List[str]) -> Iterable[np.ndarray]:
         for list_file in list_files:
             with open(list_file) as f_list:
                 for i, image_file in enumerate(f_list):
@@ -64,7 +64,7 @@ def imagenet_reader(prefix: str,
                     target_width: int=227,
                     target_height: int=227) -> Callable:
     """Load and prepare image the same way as Caffe scripts."""
-    def load(list_files: List[str]):
+    def load(list_files: List[str]) -> Iterable[np.ndarray]:
         for list_file in list_files:
             with open(list_file) as f_list:
                 for i, image_file in enumerate(f_list):
@@ -72,8 +72,8 @@ def imagenet_reader(prefix: str,
 
                     if not os.path.exists(path):
                         raise Exception(
-                            ("Image file '{}' no."
-                             "{}  does not exist.").format(path, i + 1))
+                            "Image file '{}' no. {} does not exist."
+                            .format(path, i + 1))
 
                     image = Image.open(path).convert('RGB')
 
@@ -97,13 +97,13 @@ def imagenet_reader(prefix: str,
     return load
 
 
-def _rescale(image, pad_w, pad_h):
+def _rescale(image: Image.Image, pad_w: int, pad_h: int) -> None:
     orig_w, orig_h = image.size
     if orig_w != pad_w or orig_h != pad_h:
         image.thumbnail((pad_w, pad_h))
 
 
-def _crop(image, pad_w, pad_h):
+def _crop(image: Image.Image, pad_w: int, pad_h: int) -> Image.Image:
     orig_w, orig_h = image.size
     w_shift = max(orig_w - pad_w, 0) // 2
     h_shift = max(orig_h - pad_h, 0) // 2
@@ -116,7 +116,8 @@ def _crop(image, pad_w, pad_h):
          orig_h - h_shift - even_h))
 
 
-def _pad(image, pad_w, pad_h, channels):
+def _pad(image: np.ndarray, pad_w: int, pad_h: int,
+         channels: int) -> np.ndarray:
     img_h, img_w = image.shape[:2]
 
     image_padded = np.zeros((pad_h, pad_w, channels))
