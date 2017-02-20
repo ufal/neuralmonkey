@@ -60,9 +60,46 @@ def image_reader(prefix="",
     return load
 
 
+def imagenet_reader(prefix: str,
+                    target_width: int=227,
+                    target_height: int=227) -> Callable:
+    """Load and prepare image the same way as Caffe scripts."""
+    def load(list_files: List[str]):
+        for list_file in list_files:
+            with open(list_file) as f_list:
+                for i, image_file in enumerate(f_list):
+                    path = os.path.join(prefix, image_file.rstrip())
+
+                    if not os.path.exists(path):
+                        raise Exception(
+                            ("Image file '{}' no."
+                             "{}  does not exist.").format(path, i + 1))
+
+                    image = Image.open(path).convert('RGB')
+
+                    width, height = image.size
+                    if width == height:
+                        _rescale(image, target_width, target_height)
+                    elif height < width:
+                        _rescale(image,
+                                 int(width * float(target_height) / height),
+                                 target_height)
+                    else:
+                        _rescale(image,
+                                 target_width,
+                                 int(height * float(target_width) / width))
+                    cropped_image = _crop(image, target_width, target_height)
+
+                    res = _pad(np.array(cropped_image),
+                               target_width, target_height, 3)
+                    assert res.shape == (target_width, target_height, 3)
+                    yield res
+    return load
+
+
 def _rescale(image, pad_w, pad_h):
     orig_w, orig_h = image.size
-    if orig_w > pad_w or orig_h > pad_h:
+    if orig_w != pad_w or orig_h != pad_h:
         image.thumbnail((pad_w, pad_h))
 
 
