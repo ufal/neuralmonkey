@@ -1,4 +1,4 @@
-# &nbsp; ![Ape is not a monkey](http://ufallab.ms.mff.cuni.cz/~helcl/gorila3.png) Neural Monkey
+# &nbsp; ![Ape is not a monkey][gorila] Neural Monkey
 
 Neural Sequence Learning Using TensorFlow
 
@@ -123,8 +123,10 @@ documentation as well.
 
 - [Nematus](https://github.com/rsennrich/nematus) - A tool for training and
   running Neural Machine Translation models
-  
+
 ## License
 
 The software is distributed under the [BSD
 License](https://opensource.org/licenses/BSD-3-Clause).
+
+[gorila]: http://ufallab.ms.mff.cuni.cz/~helcl/gorila3.png
