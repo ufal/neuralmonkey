@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.5
 # -*- coding: utf-8 -*-
 """ Unit tests for the decoder. (Tests only initialization so far) """
 

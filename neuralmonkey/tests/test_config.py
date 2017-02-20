@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.5
 """ Tests the config parsing module. """
 # pylint: disable=protected-access
 
