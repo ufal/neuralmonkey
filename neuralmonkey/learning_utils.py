@@ -520,7 +520,10 @@ def _print_examples(dataset: Dataset,
     source_series = {series_id: list(dataset.get_series(series_id))
                      for series_id in source_series_names}
 
-    for i in range(min(len(dataset), num_examples)):
+    if not isinstance(dataset, LazyDataset):
+        num_examples = min(len(dataset), num_examples)
+
+    for i in range(num_examples):
         log_print(colored("  [{}]".format(i + 1), color="magenta",
                           attrs=["bold"]))
 
