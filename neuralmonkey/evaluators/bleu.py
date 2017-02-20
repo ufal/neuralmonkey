@@ -1,14 +1,12 @@
-# tests: lint, mypy
-
 from collections import Counter
-# pylint: disable=unused-import
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 import numpy as np
 
 
 class BLEUEvaluator(object):
 
-    def __init__(self, n=4, deduplicate=False, name=None):
+    def __init__(self, n: int=4, deduplicate: bool=False,
+                 name: Optional[str]=None) -> None:
         self.n = n
         self.deduplicate = deduplicate
 
@@ -19,8 +17,8 @@ class BLEUEvaluator(object):
             if self.deduplicate:
                 self.name += "-dedup"
 
-    def __call__(self, decoded, references):
-        # type: (List[List[str]], List[List[str]]) -> float
+    def __call__(self, decoded: List[List[str]],
+                 references: List[List[str]]) -> float:
         listed_references = [[s] for s in references]
 
         if self.deduplicate:
@@ -30,7 +28,7 @@ class BLEUEvaluator(object):
 
     @staticmethod
     def ngram_counts(sentence: List[str], n: int,
-                     lowercase: bool, delimiter=" ") -> Counter:
+                     lowercase: bool, delimiter: str=" ") -> Counter:
         """Get n-grams from a sentence
 
         Arguments:
@@ -107,8 +105,9 @@ class BLEUEvaluator(object):
                 corpus_generated_length)
 
     @staticmethod
-    def effective_reference_length(hypotheses, references_list):
-        # type: (List[List[str]], List[List[List[str]]]) -> int
+    def effective_reference_length(
+            hypotheses: List[List[str]],
+            references_list: List[List[List[str]]]) -> int:
         """Computes the effective reference corpus length (based on best match
         length)
 
@@ -139,8 +138,8 @@ class BLEUEvaluator(object):
     # pylint: disable=unused-argument
     # to mainain same API with the function above
     @staticmethod
-    def minimum_reference_length(hypotheses, references_list):
-        # type: (List[List[str]], List[List[List[str]]]) -> int
+    def minimum_reference_length(hypotheses: List[List[str]],
+                                 references_list: List[List[str]]) -> int:
         """Computes the effective reference corpus length (based on the
         shortest reference sentence length)
 
@@ -163,8 +162,8 @@ class BLEUEvaluator(object):
         return eff_ref_length
 
     @staticmethod
-    def bleu(hypotheses, references, ngrams=4, case_sensitive=True):
-        # Type: (List[List[str]], List[List[List[str]]]) -> float
+    def bleu(hypotheses: List[List[str]], references: List[List[List[str]]],
+             ngrams: int=4, case_sensitive: bool=True):
         """Computes BLEU on a corpus with multiple references using uniform
         weights. Default is to use smoothing as in reference implementation on:
         https://github.com/ufal/qtleap/blob/master/cuni_train/bin/mteval-v13a.pl#L831-L873
@@ -203,8 +202,7 @@ class BLEUEvaluator(object):
         return np.exp(log_bleu)
 
     @staticmethod
-    def deduplicate_sentences(sentences):
-        # type: (List[List[str]]) -> List[List[str]]
+    def deduplicate_sentences(sentences: List[List[str]]) -> List[List[str]]:
         deduplicated_sentences = []
 
         for sentence in sentences:
@@ -221,7 +219,6 @@ class BLEUEvaluator(object):
         return deduplicated_sentences
 
     @staticmethod
-    def compare_scores(score1, score2):
-        # type: (float, float) -> int
+    def compare_scores(score1: float, score2: float) -> int:
         # the bigger the better
         return (score1 > score2) - (score1 < score2)

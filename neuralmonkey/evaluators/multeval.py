@@ -1,8 +1,5 @@
-# tests: lint, mypy
-
 import tempfile
 import subprocess
-# pylint: disable=unused-import
 from typing import List
 
 from neuralmonkey.logging import log
@@ -12,10 +9,11 @@ from neuralmonkey.logging import log
 
 
 class MultEvalWrapper(object):
-    """Wrapper for mult-eval's reference BLEU and METEOR scorer"""
+    """Wrapper for mult-eval's reference BLEU and METEOR scorer."""
 
-    def __init__(self, wrapper, name="MultEval", encoding="utf-8",
-                 metric="bleu", language="en"):
+    def __init__(self, wrapper: str, name: str="MultEval",
+                 encoding: str="utf-8",
+                 metric: str="bleu", language: str="en") -> None:
         """
         :param wrapper: path to multeval.sh script
         :param name: name of the evaluator
@@ -34,14 +32,13 @@ class MultEvalWrapper(object):
                 format(self.metric), color="red")
             self.metric = "bleu"
 
-    def serialize_to_bytes(self, sentences):
-        # type: (List[List[str]]) -> bytes
+    def serialize_to_bytes(self, sentences: List[List[str]]) -> bytes:
         joined = [" ".join(r) for r in sentences]
         string = "\n".join(joined) + "\n"
         return string.encode(self.encoding)
 
-    def __call__(self, decoded, references):
-        # type: (List[List[str]], List[List[str]]) -> float
+    def __call__(self, decoded: List[List[str]],
+                 references: List[List[str]]) -> float:
 
         ref_bytes = self.serialize_to_bytes(references)
         dec_bytes = self.serialize_to_bytes(decoded)

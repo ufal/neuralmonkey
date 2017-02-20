@@ -4,6 +4,8 @@
 
 import codecs
 import re
+from typing import List
+
 from neuralmonkey.logging import log
 from lib.subword_nmt.apply_bpe import BPE, encode
 
@@ -11,7 +13,7 @@ from lib.subword_nmt.apply_bpe import BPE, encode
 
 
 class BPEPreprocessor(object):
-    """ Wrapper class for Byte-Pair-Encoding from Edinburgh """
+    """Wrapper class for Byte-Pair-Encoding from Edinburgh """
 
     def __init__(self, **kwargs):
 
@@ -26,9 +28,8 @@ class BPEPreprocessor(object):
         with codecs.open(merge_file, "r", "utf-8") as f_data:
             self.bpe = BPE(f_data, separator)
 
-    def __call__(self, sentence):
-        # type: (List[str]) -> List[str]
-        """ Adapted code from BPE.segment """
+    def __call__(self, sentence: List[str]) -> List[str]:
+        """Adapted code from BPE.segment """
 
         output = []
         for word in sentence:
@@ -55,13 +56,10 @@ class BPEPostprocessor(object):
         esc = re.escape(self.separator)
         self.pattern = re.compile(esc + r" ")
 
-    def __call__(self, decoded_sentences):
-        # type: (List[List[str]]) -> List[List[str]]
+    def __call__(self, decoded_sentences: List[List[str]]) -> List[List[str]]:
         return [self.decode(s) for s in decoded_sentences]
 
-    def decode(self, sentence):
-        # type: (List[str]) -> List[str]
-
+    def decode(self, sentence: List[str]) -> List[str]:
         joined = " ".join(sentence)
         decoded = self.pattern.sub("", joined)
         splitted = decoded.split(" ")

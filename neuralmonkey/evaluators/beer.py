@@ -1,8 +1,5 @@
-# tests: lint, mypy
-
 import tempfile
 import subprocess
-# pylint: disable=unused-import
 from typing import List
 
 from neuralmonkey.logging import log
@@ -11,22 +8,23 @@ from neuralmonkey.logging import log
 # pylint: disable=too-few-public-methods
 
 class BeerWrapper(object):
-    """Wrapper for BEER scorer"""
+    """Wrapper for BEER scorer."""
     # https://github.com/stanojevic/beer
 
-    def __init__(self, wrapper, name="BEER", encoding="utf-8"):
+    def __init__(self, wrapper: str,
+                 name: str="BEER",
+                 encoding: str="utf-8") -> None:
         self.wrapper = wrapper
         self.encoding = encoding
         self.name = name
 
-    def serialize_to_bytes(self, sentences):
-        # type: (List[List[str]]) -> bytes
+    def serialize_to_bytes(self, sentences: List[List[str]]) -> bytes:
         joined = [" ".join(r) for r in sentences]
         string = "\n".join(joined) + "\n"
         return string.encode(self.encoding)
 
-    def __call__(self, decoded, references):
-        # type: (List[List[str]], List[List[str]]) -> float
+    def __call__(self, decoded: List[List[str]],
+                 references: List[List[str]]) -> float:
 
         ref_bytes = self.serialize_to_bytes(references)
         dec_bytes = self.serialize_to_bytes(decoded)

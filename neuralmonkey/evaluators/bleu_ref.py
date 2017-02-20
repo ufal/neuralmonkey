@@ -1,6 +1,5 @@
-# tests: lint, mypy
-
 import tempfile
+from typing import List
 import subprocess
 from neuralmonkey.logging import log
 
@@ -17,14 +16,13 @@ class BLEUReferenceImplWrapper(object):
         self.encoding = encoding
         self.name = name
 
-    def serialize_to_bytes(self, sentences):
-        # type: (List[List[str]]) -> bytes
+    def serialize_to_bytes(self, sentences: List[List[str]]) -> bytes:
         joined = [" ".join(r) for r in sentences]
         string = "\n".join(joined) + "\n"
         return string.encode(self.encoding)
 
-    def __call__(self, decoded, references):
-        # type: (List[List[str]], List[List[str]]) -> float
+    def __call__(self, decoded: List[List[str]],
+                 references: List[List[str]]) -> float:
 
         ref_bytes = self.serialize_to_bytes(references)
         dec_bytes = self.serialize_to_bytes(decoded)

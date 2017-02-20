@@ -70,8 +70,7 @@ class GermanPostprocessor(object):
         self.contracting = contracting
         self.pronouns = pronouns
 
-    def __call__(self, decoded_sentences):
-        # type: (List[List[str]]) -> List[List[str]]
+    def __call__(self, decoded_sentences: List[List[str]]) -> List[List[str]]:
         return [self.decode(s) for s in decoded_sentences]
 
     def decode(self, sentence):
