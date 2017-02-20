@@ -1,4 +1,3 @@
-
 import tensorflow as tf
 
 from neuralmonkey.checking import assert_shape

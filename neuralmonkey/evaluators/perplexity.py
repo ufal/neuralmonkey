@@ -1,4 +1,3 @@
-
 import numpy as np
 
 # pylint: disable=too-few-public-methods

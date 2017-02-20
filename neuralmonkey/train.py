@@ -5,7 +5,6 @@ This is a training script for sequence to sequence learning.
 import sys
 import random
 import os
-from typing import List, Union
 from shutil import copyfile
 import numpy as np
 import tensorflow as tf

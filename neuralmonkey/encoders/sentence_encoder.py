@@ -1,4 +1,3 @@
-
 from typing import Optional, Any, Tuple
 
 import tensorflow as tf

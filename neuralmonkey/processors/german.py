@@ -1,9 +1,6 @@
-
 import re
 
-# pylint: disable=unused-import
-from typing import Dict
-# pylint: enable=unused-import
+from typing import List
 
 
 CONTRACTIONS = ["am", "ans", "beim", "im", "ins", "vom", "zum", "zur"]
