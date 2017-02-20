@@ -11,7 +11,6 @@ from neuralmonkey.encoders.attentive import Attentive
 from neuralmonkey.decoding_function import Attention
 from neuralmonkey.model.model_part import ModelPart, FeedDict
 
-# tests: lint, mypy
 
 # pylint: disable=too-many-instance-attributes, too-few-public-methods
 

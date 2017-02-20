@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-# tests: lint, mypy
 
 import codecs
 import re

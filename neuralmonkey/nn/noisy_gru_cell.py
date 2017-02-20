@@ -1,8 +1,6 @@
 import math
 import tensorflow as tf
 
-# tests: lint, mypy
-
 
 class NoisyGRUCell(tf.nn.rnn_cell.RNNCell):
     """

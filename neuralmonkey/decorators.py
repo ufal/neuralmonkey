@@ -1,4 +1,3 @@
-# tests: lint, mypy
 
 from functools import wraps
 

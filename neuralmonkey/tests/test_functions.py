@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 """Unit tests for functions.py."""
-# tests: mypy, lint
 
 import unittest
 import tensorflow as tf

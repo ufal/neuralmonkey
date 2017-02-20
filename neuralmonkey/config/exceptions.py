@@ -1,7 +1,6 @@
 """
 Module that contains exceptions handled in config parsing and loading
 """
-# tests: lint, mypy
 
 import traceback
 

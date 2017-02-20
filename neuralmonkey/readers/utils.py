@@ -1,7 +1,6 @@
 from typing import List, Any, Callable
 import magic
 
-# tests: lint, mypy
 
 # pylint: disable=invalid-name
 Reader = Callable[[List[str]], Any]

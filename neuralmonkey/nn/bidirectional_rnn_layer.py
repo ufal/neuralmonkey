@@ -1,4 +1,3 @@
-# tests: lint, mypy
 
 import tensorflow as tf
 

@@ -3,8 +3,6 @@ import gzip
 
 from neuralmonkey.readers.utils import FILETYPER
 
-# tests: lint,mypy
-
 
 def get_plain_text_reader(encoding: str="utf-8"):
     """Get reader for space-separated tokenized text."""

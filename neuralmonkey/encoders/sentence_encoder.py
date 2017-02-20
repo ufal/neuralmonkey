@@ -1,4 +1,3 @@
-# tests: lint, mypy
 
 from typing import Optional, Any, Tuple
 

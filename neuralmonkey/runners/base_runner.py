@@ -2,7 +2,6 @@ from typing import Any, Dict, Tuple, List, NamedTuple, Union
 import numpy as np
 import tensorflow as tf
 
-# tests: pylint, mypy
 
 # pylint: disable=invalid-name
 FeedDict = Dict[tf.Tensor, Union[int, float, np.ndarray]]

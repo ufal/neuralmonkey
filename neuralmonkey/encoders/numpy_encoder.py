@@ -6,7 +6,6 @@ from neuralmonkey.dataset import Dataset
 from neuralmonkey.encoders.attentive import Attentive
 from neuralmonkey.model.model_part import ModelPart, FeedDict
 
-# tests: lint, mypy
 
 # pylint: disable=too-few-public-methods
 

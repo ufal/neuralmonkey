@@ -2,8 +2,6 @@ import tensorflow as tf
 
 from neuralmonkey.checking import assert_shape
 
-# tests: lint, mypy
-
 
 class PervasiveDropoutWrapper(tf.nn.rnn_cell.RNNCell):
 

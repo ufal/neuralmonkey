@@ -7,7 +7,6 @@ from neuralmonkey.vocabulary import Vocabulary
 from neuralmonkey.model.model_part import ModelPart, FeedDict
 from neuralmonkey.nn.mlp import MultilayerPerceptron
 
-# tests: lint, mypy
 
 # pylint: disable=too-many-instance-attributes
 

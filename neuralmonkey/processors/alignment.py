@@ -3,7 +3,6 @@ from typing import List
 
 import numpy as np
 
-# tests: mypy
 # pylint: disable=too-few-public-methods
 
 ID_SEP = re.compile(r"[-:]")

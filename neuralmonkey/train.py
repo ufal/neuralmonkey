@@ -1,7 +1,6 @@
 """
 This is a training script for sequence to sequence learning.
 """
-# tests: lint, mypy
 
 import sys
 import random

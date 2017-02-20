@@ -19,8 +19,6 @@ from neuralmonkey.runners.base_runner import (BaseRunner, Executable,
                                               ExecutionResult, NextExecute)
 from neuralmonkey.vocabulary import END_TOKEN_INDEX
 
-# tests: mypy,pylint
-
 
 # pylint: disable=invalid-name
 BeamBatch = NamedTuple('BeamBatch',

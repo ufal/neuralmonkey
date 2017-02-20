@@ -1,7 +1,6 @@
 """
 This module provides utility functions used across the package.
 """
-# tests: mypy, lint
 import tensorflow as tf
 
 

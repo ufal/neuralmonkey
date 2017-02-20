@@ -1,5 +1,4 @@
 from typing import Any, Callable, Generator, List
-# tests: lint, mypy
 
 
 def preprocess_char_based(sentence: List[str]) -> List[str]:

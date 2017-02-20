@@ -9,7 +9,6 @@ from neuralmonkey.dataset import Dataset
 from neuralmonkey.learning_utils import run_on_dataset
 from neuralmonkey.run import CONFIG, initialize_for_running
 
-# tests: lint, mypy
 
 APP = Flask(__name__)
 APP.config.from_object(__name__)
