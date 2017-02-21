@@ -1,4 +1,3 @@
-from functools import reduce
 from typing import Any, Dict, List, NamedTuple, Optional, Tuple, Union
 import re
 
@@ -76,8 +75,6 @@ class GenericTrainer(object):
                              for grad, var in gradients
                              if grad is not None]
 
-            self.n_parameters = _number_of_params(gradients)
-
             self.all_coders = set.union(*(collect_encoders(obj.decoder)
                                           for obj in objectives))
 
@@ -143,15 +140,6 @@ def _scale_gradients(gradients: Gradients,
             result.append((tensor, var))
 
     return result
-
-
-def _number_of_params(gradients: Gradients) -> int:
-    n_parameters = 0
-    for grad, var in gradients:
-        if grad is not None:
-            int_shape = [dim.value for dim in var.get_shape()]
-            n_parameters += reduce(lambda a, b: a * b, int_shape, 1)
-    return n_parameters
 
 
 class TrainExecutable(Executable):

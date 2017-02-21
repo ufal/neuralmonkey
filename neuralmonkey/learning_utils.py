@@ -73,11 +73,10 @@ def training_loop(tf_manager: TensorFlowManager,
             "Logging period can't smaller than validation period.")
     _check_series_collisions(runners, postprocess)
 
-    paramstr = "Model has {} trainable parameters".format(trainer.n_parameters)
-    if tf_manager.report_gpu_memory_consumption:
-        paramstr += ", GPU memory usage: {}".format(gpu_memusage())
+    _log_model_variables()
 
-    log(paramstr)
+    if tf_manager.report_gpu_memory_consumption:
+        log("GPU memory usage: {}".format(gpu_memusage()))
 
     # TODO DOCUMENT_THIS
     if runners_batch_size is None:
@@ -572,3 +571,30 @@ def _skip_lines(start_offset: int,
 
     if skipped_instances > 0:
         log("Skipped {} instances".format(skipped_instances))
+
+
+def _log_model_variables() -> None:
+    trainable_vars = tf.trainable_variables()
+    total_params = 0
+
+    logstr = "The model has {} trainable variables:\n\n".format(
+        len(trainable_vars))
+
+    logstr += colored(
+        "{: ^80}{: ^20}{: ^10}\n".format("Variable name", "Shape", "Size"),
+        color="yellow", attrs=["bold"])
+
+    for var in trainable_vars:
+
+        shape = var.get_shape().as_list()
+        params_in_var = int(np.prod(shape))
+        total_params += params_in_var
+
+        log_entry = "{: <80}{: <20}{: >10}".format(var.name, str(shape),
+                                                   params_in_var)
+        logstr += "\n{}".format(log_entry)
+
+    logstr += "\n"
+
+    log(logstr)
+    log("Total number of all parameters: {}".format(total_params))
