@@ -44,7 +44,9 @@ class SequenceLabeler(ModelPart):
             initializer=tf.constant_initializer(- math.log(vocabulary_size)))
 
         logits = [tf.tanh(tf.matmul(state, weights) + biases)
-                  for state in self.encoder.hidden_states]
+                  for state in tf.unpack(self.encoder.hidden_states, axis=1)]
+
+        self.runtime_logprobs = [tf.nn.log_softmax(l) for l in logits]
 
         # [:, 1:] -- bans generating the start symbol (index 0 in
         #            the vocabulary; The start symbol is automatically
@@ -77,6 +79,7 @@ class SequenceLabeler(ModelPart):
 
         self.train_loss = sum(summed_losses_in_time)
         self.runtime_loss = self.train_loss
+        self.cost = self.train_loss
 
         self.dropout_placeholder = tf.placeholder_with_default(
             tf.constant(dropout_keep_prob, tf.float32),
