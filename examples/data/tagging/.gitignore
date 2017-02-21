@@ -1,6 +1,5 @@
-test.tags
-test.txt
-train.tags
-train.txt
-val.tags
-val.txt
+LICENSE
+train.forms-cs
+train.tags-cs.subpos
+val.forms-cs
+val.tags-cs.subpos
