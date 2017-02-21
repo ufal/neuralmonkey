@@ -1,5 +1,6 @@
 import traceback
 from argparse import Namespace
+from typing import Any, Callable
 
 from neuralmonkey.logging import log
 from neuralmonkey.config.builder import build_config
@@ -13,7 +14,7 @@ class Configuration(object):
     """
 
     def __init__(self):
-        self.data_types = {}
+        self.names = []
         self.defaults = {}
         self.conditions = {}
         self.ignored = set()
@@ -22,13 +23,16 @@ class Configuration(object):
         self.model = {}
 
     # pylint: disable=too-many-arguments
-    def add_argument(self, name: str, arg_type=object,
-                     required=False, default=None,
-                     cond=None) -> None:
+    def add_argument(self,
+                     name: str,
+                     required: bool=False,
+                     default: Any=None,
+                     cond: Callable[[Any], bool]=None) -> None:
 
-        if name in self.data_types:
+        if name in self.names:
             raise Exception("Data filed defined multiple times.")
-        self.data_types[name] = arg_type
+        self.names.append(name)
+
         if not required:
             self.defaults[name] = default
         if cond is not None:
@@ -87,10 +91,8 @@ class Configuration(object):
 
     def _check_loaded_conf(self) -> None:
         """ Checks whether there are unexpected or missing fields """
-        expected_fields = set(self.data_types.keys())
-
         expected_missing = []
-        for name in expected_fields:
+        for name in self.names:
             if name not in self.defaults:
                 expected_missing.append(name)
         if expected_missing:
@@ -98,7 +100,7 @@ class Configuration(object):
                             .format(", ".join(expected_missing)))
         unexpected = []
         for name in self.config_dict['main']:
-            if name not in expected_fields and name not in self.ignored:
+            if name not in self.names and name not in self.ignored:
                 unexpected.append(name)
         if unexpected:
             raise Exception("Unexpected fields: {}"

@@ -5,16 +5,15 @@ from neuralmonkey.logging import log, log_print
 from neuralmonkey.config.configuration import Configuration
 from neuralmonkey.learning_utils import (evaluation, run_on_dataset,
                                          print_final_evaluation)
-from neuralmonkey.tf_manager import TensorFlowManager
 
 CONFIG = Configuration()
-CONFIG.add_argument('tf_manager', TensorFlowManager)
-CONFIG.add_argument('output', str)
+CONFIG.add_argument('tf_manager')
+CONFIG.add_argument('output')
 CONFIG.add_argument('postprocess')
-CONFIG.add_argument('evaluation', list)
-CONFIG.add_argument('runners', list)
-CONFIG.add_argument('threads', int, required=False, default=4)
-CONFIG.add_argument('runners_batch_size', int, required=False, default=None)
+CONFIG.add_argument('evaluation')
+CONFIG.add_argument('runners')
+CONFIG.add_argument('threads', required=False, default=4)
+CONFIG.add_argument('runners_batch_size', required=False, default=None)
 # ignore arguments which are just for training
 CONFIG.ignore_argument('val_dataset')
 CONFIG.ignore_argument('trainer')
