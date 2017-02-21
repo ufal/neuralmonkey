@@ -13,43 +13,38 @@ from neuralmonkey.checking import CheckingException, check_dataset_and_coders
 from neuralmonkey.logging import Logging, log
 from neuralmonkey.config.configuration import Configuration
 from neuralmonkey.learning_utils import training_loop
-from neuralmonkey.dataset import Dataset
-from neuralmonkey.tf_manager import TensorFlowManager
 
 
 def create_config() -> Configuration:
     config = Configuration()
 
     # training loop arguments
-    config.add_argument('tf_manager', TensorFlowManager)
-    config.add_argument('epochs', int, cond=lambda x: x >= 0)
+    config.add_argument('tf_manager')
+    config.add_argument('epochs', cond=lambda x: x >= 0)
     config.add_argument('trainer')
-    config.add_argument('batch_size', int, cond=lambda x: x > 0)
-    config.add_argument('train_dataset', Dataset)
-    config.add_argument('val_dataset', Dataset)
-    config.add_argument('output', str)
-    config.add_argument('evaluation', list)
-    config.add_argument('runners', list)
-    config.add_argument('test_datasets', list, required=False, default=[])
-    config.add_argument('logging_period', int, required=False, default=20)
-    config.add_argument('validation_period', int, required=False, default=500)
-    config.add_argument('val_preview_input_series', list,
+    config.add_argument('batch_size', cond=lambda x: x > 0)
+    config.add_argument('train_dataset')
+    config.add_argument('val_dataset')
+    config.add_argument('output')
+    config.add_argument('evaluation')
+    config.add_argument('runners')
+    config.add_argument('test_datasets', required=False, default=[])
+    config.add_argument('logging_period', required=False, default=20)
+    config.add_argument('validation_period', required=False, default=500)
+    config.add_argument('val_preview_input_series',
                         required=False, default=None)
-    config.add_argument('val_preview_output_series', list,
+    config.add_argument('val_preview_output_series',
                         required=False, default=None)
-    config.add_argument('val_preview_num_examples', int,
+    config.add_argument('val_preview_num_examples',
                         required=False, default=15)
-    config.add_argument('train_start_offset', int, required=False, default=0)
-    config.add_argument('runners_batch_size', int,
-                        required=False, default=None)
-    config.add_argument('minimize', bool, required=False, default=False)
+    config.add_argument('train_start_offset', required=False, default=0)
+    config.add_argument('runners_batch_size', required=False, default=None)
+    config.add_argument('minimize', required=False, default=False)
     config.add_argument('postprocess')
-    config.add_argument('name', str)
-    config.add_argument('random_seed', int, required=False)
-    config.add_argument('initial_variables', None,
-                        required=False, default=None)
-    config.add_argument('overwrite_output_dir', bool, required=False,
-                        default=False)
+    config.add_argument('name')
+    config.add_argument('random_seed', required=False)
+    config.add_argument('initial_variables', required=False, default=None)
+    config.add_argument('overwrite_output_dir', required=False, default=False)
 
     return config
 
