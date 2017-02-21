@@ -6,13 +6,13 @@ from neuralmonkey.runners.base_runner import (BaseRunner, Executable,
                                               ExecutionResult, NextExecute)
 
 
-class WordAlignmentSaver(BaseRunner):
+class WordAlignmentRunner(BaseRunner):
 
     def __init__(self,
                  output_series: str,
                  encoder,
                  decoder) -> None:
-        super(WordAlignmentSaver, self).__init__(output_series, decoder)
+        super(WordAlignmentRunner, self).__init__(output_series, decoder)
 
         self._encoder = encoder
 
@@ -23,14 +23,14 @@ class WordAlignmentSaver(BaseRunner):
             tf.pack(att_object.attentions_in_time), perm=[1, 2, 0])
         fetches = {'alignment': alignment}
 
-        return WordAlignmentSaverExecutable(self.all_coders, fetches)
+        return WordAlignmentRunnerExecutable(self.all_coders, fetches)
 
     @property
     def loss_names(self) -> List[str]:
         return []
 
 
-class WordAlignmentSaverExecutable(Executable):
+class WordAlignmentRunnerExecutable(Executable):
 
     def __init__(self, all_coders, fetches):
         self.all_coders = all_coders
