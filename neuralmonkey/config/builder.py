@@ -7,7 +7,7 @@ import collections
 import importlib
 from inspect import signature, isclass, isfunction
 
-from neuralmonkey.logging import debug
+from neuralmonkey.logging import debug, warn
 from neuralmonkey.config.exceptions import (ConfigInvalidValueException,
                                             ConfigBuildException)
 
@@ -183,5 +183,10 @@ def build_config(config_dicts, ignore_names):
                     value, config_dicts, existing_objects, 0)
             except Exception as exc:
                 raise ConfigBuildException(key, exc) from None
+
+    existing_names = [x[7:] for x in existing_objects.keys()] + ['main']
+    unused = config_dicts.keys() - existing_names
+    if len(unused) > 0:
+        warn("Configuration contains unused sections: " + str(unused) + ".")
 
     return configuration
