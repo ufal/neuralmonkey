@@ -9,7 +9,7 @@ from lib.subword_nmt.apply_bpe import BPE, encode
 
 
 class BPEPreprocessor(object):
-    """Wrapper class for Byte-Pair-Encoding.
+    """Wrapper class for Byte-Pair Encoding.
 
     Paper: https://arxiv.org/abs/1508.07909
     Code: https://github.com/rsennrich/subword-nmt
