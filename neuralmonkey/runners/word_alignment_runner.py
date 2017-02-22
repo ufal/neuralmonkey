@@ -2,6 +2,8 @@ from typing import Dict, List
 
 import tensorflow as tf
 
+from neuralmonkey.decoders.decoder import Decoder
+from neuralmonkey.model.model_part import ModelPart
 from neuralmonkey.runners.base_runner import (BaseRunner, Executable,
                                               ExecutionResult, NextExecute)
 
@@ -10,8 +12,8 @@ class WordAlignmentRunner(BaseRunner):
 
     def __init__(self,
                  output_series: str,
-                 encoder,
-                 decoder) -> None:
+                 encoder: ModelPart,
+                 decoder: Decoder) -> None:
         super(WordAlignmentRunner, self).__init__(output_series, decoder)
 
         self._encoder = encoder
@@ -36,7 +38,6 @@ class WordAlignmentRunnerExecutable(Executable):
         self.all_coders = all_coders
         self._fetches = fetches
 
-        self.decoded_sentences = []
         self.result = None  # type: Optional[ExecutionResult]
 
     def next_to_execute(self) -> NextExecute:
