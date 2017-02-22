@@ -19,7 +19,9 @@ def linear(inputs, size, scope="LinearProjection"):
         A tensor of shape batch x size
     """
     with tf.variable_scope(scope):
-        return tf.nn.seq2seq.linear(inputs, size, True)
+        # TODO this will be soon deprecated, should be rewrited with
+        # tf.contrib.layers.fully_connected and a support for list of tensors
+        return tf.nn.seq2seq.linear(inputs, size, True, scope=scope)
 
 
 def nonlinear(inputs, size, activation=tf.tanh, scope="NonlinearProjection"):
