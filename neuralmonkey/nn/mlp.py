@@ -19,7 +19,7 @@ class MultilayerPerceptron(object):
                                                dropout_plc=dropout_plc,
                                                scope="deep_output_mlp")
             self.n_params = 0
-            for i, size in enumerate(layer_configuration):
+            for size in layer_configuration:
                 self.n_params += last_layer_size * size
                 last_layer_size = size
 

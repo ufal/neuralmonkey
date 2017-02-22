@@ -77,7 +77,7 @@ def multilayer_projection(input_, layer_sizes, activation=tf.nn.relu,
         for i, size in enumerate(layer_sizes):
             mlp_input = nonlinear(mlp_input, size, activation=activation,
                                   scope="mlp_layer_{}".format(i))
-            if dropout_plc:
+            if dropout_plc is not None:
                 mlp_input = tf.nn.dropout(mlp_input, dropout_plc)
 
     return mlp_input
