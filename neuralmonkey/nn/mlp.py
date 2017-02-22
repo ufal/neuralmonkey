@@ -1,38 +1,31 @@
 import tensorflow as tf
-from neuralmonkey.nn.projection import linear, nonlinear
+from neuralmonkey.nn.projection import linear, multilayer_projection
 
 
-# Should we deprecate this class?
 class MultilayerPerceptron(object):
     """ General implementation of the multilayer perceptron. """
 
     # pylint: disable=too-many-arguments
     def __init__(self, mlp_input, layer_configuration, dropout_plc,
-                 output_size, name='multilayer_perceptron'):
+                 output_size, name='multilayer_perceptron',
+                 activation_fn=tf.nn.relu):
 
         with tf.variable_scope(name):
-            last_layer = mlp_input
             last_layer_size = mlp_input.get_shape()[1].value
 
+            last_layer = multilayer_projection(mlp_input,
+                                               layer_configuration,
+                                               activation=activation_fn,
+                                               dropout_plc=dropout_plc,
+                                               scope="deep_output_mlp")
             self.n_params = 0
             for i, size in enumerate(layer_configuration):
-                last_layer = tf.tanh(
-                    linear(last_layer, size,
-                           scope="dense_layer_{}".format(i + 1)))
-                last_layer = tf.nn.dropout(last_layer, dropout_plc)
                 self.n_params += last_layer_size * size
                 last_layer_size = size
 
             with tf.variable_scope("classification_layer"):
                 self.n_params += last_layer_size * output_size
-                w_out = tf.get_variable(
-                    "W_out", shape=[last_layer_size, output_size])
-
-                b_out = tf.get_variable(
-                    "b_out",
-                    initializer=tf.zeros_initializer([output_size]))
-
-                self.logits = tf.matmul(last_layer, w_out) + b_out
+                self.logits = linear(last_layer, output_size)
 
     @property
     def softmax(self):

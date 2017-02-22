@@ -66,7 +66,7 @@ def maxout(inputs, size, scope="MaxoutProjection"):
         return reshaped
 
 
-def multilayer_projection(input_, layer_sizes, activation=tf.tanh,
+def multilayer_projection(input_, layer_sizes, activation=tf.nn.relu,
                           dropout_plc=None, scope="mlp"):
     mlp_input = input_
 
