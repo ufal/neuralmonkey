@@ -70,7 +70,7 @@ def training_loop(tf_manager: TensorFlowManager,
     """
     if validation_period < logging_period:
         raise AssertionError(
-            "Logging period can't smaller than validation period.")
+            "Validation period can't be smaller than logging period.")
     _check_series_collisions(runners, postprocess)
 
     _log_model_variables()
