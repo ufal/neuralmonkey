@@ -111,7 +111,6 @@ class ImageNet(ModelPart, Attentive):
 
         with tf.variable_scope(self.name):
             if attention_layer is not None:
-
                 if attention_layer not in end_points:
                     raise ValueError(
                         "Network '{}' does not contain endpoint '{}'".format(
