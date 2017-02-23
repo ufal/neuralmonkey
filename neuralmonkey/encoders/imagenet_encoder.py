@@ -11,6 +11,7 @@ import tensorflow.contrib.slim as tf_slim
 import tensorflow.contrib.slim.nets
 # pylint: enable=unused-import
 
+from neuralmonkey.logging import warn
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.encoders.attentive import Attentive
 from neuralmonkey.decoding_function import Attention
@@ -46,18 +47,52 @@ class ImageNet(ModelPart, Attentive):
     WIDTH = 224
     HEIGHT = 224
 
-    # pylint: disable=too-many-arguments
+    # pylint: disable=too-many-arguments,too-many-locals
     def __init__(self,
                  name: str,
                  data_id: str,
                  network_type: str,
-                 output_layer: str,
+                 attention_layer: Optional[str],
+                 attention_state_size: int,
                  attention_type: Type=Attention,
                  fine_tune: bool=False,
+                 encoded_layer: Optional[str]=None,
                  load_checkpoint: Optional[str]=None,
                  save_checkpoint: Optional[str]=None) -> None:
+        """Initlize pre-trained ImageNet network.
+
+        Args:
+            name: Name of the model part (the ImageNet network, will be in its
+                scope, indepently on `name`)
+            data_id: Id of series with images (list of 3D numpy arrays)
+            network_type: Identifier of ImageNet network from TFSlim
+            attention_layer: String identifier of the convolutional map that
+                will be used for attention.
+            attention_state_size: Dimensionality of state projection in
+                attention computation.
+            attention_type: Type of attention.
+            fine_tune: Flag whether the network should be further trained with
+                the rest of the model.
+            encoder_layer: String id of the network layer that will be used as
+                input of a decoder. `None` means averaging the convolutional
+                maps.
+            load_checkpoint: Checkpoint file from which the pre-trained network
+                is loaded.
+            save_checkpoint: Checkpoint file where the encoder is saved after
+                the training. (Makes sense only if `fine_tune` is set to
+                `True`).
+        """
         ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
-        Attentive.__init__(self, attention_type)
+        Attentive.__init__(self, attention_type,
+                           attention_state_size=attention_state_size)
+
+        if attention_layer is None and attention_type is not None:
+            raise ValueError("Attention type is set, although "
+                             "attention layer is not specified.")
+
+        if save_checkpoint is not None and not fine_tune:
+            warn("The ImageNet network is not fine-tuned and still it is set "
+                 "to save after the training is finished.")
 
         self.data_id = data_id
         self._network_type = network_type
@@ -74,17 +109,23 @@ class ImageNet(ModelPart, Attentive):
             _, end_points = net_function(self.input_plc)
 
         with tf.variable_scope(self.name):
-            net_output = end_points[output_layer]
-            if not fine_tune:
-                net_output = tf.stop_gradient(net_output)
-            # pylint: disable=no-member
-            shape = [s.value for s in net_output.get_shape()[1:]]
-            # pylint: enable=no-member
-            self.__attention_tensor = tf.reshape(
-                net_output, [-1, shape[0] * shape[1], shape[2]])
+            if attention_layer is not None:
+                net_output = end_points[attention_layer]
+                if not fine_tune:
+                    net_output = tf.stop_gradient(net_output)
+                # pylint: disable=no-member
+                shape = [s.value for s in net_output.get_shape()[1:]]
+                # pylint: enable=no-member
+                self.__attention_tensor = tf.reshape(
+                    net_output, [-1, shape[0] * shape[1], shape[2]])
 
-            self.encoded = tf.reduce_mean(net_output, [1, 2])
-    # pylint: enable=too-many-arguments
+            if encoded_layer is not None:
+                self.encoded = tf.squeeze(end_points[encoded_layer], [1, 2])
+                if not fine_tune:
+                    self.encoded = tf.stop_gradient(self.encoded)
+            else:
+                self.encoded = tf.reduce_mean(net_output, [1, 2])
+    # pylint: enable=too-many-arguments,too-many-locals
 
     def _init_saver(self) -> None:
         if not self._saver:
