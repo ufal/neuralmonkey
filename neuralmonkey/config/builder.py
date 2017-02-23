@@ -28,7 +28,6 @@ class ClassSymbol(object):
 
         simple_module_path = ".".join(class_parts[:-1])
         try:
-            import tensorflow as tf
             module = importlib.import_module(simple_module_path)
         except ImportError:
             try:

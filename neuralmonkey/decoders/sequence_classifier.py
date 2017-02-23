@@ -23,7 +23,7 @@ class SequenceClassifier(ModelPart):
                  encoders: List[Any],
                  vocabulary: Vocabulary,
                  data_id: str,
-                 layers: List[int]=None,
+                 layers: List[int],
                  activation_fn: Callable[[tf.Tensor], tf.Tensor]=tf.nn.relu,
                  dropout_keep_prob: float=0.5,
                  save_checkpoint: Optional[str]=None,
