@@ -1,4 +1,5 @@
-from typing import List, Optional
+from typing import Callable, List, Optional
+from typeguard import check_argument_types
 
 import tensorflow as tf
 
@@ -15,31 +16,39 @@ class VectorEncoder(ModelPart):
     def __init__(self,
                  name: str,
                  dimension: int,
-                 output_shape: int,
                  data_id: str,
+                 output_shape: Optional[int]=None,
                  save_checkpoint: Optional[str]=None,
                  load_checkpoint: Optional[str]=None) -> None:
         ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
-        self.image_features = tf.placeholder(
+        assert check_argument_types()
+
+        if dimension <= 0:
+            raise ValueError("Input vector dimension must be postive.")
+        if output_shape <= 0:
+            raise ValueError("Output vector dimension must be postive.")
+
+        self.vector = tf.placeholder(
             tf.float32, shape=[None, dimension])
-        self.dimension = dimension
-        self.output_shape = output_shape
         self.data_id = data_id
 
-        self.flat = self.image_features
+        with tf.variable_scope(self.name):
+            if output_shape and dimension != output_shape:
+                project_w = tf.get_variable(
+                    shape=[dimension, output_shape],
+                    name="img_init_proj_W")
+                project_b = tf.get_variable(
+                    name="img_init_b",
+                    initializer=tf.zeros_initializer([output_shape]))
 
-        project_w = tf.get_variable(
-            shape=[dimension, output_shape],
-            name="img_init_proj_W")
-        project_b = tf.get_variable(
-            name="img_init_b",
-            initializer=tf.zeros_initializer([output_shape]))
-
-        self.encoded = tf.tanh(tf.matmul(self.flat, project_w) + project_b)
+                self.encoded = tf.matmul(
+                    self.vector, project_w) + project_b
+            else:
+                self.encoded = self.vector
 
     # pylint: disable=unused-argument
     def feed_dict(self, dataset: Dataset, train: bool=False) -> FeedDict:
-        return {self.image_features: dataset.get_series(self.data_id)}
+        return {self.vector: dataset.get_series(self.data_id)}
 
 
 class PostCNNImageEncoder(ModelPart, Attentive):
@@ -49,22 +58,20 @@ class PostCNNImageEncoder(ModelPart, Attentive):
                  input_shape: List[int],
                  output_shape: int,
                  data_id: str,
-                 dropout_keep_prob: float=1.0,
-                 attention_type=None,
+                 attention_type: Callable=None,
                  save_checkpoint: Optional[str]=None,
                  load_checkpoint: Optional[str]=None) -> None:
-        assert len(input_shape) == 3
         ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
-        Attentive.__init__(attention_type, {})
+        Attentive.__init__(self, attention_type)
+        assert check_argument_types()
 
-        self.input_shape = input_shape
-        self.output_shape = output_shape
+        assert len(input_shape) == 3
+        if output_shape <= 0:
+            raise ValueError("Output vector dimension must be postive.")
+
         self.data_id = data_id
-        self.dropout_keep_prob = dropout_keep_prob
-        self.attention_type = attention_type
 
         with tf.variable_scope(self.name):
-            self.dropout_placeholder = tf.placeholder(tf.float32)
             features_shape = [None] + input_shape  # type: ignore
             self.image_features = tf.placeholder(tf.float32,
                                                  shape=features_shape,
@@ -96,10 +103,5 @@ class PostCNNImageEncoder(ModelPart, Attentive):
     def feed_dict(self, dataset: Dataset, train: bool=False) -> FeedDict:
         res = {}  # type: FeedDict
         res[self.image_features] = dataset.get_series(self.data_id)
-
-        if train:
-            res[self.dropout_placeholder] = self.dropout_keep_prob
-        else:
-            res[self.dropout_placeholder] = 1.0
 
         return res

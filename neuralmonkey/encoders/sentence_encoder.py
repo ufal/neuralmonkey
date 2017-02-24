@@ -1,4 +1,4 @@
-from typing import Optional, Any, Tuple
+from typing import Callable, Optional, Tuple
 
 import tensorflow as tf
 from typeguard import check_argument_types
@@ -12,7 +12,6 @@ from neuralmonkey.dataset import Dataset
 from neuralmonkey.vocabulary import Vocabulary
 
 # pylint: disable=invalid-name
-AttType = Any  # Type[] or union of types do not work here
 RNNCellTuple = Tuple[tf.nn.rnn_cell.RNNCell, tf.nn.rnn_cell.RNNCell]
 # pylint: enable=invalid-name
 
@@ -35,7 +34,7 @@ class SentenceEncoder(ModelPart, Attentive):
                  embedding_size: int,
                  rnn_size: int,
                  dropout_keep_prob: float=1.0,
-                 attention_type: Optional[AttType]=None,
+                 attention_type: Optional[Callable]=None,
                  attention_fertility: int=3,
                  use_noisy_activations: bool=False,
                  parent_encoder: Optional["SentenceEncoder"]=None,
@@ -78,6 +77,9 @@ class SentenceEncoder(ModelPart, Attentive):
         self.dropout_keep_p = dropout_keep_prob
         self.use_noisy_activations = use_noisy_activations
         self.parent_encoder = parent_encoder
+
+        if max_input_len <= 0:
+            raise ValueError("Input length must be non-negative.")
 
         log("Initializing sentence encoder, name: '{}'"
             .format(self.name))
