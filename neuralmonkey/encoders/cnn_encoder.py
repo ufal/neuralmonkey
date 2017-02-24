@@ -5,6 +5,8 @@ from typing import List, Tuple, Type, Optional
 import numpy as np
 import tensorflow as tf
 
+from tensorflow.contrib.layers import conv2d, max_pool2d, batch_norm
+
 from neuralmonkey.checking import assert_shape
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.encoders.attentive import Attentive
@@ -52,21 +54,21 @@ class CNNEncoder(ModelPart, Attentive):
         """Initialize a convolutional network for image processing.
 
         Args:
-            convolutions (list): Configuration convolutional layers. It is a
-                list of tripplets of integers where the values are: size of the
+            convolutions: Configuration of convolutional layers. It is a list
+                of triplets of integers where the values are: size of the
                 convolutional window, number of convolutional filters, and size
                 of max-pooling window. If the max-pooling size is set to None,
                 no pooling is performed.
             data_id: Identifier of the data series in the dataset.
             image_height: Height of the input image in pixels.
-            image_width: Width of the images (padded)
+            image_width: Width of the image.
             pixel_dim: Number of color channels in the input images.
             batch_normalization: Flag whether the batch normalization
                 should be used between the convolutional layers.
             local_response_normalization: Flag whether to use local
                 response normalization between the convolutional layers.
-            dropout_placeholder: Placeholder keeping the
-                dropout keeping probability
+            dropout_placeholder: Placeholder keeping the dropout keeping
+                probability.
 
         """
         ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
@@ -105,32 +107,21 @@ class CNNEncoder(ModelPart, Attentive):
                         n_filters,
                         pool_size) in enumerate(convolutions):
                     with tf.variable_scope("cnn_layer_{}".format(i)):
-                        last_layer = _convolution(
-                            last_layer, last_n_channels, filter_size,
-                            n_filters)
+                        last_layer = conv2d(last_layer, n_filters, filter_size)
                         last_n_channels = n_filters
                         self.image_processing_layers.append(last_layer)
 
                         if pool_size:
-                            # TODO do the pooling properly
-                            last_layer = tf.nn.max_pool(
-                                last_layer, [1, 2, 2, 1], [1, 2, 2, 1], "SAME")
-                            last_padding_masks = tf.nn.max_pool(
-                                last_padding_masks, [1, 2, 2, 1],
-                                [1, 2, 2, 1], "SAME")
+                            last_layer = max_pool2d(last_layer, pool_size)
                             self.image_processing_layers.append(last_layer)
-                            assert image_height % 2 == 0
-                            image_height //= 2
-                            assert image_width % 2 == 0
-                            image_width //= 2
 
                         if local_response_normalization:
                             last_layer = tf.nn.local_response_normalization(
                                 last_layer)
 
                         if batch_normalization:
-                            last_layer = _batch_norm(
-                                last_layer, n_filters, self.is_training)
+                            last_layer = batch_norm(
+                                last_layer, is_training=self.is_training)
 
                         last_layer = tf.nn.dropout(
                             last_layer, keep_prob=self.dropout_placeholder)
@@ -141,7 +132,6 @@ class CNNEncoder(ModelPart, Attentive):
             # we average out by the image size -> shape is number
             # channels from the last convolution
             self.encoded = tf.reduce_mean(last_layer, [1, 2])
-            # TODO assert shape
             assert_shape(self.encoded, [None, self.convolutions[-1][1]])
 
             self.__attention_tensor = tf.reshape(
@@ -177,68 +167,3 @@ class CNNEncoder(ModelPart, Attentive):
             f_dict[self.dropout_placeholder] = 1.0
         f_dict[self.is_training] = train
         return f_dict
-
-
-def _convolution(last_layer: tf.Tensor, last_n_channels: int,
-                 filter_size: int, n_filters: int) -> tf.Tensor:
-    """Applies convolution on a filter bank."""
-    conv_w = tf.get_variable(
-        "wieghts",
-        shape=[filter_size, filter_size, last_n_channels, n_filters],
-        initializer=tf.truncated_normal_initializer(stddev=.1))
-    conv_b = tf.get_variable("biases", shape=[n_filters],
-                             initializer=tf.constant_initializer(.1))
-    conv_activation = tf.nn.conv2d(
-        last_layer, conv_w, [1, 1, 1, 1], "SAME") + conv_b
-    assert_shape(conv_activation, [
-        None,
-        last_layer.get_shape()[1].value,
-        last_layer.get_shape()[2].value,
-        filter_size])
-    return tf.nn.relu(conv_activation)
-
-
-# pylint: disable=too-many-locals
-
-
-def _batch_norm(tensor, n_out, phase_train, scope='bn', scale_after_norm=True):
-    """ Batch normalization on convolutional maps.
-
-    Taken from
-    http://stackoverflow.com/questions/33949786/how-could-i-use-batch-normalization-in-tensorflow
-
-    Arguments:
-        tensor:           Tensor, 4D BHWD input maps
-        n_out:       integer, depth of input maps
-        phase_train: boolean tf.Variable, true indicates training phase
-        scope:       string, variable scope
-        rescale_after_norm: whether to rescale the normalization output
-
-    Return:
-        normed:      batch-normalized maps
-
-    """
-
-    with tf.variable_scope(scope):
-        beta = tf.get_variable(
-            name='beta', initializer=tf.zeros_initializer(shape=[n_out]))
-        gamma = tf.get_variable(
-            name="gamma", initializer=tf.ones_initializer(shape=[n_out]),
-            trainable=scale_after_norm)
-
-        batch_mean, batch_var = tf.nn.moments(
-            tensor, [0, 1, 2], name='moments')
-        ema = tf.train.ExponentialMovingAverage(decay=0.9)
-        ema_apply_op = ema.apply([batch_mean, batch_var])
-        ema_mean, ema_var = ema.average(batch_mean), ema.average(batch_var)
-
-        def mean_var_with_update():
-            with tf.control_dependencies([ema_apply_op]):
-                return tf.identity(batch_mean), tf.identity(batch_var)
-        mean, var = tf.cond(phase_train,
-                            mean_var_with_update,
-                            lambda: (ema_mean, ema_var))
-
-        normed = tf.nn.batch_norm_with_global_normalization(
-            tensor, mean, var, beta, gamma, 1e-3, scale_after_norm)
-        return normed
