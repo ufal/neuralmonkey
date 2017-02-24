@@ -12,6 +12,7 @@ from neuralmonkey.dataset import Dataset
 from neuralmonkey.encoders.attentive import Attentive
 from neuralmonkey.decoding_function import Attention
 from neuralmonkey.model.model_part import ModelPart, FeedDict
+from neuralmonkey.nn.projection import multilayer_projection
 
 
 class CNNEncoder(ModelPart, Attentive):
@@ -41,6 +42,7 @@ class CNNEncoder(ModelPart, Attentive):
                  data_id: str,
                  convolutions: List[Tuple[int, int, Optional[int]]],
                  image_height: int, image_width: int, pixel_dim: int,
+                 fully_connected: Optional[List[int]]=None,
                  batch_normalization: bool=True,
                  local_response_normalization: bool=True,
                  dropout_keep_prob: float=0.5,
@@ -63,9 +65,9 @@ class CNNEncoder(ModelPart, Attentive):
                 should be used between the convolutional layers.
             local_response_normalization: Flag whether to use local
                 response normalization between the convolutional layers.
-            dropout_placeholder: Placeholder keeping the dropout keeping
-                probability.
-
+            dropout_keep_prob: Probability of keeping neurons active in
+                dropout. Dropout is done between all convolutional layers and
+                fully connected layer.
         """
         ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
         Attentive.__init__(self, attention_type)
@@ -121,15 +123,25 @@ class CNNEncoder(ModelPart, Attentive):
                 # last_layer shape is batch X height X width X channels
                 last_layer = last_layer * last_padding_masks
 
-            # we average out by the image size -> shape is number
-            # channels from the last convolution
-            self.encoded = tf.reduce_mean(last_layer, [1, 2])
-            assert_shape(self.encoded, [None, convolutions[-1][1]])
-
             # pylint: disable=no-member
             last_height, last_width, last_n_channels = [
                 s.value for s in last_layer.get_shape()[1:]]
             # pylint: enable=no-member
+
+            if fully_connected is None:
+                # we average out by the image size -> shape is number
+                # channels from the last convolution
+                self.encoded = tf.reduce_mean(last_layer, [1, 2])
+                assert_shape(self.encoded, [None, convolutions[-1][1]])
+            else:
+                last_layer_flat = tf.reshape(
+                    last_layer,
+                    [-1, last_width * last_height * last_n_channels])
+                self.encoded = multilayer_projection(
+                    last_layer_flat, fully_connected,
+                    activation=tf.nn.relu,
+                    dropout_plc=self.dropout_placeholder)
+
             self.__attention_tensor = tf.reshape(
                 last_layer, [-1, last_width * last_height, last_n_channels])
 
