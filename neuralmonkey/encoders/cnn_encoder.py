@@ -89,7 +89,6 @@ class CNNEncoder(ModelPart, Attentive):
 
             last_layer = self.input_op
             last_padding_masks = self.padding_masks
-            last_n_channels = pixel_dim
 
             self.is_training = tf.placeholder(tf.bool, name="is_training")
             self.image_processing_layers = []  # type: List[tf.Tensor]
@@ -100,12 +99,13 @@ class CNNEncoder(ModelPart, Attentive):
                         pool_size) in enumerate(convolutions):
                     with tf.variable_scope("cnn_layer_{}".format(i)):
                         last_layer = conv2d(last_layer, n_filters, filter_size)
-                        last_n_channels = n_filters
                         self.image_processing_layers.append(last_layer)
 
                         if pool_size:
                             last_layer = max_pool2d(last_layer, pool_size)
                             self.image_processing_layers.append(last_layer)
+                            last_padding_masks = max_pool2d(
+                                last_padding_masks, pool_size)
 
                         if local_response_normalization:
                             last_layer = tf.nn.local_response_normalization(
@@ -126,12 +126,15 @@ class CNNEncoder(ModelPart, Attentive):
             self.encoded = tf.reduce_mean(last_layer, [1, 2])
             assert_shape(self.encoded, [None, convolutions[-1][1]])
 
+            # pylint: disable=no-member
+            last_height, last_width, last_n_channels = [
+                s.value for s in last_layer.get_shape()[1:]]
+            # pylint: enable=no-member
             self.__attention_tensor = tf.reshape(
-                last_layer, [-1, image_width,
-                             last_n_channels * image_height])
+                last_layer, [-1, last_width * last_height, last_n_channels])
 
-            self.__attention_mask = tf.squeeze(
-                tf.reduce_prod(last_padding_masks, [1]), [2])
+            self.__attention_mask = tf.reshape(
+                last_padding_masks, [-1, last_width * last_height])
 
     @property
     def _attention_tensor(self) -> tf.Tensor:
