@@ -14,9 +14,6 @@ from neuralmonkey.decoding_function import Attention
 from neuralmonkey.model.model_part import ModelPart, FeedDict
 
 
-# pylint: disable=too-many-instance-attributes, too-few-public-methods
-
-
 class CNNEncoder(ModelPart, Attentive):
     """An image encoder.
 
@@ -25,7 +22,6 @@ class CNNEncoder(ModelPart, Attentive):
     encode the image into a single vector.
 
     Attributes:
-
         input_op: Placeholder for the batch of input images
         padding_masks: Placeholder for matrices capturing telling where the
             image has been padded.
@@ -74,11 +70,7 @@ class CNNEncoder(ModelPart, Attentive):
         ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
         Attentive.__init__(self, attention_type)
 
-        self.convolutions = convolutions
         self.data_id = data_id
-        self.image_height = image_height
-        self.image_width = image_width
-        self.pixel_dim = pixel_dim
         self.dropout_keep_prob = dropout_keep_prob
 
         with tf.variable_scope(name):
@@ -132,7 +124,7 @@ class CNNEncoder(ModelPart, Attentive):
             # we average out by the image size -> shape is number
             # channels from the last convolution
             self.encoded = tf.reduce_mean(last_layer, [1, 2])
-            assert_shape(self.encoded, [None, self.convolutions[-1][1]])
+            assert_shape(self.encoded, [None, convolutions[-1][1]])
 
             self.__attention_tensor = tf.reshape(
                 last_layer, [-1, image_width,
