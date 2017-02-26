@@ -76,11 +76,11 @@ class Configuration(object):
 
         self.args = arguments
 
-    def build_model(self) -> None:
+    def build_model(self, warn_unused=False) -> None:
         log("Building model based on the config.")
         self._check_loaded_conf()
         try:
-            model = build_config(self.config_dict, self.ignored)
+            model = build_config(self.config_dict, self.ignored, warn_unused)
         # pylint: disable=broad-except
         except Exception as exc:
             log("Failed to build model: {}".format(exc), color='red')

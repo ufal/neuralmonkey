@@ -158,12 +158,13 @@ def instantiate_class(name, all_dicts, existing_objects, depth):
     return obj
 
 
-def build_config(config_dicts, ignore_names):
+def build_config(config_dicts, ignore_names, warn_unused=False):
     """ Builds the model from the configuration
 
     Arguments:
         config_dicts: The parsed configuration file
         ignore_names: A set of names that should be ignored during the loading.
+        warn_unused: Emit a warning if there are unused sections.
     """
     if "main" not in config_dicts:
         raise Exception("Configuration does not contain the main block.")
@@ -184,9 +185,11 @@ def build_config(config_dicts, ignore_names):
             except Exception as exc:
                 raise ConfigBuildException(key, exc) from None
 
-    existing_names = [x[7:] for x in existing_objects.keys()] + ['main']
-    unused = config_dicts.keys() - existing_names
-    if len(unused) > 0:
-        warn("Configuration contains unused sections: " + str(unused) + ".")
+    if warn_unused:
+        existing_names = [x[7:] for x in existing_objects.keys()] + ['main']
+        unused = config_dicts.keys() - existing_names
+        if len(unused) > 0:
+            warn("Configuration contains unused sections: "
+                 + str(unused) + ".")
 
     return configuration

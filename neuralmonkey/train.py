@@ -137,7 +137,7 @@ def main() -> None:
 
     link_best_vars = "{}.best".format(variables_file_prefix)
 
-    cfg.build_model()
+    cfg.build_model(warn_unused=True)
 
     try:
         check_dataset_and_coders(cfg.model.train_dataset,
