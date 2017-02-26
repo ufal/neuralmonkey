@@ -24,8 +24,7 @@ def linear(inputs, size, scope="LinearProjection"):
         return tf.nn.seq2seq.linear(inputs, size, True, scope=scope)
 
 
-# SUGGESTION: what about using ReLu as a default? It have better results
-def nonlinear(inputs, size, activation=tf.tanh, scope="NonlinearProjection"):
+def nonlinear(inputs, size, activation, scope="NonlinearProjection"):
     """Linear projection with non-linear activation function
 
     y = activation(Wx + b)
