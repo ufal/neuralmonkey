@@ -5,7 +5,7 @@ for RNN outputs.
 import tensorflow as tf
 
 from neuralmonkey.nn.projection import maxout
-from neuralmonkey.nn.mlp import multilayer_perceptron
+from neuralmonkey.nn.projection import multilayer_projection
 
 
 def no_deep_output(prev_state, prev_output, ctx_tensors):
@@ -65,7 +65,7 @@ def mlp_output(layer_sizes, dropout_plc=None, activation=tf.tanh):
     def _projection(prev_state, prev_output, ctx_tensors):
         mlp_input = tf.concat(1, [prev_state, prev_output] + ctx_tensors)
 
-        return multilayer_perceptron(mlp_input, layer_sizes,
+        return multilayer_projection(mlp_input, layer_sizes,
                                      activation=activation,
                                      dropout_plc=dropout_plc,
                                      scope="deep_output_mlp")

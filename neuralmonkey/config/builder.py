@@ -26,21 +26,26 @@ class ClassSymbol(object):
 
         class_name = class_parts[-1]
 
-        # TODO should we not assume that everything is from neuralmonkey?
-        module_name = ".".join(["neuralmonkey"] + class_parts[:-1])
-
+        simple_module_path = ".".join(class_parts[:-1])
         try:
-            module = importlib.import_module(module_name)
-        except ImportError as exc:
-            # if the problem is really importing the module
-            if exc.name == module_name:
-                raise Exception(
-                    ("Interpretation '{}' as type name, module '{}' "
-                     "does not exist. Did you mean file './{}'? \n{}")
-                    .format(self.clazz,
-                            module_name, self.clazz, exc)) from None
-            else:
-                raise
+            module = importlib.import_module(simple_module_path)
+        except ImportError:
+            try:
+                if class_parts[0] == 'tf':
+                    # Due to the architecture of TensorFlow, it must be
+                    # imported this way.
+                    tensorflow = importlib.import_module("tensorflow")
+                    module = getattr(tensorflow, ".".join(class_parts[1:-1]))
+                else:
+                    module_name = ".".join(["neuralmonkey"] + class_parts[:-1])
+                    module = importlib.import_module(module_name)
+            except ImportError as exc:
+                # if the problem is really importing the module
+                if exc.name == module_name:
+                    raise Exception(
+                        "Cannot import module {}.".format(module_name))
+                else:
+                    raise
 
         try:
             clazz = getattr(module, class_name)

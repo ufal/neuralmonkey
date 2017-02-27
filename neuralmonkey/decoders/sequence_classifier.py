@@ -23,18 +23,33 @@ class SequenceClassifier(ModelPart):
                  encoders: List[Any],
                  vocabulary: Vocabulary,
                  data_id: str,
-                 layers: Optional[List[int]]=None,
-                 activation: Callable[[tf.Tensor], tf.Tensor]=tf.tanh,
+                 layers: List[int],
+                 activation_fn: Callable[[tf.Tensor], tf.Tensor]=tf.nn.relu,
                  dropout_keep_prob: float=0.5,
                  save_checkpoint: Optional[str]=None,
                  load_checkpoint: Optional[str]=None) -> None:
+        """Construct a new instance of the sequence classifier.
+        Args:
+            name: Name of the decoder. Should be unique accross all Neural
+                Monkey objects
+            encoders: Input encoders of the decoder
+            vocabulary: Target vocabulary
+            data_id: Target data series
+            layers: List defining structure of the NN. Ini example:
+                    layers=[100,20,5] ;creates classifier with hidden layers of
+                                       size 100, 20, 5 and one output layer
+                                       depending on the size of vocabulary
+            activation_fn: activation function used on the output of each
+                           hidden layer.
+            dropout_keep_prob: Probability of keeping a value during dropout
+        """
         ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
 
         self.encoders = encoders
         self.vocabulary = vocabulary
         self.data_id = data_id
         self.layers = layers
-        self.activation = activation
+        self.activation_fn = activation_fn
         self.dropout_keep_prob = dropout_keep_prob
         self.max_output_len = 1
 
@@ -49,7 +64,8 @@ class SequenceClassifier(ModelPart):
                 tf.int32, shape=[None], name="targets")]
             mlp_input = tf.concat(1, [enc.encoded for enc in encoders])
             mlp = MultilayerPerceptron(
-                mlp_input, layers, self.dropout_placeholder, len(vocabulary))
+                mlp_input, layers, self.dropout_placeholder, len(vocabulary),
+                activation_fn=self.activation_fn)
 
             self.loss_with_gt_ins = tf.reduce_mean(
                 tf.nn.sparse_softmax_cross_entropy_with_logits(
