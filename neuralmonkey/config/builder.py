@@ -43,10 +43,7 @@ class ClassSymbol(object):
                 # if the problem is really importing the module
                 if exc.name == module_name:
                     raise Exception(
-                        ("Interpretation '{}' as type name, module '{}' "
-                         "does not exist. Did you mean file './{}'? \n{}")
-                        .format(self.clazz, module_name, self.clazz,
-                                exc)) from None
+                        "Cannot import module {}.".format(module_name))
                 else:
                     raise
 
