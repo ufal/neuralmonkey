@@ -63,20 +63,26 @@ class TestEncodersInit(unittest.TestCase):
     def _construct_all_objects(self, enc_type, params):
         """Construct all object with given type and param combinations."""
         arg_names = list(params.keys())
-        print(arg_names)
 
         all_args = list(get_all_combinations(arg_names, params))
 
         for args, good in all_args:
             name = ''.join(random.choice(string.ascii_lowercase)
-                           for i in range(100))
-            print(", ".join(["{}={}".format(k, v) for k, v in args.items()]))
+                           for i in range(20))
+            log_args = ", ".join(["{}={}".format(k, v)
+                                  for k, v in args.items()])
             args['name'] = name
-            if good:
-                enc_type(**args)
-            else:
-                with self.assertRaises(Exception):
+
+            try:
+                if good:
                     enc_type(**args)
+                else:
+                    with self.assertRaises(Exception):
+                        enc_type(**args)
+            except Exception:
+                print("FAILED '{}', configuration: {}".format(
+                    enc_type, log_args))
+                raise
 
     def test_sentence_encoder(self):
         self._construct_all_objects(SentenceEncoder, SENTENCE_ENCODER)
