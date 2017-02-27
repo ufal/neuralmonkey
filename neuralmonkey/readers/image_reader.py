@@ -1,7 +1,8 @@
 from typing import Callable, Iterable, List, Optional
 import os
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageFile
+ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 
 def image_reader(prefix="",
@@ -37,7 +38,11 @@ def image_reader(prefix="",
                             ("Image file '{}' no."
                              "{}  does not exist.").format(path, i + 1))
 
-                    image = Image.open(path).convert(mode)
+                    try:
+                        image = Image.open(path).convert(mode)
+                    except IOError:
+                        image = Image.new(mode, (pad_w, pad_h))
+
                     if rescale:
                         _rescale(image, pad_w, pad_h)
                     else:
