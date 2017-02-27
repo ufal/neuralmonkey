@@ -13,6 +13,7 @@ from neuralmonkey.encoders.attentive import Attentive
 from neuralmonkey.decoding_function import Attention
 from neuralmonkey.model.model_part import ModelPart, FeedDict
 from neuralmonkey.nn.projection import multilayer_projection
+from neuralmonkey.nn.utils import dropout
 
 
 class CNNEncoder(ModelPart, Attentive):
@@ -32,7 +33,7 @@ class CNNEncoder(ModelPart, Attentive):
             as an input for the decoder).
         attention_tensor: Tensor computing a batch of attention
             matrices for the decoder.
-        is_training: Placeholder for boolean telleing whether the training
+        train_mode: Placeholder for boolean telleing whether the training
             is running.
     """
 
@@ -78,7 +79,8 @@ class CNNEncoder(ModelPart, Attentive):
         with tf.variable_scope(name):
             self.dropout_placeholder = tf.placeholder(
                 tf.float32, name="dropout")
-            self.is_training = tf.placeholder(tf.bool, name="is_training")
+            self.train_mode = tf.placeholder(tf.bool, shape=[],
+                                             name="mode_placeholder")
             self.input_op = tf.placeholder(
                 tf.float32,
                 shape=(None, image_height, image_width, pixel_dim),
@@ -92,7 +94,6 @@ class CNNEncoder(ModelPart, Attentive):
             last_layer = self.input_op
             last_padding_masks = self.padding_masks
 
-            self.is_training = tf.placeholder(tf.bool, name="is_training")
             self.image_processing_layers = []  # type: List[tf.Tensor]
 
             with tf.variable_scope("convolutions"):
@@ -115,10 +116,10 @@ class CNNEncoder(ModelPart, Attentive):
 
                         if batch_normalization:
                             last_layer = batch_norm(
-                                last_layer, is_training=self.is_training)
+                                last_layer, is_training=self.train_mode)
 
-                        last_layer = tf.nn.dropout(
-                            last_layer, keep_prob=self.dropout_placeholder)
+                        last_layer = dropout(last_layer, dropout_keep_prob,
+                                             self.train_mode)
 
                 # last_layer shape is batch X height X width X channels
                 last_layer = last_layer * last_padding_masks
@@ -172,5 +173,5 @@ class CNNEncoder(ModelPart, Attentive):
             f_dict[self.dropout_placeholder] = self.dropout_keep_prob
         else:
             f_dict[self.dropout_placeholder] = 1.0
-        f_dict[self.is_training] = train
+        f_dict[self.train_mode] = train
         return f_dict
