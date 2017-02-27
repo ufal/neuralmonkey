@@ -224,17 +224,6 @@ class Decoder(ModelPart):
             self.runtime_logprobs = [tf.nn.log_softmax(l)
                                      for l in self.runtime_logits]
 
-            tf.scalar_summary('train_loss_with_gt_intpus',
-                              self.train_loss,
-                              collections=["summary_train"])
-
-            tf.scalar_summary('train_loss_with_decoded_inputs',
-                              self.runtime_loss,
-                              collections=["summary_train"])
-
-            tf.scalar_summary('train_optimization_cost', self.cost,
-                              collections=["summary_train"])
-
             self._visualize_attention()
 
             log("Decoder initalized.")
