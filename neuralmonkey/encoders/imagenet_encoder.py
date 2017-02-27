@@ -42,7 +42,7 @@ SUPPORTED_NETWORKS = {
 
 
 class ImageNet(ModelPart, Attentive):
-    """Pretrained ImageNet network."""
+    """Pre-trained ImageNet network."""
 
     WIDTH = 224
     HEIGHT = 224
@@ -59,21 +59,22 @@ class ImageNet(ModelPart, Attentive):
                  encoded_layer: Optional[str]=None,
                  load_checkpoint: Optional[str]=None,
                  save_checkpoint: Optional[str]=None) -> None:
-        """Initlize pre-trained ImageNet network.
+        """Initialize pre-trained ImageNet network.
 
         Args:
             name: Name of the model part (the ImageNet network, will be in its
-                scope, indepently on `name`)
+                scope, independently on `name`).
             data_id: Id of series with images (list of 3D numpy arrays)
-            network_type: Identifier of ImageNet network from TFSlim
-            attention_layer: String identifier of the convolutional map that
-                will be used for attention.
+            network_type: Identifier of ImageNet network from TFSlim.
+            attention_layer: String identifier of the convolutional map
+                (model's endpoint) that will be used for attention. Check
+                TFSlim documentation for end point specifications.
             attention_state_size: Dimensionality of state projection in
                 attention computation.
             attention_type: Type of attention.
             fine_tune: Flag whether the network should be further trained with
                 the rest of the model.
-            encoder_layer: String id of the network layer that will be used as
+            encoded_layer: String id of the network layer that will be used as
                 input of a decoder. `None` means averaging the convolutional
                 maps.
             load_checkpoint: Checkpoint file from which the pre-trained network
@@ -101,7 +102,7 @@ class ImageNet(ModelPart, Attentive):
 
         if network_type not in SUPPORTED_NETWORKS:
             raise ValueError(
-                "Network '{}' is not amonng the supoort ones ({})".format(
+                "Network '{}' is not among the supoort ones ({})".format(
                     network_type, ", ".join(SUPPORTED_NETWORKS.keys())))
 
         scope, net_function = SUPPORTED_NETWORKS[network_type]
@@ -110,7 +111,22 @@ class ImageNet(ModelPart, Attentive):
 
         with tf.variable_scope(self.name):
             if attention_layer is not None:
+
+                if attention_layer not in end_points:
+                    raise ValueError(
+                        "Network '{}' does not contain endpoint '{}'".format(
+                            network_type, attention_layer))
+
                 net_output = end_points[attention_layer]
+
+                if len(net_output.get_shape()) != 4:
+                    raise ValueError((
+                        "Endpoint '{}' for network '{}' cannot be "
+                        "a convolutional map, its dimensionality is: {}."
+                        ).format(attention_layer, network_type,
+                                 ", ".join([str(d.value) for d in
+                                            net_output.get_shape()])))
+
                 if not fine_tune:
                     net_output = tf.stop_gradient(net_output)
                 # pylint: disable=no-member
@@ -120,6 +136,11 @@ class ImageNet(ModelPart, Attentive):
                     net_output, [-1, shape[0] * shape[1], shape[2]])
 
             if encoded_layer is not None:
+                if encoded_layer not in end_points:
+                    raise ValueError(
+                        "Network '{}' does not contain endpoint '{}'.".format(
+                            network_type, encoded_layer))
+
                 self.encoded = tf.squeeze(end_points[encoded_layer], [1, 2])
                 if not fine_tune:
                     self.encoded = tf.stop_gradient(self.encoded)
