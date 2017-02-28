@@ -27,13 +27,13 @@ dependencies by this command:
 
 .. code-block:: bash
 
-   (nm)$ pip install --upgrade -r --requirements.txt
+   (nm)$ pip install --upgrade -r requirements.txt
 
 For the GPU version install dependencies try this command:
 
 .. code-block:: bash
 
-   (nm)$ pip install --upgrade -r --requirements-gpu.txt
+   (nm)$ pip install --upgrade -r requirements-gpu.txt
 
 If you are using the GPU version, make sure that the ``LD_LIBRARY_PATH``
 environment variable points to ``lib`` and ``lib64`` directories of your CUDA
