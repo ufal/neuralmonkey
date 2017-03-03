@@ -2,7 +2,7 @@ from typing import Any, List
 import numpy as np
 
 
-class Accuracy(object):
+class AccuracyObject(object):
     # pylint: disable=too-few-public-methods
 
     def __init__(self, name="Accuracy"):
@@ -19,3 +19,8 @@ class Accuracy(object):
     def compare_scores(score1: float, score2: float) -> int:
         # the bigger the better
         return (score1 > score2) - (score1 < score2)
+
+
+# pylint: disable=invalid-name
+Accuracy = AccuracyObject()
+# pylint: enable=invalid-name
