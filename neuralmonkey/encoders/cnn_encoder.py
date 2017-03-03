@@ -50,6 +50,7 @@ class CNNEncoder(ModelPart, Attentive):
                  local_response_normalization: bool=True,
                  dropout_keep_prob: float=0.5,
                  attention_type: Type=Attention,
+                 visualize: bool=True,
                  save_checkpoint: Optional[str]=None,
                  load_checkpoint: Optional[str]=None) -> None:
         """Initialize a convolutional network for image processing.
@@ -97,7 +98,8 @@ class CNNEncoder(ModelPart, Attentive):
             last_layer = self.input_op
             last_padding_masks = self.padding_masks
 
-            self.image_processing_layers = []  # type: List[tf.Tensor]
+            self.image_processing_layers = [self.input_op]
+            # type: List[tf.Tensor]
 
             with tf.variable_scope("convolutions"):
                 for i, (filter_size,
@@ -152,6 +154,24 @@ class CNNEncoder(ModelPart, Attentive):
             self._cnn_attention_mask = tf.reshape(
                 last_padding_masks, [-1, last_width * last_height])
 
+            if visualize:
+                self._visualize_convolutions()
+
+    def _visualize_convolutions(self):
+        with tf.variable_scope("cnn_visualization"):
+            for layer in self.image_processing_layers:
+                # pylint: disable=no-member
+                height, width, n_channels = [
+                    s.value for s in layer.get_shape()[1:]]
+                visualization = tf.reshape(
+                    tf.transpose(layer, perm=[0, 3, 1, 2]),
+                    shape=[-1, height * n_channels, width, 1])
+                tf.image_summary(
+                    layer.name, visualization,
+                    collections=["summary_val_plots"],
+                    max_images=16)
+                # pylint: enable=no-member
+
     @property
     def _attention_tensor(self) -> tf.Tensor:
         return self._cnn_attention_tensor
@@ -198,18 +218,21 @@ class CNNRNNEncoder(CNNEncoder):
                  local_response_normalization: bool=True,
                  dropout_keep_prob: float=0.5,
                  attention_type: Type=Attention,
+                 visualize: bool=True,
                  save_checkpoint: Optional[str]=None,
                  load_checkpoint: Optional[str]=None) -> None:
         assert check_argument_types()
         CNNEncoder.__init__(self, name, data_id, convolutions,
                             image_height, image_width, pixel_dim, None,
                             batch_normalization, local_response_normalization,
-                            dropout_keep_prob, attention_type, save_checkpoint,
-                            load_checkpoint)
+                            dropout_keep_prob, attention_type, visualize,
+                            save_checkpoint, load_checkpoint)
 
         last_layer = self.image_processing_layers[-1]
+        # pylint: disable=no-member
         last_height, last_width, last_n_channels = [
             s.value for s in last_layer.get_shape()[1:]]
+        # pylint: enable=no-member
 
         with tf.variable_scope(self._scope):
             with tf.variable_scope("post_cnn_rnn"):
