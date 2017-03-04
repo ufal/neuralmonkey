@@ -30,9 +30,9 @@ class SentenceEncoder(ModelPart, Attentive):
                  name: str,
                  vocabulary: Vocabulary,
                  data_id: str,
-                 max_input_len: int,
                  embedding_size: int,
                  rnn_size: int,
+                 max_input_len: Optional[int]=None,
                  dropout_keep_prob: float=1.0,
                  attention_type: Optional[Callable]=None,
                  attention_fertility: int=3,
@@ -78,8 +78,8 @@ class SentenceEncoder(ModelPart, Attentive):
         self.use_noisy_activations = use_noisy_activations
         self.parent_encoder = parent_encoder
 
-        if max_input_len <= 0:
-            raise ValueError("Input length must be non-negative.")
+        if max_input_len is not None and max_input_len <= 0:
+            raise ValueError("Input length must be positive.")
 
         log("Initializing sentence encoder, name: '{}'"
             .format(self.name))
@@ -209,7 +209,8 @@ class SentenceEncoder(ModelPart, Attentive):
         sentences = dataset.get_series(self.data_id)
 
         vectors, paddings = self.vocabulary.sentences_to_tensor(
-            list(sentences), self.max_input_len, train_mode=train)
+            list(sentences), self.max_input_len, pad_to_max_len=False,
+            train_mode=train)
 
         # as sentences_to_tensor returns lists of shape (time, batch),
         # we need to transpose
