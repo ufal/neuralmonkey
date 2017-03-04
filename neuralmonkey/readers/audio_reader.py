@@ -1,6 +1,9 @@
 from typing import Callable, Iterable, List, Tuple
 
+import io
 import os
+import subprocess
+import sys
 
 import numpy as np
 
@@ -19,13 +22,16 @@ def audio_reader(prefix: str="",
         provided prefix) and returns a list of numpy arrays.
     """
 
-    def load(list_files: List[str]) -> Iterable[Tuple[int, np.ndarray]]:
-        if audio_format == "wav":
-            load_file = wavfile.read
-        else:
-            raise ValueError(
-                "Unsupported audio format: {}".format(audio_format))
+    if audio_format == "wav":
+        load_file = wavfile.read
+    elif audio_format == "sph":
+        load_file = _load_sph
+    else:
+        raise ValueError(
+            "Unsupported audio format: {}".format(audio_format))
 
+
+    def load(list_files: List[str]) -> Iterable[Tuple[int, np.ndarray]]:
         for list_file in list_files:
             with open(list_file) as f_list:
                 for audio_file in f_list:
@@ -33,3 +39,17 @@ def audio_reader(prefix: str="",
                     yield load_file(path)
 
     return load
+
+def _load_sph(path: str):
+    """Read a NIST Sphere audio file using the sph2pipe utility."""
+    process = subprocess.Popen(['sph2pipe', '-f', 'wav', path],
+                               stdout=subprocess.PIPE,
+                               stderr=sys.stderr)
+    data = io.BytesIO(process.stdout.read())
+
+    error_code = process.wait()
+    if error_code != 0:
+        raise RuntimeError("sph2pipe exited with error code {} when "
+                           "processing {}".format(error_code, path))
+
+    return wavfile.read(data)

@@ -2,7 +2,7 @@ import pyter
 
 
 # pylint: disable=too-few-public-methods
-class WEREvalutator(object):
+class WEREvaluator(object):
     """Compute WER using the pyter library."""
     def __init__(self, name="WER"):
         self.name = name
@@ -21,4 +21,4 @@ class WEREvalutator(object):
         return dist_sum / length_sum
 
 
-WER = WEREvalutator()
+WER = WEREvaluator()
