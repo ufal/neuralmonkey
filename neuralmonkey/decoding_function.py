@@ -35,14 +35,11 @@ class Attention(object):
         self.input_weights = input_weights
 
         with tf.variable_scope(scope):
-            self.attn_length = attention_states.get_shape()[1].value
             self.attn_size = attention_states.get_shape()[2].value
 
             # To calculate W1 * h_t we use a 1-by-1 convolution, need to
             # reshape before.
-            self.att_states_reshaped = tf.reshape(
-                self.attention_states,
-                [-1, self.attn_length, 1, self.attn_size])
+            self.att_states_reshaped = tf.expand_dims(self.attention_states, 2)
 
             # Size of query vectors for attention.
             self.attention_vec_size = self.attn_size
@@ -94,7 +91,7 @@ class Attention(object):
             self.attentions_in_time.append(a)
 
             # Now calculate the attention-weighted vector d.
-            d = tf.reduce_sum(tf.reshape(a, [-1, self.attn_length, 1, 1])
+            d = tf.reduce_sum(tf.expand_dims(tf.expand_dims(a, -1), -1)
                               * self.att_states_reshaped, [1, 2])
 
             return tf.reshape(d, [-1, self.attn_size])
@@ -132,8 +129,8 @@ class CoverageAttention(Attention):
 
         logits = tf.reduce_sum(
             self.v * tf.tanh(
-                self.hidden_features + y + self.coverage_weights * tf.reshape(
-                    coverage, [-1, self.attn_length, 1, 1])),
+                self.hidden_features + y + self.coverage_weights *
+                tf.expand_dims(tf.expand_dims(coverage, -1), -1)),
             [2, 3])
 
         return logits

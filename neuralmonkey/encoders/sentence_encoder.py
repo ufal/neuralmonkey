@@ -123,11 +123,11 @@ class SentenceEncoder(ModelPart, Attentive):
                                          name="mode_placeholder")
 
         self.inputs = tf.placeholder(tf.int32,
-                                     shape=[None, self.max_input_len],
+                                     shape=[None, None],
                                      name="encoder_input")
 
         self._input_mask = tf.placeholder(
-            tf.float32, shape=[None, self.max_input_len],
+            tf.float32, shape=[None, None],
             name="encoder_padding")
 
         self.sentence_lengths = tf.to_int32(
