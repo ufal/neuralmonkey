@@ -7,7 +7,7 @@ import os
 import pickle as pickle
 import random
 
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 import numpy as np
 from typeguard import check_argument_types
@@ -354,7 +354,8 @@ class Vocabulary(collections.Sized):
     def sentences_to_tensor(
             self,
             sentences: List[List[str]],
-            max_len: int,
+            max_len: Optional[int]=None,
+            pad_to_max_len: bool=True,
             train_mode: bool=False,
             add_start_symbol: bool=False,
             add_end_symbol: bool=False) -> Tuple[np.ndarray, np.ndarray]:
@@ -362,35 +363,51 @@ class Vocabulary(collections.Sized):
 
         Arguments:
             sentences: List of sentences as lists of tokens.
-            max_len: Maximum lengh of a sentence toward which they will be
-                padded to.
+            max_len: If specified, all sentences will be truncated to this
+                length.
+            pad_to_max_len: If True, the tensor will be padded to `max_len`,
+                even if all of the sentences are shorter. If False, the shape
+                of the tensor will be determined by the maximum length of the
+                sentences in the batch.
             train_mode: Flag whether we are training or not
                 (enables/disables unk sampling).
             add_start_symbol: If True, the `<s>` token will be added to the
                 beginning of each sentence vector. Enabling this option extends
-                the vector size (`max_len`) by one.
+                the maximum length by one.
             add_end_symbol: If True, the `</s>` token will be added to the end
                 of each sentence vector, provided that the sentence is shorter
                 than `max_len`. If not, the end token is not added. Unlike
                 `add_start_symbol`, enabling this option **does not alter**
-                the size of the vectors.
+                the maximum length.
 
         Returns:
             A tuple of a sentence tensor and a padding weight vector.
 
             The shape of the tensor representing the sentences is either
-            (max_len, batch_size) or (max_len, batch_size), depending on
-            the value of the `add_start_symbol` argument.
+            `(batch_max_len, batch_size)` or `(batch_max_len+1, batch_size)`,
+            depending on the value of the `add_start_symbol` argument.
+            `batch_max_len` is the length of the longest sentence in the
+            batch (including the optional `</s>` token), limited by `max_len`
+            (if specified).
 
             The shape of the padding vector is the same as of the sentence
             vector.
         """
-        word_indices = np.full(
-            [max_len, len(sentences)], self.get_word_index(PAD_TOKEN),
-            dtype=np.int32)
-        weights = np.zeros([max_len, len(sentences)])
+        if pad_to_max_len and max_len is not None:
+            batch_max_len = max_len
+        else:
+            batch_max_len = max(len(s) for s in sentences)
+            if add_end_symbol:
+                batch_max_len += 1
+            if max_len is not None:
+                batch_max_len = min(max_len, batch_max_len)
 
-        for i in range(max_len):
+        word_indices = np.full(
+            [batch_max_len, len(sentences)], self.get_word_index(PAD_TOKEN),
+            dtype=np.int32)
+        weights = np.zeros([batch_max_len, len(sentences)])
+
+        for i in range(batch_max_len):
             for j, sent in enumerate(sentences):
                 if i < len(sent):
                     w_idx = (self.get_unk_sampled_word_index(sent[i])
@@ -403,13 +420,9 @@ class Vocabulary(collections.Sized):
                     weights[i, j] = 1
 
         if add_start_symbol:
-            prepend_indices = np.full(
-                [1, len(sentences)], self.get_word_index(START_TOKEN),
-                dtype=np.int32)
-            prepend_weights = np.ones([1, len(sentences)])
-
-            word_indices = np.concatenate((prepend_indices, word_indices))
-            weights = np.concatenate((prepend_weights, weights))
+            word_indices = np.insert(word_indices, 0,
+                                     self.get_word_index(START_TOKEN), axis=0)
+            weights = np.insert(weights, 0, 1, axis=0)
 
         return word_indices, weights
 
