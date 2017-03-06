@@ -172,7 +172,7 @@ def instantiate_class(name: str,
 
 def build_config(config_dicts: Dict[str, Any],
                  ignore_names: Set[str],
-                 warn_unused=False) -> Dict[str, Any]:
+                 warn_unused: bool=False) -> Dict[str, Any]:
     """ Builds the model from the configuration
 
     Arguments:
