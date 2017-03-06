@@ -3,12 +3,16 @@ Module that contains exceptions handled in config parsing and loading
 """
 
 import traceback
+from typing import Any, Optional
 
 
 class IniError(Exception):
     """ Exception caused by error in INI file syntax """
 
-    def __init__(self, line, message, original_exc=None):
+    def __init__(self,
+                 line: int,
+                 message: str,
+                 original_exc: Optional[Exception]=None) -> None:
         """ Creates an instance of the exception.
 
         Arguments:
@@ -22,7 +26,7 @@ class IniError(Exception):
         self.message = message
         self.original_exc = original_exc
 
-    def __str__(self):
+    def __str__(self) -> str:
         """ Converts this exception to string """
 
         msg = "Error on line {}: {}".format(self.line, self.message)
@@ -35,7 +39,7 @@ class IniError(Exception):
 
 class ConfigInvalidValueException(Exception):
 
-    def __init__(self, value, message):
+    def __init__(self, value: Any, message: str) -> None:
         """ Creates an instance of the exception
 
         Arguments:
@@ -46,7 +50,7 @@ class ConfigInvalidValueException(Exception):
         self.value = value
         self.message = message
 
-    def __str__(self):
+    def __str__(self) -> str:
         """ Converts this exception to string """
         return "Error in configuration of {}: {}".format(self.value,
                                                          self.message)
@@ -55,7 +59,8 @@ class ConfigInvalidValueException(Exception):
 class ConfigBuildException(Exception):
     """ Exception caused by error in loading the model """
 
-    def __init__(self, object_name, original_exception):
+    def __init__(self, object_name: str,
+                 original_exception: Exception) -> None:
         """ Creates an instance of the exception
 
         Arguments:
@@ -66,7 +71,7 @@ class ConfigBuildException(Exception):
         self.object_name = object_name
         self.original_exception = original_exception
 
-    def __str__(self):
+    def __str__(self) -> str:
         """ Converts this exception to string"""
 
         trc = "".join(traceback.format_list(traceback.extract_tb(
