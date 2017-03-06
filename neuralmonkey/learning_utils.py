@@ -85,7 +85,13 @@ def training_loop(tf_manager: TensorFlowManager,
     evaluators = [(e[0], e[0], e[1]) if len(e) == 2 else e
                   for e in evaluators]
 
-    main_metric = "{}/{}".format(evaluators[-1][0], evaluators[-1][-1].name)
+    if evaluators:
+        main_metric = "{}/{}".format(evaluators[-1][0],
+                                     evaluators[-1][-1].name)
+    else:
+        main_metric = "{}/{}".format(runners[-1].decoder_data_id,
+                                     runners[-1].loss_names[0])
+
     step = 0
     seen_instances = 0
 
