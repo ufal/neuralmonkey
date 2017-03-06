@@ -40,7 +40,7 @@ class SentenceEncoder(ModelPart, Attentive):
                  parent_encoder: Optional["SentenceEncoder"]=None,
                  save_checkpoint: Optional[str]=None,
                  load_checkpoint: Optional[str]=None) -> None:
-        """Createes a new instance of the sentence encoder
+        """Creates a new instance of the sentence encoder.
 
         Arguments:
             vocabulary: Input vocabulary
