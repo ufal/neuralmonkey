@@ -3,16 +3,19 @@ the configuration file because calling the functions or the class constructors
 directly would be inconvinent or impossible.
 """
 
-import tensorflow as tf
+from typing import Callable, TypeVar
 
+import tensorflow as tf
 
 from neuralmonkey.logging import warn
 import neuralmonkey.vocabulary as vocabulary
 import neuralmonkey.dataset as dataset
 
+T = TypeVar('T')
 
-def deprecated(func):
-    def dep_func(*args, **kwargs):
+
+def deprecated(func: Callable[..., T]) -> Callable[..., T]:
+    def dep_func(*args, **kwargs) -> T:
         warn("Use of deprecated function from "
              + "'neuralmonkey.config.utils'. " +
              "Use '{}' instead.".format(func.__module__[13:]
@@ -30,13 +33,13 @@ vocabulary_from_dataset = deprecated(vocabulary.from_dataset)
 initialize_vocabulary = vocabulary.initialize_vocabulary
 
 
-def adam_optimizer(learning_rate=1e-4):
+def adam_optimizer(learning_rate: float=1e-4) -> tf.train.AdamOptimizer:
     return tf.train.AdamOptimizer(learning_rate)
 
 
-def adadelta_optimizer(**kwargs):
+def adadelta_optimizer(**kwargs) -> tf.train.AdadeltaOptimizer:
     return tf.train.AdadeltaOptimizer(**kwargs)
 
 
-def variable(initial_value=0, trainable=False, **kwargs):
+def variable(initial_value=0, trainable: bool=False, **kwargs) -> tf.Variable:
     return tf.Variable(initial_value, trainable, **kwargs)

@@ -6,6 +6,7 @@ specified by the experiment configuration
 import collections
 import importlib
 from inspect import signature, isclass, isfunction
+from typing import Any, Dict, Set
 
 from neuralmonkey.logging import debug, warn
 from neuralmonkey.config.exceptions import (ConfigInvalidValueException,
@@ -18,10 +19,10 @@ class ClassSymbol(object):
     Represents a class (or other callable) in configuration.
     """
 
-    def __init__(self, string):
+    def __init__(self, string: str) -> None:
         self.clazz = string
 
-    def create(self):
+    def create(self) -> Any:
         class_parts = self.clazz.split(".")
 
         class_name = class_parts[-1]
@@ -41,7 +42,7 @@ class ClassSymbol(object):
                     module = importlib.import_module(module_name)
             except ImportError as exc:
                 # if the problem is really importing the module
-                if exc.name == module_name:
+                if exc.name == module_name:  # type: ignore
                     raise Exception(
                         "Cannot import module {}.".format(module_name))
                 else:
@@ -57,7 +58,10 @@ class ClassSymbol(object):
 
 
 # pylint: disable=too-many-return-statements
-def build_object(value, all_dicts, existing_objects, depth):
+def build_object(value: str,
+                 all_dicts: Dict[str, Any],
+                 existing_objects: Dict[str, Any],
+                 depth: int) -> Any:
     """Builds an object from config dictionary of its arguments.
     It works recursively.
 
@@ -112,7 +116,10 @@ def build_object(value, all_dicts, existing_objects, depth):
     return value
 
 
-def instantiate_class(name, all_dicts, existing_objects, depth):
+def instantiate_class(name: str,
+                      all_dicts: Dict[str, Any],
+                      existing_objects: Dict[str, Any],
+                      depth: int) -> Any:
     """ Instantiate a class from the configuration
 
     Arguments: see help(build_object)
@@ -163,7 +170,9 @@ def instantiate_class(name, all_dicts, existing_objects, depth):
     return obj
 
 
-def build_config(config_dicts, ignore_names, warn_unused=False):
+def build_config(config_dicts: Dict[str, Any],
+                 ignore_names: Set[str],
+                 warn_unused: bool=False) -> Dict[str, Any]:
     """ Builds the model from the configuration
 
     Arguments:
@@ -174,11 +183,11 @@ def build_config(config_dicts, ignore_names, warn_unused=False):
     if "main" not in config_dicts:
         raise Exception("Configuration does not contain the main block.")
 
-    existing_objects = collections.OrderedDict()
+    existing_objects = collections.OrderedDict()  # type: Dict[str, Any]
 
     main_config = config_dicts['main']
 
-    configuration = collections.OrderedDict()
+    configuration = collections.OrderedDict()  # type: Dict[str, Any]
     # TODO ensure tf_manager goes last in a better way
     for key, value in sorted(main_config.items(),
                              key=lambda t: t[0] if t[0] != 'tf_manager'
@@ -191,7 +200,7 @@ def build_config(config_dicts, ignore_names, warn_unused=False):
                 raise ConfigBuildException(key, exc) from None
 
     if warn_unused:
-        existing_names = [x[7:] for x in existing_objects.keys()] + ['main']
+        existing_names = {x[7:] for x in existing_objects.keys()} | {'main'}
         unused = config_dicts.keys() - existing_names
         if len(unused) > 0:
             warn("Configuration contains unused sections: "
