@@ -30,8 +30,8 @@ class NoisyGRUCell(tf.nn.rnn_cell.RNNCell):
             with tf.variable_scope("Gates"):  # Reset gate and update gate.
                 # We start with bias of 1.0 to not reset and not update.
                 r, u = tf.split(
-                    1, 2, tf.nn.seq2seq.linear([inputs, state],
-                                               2 * self._num_units, True, 1.0))
+                    tf.nn.seq2seq.linear([inputs, state],
+                                         2 * self._num_units, True, 1.0), 2, 1)
                 r, u = noisy_sigmoid(
                     r, self.training), noisy_sigmoid(u, self.training)
         with tf.variable_scope("Candidate"):
