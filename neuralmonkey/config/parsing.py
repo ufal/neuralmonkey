@@ -145,6 +145,7 @@ def _parse_ini(config_file: Iterable[str], filename: str="") -> Dict[str, Any]:
 
     return new_config
 
+
 def _apply_change(config_dict: Dict[str, Any], setting: str) -> None:
     if '=' not in setting:
         raise Exception('Invalid setting "{}"'.format(setting))
@@ -161,6 +162,7 @@ def _apply_change(config_dict: Dict[str, Any], setting: str) -> None:
         config_dict[section] = OrderedDict()
 
     config_dict[section][option] = -1, value  # no line number
+
 
 def parse_file(config_file: Iterable[str],
                changes: Optional[Iterable[str]]=None) -> Tuple[Dict[str, Any],
@@ -200,6 +202,7 @@ def parse_file(config_file: Iterable[str],
         for name, section in config.items()])
 
     return raw_config, parsed_dicts
+
 
 def write_file(config_dict: Dict[str, Any], config_file: IO[str]) -> None:
     config = configparser.ConfigParser()
