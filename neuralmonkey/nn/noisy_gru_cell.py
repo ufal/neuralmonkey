@@ -70,7 +70,7 @@ def noisy_activation(x, generic, linearized, training, alpha=1.1, c=0.5):
 
     delta = generic(x) - linearized(x)
     d = -tf.sign(x) * tf.sign(1 - alpha)
-    p = tf.get_variable("p", initializer=tf.ones_initializer(shape=[1]))
+    p = tf.get_variable("p", shape=[1], initializer=tf.ones_initializer())
     scale = c * (tf.sigmoid(p * delta) - 0.5) ** 2
     noise = tf.where(training, tf.abs(
         tf.random_normal([])), math.sqrt(2 / math.pi))

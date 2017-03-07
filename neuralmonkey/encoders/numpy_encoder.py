@@ -38,8 +38,8 @@ class VectorEncoder(ModelPart):
                     shape=[dimension, output_shape],
                     name="img_init_proj_W")
                 project_b = tf.get_variable(
-                    name="img_init_b",
-                    initializer=tf.zeros_initializer([output_shape]))
+                    name="img_init_b", shape=[output_shape],
+                    initializer=tf.zeros_initializer())
 
                 self.encoded = tf.matmul(
                     self.vector, project_w) + project_b
@@ -85,8 +85,8 @@ class PostCNNImageEncoder(ModelPart, Attentive):
                 shape=[input_shape[2], output_shape],
                 initializer=tf.random_normal_initializer())
             project_b = tf.get_variable(
-                name="img_init_b",
-                initializer=tf.zeros_initializer([output_shape]))
+                name="img_init_b", shape=[output_shape],
+                initializer=tf.zeros_initializer())
 
             self.encoded = tf.tanh(tf.matmul(self.flat, project_w) + project_b)
 
