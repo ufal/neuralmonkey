@@ -204,11 +204,11 @@ class Decoder(ModelPart):
 
             _, self.train_logits = decode(train_rnn_outputs)
 
-            train_targets = tf.unpack(self.train_inputs)
+            train_targets = tf.unstack(self.train_inputs)
 
             self.train_loss = tf.nn.seq2seq.sequence_loss(
                 self.train_logits, train_targets,
-                tf.unpack(self.train_padding), len(self.vocabulary))
+                tf.unstack(self.train_padding), len(self.vocabulary))
             self.cost = self.train_loss
 
             self.train_logprobs = [tf.nn.log_softmax(l)
@@ -219,7 +219,7 @@ class Decoder(ModelPart):
 
             self.runtime_loss = tf.nn.seq2seq.sequence_loss(
                 self.runtime_logits, train_targets,
-                tf.unpack(self.train_padding), len(self.vocabulary))
+                tf.unstack(self.train_padding), len(self.vocabulary))
 
             self.runtime_logprobs = [tf.nn.log_softmax(l)
                                      for l in self.runtime_logits]
@@ -423,7 +423,7 @@ class Decoder(ModelPart):
 
         for i, a in enumerate(att_objects):
             alignments = tf.expand_dims(tf.transpose(
-                tf.pack(a.attentions_in_time), perm=[1, 2, 0]), -1)
+                tf.stack(a.attentions_in_time), perm=[1, 2, 0]), -1)
 
             tf.summary.image(
                 "attention_{}".format(i), alignments,

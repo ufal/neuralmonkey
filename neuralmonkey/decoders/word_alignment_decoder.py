@@ -44,7 +44,7 @@ class WordAlignmentDecoder(ModelPart):
         attn_obj = self.decoder.get_attention_object(self.encoder,
                                                      runtime_mode)
 
-        alignment_logits = tf.pack(attn_obj.logits_in_time,
+        alignment_logits = tf.stack(attn_obj.logits_in_time,
                                    name="alignment_logits")
 
         if runtime_mode:

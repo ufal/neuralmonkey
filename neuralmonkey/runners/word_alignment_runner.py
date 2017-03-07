@@ -22,7 +22,7 @@ class WordAlignmentRunner(BaseRunner):
         att_object = self._decoder.get_attention_object(self._encoder,
                                                         train_mode=False)
         alignment = tf.transpose(
-            tf.pack(att_object.attentions_in_time), perm=[1, 2, 0])
+            tf.stack(att_object.attentions_in_time), perm=[1, 2, 0])
         fetches = {'alignment': alignment}
 
         return WordAlignmentRunnerExecutable(self.all_coders, fetches)
