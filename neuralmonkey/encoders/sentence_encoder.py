@@ -165,7 +165,7 @@ class SentenceEncoder(ModelPart, Attentive):
         # directly
         train_mode_batch = tf.fill(tf.shape(variable)[:1], self.train_mode)
         dropped_value = tf.nn.dropout(variable, self.dropout_keep_p)
-        return tf.select(train_mode_batch, dropped_value, variable)
+        return tf.where(train_mode_batch, dropped_value, variable)
 
     def _embed(self, inputs: tf.Tensor) -> tf.Tensor:
         """Embed the input using the embedding matrix and apply dropout
