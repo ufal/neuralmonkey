@@ -32,11 +32,11 @@ class Test(unittest.TestCase):
             tf.GraphKeys.VARIABLES, scope="enc")
 
         sess_1 = tf.Session()
-        sess_1.run(tf.initialize_all_variables())
+        sess_1.run(tf.global_variables_initializer())
         encoder.save(sess_1)
 
         sess_2 = tf.Session()
-        sess_2.run(tf.initialize_all_variables())
+        sess_2.run(tf.global_variables_initializer())
         encoder.load(sess_2)
 
         values_in_sess_1 = sess_1.run(encoders_variables)

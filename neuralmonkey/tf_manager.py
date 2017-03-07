@@ -66,11 +66,12 @@ class TensorFlowManager(object):
         self.saver_max_to_keep = save_n_best
         self.sessions = [tf.Session(config=session_cfg)
                          for _ in range(num_sessions)]
+
         if enable_tf_debug:
             self.sessions = [tf_debug.LocalCLIDebugWrapperSession(sess)
                              for sess in self.sessions]
 
-        init_op = tf.initialize_all_variables()
+        init_op = tf.global_variables_initializer()
         for sess in self.sessions:
             sess.run(init_op)
         self.saver = tf.train.Saver(max_to_keep=self.saver_max_to_keep)
