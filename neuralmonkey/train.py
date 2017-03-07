@@ -6,6 +6,7 @@ import argparse
 import sys
 import random
 import os
+import shlex
 from shutil import copyfile
 import numpy as np
 import tensorflow as tf
@@ -132,7 +133,7 @@ def main() -> None:
             cfg.args.output, cont_index)
 
     with open(args_file, 'w') as file:
-        print('\n'.join(sys.argv), file=file)
+        print(' '.join(shlex.quote(a) for a in sys.argv), file=file)
 
     cfg.save_file(ini_file)
     copyfile(args.config, orig_ini_file)
