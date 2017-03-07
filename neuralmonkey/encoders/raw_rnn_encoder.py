@@ -28,8 +28,8 @@ class RawRNNEncoder(ModelPart, Attentive):
                  name: str,
                  data_id: str,
                  rnn_size: int,
-                 max_input_len: int,
                  input_dimension: int,
+                 max_input_len: Optional[int]=None,
                  dropout_keep_prob: float=1.0,
                  attention_type: Optional[AttType]=None,
                  attention_fertility: int=3,
@@ -77,7 +77,6 @@ class RawRNNEncoder(ModelPart, Attentive):
             self._create_input_placeholders()
 
             self._input_mask = tf.sequence_mask(self._input_lengths,
-                                                maxlen=self.max_input_len,
                                                 dtype=tf.float32)
 
             fw_cell, bw_cell = self.rnn_cells()  # type: RNNCellTuple
@@ -109,7 +108,7 @@ class RawRNNEncoder(ModelPart, Attentive):
                                          name="mode_placeholder")
 
         self.inputs = tf.placeholder(tf.float32,
-                                     shape=[None, self.max_input_len,
+                                     shape=[None, None,
                                             self.input_dimension],
                                      name="encoder_input")
 
@@ -163,9 +162,13 @@ class RawRNNEncoder(ModelPart, Attentive):
         lengths = []
         inputs = []
 
+        max_len = max(x.shape[0] for x in series)
+        if self.max_input_len is not None:
+            max_len = min(self.max_input_len, max_len)
+
         for x in series:
-            length = min(self.max_input_len, x.shape[0])
-            x_padded = np.zeros(shape=(self.max_input_len,) + x.shape[1:],
+            length = min(max_len, x.shape[0])
+            x_padded = np.zeros(shape=(max_len,) + x.shape[1:],
                                 dtype=x.dtype)
             x_padded[:length] = x[:length]
 
