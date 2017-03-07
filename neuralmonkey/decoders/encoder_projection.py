@@ -62,7 +62,7 @@ def linear_encoder_projection(
                              " of encoder projection")
 
         with tf.variable_scope("encoders_projection") as scope:
-            encoded_concat = tf.concat(1, [e.encoded for e in encoders])
+            encoded_concat = tf.concat([e.encoded for e in encoders], 1)
             encoded_concat = dropout(
                 encoded_concat, dropout_keep_prob, train_mode)
 
@@ -90,7 +90,7 @@ def concat_encoder_projection(
         assert rnn_size == sum(e.encoded.get_shape()[1].value
                                for e in encoders)
 
-    encoded_concat = tf.concat(1, [e.encoded for e in encoders])
+    encoded_concat = tf.concat([e.encoded for e in encoders], 1)
 
     # pylint: disable=no-member
     log("The inferred rnn_size of this encoder projection will be {}"

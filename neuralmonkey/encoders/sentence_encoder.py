@@ -96,13 +96,13 @@ class SentenceEncoder(ModelPart, Attentive):
                 fw_cell, bw_cell, embedded_inputs, self.sentence_lengths,
                 dtype=tf.float32)
 
-            self.hidden_states = tf.concat(2, outputs_bidi_tup)
+            self.hidden_states = tf.concat(outputs_bidi_tup, 2)
 
             with tf.variable_scope('attention_tensor'):
                 self.__attention_tensor = self._dropout(
                     self.hidden_states)
 
-            self.encoded = tf.concat(1, encoded_tup)
+            self.encoded = tf.concat(encoded_tup, 1)
 
         log("Sentence encoder initialized")
 

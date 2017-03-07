@@ -62,7 +62,7 @@ class SequenceClassifier(ModelPart):
                 tf.placeholder(tf.float32, name="dropout_plc")
             self.gt_inputs = [tf.placeholder(
                 tf.int32, shape=[None], name="targets")]
-            mlp_input = tf.concat(1, [enc.encoded for enc in encoders])
+            mlp_input = tf.concat([enc.encoded for enc in encoders], 1)
             mlp = MultilayerPerceptron(
                 mlp_input, layers, self.dropout_placeholder, len(vocabulary),
                 activation_fn=self.activation_fn)

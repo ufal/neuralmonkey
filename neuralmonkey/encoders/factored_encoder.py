@@ -138,7 +138,7 @@ class FactoredEncoder(ModelPart, Attentive):
         # factors is a 2D list of embeddings of dims [factor-type, time-step]
         # by doing zip(*factors), we get a list of (factor-type) embedding
         # tuples indexed by the time step
-        concatenated_factors = [tf.concat(1, related_factors)
+        concatenated_factors = [tf.concat(related_factors, 1)
                                 for related_factors in zip(*factors)]
         assert_shape(concatenated_factors[0],
                      [None, sum(self.embedding_sizes)])
@@ -151,12 +151,13 @@ class FactoredEncoder(ModelPart, Attentive):
         self.outputs_bidi = bidi_layer.outputs_bidi
         self.encoded = bidi_layer.encoded
 
-        self.__attention_tensor = tf.concat(1, [tf.expand_dims(o, 1)
-                                                for o in self.outputs_bidi])
+        self.__attention_tensor = tf.concat([tf.expand_dims(o, 1)
+                                             for o in self.outputs_bidi], 1)
+
         self.__attention_tensor = tf.nn.dropout(self.__attention_tensor,
                                                 self.dropout_placeholder)
         self.__attention_mask = tf.concat(
-            1, [tf.expand_dims(w, 1) for w in self.padding_weights])
+            [tf.expand_dims(w, 1) for w in self.padding_weights], 1)
 
     # pylint: disable=too-many-locals
     def feed_dict(self, dataset, train=False):
