@@ -56,7 +56,7 @@ class WordAlignmentDecoder(ModelPart):
             alignment = None
 
             xent = tf.nn.softmax_cross_entropy_with_logits(
-                alignment_logits, self.alignment_target)
+                labels=self.alignment_target, logits=alignment_logits)
             loss = tf.reduce_sum(xent * self.decoder.train_padding)
 
         return alignment, loss
