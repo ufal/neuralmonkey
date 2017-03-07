@@ -78,7 +78,7 @@ class PostCNNImageEncoder(ModelPart, Attentive):
                                                  name="image_input")
 
             self.flat = tf.reduce_mean(self.image_features,
-                                       reduction_indices=[1, 2],
+                                       axis=[1, 2],
                                        name="average_image")
             project_w = tf.get_variable(
                 name="img_init_proj_W",
