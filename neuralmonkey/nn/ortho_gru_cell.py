@@ -3,7 +3,7 @@ import tensorflow as tf
 from neuralmonkey.nn.init_ops import orthogonal_initializer
 
 
-class OrthoGRUCell(tf.nn.rnn_cell.GRUCell):
+class OrthoGRUCell(tf.contrib.rnn.GRUCell):
     """Classic GRU cell but initialized using random orthogonal matrices"""
 
     def __call__(self, inputs, state, scope=None):

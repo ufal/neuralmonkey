@@ -306,11 +306,11 @@ class Decoder(ModelPart):
         state = dropout(state, self.dropout_keep_prob, self.train_mode)
         return tf.matmul(state, self.decoding_w) + self.decoding_b
 
-    def _get_rnn_cell(self) -> tf.nn.rnn_cell.RNNCell:
+    def _get_rnn_cell(self) -> tf.contrib.rnn.RNNCell:
         if self._rnn_cell == 'GRU':
-            return tf.nn.rnn_cell.GRUCell(self.rnn_size)
+            return tf.contrib.rnn.GRUCell(self.rnn_size)
         elif self._rnn_cell == 'LSTM':
-            return tf.nn.rnn_cell.LSTMCell(self.rnn_size)
+            return tf.contrib.rnn.LSTMCell(self.rnn_size)
         else:
             raise ValueError("Unknown RNN cell: {}".format(self._rnn_cell))
 
@@ -355,7 +355,7 @@ class Decoder(ModelPart):
                 state = self.initial_state
             elif self._rnn_cell == 'LSTM':
                 # pylint: disable=redefined-variable-type
-                state = tf.nn.rnn_cell.LSTMStateTuple(
+                state = tf.contrib.rnn.LSTMStateTuple(
                     self.initial_state, self.initial_state)
                 # pylint: enable=redefined-variable-type
             else:

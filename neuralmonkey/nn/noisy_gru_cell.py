@@ -2,7 +2,7 @@ import math
 import tensorflow as tf
 
 
-class NoisyGRUCell(tf.nn.rnn_cell.RNNCell):
+class NoisyGRUCell(tf.contrib.rnn.RNNCell):
     """
     Gated Recurrent Unit cell (cf. http://arxiv.org/abs/1406.1078) with noisy
     activation functions (http://arxiv.org/abs/1603.00391). The theano code is

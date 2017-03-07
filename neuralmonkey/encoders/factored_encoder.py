@@ -72,7 +72,7 @@ class FactoredEncoder(ModelPart, Attentive):
 
     def _get_rnn_cell(self):
         """Return the RNN cell for the encoder"""
-        return tf.nn.rnn_cell.GRUCell(self.rnn_size)
+        return tf.contrib.rnn.GRUCell(self.rnn_size)
 
     def _get_birnn_cells(self):
         """Return forward and backward RNN cells for the encoder"""

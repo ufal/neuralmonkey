@@ -12,7 +12,7 @@ from neuralmonkey.dataset import Dataset
 from neuralmonkey.vocabulary import Vocabulary
 
 # pylint: disable=invalid-name
-RNNCellTuple = Tuple[tf.nn.rnn_cell.RNNCell, tf.nn.rnn_cell.RNNCell]
+RNNCellTuple = Tuple[tf.contrib.rnn.RNNCell, tf.contrib.rnn.RNNCell]
 # pylint: enable=invalid-name
 
 
