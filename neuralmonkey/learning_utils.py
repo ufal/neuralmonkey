@@ -128,8 +128,8 @@ def training_loop(tf_manager: TensorFlowManager,
 
     if log_directory:
         log("Initializing TensorBoard summary writer.")
-        tb_writer = tf.train.SummaryWriter(log_directory,
-                                           tf_manager.sessions[0].graph)
+        tb_writer = tf.summary.FileWriter(log_directory,
+                                          tf_manager.sessions[0].graph)
         log("TensorBoard writer initialized.")
 
     best_score_epoch = 0
@@ -393,7 +393,7 @@ def evaluation(evaluators, dataset, runners, execution_results, result_data):
     return eval_result
 
 
-def _log_continuous_evaluation(tb_writer: tf.train.SummaryWriter,
+def _log_continuous_evaluation(tb_writer: tf.summary.FileWriter,
                                tf_manager: TensorFlowManager,
                                main_metric: str,
                                eval_result: Evaluation,

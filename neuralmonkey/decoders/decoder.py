@@ -425,7 +425,7 @@ class Decoder(ModelPart):
             alignments = tf.expand_dims(tf.transpose(
                 tf.pack(a.attentions_in_time), perm=[1, 2, 0]), -1)
 
-            tf.image_summary(
+            tf.summary.image(
                 "attention_{}".format(i), alignments,
                 collections=["summary_val_plots"],
                 max_images=256)

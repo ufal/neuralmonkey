@@ -77,10 +77,10 @@ class SequenceClassifier(ModelPart):
             self.decoded_logits = [mlp.logits]
             self.runtime_logprobs = [tf.nn.log_softmax(mlp.logits)]
 
-            tf.scalar_summary(
+            tf.summary.scalar(
                 'val_optimization_cost', self.cost,
                 collections=["summary_val"])
-            tf.scalar_summary(
+            tf.summary.scalar(
                 'train_optimization_cost',
                 self.cost, collections=["summary_train"])
     # pylint: enable=too-many-arguments

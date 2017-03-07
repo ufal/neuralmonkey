@@ -42,9 +42,9 @@ class GenericTrainer(object):
 
             # unweighted losses for fetching
             self.losses = [o.loss for o in objectives] + [l1_value, l2_value]
-            tf.scalar_summary('train_l1', l1_value,
+            tf.summary.scalar('train_l1', l1_value,
                               collections=["summary_train"])
-            tf.scalar_summary('train_l2', l2_value,
+            tf.summary.scalar('train_l2', l2_value,
                               collections=["summary_train"])
 
             # if the objective does not have its own gradients,
@@ -92,13 +92,13 @@ class GenericTrainer(object):
 
             for grad, var in gradients:
                 if grad is not None:
-                    tf.histogram_summary(
+                    tf.summary.histogram(
                         'gr_' + var.name,
                         grad, collections=["summary_gradients"])
 
-            self.histogram_summaries = tf.merge_summary(
+            self.histogram_summaries = tf.summary.merge(
                 tf.get_collection("summary_gradients"))
-            self.scalar_summaries = tf.merge_summary(
+            self.scalar_summaries = tf.summary.merge(
                 tf.get_collection("summary_train"))
 
     def _get_gradients(self, tensor: tf.Tensor) -> Gradients:

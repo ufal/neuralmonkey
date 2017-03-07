@@ -37,7 +37,7 @@ class WordAlignmentDecoder(ModelPart):
         _, self.train_loss = self._make_decoder(runtime_mode=False)
         self.decoded, self.runtime_loss = self._make_decoder(runtime_mode=True)
 
-        tf.scalar_summary("alignment_train_xent", self.train_loss,
+        tf.summary.scalar("alignment_train_xent", self.train_loss,
                           collections=["summary_train"])
 
     def _make_decoder(self, runtime_mode=False):
