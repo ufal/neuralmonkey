@@ -7,7 +7,6 @@ from neuralmonkey.checking import assert_shape
 from neuralmonkey.model.model_part import ModelPart
 from neuralmonkey.encoders.attentive import Attentive
 from neuralmonkey.logging import log
-from neuralmonkey.nn.bidirectional_rnn_layer import BidirectionalRNNLayer
 from neuralmonkey.vocabulary import Vocabulary
 
 
@@ -144,12 +143,9 @@ class FactoredEncoder(ModelPart, Attentive):
                      [None, sum(self.embedding_sizes)])
         forward_gru, backward_gru = self._get_birnn_cells()
 
-        bidi_layer = BidirectionalRNNLayer(forward_gru, backward_gru,
-                                           concatenated_factors,
-                                           sentence_lengths)
-
-        self.outputs_bidi = bidi_layer.outputs_bidi
-        self.encoded = bidi_layer.encoded
+        self.outputs_bidi, self.encoded = tf.nn.bidirectional_dynamic_rnn(
+            forward_gru, backward_gru, concatenated_factors,
+            sentence_lengths, dtype=tf.float32)
 
         self.__attention_tensor = tf.concat([tf.expand_dims(o, 1)
                                              for o in self.outputs_bidi], 1)

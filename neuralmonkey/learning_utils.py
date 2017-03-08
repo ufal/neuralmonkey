@@ -2,7 +2,6 @@
 # There are too many lines because of these pylint directives.
 
 from typing import Any, Callable, Dict, List, Tuple, Optional, Union, Iterable
-import os
 import numpy as np
 import tensorflow as tf
 from termcolor import colored
@@ -24,6 +23,7 @@ Postprocess = Optional[List[Tuple[SeriesName, Callable]]]
 
 
 # pylint: disable=too-many-arguments, too-many-locals, too-many-branches
+# pylint: disable=too-many-statements
 def training_loop(tf_manager: TensorFlowManager,
                   epochs: int,
                   trainer: GenericTrainer,  # TODO better annotate
@@ -92,8 +92,6 @@ def training_loop(tf_manager: TensorFlowManager,
 
     step = 0
     seen_instances = 0
-
-    save_n_best_vars = tf_manager.saver_max_to_keep
 
     if initial_variables is None:
         # Assume we don't look at coder checkpoints when global

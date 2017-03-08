@@ -75,8 +75,8 @@ class TensorFlowManager(object):
         if save_n_best < 1:
             raise Exception("save_n_best parameter must be greater than zero")
         self.saver_max_to_keep = save_n_best
-
         self.minimize_metric = minimize_metric
+
         self.sessions = [tf.Session(config=session_cfg)
                          for _ in range(num_sessions)]
 
@@ -95,6 +95,19 @@ class TensorFlowManager(object):
                                  "is different than a number sessions ({})")
                                 .format(len(variable_files), num_sessions))
             self.restore(variable_files)
+
+        self.best_score_index = 0
+        self.best_score_epoch = 0
+        self.best_score_batch = 0
+
+        init_score = np.inf if self.minimize_metric else -np.inf
+        self.saved_scores = [init_score for _ in range(self.saver_max_to_keep)]
+        self.best_score = init_score
+
+        self.variables_files = []  # type: List[str]
+        self.link_best_vars = None  # type: str
+
+    # pylint: enable=too-many-arguments
 
     def _is_better(self, score1: float, score2: float) -> bool:
         if self.minimize_metric:
@@ -124,16 +137,9 @@ class TensorFlowManager(object):
             self.variables_files = ["{}.{}".format(vars_prefix, i)
                                     for i in range(self.saver_max_to_keep)]
 
-        init_score = np.inf if self.minimize_metric else -np.inf
-        self.saved_scores = [init_score for _ in range(self.saver_max_to_keep)]
-        self.best_score = init_score
-        self.best_score_index = 0
 
-        self.link_best_vars =  "{}.best".format(vars_prefix)
+        self.link_best_vars = "{}.best".format(vars_prefix)
         self._update_best_symlink(var_index=0)
-
-        self.best_score_epoch = 0
-        self.best_score_batch = 0
 
     def validation_hook(self, score: float, epoch: int, batch: int) -> None:
         if self._is_better(score, self.best_score):
@@ -220,7 +226,7 @@ class TensorFlowManager(object):
 
     def save(self, variable_files: Union[str, List[str]]) -> None:
         if isinstance(variable_files, str) and len(self.sessions) == 1:
-            a = self.saver.save(self.sessions[0], variable_files)
+            self.saver.save(self.sessions[0], variable_files)
             return
 
         if isinstance(variable_files, str):
