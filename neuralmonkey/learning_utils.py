@@ -34,8 +34,6 @@ def training_loop(tf_manager: TensorFlowManager,
                   evaluators: EvalConfiguration,
                   runners: List[BaseRunner],
                   test_datasets: Optional[List[Dataset]]=None,
-                  link_best_vars="/tmp/variables.data.best",
-                  vars_prefix="/tmp/variables.data",
                   logging_period: int=20,
                   validation_period: int=500,
                   val_preview_input_series: Optional[List[str]]=None,
@@ -44,8 +42,7 @@ def training_loop(tf_manager: TensorFlowManager,
                   train_start_offset: int=0,
                   runners_batch_size: Optional[int]=None,
                   initial_variables: Optional[Union[str, List[str]]]=None,
-                  postprocess: Postprocess=None,
-                  minimize_metric: bool=False):
+                  postprocess: Postprocess=None) -> None:
 
     # TODO finish the list
     """
@@ -97,43 +94,20 @@ def training_loop(tf_manager: TensorFlowManager,
     seen_instances = 0
 
     save_n_best_vars = tf_manager.saver_max_to_keep
-    if save_n_best_vars < 1:
-        raise Exception('save_n_best_vars must be greater than zero')
-
-    if save_n_best_vars == 1:
-        variables_files = [vars_prefix]
-    elif save_n_best_vars > 1:
-        variables_files = ['{}.{}'.format(vars_prefix, i)
-                           for i in range(save_n_best_vars)]
-
-    if minimize_metric:
-        saved_scores = [np.inf for _ in range(save_n_best_vars)]
-        best_score = np.inf
-    else:
-        saved_scores = [-np.inf for _ in range(save_n_best_vars)]
-        best_score = -np.inf
 
     if initial_variables is None:
         # Assume we don't look at coder checkpoints when global
         # initial variables are supplied
-        tf_manager.initialize_model_parts(runners + [trainer])  # type: ignore
-        tf_manager.save(variables_files[0])
+        tf_manager.initialize_model_parts(
+            runners + [trainer], save=True)  # type: ignore
     else:
         tf_manager.restore(initial_variables)
-
-    if os.path.islink(link_best_vars):
-        # if overwriting output dir
-        os.unlink(link_best_vars)
-    os.symlink(os.path.basename(variables_files[0]), link_best_vars)
 
     if log_directory:
         log("Initializing TensorBoard summary writer.")
         tb_writer = tf.summary.FileWriter(log_directory,
                                           tf_manager.sessions[0].graph)
         log("TensorBoard writer initialized.")
-
-    best_score_epoch = 0
-    best_score_batch_no = 0
 
     log("Starting training")
     try:
@@ -190,42 +164,7 @@ def training_loop(tf_manager: TensorFlowManager,
                         val_outputs)
 
                     this_score = val_evaluation[main_metric]
-
-                    def is_better(score1, score2, minimize):
-                        if minimize:
-                            return score1 < score2
-                        else:
-                            return score1 > score2
-
-                    def argworst(scores, minimize):
-                        if minimize:
-                            return np.argmax(scores)
-                        else:
-                            return np.argmin(scores)
-
-                    if is_better(this_score, best_score, minimize_metric):
-                        best_score = this_score
-                        best_score_epoch = epoch_n
-                        best_score_batch_no = batch_n
-
-                    worst_index = argworst(saved_scores, minimize_metric)
-                    worst_score = saved_scores[worst_index]
-
-                    if is_better(this_score, worst_score, minimize_metric):
-                        # we need to save this score instead the worst score
-                        worst_var_file = variables_files[worst_index]
-                        tf_manager.save(worst_var_file)
-                        saved_scores[worst_index] = this_score
-                        log("Variable file saved in {}".format(worst_var_file))
-
-                        # update symlink
-                        if best_score == this_score:
-                            os.unlink(link_best_vars)
-                            os.symlink(os.path.basename(worst_var_file),
-                                       link_best_vars)
-
-                        log("Best scores saved so far: {}".format(
-                            saved_scores))
+                    tf_manager.validation_hook(this_score, epoch_n, batch_n)
 
                     log("Validation (epoch {}, batch number {}):"
                         .format(epoch_n, batch_n), color='blue')
@@ -237,16 +176,18 @@ def training_loop(tf_manager: TensorFlowManager,
                                                epochs,
                                                val_results, train=False)
 
-                    if this_score == best_score:
-                        best_score_str = colored("{:.4g}".format(best_score),
-                                                 attrs=['bold'])
+                    if this_score == tf_manager.best_score:
+                        best_score_str = colored(
+                            "{:.4g}".format(tf_manager.best_score),
+                            attrs=['bold'])
                     else:
-                        best_score_str = "{:.4g}".format(best_score)
+                        best_score_str = "{:.4g}".format(tf_manager.best_score)
 
                     log("best {} on validation: {} (in epoch {}, "
                         "after batch number {})"
                         .format(main_metric, best_score_str,
-                                best_score_epoch, best_score_batch_no),
+                                tf_manager.best_score_epoch,
+                                tf_manager.best_score_batch),
                         color='blue')
 
                     log_print("")
@@ -259,10 +200,11 @@ def training_loop(tf_manager: TensorFlowManager,
         log("Training interrupted by user.")
 
     log("Training finished. Maximum {} on validation data: {:.4g}, epoch {}"
-        .format(main_metric, best_score, best_score_epoch))
+        .format(main_metric, tf_manager.best_score,
+                tf_manager.best_score_epoch))
 
-    if test_datasets and os.path.islink(link_best_vars):
-        tf_manager.restore(link_best_vars)
+    if test_datasets:
+        tf_manager.restore_best_vars()
 
     for dataset in test_datasets:
         test_results, test_outputs = run_on_dataset(

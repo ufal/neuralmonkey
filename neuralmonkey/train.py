@@ -41,7 +41,6 @@ def create_config() -> Configuration:
                         required=False, default=15)
     config.add_argument('train_start_offset', required=False, default=0)
     config.add_argument('runners_batch_size', required=False, default=None)
-    config.add_argument('minimize', required=False, default=False)
     config.add_argument('postprocess')
     config.add_argument('name')
     config.add_argument('random_seed', required=False)
@@ -153,9 +152,9 @@ def main() -> None:
     os.system("(cd {}; git --no-pager diff --color=always) > {}"
               .format(repodir, git_diff_file))
 
-    link_best_vars = "{}.best".format(variables_file_prefix)
-
     cfg.build_model(warn_unused=True)
+
+    cfg.model.tf_manager.init_saving(variables_file_prefix)
 
     try:
         check_dataset_and_coders(cfg.model.train_dataset,
@@ -183,8 +182,6 @@ def main() -> None:
         evaluators=cfg.model.evaluation,
         runners=cfg.model.runners,
         test_datasets=cfg.model.test_datasets,
-        link_best_vars=link_best_vars,
-        vars_prefix=variables_file_prefix,
         logging_period=cfg.model.logging_period,
         validation_period=cfg.model.validation_period,
         val_preview_input_series=cfg.model.val_preview_input_series,
@@ -193,5 +190,4 @@ def main() -> None:
         postprocess=cfg.model.postprocess,
         train_start_offset=cfg.model.train_start_offset,
         runners_batch_size=cfg.model.runners_batch_size,
-        initial_variables=cfg.model.initial_variables,
-        minimize_metric=cfg.model.minimize)
+        initial_variables=cfg.model.initial_variables)
