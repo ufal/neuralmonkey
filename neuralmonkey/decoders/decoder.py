@@ -204,11 +204,11 @@ class Decoder(ModelPart):
 
             _, self.train_logits = decode(train_rnn_outputs)
 
-            train_targets = tf.unstack(self.train_inputs)
+            train_targets = tf.transpose(self.train_inputs)
 
-            self.train_loss = tf.nn.seq2seq.sequence_loss(
-                self.train_logits, train_targets,
-                tf.unstack(self.train_padding), len(self.vocabulary))
+            self.train_loss = tf.contrib.seq2seq.sequence_loss(
+                tf.stack(self.train_logits, 1), train_targets,
+                tf.transpose(self.train_padding))
             self.cost = self.train_loss
 
             self.train_logprobs = [tf.nn.log_softmax(l)
@@ -217,9 +217,9 @@ class Decoder(ModelPart):
             self.decoded, self.runtime_logits = decode(
                 self.runtime_rnn_outputs)
 
-            self.runtime_loss = tf.nn.seq2seq.sequence_loss(
-                self.runtime_logits, train_targets,
-                tf.unstack(self.train_padding), len(self.vocabulary))
+            self.runtime_loss = tf.contrib.seq2seq.sequence_loss(
+                tf.stack(self.runtime_logits, 1), train_targets,
+                tf.transpose(self.train_padding))
 
             self.runtime_logprobs = [tf.nn.log_softmax(l)
                                      for l in self.runtime_logits]
