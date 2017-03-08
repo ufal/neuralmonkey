@@ -137,7 +137,6 @@ class TensorFlowManager(object):
             self.variables_files = ["{}.{}".format(vars_prefix, i)
                                     for i in range(self.saver_max_to_keep)]
 
-
         self.link_best_vars = "{}.best".format(vars_prefix)
         self._update_best_symlink(var_index=0)
 
@@ -255,8 +254,8 @@ class TensorFlowManager(object):
 
     def restore_best_vars(self) -> None:
         # TODO warn when link does not exist
-        #if os.path.islink(self.link_best_vars):
-        #    self.restore(self.link_best_vars)
+        # if os.path.islink(self.link_best_vars):
+        #     self.restore(self.link_best_vars)
         self.restore(self.variables_files[self.best_score_index])
 
     def initialize_model_parts(self, runners, save=False) -> None:
