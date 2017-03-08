@@ -100,7 +100,7 @@ class TensorFlowManager(object):
         if self.minimize_metric:
             return score1 < score2
         else:
-            return score2 > score1
+            return score1 > score2
 
     def _argworst(self, scores: List[float]) -> int:
         if self.minimize_metric:
@@ -136,7 +136,6 @@ class TensorFlowManager(object):
         self.best_score_batch = 0
 
     def validation_hook(self, score: float, epoch: int, batch: int) -> None:
-
         if self._is_better(score, self.best_score):
             self.best_score = score
             self.best_score_epoch = epoch
@@ -149,11 +148,11 @@ class TensorFlowManager(object):
             # we need to save this score instead the worst score
             worst_var_file = self.variables_files[worst_index]
             self.save(worst_var_file)
-            self.saved_scores[worst_index] = this_score
+            self.saved_scores[worst_index] = score
             log("Variable file saved in {}".format(worst_var_file))
 
             # update symlink and best score index
-            if self.best_score == this_score:
+            if self.best_score == score:
                 self._update_best_symlink(worst_index)
                 self.best_score_index = worst_index
 
