@@ -428,7 +428,7 @@ class Decoder(ModelPart):
             tf.summary.image(
                 "attention_{}".format(i), alignments,
                 collections=["summary_val_plots"],
-                max_images=256)
+                max_outputs=256)
 
     def feed_dict(self, dataset: Dataset, train: bool=False) -> FeedDict:
         """Populate the feed dictionary for the decoder object
