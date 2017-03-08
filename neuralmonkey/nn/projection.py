@@ -19,9 +19,14 @@ def linear(inputs, size, scope="LinearProjection"):
         A tensor of shape batch x size
     """
     with tf.variable_scope(scope):
-        # TODO this will be soon deprecated, should be rewrited with
-        # tf.contrib.layers.fully_connected and a support for list of tensors
-        return tf.nn.seq2seq.linear(inputs, size, True, scope=scope)
+        if isinstance(inputs, list):
+            # if there is a list of tensor on the input, concatenate along
+            # the last dimension and project.
+            inputs = tf.concat(inputs, axis=-1)
+
+        return tf.contrib.layers.fully_connected(
+            inputs, size, biases_initializer=tf.zeros_initializer(),
+            scope=scope)
 
 
 def nonlinear(inputs, size, activation, scope="NonlinearProjection"):
