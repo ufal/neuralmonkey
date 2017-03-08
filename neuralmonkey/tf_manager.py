@@ -109,11 +109,13 @@ class TensorFlowManager(object):
             return np.argmin(scores)
 
     def _update_best_symlink(self, var_index: int) -> None:
-
         if os.path.islink(self.link_best_vars):
             os.unlink(self.link_best_vars)
-        os.symlink(os.path.basename(self.variables_files[var_index]),
-                   self.link_best_vars)
+
+        target_file = "{}.index".format(
+            os.path.basename(self.variables_files[var_index]))
+
+        os.symlink(target_file, self.link_best_vars)
 
     def init_saving(self, vars_prefix: str) -> None:
         if self.saver_max_to_keep == 1:
@@ -125,6 +127,7 @@ class TensorFlowManager(object):
         init_score = np.inf if self.minimize_metric else -np.inf
         self.saved_scores = [init_score for _ in range(self.saver_max_to_keep)]
         self.best_score = init_score
+        self.best_score_index = 0
 
         self.link_best_vars =  "{}.best".format(vars_prefix)
         self._update_best_symlink(var_index=0)
@@ -149,9 +152,10 @@ class TensorFlowManager(object):
             self.saved_scores[worst_index] = this_score
             log("Variable file saved in {}".format(worst_var_file))
 
-            # update symlink
+            # update symlink and best score index
             if self.best_score == this_score:
                 self._update_best_symlink(worst_index)
+                self.best_score_index = worst_index
 
             log("Best scores saved so far: {}".format(
                 self.saved_scores))
@@ -217,7 +221,7 @@ class TensorFlowManager(object):
 
     def save(self, variable_files: Union[str, List[str]]) -> None:
         if isinstance(variable_files, str) and len(self.sessions) == 1:
-            self.saver.save(self.sessions[0], variable_files)
+            a = self.saver.save(self.sessions[0], variable_files)
             return
 
         if isinstance(variable_files, str):
@@ -246,9 +250,9 @@ class TensorFlowManager(object):
 
     def restore_best_vars(self) -> None:
         # TODO warn when link does not exist
-        if os.path.islink(self.link_best_vars):
-            self.restore(self.link_best_vars)
-
+        #if os.path.islink(self.link_best_vars):
+        #    self.restore(self.link_best_vars)
+        self.restore(self.variables_files[self.best_score_index])
 
     def initialize_model_parts(self, runners, save=False) -> None:
         """Initialize model parts variables from their checkpoints."""
