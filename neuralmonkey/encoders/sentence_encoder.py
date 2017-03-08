@@ -93,7 +93,8 @@ class SentenceEncoder(ModelPart, Attentive):
 
             fw_cell, bw_cell = self.rnn_cells()  # type: RNNCellTuple
             outputs_bidi_tup, encoded_tup = tf.nn.bidirectional_dynamic_rnn(
-                fw_cell, bw_cell, embedded_inputs, self.sentence_lengths,
+                fw_cell, bw_cell, embedded_inputs,
+                sequence_length=self.sentence_lengths,
                 dtype=tf.float32)
 
             self.hidden_states = tf.concat(outputs_bidi_tup, 2)

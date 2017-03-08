@@ -7,5 +7,5 @@ class OrthoGRUCell(tf.contrib.rnn.GRUCell):
 
     def __call__(self, inputs, state, scope=None):
         with tf.variable_scope(scope or "OrthoGRUCell") as vscope:
-            vscope.set_initializer(tf.orthogonal_initializer)
+            vscope.set_initializer(tf.orthogonal_initializer())
             return super().__call__(inputs, state, vscope)
