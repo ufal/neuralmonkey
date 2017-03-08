@@ -5,11 +5,12 @@ import configparser
 import re
 import time
 # pylint: disable=unused-import
-from typing import Any, Dict, Callable, Iterable, List, Tuple, Optional
+from typing import Any, Dict, Callable, Iterable, IO, List, Tuple, Optional
 # pylint: enable=unused-import
 
 from neuralmonkey.config.builder import ClassSymbol
 from neuralmonkey.config.exceptions import IniError
+from neuralmonkey.logging import log
 
 LINE_NUM = re.compile(r"^(.*) ([0-9]+)$")
 
@@ -145,13 +146,37 @@ def _parse_ini(config_file: Iterable[str], filename: str="") -> Dict[str, Any]:
     return new_config
 
 
-def parse_file(config_file: Iterable[str]) -> Dict[str, Any]:
+def _apply_change(config_dict: Dict[str, Any], setting: str) -> None:
+    if '=' not in setting:
+        raise Exception('Invalid setting "{}"'.format(setting))
+    key, value = (s.strip() for s in setting.split('=', maxsplit=1))
+
+    if '.' in key:
+        section, option = key.split('.', maxsplit=1)
+    else:
+        section = 'main'
+        option = key
+
+    if section not in config_dict:
+        log("Creating new section '{}'".format(section))
+        config_dict[section] = OrderedDict()
+
+    config_dict[section][option] = -1, value  # no line number
+
+
+def parse_file(config_file: Iterable[str],
+               changes: Optional[Iterable[str]]=None) -> Tuple[Dict[str, Any],
+                                                               Dict[str, Any]]:
     """ Parses an INI file and creates all values """
 
     parsed_dicts = OrderedDict()  # type: Dict[str, Any]
     time_stamp = time.strftime("%Y-%m-%d-%H-%M-%S")
 
     config = _parse_ini(config_file)
+
+    if changes is not None:
+        for change in changes:
+            _apply_change(config, change)
 
     for section in config:
         parsed_dicts[section] = OrderedDict()
@@ -171,4 +196,15 @@ def parse_file(config_file: Iterable[str]) -> Dict[str, Any]:
 
             parsed_dicts[section][key] = value
 
-    return parsed_dicts
+    # also return the unparsed config dict; need to remove line numbers
+    raw_config = OrderedDict([
+        (name, OrderedDict([(key, val) for key, (_, val) in section.items()]))
+        for name, section in config.items()])
+
+    return raw_config, parsed_dicts
+
+
+def write_file(config_dict: Dict[str, Any], config_file: IO[str]) -> None:
+    config = configparser.ConfigParser()
+    config.read_dict(config_dict)
+    config.write(config_file, space_around_delimiters=False)

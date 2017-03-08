@@ -1,10 +1,10 @@
 import traceback
 from argparse import Namespace
-from typing import Any, Callable
+from typing import Any, Callable, List, Optional
 
 from neuralmonkey.logging import log
 from neuralmonkey.config.builder import build_config
-from neuralmonkey.config.parsing import parse_file
+from neuralmonkey.config.parsing import parse_file, write_file
 
 
 class Configuration(object):
@@ -18,6 +18,7 @@ class Configuration(object):
         self.defaults = {}
         self.conditions = {}
         self.ignored = set()
+        self.raw_config = {}
         self.config_dict = {}
         self.args = {}
         self.model = {}
@@ -60,13 +61,14 @@ class Configuration(object):
                 n_space.__dict__[name] = value
         return n_space
 
-    def load_file(self, path: str) -> None:
+    def load_file(self, path: str, changes: Optional[List[str]]=None) -> None:
         log("Loading INI file: '{}'".format(path), color='blue')
 
         try:
             with open(path, 'r', encoding='utf-8') as file:
-                self.config_dict = parse_file(file)
+                self.raw_config, self.config_dict = parse_file(file, changes)
             log("INI file is parsed.")
+
             arguments = self.make_namespace(self.config_dict['main'])
         # pylint: disable=broad-except
         except Exception as exc:
@@ -105,3 +107,7 @@ class Configuration(object):
         if unexpected:
             raise Exception("Unexpected fields: {}"
                             .format(", ".join(unexpected)))
+
+    def save_file(self, path: str) -> None:
+        with open(path, 'w', encoding='utf-8') as file:
+            write_file(self.raw_config, file)
