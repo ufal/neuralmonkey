@@ -13,6 +13,7 @@ from typing import Any, List, Union
 # pylint: enable=unused-import
 
 import tensorflow as tf
+from tensorflow.python import debug as tf_debug
 from typeguard import check_argument_types
 
 from neuralmonkey.logging import log
@@ -28,10 +29,12 @@ class TensorFlowManager(object):
         sessions: List of active Tensorflow sessions.
     """
 
+    # pylint: disable=too-many-arguments
     def __init__(self, num_sessions, num_threads, save_n_best=1,
                  variable_files=None, gpu_allow_growth=True,
                  per_process_gpu_memory_fraction=1.0,
-                 report_gpu_memory_consumption=False):
+                 report_gpu_memory_consumption=False,
+                 debug_flag=False):
         """Initialize a TensorflowManager.
 
         At this moment the graph must already exist. This method initializes
@@ -63,6 +66,10 @@ class TensorFlowManager(object):
         self.saver_max_to_keep = save_n_best
         self.sessions = [tf.Session(config=session_cfg)
                          for _ in range(num_sessions)]
+        if debug_flag:
+            self.sessions = [tf_debug.LocalCLIDebugWrapperSession(sess)
+                             for sess in self.sessions]
+
         init_op = tf.initialize_all_variables()
         for sess in self.sessions:
             sess.run(init_op)
