@@ -60,7 +60,7 @@ class SequenceCNNEncoder(ModelPart):
                 tf.float32, shape=[None, None],
                 name="encoder_padding")
 
-            with tf.variable_scope('input_projection'):
+            with tf.variable_scope("input_projection"):
                 self.embedding_matrix = tf.get_variable(
                     "word_embeddings", [len(vocabulary), embedding_size],
                     initializer=tf.random_normal_initializer(stddev=0.01))
