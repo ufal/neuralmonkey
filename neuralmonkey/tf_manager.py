@@ -34,7 +34,7 @@ class TensorFlowManager(object):
                  variable_files=None, gpu_allow_growth=True,
                  per_process_gpu_memory_fraction=1.0,
                  report_gpu_memory_consumption=False,
-                 debug_flag=False):
+                 enable_tf_debug=False):
         """Initialize a TensorflowManager.
 
         At this moment the graph must already exist. This method initializes
@@ -66,7 +66,7 @@ class TensorFlowManager(object):
         self.saver_max_to_keep = save_n_best
         self.sessions = [tf.Session(config=session_cfg)
                          for _ in range(num_sessions)]
-        if debug_flag:
+        if enable_tf_debug:
             self.sessions = [tf_debug.LocalCLIDebugWrapperSession(sess)
                              for sess in self.sessions]
 
