@@ -35,7 +35,7 @@ CONFIG.ignore_argument('overwrite_output_dir')
 
 
 def default_variable_file(output_dir):
-    variables_file = os.path.join(output_dir, "variables.data.best")
+    variables_file = os.path.join(output_dir, "variables.data")
     cont_index = 1
 
     def continuation_file():
@@ -69,8 +69,8 @@ def initialize_for_running(output_dir, tf_manager, variable_files) -> None:
         variable_files = [default_varfile]
 
     for vfile in variable_files:
-        if not os.path.exists(vfile):
-            log("Variable file {} does not exist".format(vfile),
+        if not os.path.exists("{}.index".format(vfile)):
+            log("Index file for var prefix {} does not exist".format(vfile),
                 color="red")
             exit(1)
 
