@@ -143,13 +143,15 @@ class FactoredEncoder(ModelPart, Attentive):
                      [None, sum(self.embedding_sizes)])
         forward_gru, backward_gru = self._get_birnn_cells()
 
-        self.outputs_bidi, self.encoded = tf.nn.bidirectional_dynamic_rnn(
-            forward_gru, backward_gru, concatenated_factors,
+        stacked_factors = tf.stack(concatenated_factors, 1)
+
+        self.outputs_bidi, encoded_tup = tf.nn.bidirectional_dynamic_rnn(
+            forward_gru, backward_gru, stacked_factors,
             sentence_lengths, dtype=tf.float32)
 
-        self.__attention_tensor = tf.concat([tf.expand_dims(o, 1)
-                                             for o in self.outputs_bidi], 1)
+        self.encoded = tf.concat(encoded_tup, 1)
 
+        self.__attention_tensor = tf.concat(self.outputs_bidi, 2)
         self.__attention_tensor = tf.nn.dropout(self.__attention_tensor,
                                                 self.dropout_placeholder)
         self.__attention_mask = tf.concat(

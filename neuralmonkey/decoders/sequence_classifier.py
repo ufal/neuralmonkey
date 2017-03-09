@@ -69,7 +69,7 @@ class SequenceClassifier(ModelPart):
 
             self.loss_with_gt_ins = tf.reduce_mean(
                 tf.nn.sparse_softmax_cross_entropy_with_logits(
-                    mlp.logits, self.gt_inputs[0]))
+                    logits=mlp.logits, labels=self.gt_inputs[0]))
             self.loss_with_decoded_ins = self.loss_with_gt_ins
             self.cost = self.loss_with_gt_ins
 
