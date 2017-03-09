@@ -91,6 +91,7 @@ def training_loop(tf_manager: TensorFlowManager,
     else:
         main_metric = "{}/{}".format(runners[-1].decoder_data_id,
                                      runners[-1].loss_names[0])
+        minimize_metric = True
 
     step = 0
     seen_instances = 0
