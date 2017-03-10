@@ -1,8 +1,8 @@
 .. _developers-guidlines:
 
-======================
-Developers' guidelines
-======================
+=============================
+Internal Development Workflow
+=============================
 
 This is a brief document about the Neural Monkey development workflow. Its
 primary aim is to describe the environment around the Github repository
