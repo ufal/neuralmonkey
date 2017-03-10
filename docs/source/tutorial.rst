@@ -458,6 +458,7 @@ TensorFlow should use, you need to specify a "TensorFlow manager":
   class=tf_manager.TensorFlowManager
   num_threads=4
   num_sessions=1
+  minimize_metric=True
   save_n_best=3
 .. TUTCHECK exp-nm-ape/post-edit.ini
 
@@ -480,7 +481,6 @@ parameters:
   train_dataset=<train_dataset>
   val_dataset=<val_dataset>
   evaluation=[("greedy_edits", "edits", <bleu>), ("greedy_edits", "edits", evaluators.ter.TER)]
-  minimize=True
   batch_size=128
   runners_batch_size=256
   epochs=100
