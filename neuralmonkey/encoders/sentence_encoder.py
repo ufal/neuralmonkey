@@ -1,4 +1,4 @@
-from typing import Callable, Optional, Tuple
+from typing import Optional, Tuple, Any
 
 import tensorflow as tf
 from typeguard import check_argument_types
@@ -34,7 +34,7 @@ class SentenceEncoder(ModelPart, Attentive):
                  rnn_size: int,
                  max_input_len: Optional[int]=None,
                  dropout_keep_prob: float=1.0,
-                 attention_type: Optional[Callable]=None,
+                 attention_type: Optional[Any]=None,
                  attention_fertility: int=3,
                  use_noisy_activations: bool=False,
                  parent_encoder: Optional["SentenceEncoder"]=None,
