@@ -15,7 +15,9 @@ import os
 
 import numpy as np
 import tensorflow as tf
+# pylint: disable=no-name-in-module
 from tensorflow.python import debug as tf_debug
+# pylint: enable=no-name-in-module
 from typeguard import check_argument_types
 
 from neuralmonkey.logging import log
