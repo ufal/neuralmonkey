@@ -1,9 +1,8 @@
 import numpy as np
 
+
 # pylint: disable=too-few-public-methods
-
-
-class Perplexity(object):
+class PerplexityEvaluator(object):
 
     def __init__(self, name="Perplexity"):
         self.name = name
@@ -16,3 +15,8 @@ class Perplexity(object):
         """
 
         return np.mean(perplexities)
+
+
+# pylint: disable=invalid-name
+Perplexity = PerplexityEvaluator()
+# pylint: enable=invalid-name
