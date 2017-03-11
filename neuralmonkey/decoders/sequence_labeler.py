@@ -1,4 +1,3 @@
-import math
 from typing import cast, Iterable, List, Optional
 
 import tensorflow as tf
@@ -66,7 +65,10 @@ class SequenceLabeler(ModelPart):
         #
         # +1 -- because the [:, :, 1:] removed a symbol from argmax
         #       consideration, we need to compensate for the shortened array.
-        return tf.argmax(logits[:, :, 1:], 2) + 1
+
+        # pylint: disable=unsubscriptable-object
+        return tf.argmax(self.logits[:, :, 1:], 2) + 1
+        # pylint: enable=unsubscriptable-object
 
     @tensor
     def logprobs(self) -> tf.Tensor:
@@ -74,7 +76,6 @@ class SequenceLabeler(ModelPart):
 
     @tensor
     def logits(self) -> tf.Tensor:
-
         vocabulary_size = len(self.vocabulary)
 
         weights = tf.get_variable(

@@ -1,4 +1,4 @@
-from typing import Callable, Dict, List
+from typing import Callable, Dict, List, Any
 import numpy as np
 import tensorflow as tf
 
