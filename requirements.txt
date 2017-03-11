@@ -7,4 +7,4 @@ pillow
 git+https://github.com/aflc/pyter@857a1552443f139a3
 pygments
 typeguard
-tensorflow
+tensorflow>=1.0.0
