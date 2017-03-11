@@ -95,7 +95,7 @@ class SequenceCNNEncoder(ModelPart):
                     pooled_outputs.append(pooled)
 
             # Combine all the pooled features
-            self.encoded = tf.concat(1, pooled_outputs)
+            self.encoded = tf.concat(pooled_outputs, axis=1)
     # pylint: enable=too-many-arguments,too-many-locals
 
     def feed_dict(self, dataset: Dataset, train: bool=False) -> FeedDict:
