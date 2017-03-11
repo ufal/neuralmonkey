@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Optional, Any
 from typeguard import check_argument_types
 
 import tensorflow as tf
@@ -8,7 +8,6 @@ from neuralmonkey.model.model_part import ModelPart
 from neuralmonkey.encoders.attentive import Attentive
 from neuralmonkey.logging import log
 from neuralmonkey.nn.bidirectional_rnn_layer import BidirectionalRNNLayer
-from neuralmonkey.nn.noisy_gru_cell import NoisyGRUCell
 from neuralmonkey.vocabulary import Vocabulary
 
 
@@ -24,9 +23,10 @@ class FactoredEncoder(ModelPart, Attentive):
                  data_ids: List[str],
                  embedding_sizes: List[int],
                  rnn_size: int,
+                 dropout_keep_prob: float=1.0,
+                 attention_type: Optional[Any]=None,
                  save_checkpoint: Optional[str]=None,
-                 load_checkpoint: Optional[str]=None,
-                 **kwargs) -> None:
+                 load_checkpoint: Optional[str]=None) -> None:
         """Construct a new instance of the factored encoder.
 
         Args:
@@ -38,14 +38,10 @@ class FactoredEncoder(ModelPart, Attentive):
             rnn_size: The size of the hidden state
 
         Keyword arguments:
-            use_noisy_activations: Boolean flag whether to use noisy activation
-                                   functions in RNN cells.
-                                   (see neuralmonkey.nn.noisy_gru_cell) [False]
             attention_type: The attention to use. [None]
             attention_fertility: Fertility for CoverageAttention (if used). [3]
             dropout_keep_prob: 1 - Dropout probability [1]
         """
-        attention_type = kwargs.get("attention_type", None)
         Attentive.__init__(self, attention_type)
         ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
 
@@ -58,9 +54,7 @@ class FactoredEncoder(ModelPart, Attentive):
         self.max_input_len = max_input_len
         self.rnn_size = rnn_size
 
-        self.dropout_keep_prob = kwargs.get("dropout_keep_prob", 1)
-
-        self.use_noisy_activations = kwargs.get("use_noisy_activations", False)
+        self.dropout_keep_prob = dropout_keep_prob
 
         log("Building encoder graph, name: '{}'.".format(self.name))
         with tf.variable_scope(self.name):
@@ -78,12 +72,7 @@ class FactoredEncoder(ModelPart, Attentive):
 
     def _get_rnn_cell(self):
         """Return the RNN cell for the encoder"""
-        # pylint: disable=redefined-variable-type
-        if self.use_noisy_activations:
-            cell = NoisyGRUCell(self.rnn_size, self.is_training)
-        else:
-            cell = tf.nn.rnn_cell.GRUCell(self.rnn_size)
-        return cell
+        return tf.nn.rnn_cell.GRUCell(self.rnn_size)
 
     def _get_birnn_cells(self):
         """Return forward and backward RNN cells for the encoder"""

@@ -1,4 +1,3 @@
-import codecs
 import re
 from typing import List
 
@@ -15,17 +14,10 @@ class BPEPreprocessor(object):
     Code: https://github.com/rsennrich/subword-nmt
     """
 
-    def __init__(self, **kwargs):
-
-        if "merge_file" not in kwargs:
-            raise Exception("No merge file for BPE preprocessor")
-
+    def __init__(self, merge_file: str, separator: str="@@") -> None:
         log("Initializing BPE preprocessor")
 
-        separator = kwargs.get("separator", "@@")
-        merge_file = kwargs["merge_file"]
-
-        with codecs.open(merge_file, "r", "utf-8") as f_data:
+        with open(merge_file, "r") as f_data:
             self.bpe = BPE(f_data, separator)
 
     def __call__(self, sentence: List[str]) -> List[str]:
@@ -50,10 +42,8 @@ class BPEPreprocessor(object):
 
 class BPEPostprocessor(object):
 
-    def __init__(self, **kwargs):
-        self.separator = kwargs.get("separator", "@@")
-
-        esc = re.escape(self.separator)
+    def __init__(self, separator: str="@@") -> None:
+        esc = re.escape(separator)
         self.pattern = re.compile(esc + r" ")
 
     def __call__(self, decoded_sentences: List[List[str]]) -> List[List[str]]:
