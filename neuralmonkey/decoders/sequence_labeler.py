@@ -46,7 +46,7 @@ class SequenceLabeler(ModelPart):
         logits = [tf.tanh(tf.matmul(state, weights) + biases)
                   for state in tf.unpack(self.encoder.hidden_states, axis=1)]
 
-        self.runtime_logprobs = [tf.nn.log_softmax(l) for l in logits]
+        self.logprobs = [tf.nn.log_softmax(l) for l in logits]
 
         # [:, 1:] -- bans generating the start symbol (index 0 in
         #            the vocabulary; The start symbol is automatically

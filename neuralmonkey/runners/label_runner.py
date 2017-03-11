@@ -1,3 +1,8 @@
+from typing import Any, List, Callable, Dict
+import numpy as np
+
+from neuralmonkey.runners.base_runner import (BaseRunner, Executable,
+                                              ExecutionResult, NextExecute)
 
 
 class LabelRunner(BaseRunner):
@@ -6,9 +11,8 @@ class LabelRunner(BaseRunner):
                  output_series: str,
                  decoder: Any,
                  postprocess: Callable[[List[str]], List[str]]=None) -> None:
-        super(GreedyRunner, self).__init__(output_series, decoder)
+        super(LabelRunner, self).__init__(output_series, decoder)
         self._postprocess = postprocess
-        self.
 
     def get_executable(self, compute_losses=False, summaries=True):
         if compute_losses:
@@ -16,9 +20,9 @@ class LabelRunner(BaseRunner):
 
         fetches["label_logprobs"] = self._decoder.logprobs
 
-        return GreedyRunExecutable(self.all_coders, fetches,
-                                   self._decoder.vocabulary,
-                                   self._postprocess)
+        return LabelRunExecutable(self.all_coders, fetches,
+                                  self._decoder.vocabulary,
+                                  self._postprocess)
 
     @property
     def loss_names(self) -> List[str]:
