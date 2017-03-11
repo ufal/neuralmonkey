@@ -85,7 +85,12 @@ class SequenceLabeler(ModelPart):
         biases = tf.get_variable(
             name="state_to_word_b",
             shape=[vocabulary_size],
-            initializer=tf.constant_initializer(- math.log(vocabulary_size)))
+            initializer=tf.zeros_initializer)
+
+        weights_direct = tf.get_variable(
+            name="emb_to_word_W",
+            shape=[self.encoder.embedding_size, vocabulary_size],
+            initializer=tf.random_uniform_initializer(-0.5, 0.5))
 
         # To multiply 3-D matrix (encoder hidden states) by a 2-D matrix
         # (weights), we use 1-by-1 convolution (similar trick can be found in
@@ -99,8 +104,15 @@ class SequenceLabeler(ModelPart):
         multiplication_3d = tf.squeeze(multiplication, squeeze_dims=[2])
 
         biases_3d = tf.expand_dims(tf.expand_dims(biases, 0), 0)
-        logits = tf.tanh(multiplication_3d + biases_3d)
 
+        embedded_inputs = tf.expand_dims(self.encoder.embedded_inputs, 2)
+        dweights_4d = tf.expand_dims(tf.expand_dims(weights_direct, 0), 0)
+
+        dmultiplication = tf.nn.conv2d(
+            embedded_inputs, dweights_4d, [1, 1, 1, 1], "SAME")
+        dmultiplication_3d = tf.squeeze(dmultiplication, squeeze_dims=[2])
+
+        logits = tf.tanh(multiplication_3d + dmultiplication_3d + biases_3d)
         return logits
 
     def feed_dict(self, dataset: Dataset, train: bool=False) -> FeedDict:

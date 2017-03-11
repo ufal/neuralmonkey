@@ -89,6 +89,7 @@ class SentenceEncoder(ModelPart, Attentive):
             with tf.variable_scope('input_projection'):
                 self._create_embedding_matrix()
                 embedded_inputs = self._embed(self.inputs)  # type: tf.Tensor
+                self.embedded_inputs = embedded_inputs
 
             fw_cell, bw_cell = self.rnn_cells()  # type: RNNCellTuple
             outputs_bidi_tup, encoded_tup = tf.nn.bidirectional_dynamic_rnn(
