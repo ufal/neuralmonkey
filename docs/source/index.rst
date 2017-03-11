@@ -23,10 +23,10 @@ Getting Started
    overview
    tutorial
    machine_translation
-   development
    configuration
    api
    visualization
    features
    tf_manager
    benchmark
+   internal_dev
