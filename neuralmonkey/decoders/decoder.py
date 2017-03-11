@@ -32,7 +32,7 @@ class Decoder(ModelPart):
                  data_id: str,
                  name: str,
                  max_output_len: int,
-                 dropout_keep_prob: float,
+                 dropout_keep_prob: float=1.0,
                  rnn_size: Optional[int]=None,
                  embedding_size: Optional[int]=None,
                  output_projection: Optional[Callable[

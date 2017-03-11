@@ -222,3 +222,9 @@ class BLEUEvaluator(object):
     def compare_scores(score1: float, score2: float) -> int:
         # the bigger the better
         return (score1 > score2) - (score1 < score2)
+
+
+# pylint: disable=invalid-name
+BLEU1 = BLEUEvaluator(n=1)
+BLEU4 = BLEUEvaluator(n=4)
+BLEU = BLEUEvaluator()

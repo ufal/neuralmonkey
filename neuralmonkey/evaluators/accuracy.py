@@ -2,7 +2,7 @@ from typing import Any, List
 import numpy as np
 
 
-class AccuracyObject(object):
+class AccuracyEvaluator(object):
     # pylint: disable=too-few-public-methods
 
     def __init__(self, name="Accuracy"):
@@ -22,5 +22,5 @@ class AccuracyObject(object):
 
 
 # pylint: disable=invalid-name
-Accuracy = AccuracyObject()
+Accuracy = AccuracyEvaluator()
 # pylint: enable=invalid-name

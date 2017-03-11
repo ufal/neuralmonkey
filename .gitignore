@@ -20,3 +20,4 @@ tests/*.en
 tests/*.de
 .idea
 tmp-*
+out-example-*
