@@ -1,6 +1,7 @@
 from typing import Any, List, Callable, Dict
 import numpy as np
 
+from neuralmonkey.vocabulary import END_TOKEN_INDEX
 from neuralmonkey.runners.base_runner import (BaseRunner, Executable,
                                               ExecutionResult, NextExecute)
 
@@ -19,6 +20,7 @@ class LabelRunner(BaseRunner):
             fetches = {"loss": self._decoder.cost}
 
         fetches["label_logprobs"] = self._decoder.logprobs
+        fetches["input_mask"] = self._decoder.encoder._input_mask
 
         return LabelRunExecutable(self.all_coders, fetches,
                                   self._decoder.vocabulary,
@@ -45,19 +47,25 @@ class LabelRunExecutable(Executable):
         return self.all_coders, self._fetches, {}
 
     def collect_results(self, results: List[Dict]) -> None:
+        loss = results[0]["loss"]
+        summed_logprobs = results[0]["label_logprobs"]
+        input_mask = results[0]["input_mask"]
 
-        loss = 0.
-        summed_logprobs = [-np.inf for _ in self._fetches["label_logprobs"]]
-
-        for sess_result in results:
+        for sess_result in results[1:]:
             loss += sess_result["loss"]
+            summed_logprobs = np.logaddexp(summed_logprobs,
+                                           sess_result["label_logprobs"])
+            assert input_mask == sess_result["input_mask"]
 
-            for i, logprob in enumerate(sess_result["label_logprobs"]):
-                summed_logprobs[i] = np.logaddexp(summed_logprobs[i], logprob)
+        argmaxes = np.argmax(summed_logprobs, axis=2)
 
-        argmaxes = [np.argmax(l, axis=1) for l in summed_logprobs]
+        # CAUTION! FABULOUS HACK BELIEVE ME
+        argmaxes -= END_TOKEN_INDEX
+        argmaxes *= input_mask.astype(int)
+        argmaxes += END_TOKEN_INDEX
 
-        decoded_labels = self._vocabulary.vectors_to_sentences(argmaxes)
+        # must transpose argmaxes because vectors_to_sentences is time-major
+        decoded_labels = self._vocabulary.vectors_to_sentences(argmaxes.T)
 
         if self._postprocess is not None:
             decoded_labels = self._postprocess(decoded_labels)
