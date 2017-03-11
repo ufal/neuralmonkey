@@ -1,4 +1,3 @@
-import math
 from typing import cast, Iterable, List, Optional
 
 import tensorflow as tf
@@ -7,13 +6,12 @@ from neuralmonkey.dataset import Dataset
 from neuralmonkey.model.model_part import ModelPart, FeedDict
 from neuralmonkey.encoders.sentence_encoder import SentenceEncoder
 from neuralmonkey.vocabulary import Vocabulary
+from neuralmonkey.decorators import tensor
 
 
-# pylint: disable=too-many-instance-attributes,too-few-public-methods
 class SequenceLabeler(ModelPart):
     """Classifier assing a label to each encoder's state."""
 
-    # pylint: disable=too-many-locals
     def __init__(self,
                  name: str,
                  encoder: SentenceEncoder,
@@ -22,16 +20,63 @@ class SequenceLabeler(ModelPart):
                  dropout_keep_prob: float=1.0,
                  save_checkpoint: Optional[str]=None,
                  load_checkpoint: Optional[str]=None) -> None:
-
         ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
 
         self.encoder = encoder
         self.vocabulary = vocabulary
         self.data_id = data_id
+        self.dropout_keep_prob = dropout_keep_prob
 
         self.rnn_size = self.encoder.rnn_size * 2
         self.max_output_len = self.encoder.max_input_len
-        vocabulary_size = len(vocabulary)
+
+        self.train_targets = tf.placeholder(tf.int32, shape=[None, None],
+                                            name="labeler_targets")
+
+        self.train_weights = tf.placeholder(tf.float32, shape=[None, None],
+                                            name="labeler_padding_weights")
+
+        self.train_mode = tf.placeholder(tf.bool, name="labeler_train_mode")
+
+    @property
+    def train_loss(self) -> tf.Tensor:
+        return self.cost
+
+    @property
+    def runtime_loss(self) -> tf.Tensor:
+        return self.cost
+
+    @tensor
+    def cost(self) -> tf.Tensor:
+        loss = tf.nn.sparse_softmax_cross_entropy_with_logits(
+            labels=self.train_targets, logits=self.logits)
+
+        # loss is now of shape [batch, time]. Need to mask it now by
+        # element-wise multiplication with weights placeholder
+        weighted_loss = loss * self.train_weights
+        return tf.reduce_sum(weighted_loss)
+
+    @tensor
+    def decoded(self) -> tf.Tensor:
+        # [:, :, 1:] -- bans generating the PAD symbol (index 0 in
+        #            the vocabulary;
+        #
+        # tf.argmax(l[:, :, 1:], 2) -- argmax along the vocabulary dim
+        #
+        # +1 -- because the [:, :, 1:] removed a symbol from argmax
+        #       consideration, we need to compensate for the shortened array.
+
+        # pylint: disable=unsubscriptable-object
+        return tf.argmax(self.logits[:, :, 1:], 2) + 1
+        # pylint: enable=unsubscriptable-object
+
+    @tensor
+    def logprobs(self) -> tf.Tensor:
+        return tf.nn.log_softmax(self.logits)
+
+    @tensor
+    def logits(self) -> tf.Tensor:
+        vocabulary_size = len(self.vocabulary)
 
         weights = tf.get_variable(
             name="state_to_word_W",
@@ -41,46 +86,35 @@ class SequenceLabeler(ModelPart):
         biases = tf.get_variable(
             name="state_to_word_b",
             shape=[vocabulary_size],
-            initializer=tf.constant_initializer(- math.log(vocabulary_size)))
+            initializer=tf.zeros_initializer)
 
-        logits = [tf.tanh(tf.matmul(state, weights) + biases)
-                  for state in self.encoder.hidden_states]
+        weights_direct = tf.get_variable(
+            name="emb_to_word_W",
+            shape=[self.encoder.embedding_size, vocabulary_size],
+            initializer=tf.random_uniform_initializer(-0.5, 0.5))
 
-        # [:, 1:] -- bans generating the start symbol (index 0 in
-        #            the vocabulary; The start symbol is automatically
-        #            prepended in the sentences_to_tensor()).
-        #
-        # tf.argmax(l[:, 1:], 1) -- argmax along the vertical dimension
-        #
-        # +1 -- because the [:, 1:] removed a symbol from argmax consideration,
-        #       we need to compensate for the shortened array.
-        self.decoded = [tf.argmax(l[:, 1:], 1) + 1 for l in logits]
+        # To multiply 3-D matrix (encoder hidden states) by a 2-D matrix
+        # (weights), we use 1-by-1 convolution (similar trick can be found in
+        # attention computation)
 
-        self.train_targets = [tf.placeholder(tf.int64, [None],
-                                             name="seq_lab_{}".format(i))
-                              for i in range(self.max_output_len)]
+        encoder_states = tf.expand_dims(self.encoder.hidden_states, 2)
+        weights_4d = tf.expand_dims(tf.expand_dims(weights, 0), 0)
 
-        train_onehots = [tf.one_hot(t, len(vocabulary))
-                         for t in self.train_targets]
+        multiplication = tf.nn.conv2d(
+            encoder_states, weights_4d, [1, 1, 1, 1], "SAME")
+        multiplication_3d = tf.squeeze(multiplication, squeeze_dims=[2])
 
-        self.train_weights = [
-            tf.placeholder(tf.float32, [None],
-                           name="seq_lab_padding_weights_{}".format(i))
-            for i in range(self.max_output_len)]
+        biases_3d = tf.expand_dims(tf.expand_dims(biases, 0), 0)
 
-        losses = [tf.nn.softmax_cross_entropy_with_logits(l, t)
-                  for l, t in zip(logits, train_onehots)]
+        embedded_inputs = tf.expand_dims(self.encoder.embedded_inputs, 2)
+        dweights_4d = tf.expand_dims(tf.expand_dims(weights_direct, 0), 0)
 
-        weighted_losses = [l * w for l, w in zip(losses, self.train_weights)]
+        dmultiplication = tf.nn.conv2d(
+            embedded_inputs, dweights_4d, [1, 1, 1, 1], "SAME")
+        dmultiplication_3d = tf.squeeze(dmultiplication, squeeze_dims=[2])
 
-        summed_losses_in_time = [tf.reduce_sum(l) for l in weighted_losses]
-
-        self.train_loss = sum(summed_losses_in_time)
-        self.runtime_loss = self.train_loss
-
-        self.dropout_placeholder = tf.placeholder_with_default(
-            tf.constant(dropout_keep_prob, tf.float32),
-            shape=[], name="decoder_dropout_placeholder")
+        logits = tf.tanh(multiplication_3d + dmultiplication_3d + biases_3d)
+        return logits
 
     def feed_dict(self, dataset: Dataset, train: bool=False) -> FeedDict:
         fd = {}  # type: FeedDict
@@ -88,21 +122,14 @@ class SequenceLabeler(ModelPart):
         sentences = cast(Iterable[List[str]],
                          dataset.get_series(self.data_id, allow_none=True))
 
+        fd[self.train_mode] = train
+
         if sentences is not None:
-            sentences_list = list(sentences) if sentences is not None else None
-            inputs, weights = self.vocabulary.sentences_to_tensor(
-                sentences_list, self.max_output_len)
+            vectors, paddings = self.vocabulary.sentences_to_tensor(
+                list(sentences), self.max_output_len, pad_to_max_len=False,
+                train_mode=train)
 
-            assert len(weights) == len(self.train_weights)
-            assert len(inputs) == len(self.train_targets)
-
-            for placeholder, weight in zip(self.train_weights, weights):
-                fd[placeholder] = weight
-
-            for placeholder, tensor in zip(self.train_targets, inputs):
-                fd[placeholder] = tensor
-
-        if not train:
-            fd[self.dropout_placeholder] = 1.0
+            fd[self.train_targets] = vectors.T
+            fd[self.train_weights] = paddings.T
 
         return fd

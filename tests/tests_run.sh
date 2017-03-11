@@ -11,6 +11,7 @@ bin/neuralmonkey-train tests/alignment.ini
 bin/neuralmonkey-train tests/post-edit.ini
 bin/neuralmonkey-train tests/factored.ini
 bin/neuralmonkey-train tests/classifier.ini
+bin/neuralmonkey-train tests/labeler.ini
 
 bin/neuralmonkey-train tests/small.ini
 bin/neuralmonkey-run tests/small.ini tests/test_data.ini

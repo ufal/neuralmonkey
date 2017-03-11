@@ -1,4 +1,4 @@
-from typing import Callable, Dict, List
+from typing import Callable, Dict, List, Any
 import numpy as np
 import tensorflow as tf
 
@@ -12,7 +12,7 @@ class GreedyRunner(BaseRunner):
 
     def __init__(self,
                  output_series: str,
-                 decoder,
+                 decoder: Any,
                  postprocess: Callable[[List[str]], List[str]]=None) -> None:
         super(GreedyRunner, self).__init__(output_series, decoder)
         self._postprocess = postprocess

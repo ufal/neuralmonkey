@@ -1,0 +1,8 @@
+Prague Czech English Dependency Treebank 2.0 (PCEDT) is a parallel, bilingual
+corpus. The English Part is based on Penn Treebank 3 and therefore to use
+PCEDT, you need a license for Treebank 3.
+
+The dependency annotation of the English data, as well as all the Czech data is
+licensed under the terms of CC-BY-NC-SA 3.0.
+
+This part of PCEDT contains only the Czech data.
