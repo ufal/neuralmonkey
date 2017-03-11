@@ -1,5 +1,5 @@
-wget http://ufallab.ms.mff.cuni.cz/~helcl/neuralmonkey-example-data/translation/bpe_merges
-wget http://ufallab.ms.mff.cuni.cz/~helcl/neuralmonkey-example-data/translation/train.en
-wget http://ufallab.ms.mff.cuni.cz/~helcl/neuralmonkey-example-data/translation/train.de
-wget http://ufallab.ms.mff.cuni.cz/~helcl/neuralmonkey-example-data/translation/val.de
-wget http://ufallab.ms.mff.cuni.cz/~helcl/neuralmonkey-example-data/translation/val.en
+#!/bin/bash
+
+for file in bpe_merges train.en train.de val.en val.de; do
+    wget http://ufallab.ms.mff.cuni.cz/~helcl/neuralmonkey-example-data/translation/$file
+done
