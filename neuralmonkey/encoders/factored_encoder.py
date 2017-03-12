@@ -7,7 +7,6 @@ from neuralmonkey.checking import assert_shape
 from neuralmonkey.model.model_part import ModelPart
 from neuralmonkey.encoders.attentive import Attentive
 from neuralmonkey.logging import log
-from neuralmonkey.nn.bidirectional_rnn_layer import BidirectionalRNNLayer
 from neuralmonkey.vocabulary import Vocabulary
 
 
@@ -72,7 +71,7 @@ class FactoredEncoder(ModelPart, Attentive):
 
     def _get_rnn_cell(self):
         """Return the RNN cell for the encoder"""
-        return tf.nn.rnn_cell.GRUCell(self.rnn_size)
+        return tf.contrib.rnn.GRUCell(self.rnn_size)
 
     def _get_birnn_cells(self):
         """Return forward and backward RNN cells for the encoder"""
@@ -138,25 +137,25 @@ class FactoredEncoder(ModelPart, Attentive):
         # factors is a 2D list of embeddings of dims [factor-type, time-step]
         # by doing zip(*factors), we get a list of (factor-type) embedding
         # tuples indexed by the time step
-        concatenated_factors = [tf.concat(1, related_factors)
+        concatenated_factors = [tf.concat(related_factors, 1)
                                 for related_factors in zip(*factors)]
         assert_shape(concatenated_factors[0],
                      [None, sum(self.embedding_sizes)])
         forward_gru, backward_gru = self._get_birnn_cells()
 
-        bidi_layer = BidirectionalRNNLayer(forward_gru, backward_gru,
-                                           concatenated_factors,
-                                           sentence_lengths)
+        stacked_factors = tf.stack(concatenated_factors, 1)
 
-        self.outputs_bidi = bidi_layer.outputs_bidi
-        self.encoded = bidi_layer.encoded
+        self.outputs_bidi, encoded_tup = tf.nn.bidirectional_dynamic_rnn(
+            forward_gru, backward_gru, stacked_factors,
+            sentence_lengths, dtype=tf.float32)
 
-        self.__attention_tensor = tf.concat(1, [tf.expand_dims(o, 1)
-                                                for o in self.outputs_bidi])
+        self.encoded = tf.concat(encoded_tup, 1)
+
+        self.__attention_tensor = tf.concat(self.outputs_bidi, 2)
         self.__attention_tensor = tf.nn.dropout(self.__attention_tensor,
                                                 self.dropout_placeholder)
         self.__attention_mask = tf.concat(
-            1, [tf.expand_dims(w, 1) for w in self.padding_weights])
+            [tf.expand_dims(w, 1) for w in self.padding_weights], 1)
 
     # pylint: disable=too-many-locals
     def feed_dict(self, dataset, train=False):

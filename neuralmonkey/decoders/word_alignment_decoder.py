@@ -37,15 +37,15 @@ class WordAlignmentDecoder(ModelPart):
         _, self.train_loss = self._make_decoder(runtime_mode=False)
         self.decoded, self.runtime_loss = self._make_decoder(runtime_mode=True)
 
-        tf.scalar_summary("alignment_train_xent", self.train_loss,
+        tf.summary.scalar("alignment_train_xent", self.train_loss,
                           collections=["summary_train"])
 
     def _make_decoder(self, runtime_mode=False):
         attn_obj = self.decoder.get_attention_object(self.encoder,
                                                      runtime_mode)
 
-        alignment_logits = tf.pack(attn_obj.logits_in_time,
-                                   name="alignment_logits")
+        alignment_logits = tf.stack(attn_obj.logits_in_time,
+                                    name="alignment_logits")
 
         if runtime_mode:
             # make batch_size the first dimension
@@ -56,7 +56,7 @@ class WordAlignmentDecoder(ModelPart):
             alignment = None
 
             xent = tf.nn.softmax_cross_entropy_with_logits(
-                alignment_logits, self.alignment_target)
+                labels=self.alignment_target, logits=alignment_logits)
             loss = tf.reduce_sum(xent * self.decoder.train_padding)
 
         return alignment, loss

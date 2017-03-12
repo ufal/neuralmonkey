@@ -204,11 +204,11 @@ class Decoder(ModelPart):
 
             _, self.train_logits = decode(train_rnn_outputs)
 
-            train_targets = tf.unpack(self.train_inputs)
+            train_targets = tf.transpose(self.train_inputs)
 
-            self.train_loss = tf.nn.seq2seq.sequence_loss(
-                self.train_logits, train_targets,
-                tf.unpack(self.train_padding), len(self.vocabulary))
+            self.train_loss = tf.contrib.seq2seq.sequence_loss(
+                tf.stack(self.train_logits, 1), train_targets,
+                tf.transpose(self.train_padding))
             self.cost = self.train_loss
 
             self.train_logprobs = [tf.nn.log_softmax(l)
@@ -217,9 +217,9 @@ class Decoder(ModelPart):
             self.decoded, self.runtime_logits = decode(
                 self.runtime_rnn_outputs)
 
-            self.runtime_loss = tf.nn.seq2seq.sequence_loss(
-                self.runtime_logits, train_targets,
-                tf.unpack(self.train_padding), len(self.vocabulary))
+            self.runtime_loss = tf.contrib.seq2seq.sequence_loss(
+                tf.stack(self.runtime_logits, 1), train_targets,
+                tf.transpose(self.train_padding))
 
             self.runtime_logprobs = [tf.nn.log_softmax(l)
                                      for l in self.runtime_logits]
@@ -306,11 +306,11 @@ class Decoder(ModelPart):
         state = dropout(state, self.dropout_keep_prob, self.train_mode)
         return tf.matmul(state, self.decoding_w) + self.decoding_b
 
-    def _get_rnn_cell(self) -> tf.nn.rnn_cell.RNNCell:
+    def _get_rnn_cell(self) -> tf.contrib.rnn.RNNCell:
         if self._rnn_cell == 'GRU':
-            return tf.nn.rnn_cell.GRUCell(self.rnn_size)
+            return tf.contrib.rnn.GRUCell(self.rnn_size)
         elif self._rnn_cell == 'LSTM':
-            return tf.nn.rnn_cell.LSTMCell(self.rnn_size)
+            return tf.contrib.rnn.LSTMCell(self.rnn_size)
         else:
             raise ValueError("Unknown RNN cell: {}".format(self._rnn_cell))
 
@@ -355,7 +355,7 @@ class Decoder(ModelPart):
                 state = self.initial_state
             elif self._rnn_cell == 'LSTM':
                 # pylint: disable=redefined-variable-type
-                state = tf.nn.rnn_cell.LSTMStateTuple(
+                state = tf.contrib.rnn.LSTMStateTuple(
                     self.initial_state, self.initial_state)
                 # pylint: enable=redefined-variable-type
             else:
@@ -423,12 +423,12 @@ class Decoder(ModelPart):
 
         for i, a in enumerate(att_objects):
             alignments = tf.expand_dims(tf.transpose(
-                tf.pack(a.attentions_in_time), perm=[1, 2, 0]), -1)
+                tf.stack(a.attentions_in_time), perm=[1, 2, 0]), -1)
 
-            tf.image_summary(
+            tf.summary.image(
                 "attention_{}".format(i), alignments,
                 collections=["summary_val_plots"],
-                max_images=256)
+                max_outputs=256)
 
     def feed_dict(self, dataset: Dataset, train: bool=False) -> FeedDict:
         """Populate the feed dictionary for the decoder object

@@ -19,7 +19,7 @@ class GreedyRunner(BaseRunner):
 
         val_plot_summaries = tf.get_collection("summary_val_plots")
         if val_plot_summaries:
-            self.image_summaries = tf.merge_summary(val_plot_summaries)
+            self.image_summaries = tf.summary.merge(val_plot_summaries)
         else:
             self.image_summaries = None
 

@@ -12,7 +12,7 @@ from neuralmonkey.dataset import Dataset
 from neuralmonkey.vocabulary import Vocabulary
 
 # pylint: disable=invalid-name
-RNNCellTuple = Tuple[tf.nn.rnn_cell.RNNCell, tf.nn.rnn_cell.RNNCell]
+RNNCellTuple = Tuple[tf.contrib.rnn.RNNCell, tf.contrib.rnn.RNNCell]
 # pylint: enable=invalid-name
 
 
@@ -93,16 +93,17 @@ class SentenceEncoder(ModelPart, Attentive):
 
             fw_cell, bw_cell = self.rnn_cells()  # type: RNNCellTuple
             outputs_bidi_tup, encoded_tup = tf.nn.bidirectional_dynamic_rnn(
-                fw_cell, bw_cell, embedded_inputs, self.sentence_lengths,
+                fw_cell, bw_cell, embedded_inputs,
+                sequence_length=self.sentence_lengths,
                 dtype=tf.float32)
 
-            self.hidden_states = tf.concat(2, outputs_bidi_tup)
+            self.hidden_states = tf.concat(outputs_bidi_tup, 2)
 
             with tf.variable_scope('attention_tensor'):
                 self.__attention_tensor = self._dropout(
                     self.hidden_states)
 
-            self.encoded = tf.concat(1, encoded_tup)
+            self.encoded = tf.concat(encoded_tup, 1)
 
         log("Sentence encoder initialized")
 
@@ -165,7 +166,7 @@ class SentenceEncoder(ModelPart, Attentive):
         # directly
         train_mode_batch = tf.fill(tf.shape(variable)[:1], self.train_mode)
         dropped_value = tf.nn.dropout(variable, self.dropout_keep_p)
-        return tf.select(train_mode_batch, dropped_value, variable)
+        return tf.where(train_mode_batch, dropped_value, variable)
 
     def _embed(self, inputs: tf.Tensor) -> tf.Tensor:
         """Embed the input using the embedding matrix and apply dropout

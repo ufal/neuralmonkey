@@ -41,3 +41,10 @@ and CuDNN installations. Similarly, your ``PATH`` variable should point to the
 ``bin`` subdirectory of the CUDA installation directory.
 
 You made it! Neural Monkey is now installed!
+
+Note for Ubuntu 14.04 users
+***************************
+
+If you get Segmentation fault errors at the very end of the training process,
+you can either ignore it, or follow the steps outlined in `this
+document <ubuntu1404_fix.html>`_.

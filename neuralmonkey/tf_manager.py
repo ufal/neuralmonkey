@@ -7,13 +7,17 @@ sessions, execution of the computation graph, and saving and restoring of model
 variables.
 
 """
-
 # pylint: disable=unused-import
-from typing import Any, List, Union
+from typing import Any, List, Union, Optional
 # pylint: enable=unused-import
 
+import os
+
+import numpy as np
 import tensorflow as tf
+# pylint: disable=no-name-in-module
 from tensorflow.python import debug as tf_debug
+# pylint: enable=no-name-in-module
 from typeguard import check_argument_types
 
 from neuralmonkey.logging import log
@@ -30,11 +34,16 @@ class TensorFlowManager(object):
     """
 
     # pylint: disable=too-many-arguments
-    def __init__(self, num_sessions, num_threads, save_n_best=1,
-                 variable_files=None, gpu_allow_growth=True,
-                 per_process_gpu_memory_fraction=1.0,
-                 report_gpu_memory_consumption=False,
-                 enable_tf_debug=False):
+    def __init__(self,
+                 num_sessions: int,
+                 num_threads: int,
+                 save_n_best: int=1,
+                 minimize_metric: bool=False,
+                 variable_files: Optional[List[str]]=None,
+                 gpu_allow_growth: bool=True,
+                 per_process_gpu_memory_fraction: float=1.0,
+                 report_gpu_memory_consumption: bool=False,
+                 enable_tf_debug: bool=False) -> None:
         """Initialize a TensorflowManager.
 
         At this moment the graph must already exist. This method initializes
@@ -44,13 +53,15 @@ class TensorFlowManager(object):
         Args:
             num_sessions: Number of sessions to be initialized.
             num_threads: Number of threads sessions will run in.
+            save_n_best: How many best models to keep
+            minimize_metric: Whether the best model is the one with the lowest
+                or the highest score
             variable_files: List of variable files.
             gpu_allow_growth: TF to allocate incrementally, not all at once.
             per_process_gpu_memory_fraction: Limit TF memory use.
             report_gpu_memory_consumption: Report overall GPU memory at every
                 logging
         """
-
         assert check_argument_types()
 
         session_cfg = tf.ConfigProto()
@@ -63,14 +74,19 @@ class TensorFlowManager(object):
             per_process_gpu_memory_fraction
         self.report_gpu_memory_consumption = report_gpu_memory_consumption
 
+        if save_n_best < 1:
+            raise Exception("save_n_best parameter must be greater than zero")
         self.saver_max_to_keep = save_n_best
+        self.minimize_metric = minimize_metric
+
         self.sessions = [tf.Session(config=session_cfg)
                          for _ in range(num_sessions)]
+
         if enable_tf_debug:
             self.sessions = [tf_debug.LocalCLIDebugWrapperSession(sess)
                              for sess in self.sessions]
 
-        init_op = tf.initialize_all_variables()
+        init_op = tf.global_variables_initializer()
         for sess in self.sessions:
             sess.run(init_op)
         self.saver = tf.train.Saver(max_to_keep=self.saver_max_to_keep)
@@ -81,6 +97,74 @@ class TensorFlowManager(object):
                                  "is different than a number sessions ({})")
                                 .format(len(variable_files), num_sessions))
             self.restore(variable_files)
+
+        self.best_score_index = 0
+        self.best_score_epoch = 0
+        self.best_score_batch = 0
+
+        init_score = np.inf if self.minimize_metric else -np.inf
+        self.saved_scores = [init_score for _ in range(self.saver_max_to_keep)]
+        self.best_score = init_score
+
+        self.variables_files = []  # type: List[str]
+        self.link_best_vars = None  # type: str
+
+    # pylint: enable=too-many-arguments
+
+    def _is_better(self, score1: float, score2: float) -> bool:
+        if self.minimize_metric:
+            return score1 < score2
+        else:
+            return score1 > score2
+
+    def _argworst(self, scores: List[float]) -> int:
+        if self.minimize_metric:
+            return np.argmax(scores)
+        else:
+            return np.argmin(scores)
+
+    def _update_best_symlink(self, var_index: int) -> None:
+        if os.path.islink(self.link_best_vars):
+            os.unlink(self.link_best_vars)
+
+        target_file = "{}.index".format(
+            os.path.basename(self.variables_files[var_index]))
+
+        os.symlink(target_file, self.link_best_vars)
+
+    def init_saving(self, vars_prefix: str) -> None:
+        if self.saver_max_to_keep == 1:
+            self.variables_files = [vars_prefix]
+        else:
+            self.variables_files = ["{}.{}".format(vars_prefix, i)
+                                    for i in range(self.saver_max_to_keep)]
+
+        self.link_best_vars = "{}.best".format(vars_prefix)
+        self._update_best_symlink(var_index=0)
+
+    def validation_hook(self, score: float, epoch: int, batch: int) -> None:
+        if self._is_better(score, self.best_score):
+            self.best_score = score
+            self.best_score_epoch = epoch
+            self.best_score_batch = batch
+
+        worst_index = self._argworst(self.saved_scores)
+        worst_score = self.saved_scores[worst_index]
+
+        if self._is_better(score, worst_score):
+            # we need to save this score instead the worst score
+            worst_var_file = self.variables_files[worst_index]
+            self.save(worst_var_file)
+            self.saved_scores[worst_index] = score
+            log("Variable file saved in {}".format(worst_var_file))
+
+            # update symlink and best score index
+            if self.best_score == score:
+                self._update_best_symlink(worst_index)
+                self.best_score_index = worst_index
+
+            log("Best scores saved so far: {}".format(
+                self.saved_scores))
 
     # pylint: disable=too-many-locals
     def execute(self,
@@ -170,13 +254,22 @@ class TensorFlowManager(object):
             log("Loading variables from {}".format(file_name))
             self.saver.restore(sess, file_name)
 
-    def initialize_model_parts(self, runners) -> None:
+    def restore_best_vars(self) -> None:
+        # TODO warn when link does not exist
+        # if os.path.islink(self.link_best_vars):
+        #     self.restore(self.link_best_vars)
+        self.restore(self.variables_files[self.best_score_index])
+
+    def initialize_model_parts(self, runners, save=False) -> None:
         """Initialize model parts variables from their checkpoints."""
 
         all_coders = set.union(*[rnr.all_coders for rnr in runners])
         for coder in all_coders:
             for session in self.sessions:
                 coder.load(session)
+
+        if save:
+            self.save(self.variables_files[0])
 
 
 def _feed_dicts(dataset, coders, train=False):

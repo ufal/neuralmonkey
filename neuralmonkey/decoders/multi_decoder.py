@@ -49,8 +49,8 @@ class MultiDecoder(object):
         self.regularization_decoders = regularization_decoders
 
         self._training_decoders = [main_decoder] + regularization_decoders
-        self._decoder_costs = tf.concat(0, [tf.expand_dims(d.cost, 0)
-                                            for d in self._training_decoders])
+        self._decoder_costs = tf.concat([tf.expand_dims(d.cost, 0)
+                                         for d in self._training_decoders], 0)
 
         self._scheduled_decoder = 0
         self._input_selector = tf.placeholder(tf.float32,

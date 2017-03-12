@@ -4,8 +4,6 @@ dist: trusty
 language: python
 
 env:
-  global:
-    - TF=0.11.0-cp35-cp35m
   matrix:
     - TEST_SUITE=lint
     - TEST_SUITE=pycodestyle
@@ -23,8 +21,9 @@ python:
 
 # commands to install dependencies
 before_install:
+  - sudo apt-get install libtcmalloc-minimal4
+  - export LD_PRELOAD="/usr/lib/libtcmalloc_minimal.so.4"
   - pip install -r requirements.txt
-  - pip install https://storage.googleapis.com/tensorflow/linux/cpu/tensorflow-$TF""-linux_x86_64.whl
   - if [ -f tests/$TEST_SUITE""_requirements.txt ]; then pip install -r tests/$TEST_SUITE""_requirements.txt; fi
   - if [ -f tests/$TEST_SUITE""_install.sh ]; then tests/$TEST_SUITE""_install.sh; fi
 

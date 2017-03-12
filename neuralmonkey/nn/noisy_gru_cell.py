@@ -1,8 +1,10 @@
 import math
 import tensorflow as tf
 
+from neuralmonkey.nn.projection import linear
 
-class NoisyGRUCell(tf.nn.rnn_cell.RNNCell):
+
+class NoisyGRUCell(tf.contrib.rnn.RNNCell):
     """
     Gated Recurrent Unit cell (cf. http://arxiv.org/abs/1406.1078) with noisy
     activation functions (http://arxiv.org/abs/1603.00391). The theano code is
@@ -29,14 +31,12 @@ class NoisyGRUCell(tf.nn.rnn_cell.RNNCell):
         with tf.variable_scope(scope or type(self).__name__):  # "GRUCell"
             with tf.variable_scope("Gates"):  # Reset gate and update gate.
                 # We start with bias of 1.0 to not reset and not update.
-                r, u = tf.split(
-                    1, 2, tf.nn.seq2seq.linear([inputs, state],
-                                               2 * self._num_units, True, 1.0))
+                r, u = tf.split(linear([inputs, state], 2 * self._num_units),
+                                2, 1)
                 r, u = noisy_sigmoid(
                     r, self.training), noisy_sigmoid(u, self.training)
         with tf.variable_scope("Candidate"):
-            c = noisy_tanh(tf.nn.seq2seq.linear([inputs, r * state],
-                                                self._num_units, True),
+            c = noisy_tanh(linear([inputs, r * state], self._num_units),
                            self.training)
             new_h = u * state + (1 - u) * c
         return new_h, new_h
@@ -70,9 +70,9 @@ def noisy_activation(x, generic, linearized, training, alpha=1.1, c=0.5):
 
     delta = generic(x) - linearized(x)
     d = -tf.sign(x) * tf.sign(1 - alpha)
-    p = tf.get_variable("p", initializer=tf.ones_initializer(shape=[1]))
+    p = tf.get_variable("p", shape=[1], initializer=tf.ones_initializer())
     scale = c * (tf.sigmoid(p * delta) - 0.5) ** 2
-    noise = tf.select(training, tf.abs(
+    noise = tf.where(training, tf.abs(
         tf.random_normal([])), math.sqrt(2 / math.pi))
     activation = alpha * generic(x) + (1 - alpha) * \
         linearized(x) + d * scale * noise

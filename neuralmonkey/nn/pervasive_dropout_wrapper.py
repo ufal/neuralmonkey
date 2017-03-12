@@ -3,7 +3,7 @@ import tensorflow as tf
 from neuralmonkey.checking import assert_shape
 
 
-class PervasiveDropoutWrapper(tf.nn.rnn_cell.RNNCell):
+class PervasiveDropoutWrapper(tf.contrib.rnn.RNNCell):
 
     def __init__(self, cell, mask, scale):
         self._cell = cell

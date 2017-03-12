@@ -238,6 +238,7 @@ The following sections are described in more detail in
   class=tf_manager.TensorFlowManager
   num_threads=4
   num_sessions=1
+  minimize_metric=False
   save_n_best=3
 .. TUTCHECK exp-nm-mt/translation.ini
 
@@ -254,7 +255,6 @@ As for the main configuration section do not forget to add BPE postprocessing:
   train_dataset=<train_data>
   val_dataset=<val_data>
   evaluation=[("series_named_greedy", "target", <bleu>), ("series_named_greedy", "target", evaluators.ter.TER)]
-  minimize=False
   batch_size=80
   runners_batch_size=256
   epochs=10
@@ -277,7 +277,7 @@ As for the evaluation, you need to create ``translation_run.ini``:
 
   [main]
   test_datasets=[<eval_data>]
-  
+
   [bpe_preprocess]
   class=processors.bpe.BPEPreprocessor
   merge_file="exp-nm-mt/data/merge_file.bpe"

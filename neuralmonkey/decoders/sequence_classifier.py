@@ -62,14 +62,14 @@ class SequenceClassifier(ModelPart):
                 tf.placeholder(tf.float32, name="dropout_plc")
             self.gt_inputs = [tf.placeholder(
                 tf.int32, shape=[None], name="targets")]
-            mlp_input = tf.concat(1, [enc.encoded for enc in encoders])
+            mlp_input = tf.concat([enc.encoded for enc in encoders], 1)
             mlp = MultilayerPerceptron(
                 mlp_input, layers, self.dropout_placeholder, len(vocabulary),
                 activation_fn=self.activation_fn)
 
             self.loss_with_gt_ins = tf.reduce_mean(
                 tf.nn.sparse_softmax_cross_entropy_with_logits(
-                    mlp.logits, self.gt_inputs[0]))
+                    logits=mlp.logits, labels=self.gt_inputs[0]))
             self.loss_with_decoded_ins = self.loss_with_gt_ins
             self.cost = self.loss_with_gt_ins
 
@@ -77,10 +77,10 @@ class SequenceClassifier(ModelPart):
             self.decoded_logits = [mlp.logits]
             self.runtime_logprobs = [tf.nn.log_softmax(mlp.logits)]
 
-            tf.scalar_summary(
+            tf.summary.scalar(
                 'val_optimization_cost', self.cost,
                 collections=["summary_val"])
-            tf.scalar_summary(
+            tf.summary.scalar(
                 'train_optimization_cost',
                 self.cost, collections=["summary_train"])
     # pylint: enable=too-many-arguments

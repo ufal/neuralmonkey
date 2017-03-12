@@ -23,4 +23,4 @@ def dropout(variable: tf.Tensor,
         # TODO remove this line as soon as TF .12 is used.
         train_mode_selector = tf.fill(tf.shape(variable)[:1], train_mode)
         dropped_value = tf.nn.dropout(variable, keep_prob)
-        return tf.select(train_mode_selector, dropped_value, variable)
+        return tf.where(train_mode_selector, dropped_value, variable)

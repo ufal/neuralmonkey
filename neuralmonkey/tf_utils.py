@@ -1,3 +1,6 @@
+# pylint: skip-file
+# Implementation of this feature is outdated
+
 """Small helper functions for TensorFlow."""
 
 from subprocess import check_output

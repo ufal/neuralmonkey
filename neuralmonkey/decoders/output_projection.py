@@ -24,7 +24,7 @@ def no_deep_output(prev_state, prev_output, ctx_tensors):
     Returns:
         This function returns the concatenation of all its inputs.
     """
-    return tf.concat(1, [prev_state, prev_output] + ctx_tensors)
+    return tf.concat([prev_state, prev_output] + ctx_tensors, 1)
 
 
 def maxout_output(maxout_size):
@@ -63,7 +63,7 @@ def mlp_output(layer_sizes, dropout_plc=None, activation=tf.tanh):
         activation: The activation function to use in each layer.
     """
     def _projection(prev_state, prev_output, ctx_tensors):
-        mlp_input = tf.concat(1, [prev_state, prev_output] + ctx_tensors)
+        mlp_input = tf.concat([prev_state, prev_output] + ctx_tensors, 1)
 
         return multilayer_projection(mlp_input, layer_sizes,
                                      activation=activation,

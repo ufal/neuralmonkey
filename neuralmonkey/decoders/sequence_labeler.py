@@ -86,7 +86,7 @@ class SequenceLabeler(ModelPart):
         biases = tf.get_variable(
             name="state_to_word_b",
             shape=[vocabulary_size],
-            initializer=tf.zeros_initializer)
+            initializer=tf.zeros_initializer())
 
         weights_direct = tf.get_variable(
             name="emb_to_word_W",
