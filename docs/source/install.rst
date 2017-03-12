@@ -47,4 +47,4 @@ Note for Ubuntu 14.04 users
 
 If you get Segmentation fault errors at the very end of the training process,
 you can either ignore it, or follow the steps outlined in `this
-document<ubuntu1404_fix.rst>`_.
+document <ubuntu1404_fix.html>`_.
