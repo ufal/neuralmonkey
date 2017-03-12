@@ -1,5 +1,5 @@
 # pylint: disable=too-many-lines
-# There are too many lines because of these pylint directives.
+# TODO de-clutter this file!
 
 from typing import Any, Callable, Dict, List, Tuple, Optional, Union, Iterable
 import numpy as np

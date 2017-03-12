@@ -46,5 +46,5 @@ Note for Ubuntu 14.04 users
 ***************************
 
 If you get Segmentation fault errors at the very end of the training process,
-you can either ignore it, or follow the steps outlined in `this GitHub comment
-<https://github.com/ufal/neuralmonkey/pull/349#issuecomment-285526003>`_.
+you can either ignore it, or follow the steps outlined in `this
+document<ubuntu1404_fix.rst>`_.
