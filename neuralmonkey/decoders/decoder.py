@@ -206,9 +206,11 @@ class Decoder(ModelPart):
 
             train_targets = tf.transpose(self.train_inputs)
 
-            self.train_loss = tf.contrib.seq2seq.sequence_loss(
+            self.train_xents = tf.contrib.seq2seq.sequence_loss(
                 tf.stack(self.train_logits, 1), train_targets,
-                tf.transpose(self.train_padding))
+                tf.transpose(self.train_padding),
+                average_across_batch=False)
+            self.train_loss = tf.reduce_mean(self.train_xents)
             self.cost = self.train_loss
 
             self.train_logprobs = [tf.nn.log_softmax(l)

@@ -54,7 +54,7 @@ class GreedyRunExecutable(Executable):
         self._postprocess = postprocess
 
         self.decoded_sentences = []
-        self.result = None  # type: Option[ExecutionResult]
+        self.result = None  # type: Optional[ExecutionResult]
 
     def next_to_execute(self) -> NextExecute:
         """Get the feedables and tensors to run."""
