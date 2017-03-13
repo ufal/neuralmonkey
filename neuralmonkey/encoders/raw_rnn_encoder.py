@@ -84,13 +84,13 @@ class RawRNNEncoder(ModelPart, Attentive):
                 fw_cell, bw_cell, self.inputs, self._input_lengths,
                 dtype=tf.float32)
 
-            self.hidden_states = tf.concat(2, outputs_bidi_tup)
+            self.hidden_states = tf.concat(axis=2, values=outputs_bidi_tup)
 
             with tf.variable_scope('attention_tensor'):
                 self.__attention_tensor = self._dropout(
                     self.hidden_states)
 
-            self.encoded = tf.concat(1, encoded_tup)
+            self.encoded = tf.concat(axis=1, values=encoded_tup)
 
         log("RNN encoder initialized")
 
@@ -132,7 +132,7 @@ class RawRNNEncoder(ModelPart, Attentive):
         # directly
         train_mode_batch = tf.fill(tf.shape(variable)[:1], self.train_mode)
         dropped_value = tf.nn.dropout(variable, self.dropout_keep_p)
-        return tf.select(train_mode_batch, dropped_value, variable)
+        return tf.where(train_mode_batch, dropped_value, variable)
 
     def rnn_cells(self) -> RNNCellTuple:
         """Return the graph template to for creating RNN memory cells"""
