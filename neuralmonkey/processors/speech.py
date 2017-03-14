@@ -1,16 +1,39 @@
 from typing import Callable, Tuple
 
 import numpy as np
-import python_speech_features
+from python_speech_features import mfcc, fbank, logfbank, ssc, delta
 
+
+FEATURE_TYPES = {f.__name__: f for f in [mfcc, fbank, logfbank, ssc]}
 
 # pylint: disable=invalid-name
-def MFCCPreprocessor(*args, **kwargs) -> Callable:
-    """A wrapper for python_speech_features.mfcc."""
+def SpeechFeaturesPreprocessor(feature_type='mfcc', delta_order=2,
+                               delta_window=2, **kwargs) -> Callable:
+    """Calculate speech features.
+
+    By default, compute 13 MFCCs + delta + acceleration, i.e. 39 coefficients.
+
+    Arguments:
+        feature_type: mfcc, fbank, logfbank or ssc (default is mfcc)
+        delta_order: maximum order of the delta features (default is 2)
+        delta_window: window size for delta features (default is 2)
+        **kwargs: keyword arguments for the appropriate function from
+            python_speech_features
+    """
+
+    if feature_type not in FEATURE_TYPES:
+        raise ValueError(
+            'Unknown speech feature type "{}"'.format(feature_type))
 
     def preprocess(data: Tuple[int, np.ndarray]) -> np.ndarray:
         rate, audio = data
-        return python_speech_features.mfcc(audio, samplerate=rate,
-                                           *args, **kwargs)
+
+        features = [FEATURE_TYPES[feature_type](audio, samplerate=rate,
+                                                **kwargs)]
+
+        for _ in range(delta_order):
+            features.append(delta(features[-1], delta_window))
+
+        return np.concatenate(features, axis=1)
 
     return preprocess
