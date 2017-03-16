@@ -1,4 +1,8 @@
 from typing import Callable, Dict, List, Any
+# pylint: disable=unused-import
+from typing import Optional
+# pylint: enable=unused-import
+
 import numpy as np
 import tensorflow as tf
 
@@ -47,13 +51,13 @@ class GreedyRunner(BaseRunner):
 
 class GreedyRunExecutable(Executable):
 
-    def __init__(self, all_coders, fetches, vocabulary, postprocess):
+    def __init__(self, all_coders, fetches, vocabulary, postprocess) -> None:
         self.all_coders = all_coders
         self._fetches = fetches
         self._vocabulary = vocabulary
         self._postprocess = postprocess
 
-        self.decoded_sentences = []
+        self.decoded_sentences = []  # type: List[List[str]]
         self.result = None  # type: Optional[ExecutionResult]
 
     def next_to_execute(self) -> NextExecute:
