@@ -454,15 +454,6 @@ def _print_examples(dataset: Dataset,
         output_series_names = [s for s in output_series_names
                                if s in val_preview_output_series]
 
-    if not target_series_names:
-        warn("No reference series to preview during validation")
-
-    if not source_series_names:
-        warn("No source series to preview during validation")
-
-    if not output_series_names:
-        warn("No output series to preview during validation")
-
     # for further indexing we need to make sure, all relevant
     # dataset series are lists
     target_series = {series_id: list(dataset.get_series(series_id))
