@@ -1,10 +1,13 @@
-from typing import Callable, Tuple
+from typing import Callable
 
 import numpy as np
 from python_speech_features import mfcc, fbank, logfbank, ssc, delta
 
+from neuralmonkey.readers.audio_reader import Audio
+
 
 FEATURE_TYPES = {f.__name__: f for f in [mfcc, fbank, logfbank, ssc]}
+
 
 # pylint: disable=invalid-name
 def SpeechFeaturesPreprocessor(feature_type='mfcc', delta_order=2,
@@ -25,7 +28,7 @@ def SpeechFeaturesPreprocessor(feature_type='mfcc', delta_order=2,
         raise ValueError(
             'Unknown speech feature type "{}"'.format(feature_type))
 
-    def preprocess(data: Tuple[int, np.ndarray]) -> np.ndarray:
+    def preprocess(data: Audio) -> np.ndarray:
         rate, audio = data
 
         features = [FEATURE_TYPES[feature_type](audio, samplerate=rate,
