@@ -444,6 +444,8 @@ def _print_examples(dataset: Dataset,
     target_series_names = [s for s in dataset.series_ids if s in outputs]
     output_series_names = list(outputs.keys())
 
+    assert len(outputs) > 0
+
     if val_preview_input_series is not None:
         target_series_names = [s for s in target_series_names
                                if s in val_preview_input_series]
@@ -453,15 +455,6 @@ def _print_examples(dataset: Dataset,
     if val_preview_output_series is not None:
         output_series_names = [s for s in output_series_names
                                if s in val_preview_output_series]
-
-    if not target_series_names:
-        warn("No reference series to preview during validation")
-
-    if not source_series_names:
-        warn("No source series to preview during validation")
-
-    if not output_series_names:
-        warn("No output series to preview during validation")
 
     # for further indexing we need to make sure, all relevant
     # dataset series are lists
