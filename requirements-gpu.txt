@@ -3,8 +3,10 @@ python-magic>=0.4.12
 flask
 ansiconv
 numpy
+scipy
 pillow
 git+https://github.com/aflc/pyter@857a1552443f139a3
+python_speech_features
 pygments
 typeguard
 tensorflow-gpu>=1.0.0
