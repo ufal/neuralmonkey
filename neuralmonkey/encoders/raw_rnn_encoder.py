@@ -1,6 +1,4 @@
-# tests: lint, mypy
-
-from typing import Optional, Any, Tuple
+from typing import Any, Optional, Tuple
 
 import numpy as np
 import tensorflow as tf
@@ -14,8 +12,7 @@ from neuralmonkey.nn.ortho_gru_cell import OrthoGRUCell
 from neuralmonkey.dataset import Dataset
 
 # pylint: disable=invalid-name
-AttType = Any  # Type[] or union of types do not work here
-RNNCellTuple = Tuple[tf.nn.rnn_cell.RNNCell, tf.nn.rnn_cell.RNNCell]
+RNNCellTuple = Tuple[tf.contrib.rnn.RNNCell, tf.contrib.rnn.RNNCell]
 # pylint: enable=invalid-name
 
 
@@ -31,7 +28,7 @@ class RawRNNEncoder(ModelPart, Attentive):
                  input_dimension: int,
                  max_input_len: Optional[int]=None,
                  dropout_keep_prob: float=1.0,
-                 attention_type: Optional[AttType]=None,
+                 attention_type: Optional[Any]=None,
                  attention_fertility: int=3,
                  use_noisy_activations: bool=False,
                  parent_encoder: Optional["RawRNNEncoder"]=None,
@@ -84,13 +81,13 @@ class RawRNNEncoder(ModelPart, Attentive):
                 fw_cell, bw_cell, self.inputs, self._input_lengths,
                 dtype=tf.float32)
 
-            self.hidden_states = tf.concat(axis=2, values=outputs_bidi_tup)
+            self.hidden_states = tf.concat(outputs_bidi_tup, 2)
 
             with tf.variable_scope('attention_tensor'):
                 self.__attention_tensor = self._dropout(
                     self.hidden_states)
 
-            self.encoded = tf.concat(axis=1, values=encoded_tup)
+            self.encoded = tf.concat(encoded_tup, 1)
 
         log("RNN encoder initialized")
 
