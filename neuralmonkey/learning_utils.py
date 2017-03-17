@@ -444,6 +444,8 @@ def _print_examples(dataset: Dataset,
     target_series_names = [s for s in dataset.series_ids if s in outputs]
     output_series_names = list(outputs.keys())
 
+    assert len(outputs) > 0
+
     if val_preview_input_series is not None:
         target_series_names = [s for s in target_series_names
                                if s in val_preview_input_series]
