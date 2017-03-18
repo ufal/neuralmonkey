@@ -104,6 +104,7 @@ def from_dataset(datasets: List[Dataset], series_ids: List[str], max_size: int,
         max_size: The maximum size of the vocabulary
         save_file: A file to save the vocabulary to. If None (default),
                    the vocabulary will not be saved.
+        overwrite: Overwrite existing file.
         unk_sample_prob: The probability with which to sample unks out of
                          words with frequency 1. Defaults to 0.5.
 
