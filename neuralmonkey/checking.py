@@ -4,18 +4,21 @@ constructing the computational graph.
 """
 
 
-from typing import List, Optional
+from typing import List, Optional, Iterable
 
 import tensorflow as tf
 
 from neuralmonkey.logging import log, debug, warn
+from neuralmonkey.dataset import Dataset
+from neuralmonkey.runners.base_runner import BaseRunner
 
 
 class CheckingException(Exception):
     pass
 
 
-def check_dataset_and_coders(dataset, runners):
+def check_dataset_and_coders(dataset: Dataset,
+                             runners: Iterable[BaseRunner]) -> None:
     # pylint: disable=protected-access
 
     data_list = []
@@ -46,26 +49,6 @@ def check_dataset_and_coders(dataset, runners):
 
         raise CheckingException("Dataset '{}' is mising series {}:"
                                 .format(dataset.name, ", ".join(formated)))
-
-
-def missing_attributes(obj, attributes):
-    return [attr for attr in attributes is not hasattr(obj, attributes)]
-
-
-def type_to_str(type_obj):
-    return "{}.{}".format(type_obj.__module__, type_obj.__name__)
-
-
-def assert_type(obj, name, value, expected_type, can_be_none=False):
-    if value is None and can_be_none:
-        return
-    if not isinstance(value, expected_type):
-        caller_type_str = type_to_str(type(obj))
-        exptected_str = type_to_str(expected_type)
-        real_type_str = type_to_str(type(value))
-        raise CheckingException(
-            'Value of "{}" in "{}"should be "{}" but was "{}" {}'.format(
-                name, caller_type_str, exptected_str, real_type_str, value))
 
 
 def assert_shape(tensor: tf.Tensor,
