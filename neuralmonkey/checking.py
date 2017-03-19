@@ -4,7 +4,7 @@ constructing the computational graph.
 """
 
 
-from typing import Any, List, Optional, Iterable
+from typing import List, Optional, Iterable
 
 import tensorflow as tf
 
@@ -49,24 +49,6 @@ def check_dataset_and_coders(dataset: Dataset,
 
         raise CheckingException("Dataset '{}' is mising series {}:"
                                 .format(dataset.name, ", ".join(formated)))
-
-
-def missing_attributes(obj: Any, attributes: Iterable[str]) -> List[str]:
-    return [attr for attr in attributes if not hasattr(obj, attr)]
-
-
-def type_to_str(type_obj: Any) -> str:
-    return "{}.{}".format(type_obj.__module__, type_obj.__name__)
-
-
-def assert_type(obj: Any, name: str, value: Any, expected_type: type) -> None:
-    if not isinstance(value, expected_type):
-        caller_type_str = type_to_str(type(obj))
-        exptected_str = type_to_str(expected_type)
-        real_type_str = type_to_str(type(value))
-        raise CheckingException(
-            'Value of "{}" in "{}"should be "{}" but was "{}" {}'.format(
-                name, caller_type_str, exptected_str, real_type_str, value))
 
 
 def assert_shape(tensor: tf.Tensor,
