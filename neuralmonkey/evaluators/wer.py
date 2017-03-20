@@ -1,13 +1,16 @@
+from typing import Iterable, List
+
 import pyter
 
 
 # pylint: disable=too-few-public-methods
 class WEREvaluator(object):
     """Compute WER (word error rate, used in speech recognition)."""
-    def __init__(self, name="WER"):
+    def __init__(self, name: str="WER") -> None:
         self.name = name
 
-    def __call__(self, decoded, references):
+    def __call__(self, decoded: Iterable[List],
+                 references: Iterable[List]) -> float:
         dist_sum = 0
         length_sum = 0
         for hyp, ref in zip(decoded, references):

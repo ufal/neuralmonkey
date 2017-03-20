@@ -7,8 +7,8 @@ from typeguard import check_argument_types
 from neuralmonkey.encoders.attentive import Attentive
 from neuralmonkey.model.model_part import ModelPart, FeedDict
 from neuralmonkey.logging import log
-from neuralmonkey.nn.noisy_gru_cell import NoisyGRUCell
 from neuralmonkey.nn.ortho_gru_cell import OrthoGRUCell
+from neuralmonkey.nn.utils import dropout
 from neuralmonkey.dataset import Dataset
 
 # pylint: disable=invalid-name
@@ -29,9 +29,6 @@ class RawRNNEncoder(ModelPart, Attentive):
                  max_input_len: Optional[int]=None,
                  dropout_keep_prob: float=1.0,
                  attention_type: Optional[Any]=None,
-                 attention_fertility: int=3,
-                 use_noisy_activations: bool=False,
-                 parent_encoder: Optional["RawRNNEncoder"]=None,
                  save_checkpoint: Optional[str]=None,
                  load_checkpoint: Optional[str]=None) -> None:
         """Creates a new instance of the encoder.
@@ -49,12 +46,9 @@ class RawRNNEncoder(ModelPart, Attentive):
                 (default 1.0)
             attention_type: The class that is used for creating
                 attention mechanism (default None)
-            attention_fertility: Fertility parameter used with
-                CoverageAttention (default 3).
         """
         ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
-        Attentive.__init__(
-            self, attention_type, attention_fertility=attention_fertility)
+        Attentive.__init__(self, attention_type)
 
         assert check_argument_types()
 
@@ -64,8 +58,6 @@ class RawRNNEncoder(ModelPart, Attentive):
         self.max_input_len = max_input_len
         self.input_dimension = input_dimension
         self.dropout_keep_p = dropout_keep_prob
-        self.use_noisy_activations = use_noisy_activations
-        self.parent_encoder = parent_encoder
 
         log("Initializing RNN encoder, name: '{}'"
             .format(self.name))
@@ -84,22 +76,22 @@ class RawRNNEncoder(ModelPart, Attentive):
             self.hidden_states = tf.concat(outputs_bidi_tup, 2)
 
             with tf.variable_scope('attention_tensor'):
-                self.__attention_tensor = self._dropout(
-                    self.hidden_states)
+                self.__attention_tensor = dropout(
+                    self.hidden_states, self.dropout_keep_p, self.train_mode)
 
             self.encoded = tf.concat(encoded_tup, 1)
 
         log("RNN encoder initialized")
 
     @property
-    def _attention_tensor(self):
+    def _attention_tensor(self) -> tf.Tensor:
         return self.__attention_tensor
 
     @property
-    def _attention_mask(self):
+    def _attention_mask(self) -> tf.Tensor:
         return self._input_mask
 
-    def _create_input_placeholders(self):
+    def _create_input_placeholders(self) -> None:
         """Creates input placeholder nodes in the computation graph"""
         self.train_mode = tf.placeholder(tf.bool, shape=[],
                                          name="mode_placeholder")
@@ -113,33 +105,8 @@ class RawRNNEncoder(ModelPart, Attentive):
             tf.int32, shape=[None],
             name="encoder_padding_lengths")
 
-    def _dropout(self, variable: tf.Tensor) -> tf.Tensor:
-        """Perform dropout on a variable
-
-        Arguments:
-            variable: The variable to be dropped out
-
-        Returns:
-            The dropped value of the variable
-        """
-        if self.dropout_keep_p == 1.0:
-            return variable
-
-        # TODO as soon as TF.12 is out, remove this line and use train_mode
-        # directly
-        train_mode_batch = tf.fill(tf.shape(variable)[:1], self.train_mode)
-        dropped_value = tf.nn.dropout(variable, self.dropout_keep_p)
-        return tf.where(train_mode_batch, dropped_value, variable)
-
     def rnn_cells(self) -> RNNCellTuple:
         """Return the graph template to for creating RNN memory cells"""
-
-        if self.parent_encoder is not None:
-            return self.parent_encoder.rnn_cells()
-
-        if self.use_noisy_activations:
-            return(NoisyGRUCell(self.rnn_size, self.train_mode),
-                   NoisyGRUCell(self.rnn_size, self.train_mode))
 
         return (OrthoGRUCell(self.rnn_size),
                 OrthoGRUCell(self.rnn_size))
