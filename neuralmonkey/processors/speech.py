@@ -21,7 +21,7 @@ def SpeechFeaturesPreprocessor(feature_type: str='mfcc', delta_order: int=0,
     features (resulting in 39 coefficients per frame), set `delta_order=2`.
 
     Arguments:
-        feature_type: mfcc, logfbank or ssc (default is mfcc)
+        feature_type: mfcc, fbank, logfbank or ssc (default is mfcc)
         delta_order: maximum order of the delta features (default is 0)
         delta_window: window size for delta features (default is 2)
         **kwargs: keyword arguments for the appropriate function from
