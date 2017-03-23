@@ -190,7 +190,8 @@ class Decoder(ModelPart):
 
             self.hidden_states = self.runtime_rnn_outputs
 
-            def decode(rnn_outputs):
+            def decode(rnn_outputs: List[tf.Tensor]) -> Tuple[
+                    List[tf.Tensor], List[tf.Tensor]]:
                 with tf.name_scope("output_projection"):
                     logits = []
                     decoded = []
@@ -419,7 +420,7 @@ class Decoder(ModelPart):
 
         return outputs, states
 
-    def _visualize_attention(self):
+    def _visualize_attention(self) -> None:
         """Create image summaries with attentions"""
         att_objects = self._runtime_attention_objects.values()
 
