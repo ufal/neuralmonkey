@@ -5,7 +5,7 @@ import numpy as np
 class AccuracyEvaluator(object):
     # pylint: disable=too-few-public-methods
 
-    def __init__(self, name="Accuracy"):
+    def __init__(self, name: str="Accuracy") -> None:
         self.name = name
 
     def __call__(self,

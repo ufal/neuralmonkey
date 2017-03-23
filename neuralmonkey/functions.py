@@ -1,8 +1,12 @@
+from typing import Optional
+
 import tensorflow as tf
 
 
-def inverse_sigmoid_decay(param, rate, min_value=0., max_value=1.,
-                          name=None, dtype=tf.float32):
+def inverse_sigmoid_decay(param, rate, min_value: float=0.,
+                          max_value: float=1.,
+                          name: Optional[str]=None,
+                          dtype=tf.float32) -> tf.Tensor:
     """Inverse sigmoid decay: k/(k+exp(x/k)).
 
     The result will be scaled to the range (min_value, max_value).

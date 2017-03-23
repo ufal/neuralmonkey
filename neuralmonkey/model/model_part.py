@@ -26,7 +26,7 @@ class ModelPart(metaclass=ABCMeta):
         self._saver = None  # type: Optional[tf.train.Saver]
 
     @property
-    def name(self):
+    def name(self) -> str:
         """Name of the model part and its variable scope."""
         return self._name
 

@@ -8,7 +8,7 @@ class F1Evaluator(object):
     the entity (I), the rest is outside the entity (O).
     """
 
-    def __init__(self, name="F1 measure"):
+    def __init__(self, name: str="F1 measure") -> None:
         self.name = name
 
     def __call__(self, decoded: List[List[str]],

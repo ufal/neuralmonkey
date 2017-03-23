@@ -4,7 +4,7 @@ from typing import Any, List
 # pylint: disable=too-few-public-methods
 class AverageEvaluator(object):
     """Just average the numeric output of a runner."""
-    def __init__(self, name):
+    def __init__(self, name: str) -> None:
         self.name = name
 
     def __call__(self, decoded: List[float], _: List[Any]) -> float:

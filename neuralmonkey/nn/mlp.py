@@ -7,8 +7,8 @@ class MultilayerPerceptron(object):
 
     # pylint: disable=too-many-arguments
     def __init__(self, mlp_input, layer_configuration, dropout_plc,
-                 output_size, name='multilayer_perceptron',
-                 activation_fn=tf.nn.relu):
+                 output_size, name: str='multilayer_perceptron',
+                 activation_fn=tf.nn.relu) -> None:
 
         with tf.variable_scope(name):
             last_layer_size = mlp_input.get_shape()[1].value
