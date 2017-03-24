@@ -405,7 +405,7 @@ def print_final_evaluation(name: str, eval_result: Evaluation) -> None:
 
 def _data_item_to_str(item: Any) -> str:
     if isinstance(item, list):
-        return " ".join(item)
+        return " ".join([str(i) for i in item])
     elif isinstance(item, str):
         return item
     elif isinstance(item, np.ndarray):
