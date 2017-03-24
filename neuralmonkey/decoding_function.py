@@ -16,7 +16,7 @@ class Attention(object):
     # For maintaining the same API as in CoverageAttention
 
     def __init__(self, attention_states, scope,
-                 input_weights=None, attention_fertility=None):
+                 input_weights=None, attention_fertility=None) -> None:
         """Create the attention object.
 
         Args:
@@ -29,8 +29,8 @@ class Attention(object):
                 compatibilty, maximum fertility of one word.
         """
         self.scope = scope
-        self.logits_in_time = []
-        self.attentions_in_time = []
+        self.logits_in_time = []  # type: List[tf.Tensor]
+        self.attentions_in_time = []  # type: List[tf.Tensor]
         self.attention_states = attention_states
         self.input_weights = input_weights
 
@@ -61,7 +61,7 @@ class Attention(object):
             self.v_bias = tf.get_variable(
                 "AttnV_b", [], initializer=tf.constant_initializer(0))
 
-    def attention(self, query_state):
+    def attention(self, query_state) -> tf.Tensor:
         """Put attention masks on att_states_reshaped
            using hidden_features and query.
         """

@@ -1,4 +1,6 @@
 import math
+from typing import Tuple
+
 import tensorflow as tf
 
 from neuralmonkey.nn.projection import linear
@@ -14,7 +16,7 @@ class NoisyGRUCell(tf.contrib.rnn.RNNCell):
     function are changed for the noisy ones.
     """
 
-    def __init__(self, num_units, training):
+    def __init__(self, num_units: int, training) -> None:
         self._num_units = num_units
         self.training = training
 
@@ -26,7 +28,8 @@ class NoisyGRUCell(tf.contrib.rnn.RNNCell):
     def state_size(self):
         return self._num_units
 
-    def __call__(self, inputs, state, scope=None):
+    def __call__(self, inputs, state,
+                 scope=None) -> Tuple[tf.Tensor, tf.Tensor]:
         """Gated recurrent unit (GRU) with nunits cells."""
         with tf.variable_scope(scope or type(self).__name__):  # "GRUCell"
             with tf.variable_scope("Gates"):  # Reset gate and update gate.
@@ -42,7 +45,8 @@ class NoisyGRUCell(tf.contrib.rnn.RNNCell):
         return new_h, new_h
 
 
-def noisy_activation(x, generic, linearized, training, alpha=1.1, c=0.5):
+def noisy_activation(x, generic, linearized, training,
+                     alpha: float=1.1, c: float=0.5):
     """
     Implements the noisy activation with Half-Normal Noise for Hard-Saturation
     functions. See http://arxiv.org/abs/1603.00391, Algorithm 1.

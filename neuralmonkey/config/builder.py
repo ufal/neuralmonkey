@@ -125,7 +125,7 @@ def instantiate_class(name: str,
     Arguments: see help(build_object)
     """
     if name not in all_dicts:
-        debug(all_dicts, "configBuild")
+        debug(str(all_dicts), "configBuild")
         raise ConfigInvalidValueException(name, "Undefined object")
     this_dict = all_dicts[name]
 

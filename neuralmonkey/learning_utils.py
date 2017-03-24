@@ -246,9 +246,8 @@ def run_on_dataset(tf_manager: TensorFlowManager,
                    dataset: Dataset,
                    postprocess: Postprocess,
                    write_out: bool=False,
-                   batch_size: Optional[int]=None) \
-                                                -> Tuple[List[ExecutionResult],
-                                                         Dict[str, List[Any]]]:
+                   batch_size: Optional[int]=None) -> Tuple[
+                       List[ExecutionResult], Dict[str, List[Any]]]:
     """Apply the model on a dataset and optionally write outputs to files.
 
     Args:

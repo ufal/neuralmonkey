@@ -1,4 +1,4 @@
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 from neuralmonkey.evaluators.bleu import BLEUEvaluator
 
 
@@ -14,7 +14,8 @@ class GLEUEvaluator(object):
 
     Ngram counts are based on the bleu methods."""
 
-    def __init__(self, n=4, deduplicate=False, name=None):
+    def __init__(self, n: int=4, deduplicate: bool=False,
+                 name: Optional[str]=None) -> None:
         self.n = n
         self.deduplicate = deduplicate
         self.bleu = BLEUEvaluator(n=4, deduplicate=deduplicate, name="BLEU")

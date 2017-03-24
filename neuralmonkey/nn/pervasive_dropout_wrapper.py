@@ -5,18 +5,18 @@ from neuralmonkey.checking import assert_shape
 
 class PervasiveDropoutWrapper(tf.contrib.rnn.RNNCell):
 
-    def __init__(self, cell, mask, scale):
+    def __init__(self, cell, mask, scale) -> None:
         self._cell = cell
         self._mask = mask
         assert_shape(mask, [None, cell.sate_size])
         self._scale = scale
 
     @property
-    def state_size(self):
+    def state_size(self) -> int:
         return self._cell.state_size
 
     @property
-    def output_size(self):
+    def output_size(self) -> int:
         return self._cell.output_size
 
     def __call__(self, inputs, state, scope=None):
