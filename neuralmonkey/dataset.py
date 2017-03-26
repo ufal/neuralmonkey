@@ -194,18 +194,6 @@ class LazyDataset(Dataset):
                              src_id, func.__name__))
                 self.preprocess_series[tgt_id] = (src_id, func)
 
-    def __len__(self):
-        """Length of the lazy dataset is unknown.
-
-        TODO: reconsider the exception raising, maybe just write a warning
-        log message instead and return None or zero. Make the decision
-        consistent with the implementation of the ``shuffle`` function.
-
-        Raises:
-            Exception every time this function is called.
-        """
-        raise Exception("Lazy dataset does not know its size")
-
     def has_series(self, name: str) -> bool:
         """Check if the dataset contains a series of a given name.
 
@@ -251,7 +239,7 @@ class LazyDataset(Dataset):
         else:
             raise Exception("Series '{}' is not in the dataset.".format(name))
 
-    def shuffle(self):
+    def shuffle(self) -> None:
         """Does nothing, not in-memory shuffle is impossible.
 
         TODO: this is related to the ``__len__`` method.
