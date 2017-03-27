@@ -352,6 +352,24 @@ class Vocabulary(collections.Sized):
         for index, word in enumerate(self.index_to_word):
             self.word_to_index[word] = index
 
+    def truncate_by_min_freq(self, min_freq: int) -> None:
+        """Truncate the vocabulary by only keeping tokens with given minimum
+        frequency.
+
+        Arguments:
+            min_freq: The minimum frequency of included words.
+        """
+        if min_freq == 1:
+            return
+
+        # count how many words there are with frequency < min_freq
+        infreq_word_count = sum([1 for w in self.word_count.keys()
+                                 if self.word_count[w] < min_freq])
+        log("Removing {} infrequent (<{}) words from vocabulary".format(
+            infreq_word_count, min_freq))
+        new_size = len(self)-infreq_word_count
+        self.truncate(new_size)
+
     def sentences_to_tensor(
             self,
             sentences: List[List[str]],
