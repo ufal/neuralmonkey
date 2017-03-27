@@ -94,6 +94,7 @@ def from_wordlist(path: str, encoding: str="utf-8") -> 'Vocabulary':
 # helper function, this number of parameters is needed
 def from_dataset(datasets: List[Dataset], series_ids: List[str], max_size: int,
                  save_file: str=None, overwrite: bool=False,
+                 min_freq: Optional[int]=1,
                  unk_sample_prob: float=0.5) -> 'Vocabulary':
     """Loads vocabulary from a dataset with an option to save it.
 
@@ -105,6 +106,7 @@ def from_dataset(datasets: List[Dataset], series_ids: List[str], max_size: int,
         save_file: A file to save the vocabulary to. If None (default),
                    the vocabulary will not be saved.
         overwrite: Overwrite existing file.
+        min_freq: Do not include words with frequency smaller than this.
         unk_sample_prob: The probability with which to sample unks out of
                          words with frequency 1. Defaults to 0.5.
 
@@ -127,6 +129,9 @@ def from_dataset(datasets: List[Dataset], series_ids: List[str], max_size: int,
                     [token for sent in series for token in sent])
 
     vocabulary.truncate(max_size)
+
+    if min_freq > 1:
+        vocabulary.truncate_by_min_freq(min_freq)
 
     log("Vocabulary for series {} initialized, containing {} words"
         .format(series_ids, len(vocabulary)))
