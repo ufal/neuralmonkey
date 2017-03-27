@@ -126,7 +126,7 @@ def from_dataset(datasets: List[Dataset], series_ids: List[str], max_size: int,
                 vocabulary.add_tokenized_text(
                     [token for sent in series for token in sent])
 
-    vocabulary.trunkate(max_size)
+    vocabulary.truncate(max_size)
 
     log("Vocabulary for series {} initialized, containing {} words"
         .format(series_ids, len(vocabulary)))
@@ -323,7 +323,7 @@ class Vocabulary(collections.Sized):
 
         return idx
 
-    def trunkate(self, size: int) -> None:
+    def truncate(self, size: int) -> None:
         """Truncate the vocabulary to the requested size by discarding
         infrequent tokens.
 
