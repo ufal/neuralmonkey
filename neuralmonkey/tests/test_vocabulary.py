@@ -21,6 +21,7 @@ for s in TOKENIZED_CORPUS:
 
 
 class TestVocabulary(unittest.TestCase):
+
     def test_all_words_in(self):
         for sentence in TOKENIZED_CORPUS:
             for word in sentence:
@@ -44,6 +45,18 @@ class TestVocabulary(unittest.TestCase):
         for orig_sentence, reconstructed_sentence in \
                 zip(TOKENIZED_CORPUS, senteces_again):
             self.assertSequenceEqual(orig_sentence, reconstructed_sentence)
+
+    def test_min_freq(self):
+
+        vocabulary = Vocabulary()
+
+        for sentence in TOKENIZED_CORPUS:
+            vocabulary.add_tokenized_text(sentence)
+
+        vocabulary.truncate_by_min_freq(2)
+
+        self.assertTrue("walrus" in vocabulary)
+        self.assertFalse("colorless" in vocabulary)
 
 
 if __name__ == "__main__":

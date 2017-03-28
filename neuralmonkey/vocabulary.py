@@ -94,6 +94,7 @@ def from_wordlist(path: str, encoding: str="utf-8") -> 'Vocabulary':
 # helper function, this number of parameters is needed
 def from_dataset(datasets: List[Dataset], series_ids: List[str], max_size: int,
                  save_file: str=None, overwrite: bool=False,
+                 min_freq: Optional[int]=None,
                  unk_sample_prob: float=0.5) -> 'Vocabulary':
     """Loads vocabulary from a dataset with an option to save it.
 
@@ -105,6 +106,7 @@ def from_dataset(datasets: List[Dataset], series_ids: List[str], max_size: int,
         save_file: A file to save the vocabulary to. If None (default),
                    the vocabulary will not be saved.
         overwrite: Overwrite existing file.
+        min_freq: Do not include words with frequency smaller than this.
         unk_sample_prob: The probability with which to sample unks out of
                          words with frequency 1. Defaults to 0.5.
 
@@ -126,7 +128,11 @@ def from_dataset(datasets: List[Dataset], series_ids: List[str], max_size: int,
                 vocabulary.add_tokenized_text(
                     [token for sent in series for token in sent])
 
-    vocabulary.trunkate(max_size)
+    vocabulary.truncate(max_size)
+
+    if min_freq is not None:
+        if min_freq > 1:
+            vocabulary.truncate_by_min_freq(min_freq)
 
     log("Vocabulary for series {} initialized, containing {} words"
         .format(series_ids, len(vocabulary)))
@@ -323,7 +329,7 @@ class Vocabulary(collections.Sized):
 
         return idx
 
-    def trunkate(self, size: int) -> None:
+    def truncate(self, size: int) -> None:
         """Truncate the vocabulary to the requested size by discarding
         infrequent tokens.
 
@@ -351,6 +357,21 @@ class Vocabulary(collections.Sized):
         self.word_to_index = {}
         for index, word in enumerate(self.index_to_word):
             self.word_to_index[word] = index
+
+    def truncate_by_min_freq(self, min_freq: int) -> None:
+        """Truncate the vocabulary only keeping words with a minimum frequency.
+
+        Arguments:
+            min_freq: The minimum frequency of included words.
+        """
+        if min_freq > 1:
+            # count how many words there are with frequency < min_freq
+            infreq_word_count = sum([1 for w in self.word_count.keys()
+                                     if self.word_count[w] < min_freq])
+            log("Removing {} infrequent (<{}) words from vocabulary".format(
+                infreq_word_count, min_freq))
+            new_size = len(self)-infreq_word_count
+            self.truncate(new_size)
 
     def sentences_to_tensor(
             self,
