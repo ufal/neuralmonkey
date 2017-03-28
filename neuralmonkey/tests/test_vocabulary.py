@@ -48,15 +48,15 @@ class TestVocabulary(unittest.TestCase):
 
     def test_min_freq(self):
 
-        v = Vocabulary()
+        vocabulary = Vocabulary()
 
         for s in TOKENIZED_CORPUS:
-            v.add_tokenized_text(s)
+            vocabulary.add_tokenized_text(s)
 
-        v.truncate_by_min_freq(min_freq=2)
+        vocabulary.truncate_by_min_freq(2)
 
-        self.assertTrue("walrus" in v)
-        self.assertFalse("colorless" in v)
+        self.assertTrue("walrus" in vocabulary)
+        self.assertFalse("colorless" in vocabulary)
 
 
 if __name__ == "__main__":
