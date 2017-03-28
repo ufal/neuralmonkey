@@ -359,7 +359,7 @@ class Vocabulary(collections.Sized):
             self.word_to_index[word] = index
 
     def truncate_by_min_freq(self, min_freq: int) -> None:
-        """Truncate the vocabulary only keeping tokens with a minimum frequency.
+        """Truncate the vocabulary only keeping words with a minimum frequency.
 
         Arguments:
             min_freq: The minimum frequency of included words.
