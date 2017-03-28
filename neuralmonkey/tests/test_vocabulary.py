@@ -50,8 +50,8 @@ class TestVocabulary(unittest.TestCase):
 
         vocabulary = Vocabulary()
 
-        for s in TOKENIZED_CORPUS:
-            vocabulary.add_tokenized_text(s)
+        for sentence in TOKENIZED_CORPUS:
+            vocabulary.add_tokenized_text(sentence)
 
         vocabulary.truncate_by_min_freq(2)
 
