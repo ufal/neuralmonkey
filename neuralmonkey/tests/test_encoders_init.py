@@ -9,6 +9,7 @@ from neuralmonkey.decoding_function import Attention, CoverageAttention
 from neuralmonkey.encoders.numpy_encoder import (VectorEncoder,
                                                  PostCNNImageEncoder)
 from neuralmonkey.encoders.sentence_encoder import SentenceEncoder
+from neuralmonkey.encoders.sentence_cnn_encoder import SentenceCNNEncoder 
 from neuralmonkey.tests.test_vocabulary import VOCABULARY
 
 SENTENCE_ENCODER = {
@@ -20,6 +21,20 @@ SENTENCE_ENCODER = {
     "use_noisy_activations": ([False], [0, "", "bflm"]),
     "data_id": (["marmelade"], [0]),
     "vocabulary": ([VOCABULARY], [0])
+}
+
+SENTENCE_CNN_ENCODER = {
+    "max_input_len": ([1, 10, 100], [-1, 0, "ahoj", 3.14]),
+    "embedding_size": ([1, 10, 100], [-1, 0, "ahoj", 3.14]),
+    "rnn_size": ([1, 10, 100], [-1, 0, "ahoj", 3.14]),
+    "dropout_keep_prob": ([0.1, 1.0], [-1, 1.5, "huhu"]),
+    "attention_type": ([Attention, CoverageAttention, None], ["baf"]),
+    "use_noisy_activations": ([False], [0, "", "bflm"]),
+    "data_id": (["marmelade"], [0]),
+    "vocabulary": ([VOCABULARY], [0]),
+    "highway_depth" : ([1, 10, 100], [-1, "ahoj", 3.14]),
+    "filters" : ([[(2, 10)], [(2, 50),(3, 20),(4, 10)]], ["ahoj", [], [(0, 0)]]),
+    "segment_size" : ([1, 10, 10], [-1, 0, "ahoj", 3.14])
 }
 
 VECTOR_ENCODER = {
@@ -86,6 +101,9 @@ class TestEncodersInit(unittest.TestCase):
 
     def test_sentence_encoder(self):
         self._construct_all_objects(SentenceEncoder, SENTENCE_ENCODER)
+
+    def test_sentence_cnn_encoder(self):
+        self._construct_all_objects(SentenceCNNEncoder, SENTENCE_CNN_ENCODER)
 
     def test_vector_encoder(self):
         self._construct_all_objects(VectorEncoder, VECTOR_ENCODER)

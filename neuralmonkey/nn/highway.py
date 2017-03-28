@@ -55,15 +55,15 @@ def highway(inputs, activation=tf.nn.relu, scope="HighwayNetwork"):
             initializer=tf.constant_initializer(-1.0))
 
         T = tf.sigmoid(
-            tf.matmul(inputs, W_T) + b_T,
+            tf.add(tf.matmul(inputs, W_T), b_T),
             name="transform_gate")
         H = activation(
-            tf.matmul(inputs, W_H) + b_H,
+            tf.add(tf.matmul(inputs, W_H), b_H),
             name="activation")
-        C = tf.sub(1.0, T, name="carry_gate")
+        C = tf.subtract(1.0, T, name="carry_gate")
 
         y = tf.add(
-            tf.mul(H, T),
-            tf.mul(inputs, C),
+            tf.multiply(H, T),
+            tf.multiply(inputs, C),
             "y")
         return y
