@@ -94,7 +94,7 @@ def from_wordlist(path: str, encoding: str="utf-8") -> 'Vocabulary':
 # helper function, this number of parameters is needed
 def from_dataset(datasets: List[Dataset], series_ids: List[str], max_size: int,
                  save_file: str=None, overwrite: bool=False,
-                 min_freq: Optional[int]=1,
+                 min_freq: Optional[int]=None,
                  unk_sample_prob: float=0.5) -> 'Vocabulary':
     """Loads vocabulary from a dataset with an option to save it.
 
@@ -130,8 +130,9 @@ def from_dataset(datasets: List[Dataset], series_ids: List[str], max_size: int,
 
     vocabulary.truncate(max_size)
 
-    if min_freq > 1:
-        vocabulary.truncate_by_min_freq(min_freq)
+    if min_freq is not None:
+        if min_freq > 1:
+            vocabulary.truncate_by_min_freq(min_freq)
 
     log("Vocabulary for series {} initialized, containing {} words"
         .format(series_ids, len(vocabulary)))
@@ -370,8 +371,10 @@ class Vocabulary(collections.Sized):
         # count how many words there are with frequency < min_freq
         infreq_word_count = sum([1 for w in self.word_count.keys()
                                  if self.word_count[w] < min_freq])
+
         log("Removing {} infrequent (<{}) words from vocabulary".format(
             infreq_word_count, min_freq))
+
         new_size = len(self)-infreq_word_count
         self.truncate(new_size)
 
