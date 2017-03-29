@@ -17,13 +17,13 @@ RNNCellTuple = Tuple[tf.contrib.rnn.RNNCell, tf.contrib.rnn.RNNCell]
 # pylint: enable=invalid-name
 
 
-# pylint: disable=too-many-instance-attributes
 class SentenceCNNEncoder(ModelPart, Attentive):
     """Encoder processing a sentence using a CNN then
     running a bidirectional RNN on the result.
     """
 
     # pylint: disable=too-many-arguments,too-many-locals
+    # pylint: disable=too-many-statements
     def __init__(self,
                  name: str,
                  vocabulary: Vocabulary,
@@ -83,13 +83,16 @@ class SentenceCNNEncoder(ModelPart, Attentive):
 
         self.max_input_len = max_input_len
         self.embedding_size = embedding_size
+        self.segment_size = segment_size
+        self.highway_depth = highway_depth
         self.rnn_size = rnn_size
+        self.filters = filters
         self.dropout_keep_p = dropout_keep_prob
         self.use_noisy_activations = use_noisy_activations
         self.parent_encoder = parent_encoder
 
         if max_input_len is not None and max_input_len <= 0:
-            raise ValueError("Input length must be positive.")
+            raise ValueError("Input length must be a positive integer.")
 
         log("Initializing sentence encoder, name: '{}'"
             .format(self.name))
@@ -103,7 +106,7 @@ class SentenceCNNEncoder(ModelPart, Attentive):
 
             # CNN Network
             pooled_outputs = []
-            for filter_size, num_filters in filters:
+            for filter_size, num_filters in self.filters:
                 with tf.variable_scope("conv-maxpool-%s" % filter_size):
                     filter_shape = [filter_size, embedding_size, num_filters]
                     w_filter = tf.get_variable(
@@ -126,20 +129,21 @@ class SentenceCNNEncoder(ModelPart, Attentive):
                     expanded_conv_relu = tf.expand_dims(conv_relu, -1)
                     pooled = tf.nn.max_pool(
                         expanded_conv_relu,
-                        ksize=[1, segment_size, 1, 1],
-                        strides=[1, segment_size, 1, 1],
+                        ksize=[1, self.segment_size, 1, 1],
+                        strides=[1, self.segment_size, 1, 1],
                         padding="SAME")
                     pooled_outputs.append(pooled)
 
             # Combine all the pooled features
-            self.cnn_encoded = tf.squeeze(tf.concat(2, pooled_outputs), [3])
+            self.cnn_encoded = tf.concat(pooled_outputs, axis=2)
+            self.cnn_encoded = tf.squeeze(self.cnn_encoded, [3])
 
             # Highway Network
             batch_size = tf.shape(self.cnn_encoded)[0]
             # pylint: disable=no-member
             cnn_out_size = self.cnn_encoded.get_shape().as_list()[-1]
             highway_layer = tf.reshape(self.cnn_encoded, [-1, cnn_out_size])
-            for i in range(highway_depth):
+            for i in range(self.highway_depth):
                 highway_layer = highway(
                     highway_layer,
                     scope=("highway_layer_%s" % i))
@@ -149,10 +153,13 @@ class SentenceCNNEncoder(ModelPart, Attentive):
 
             # BiRNN Network
             fw_cell, bw_cell = self.rnn_cells()  # type: RNNCellTuple
+            seq_lens = tf.ceil(tf.divide(
+                self.sentence_lengths,
+                self.segment_size))
+            seq_lens = tf.cast(seq_lens, tf.int32)
             outputs_bidi_tup, encoded_tup = tf.nn.bidirectional_dynamic_rnn(
                 fw_cell, bw_cell, highway_layer,
-                sequence_length=tf.ceil(
-                    tf.div(self.sentence_lengths, segment_size)),
+                sequence_length=seq_lens,
                 dtype=tf.float32)
 
             self.hidden_states = tf.concat(outputs_bidi_tup, 2)
@@ -220,7 +227,11 @@ class SentenceCNNEncoder(ModelPart, Attentive):
         if self.dropout_keep_p == 1.0:
             return variable
 
-        return tf.nn.dropout(variable, self.dropout_keep_p, self.train_mode)
+        # TODO as soon as TF.12 is out, remove this line and use train_mode
+        # directly
+        train_mode_batch = tf.fill(tf.shape(variable)[:1], self.train_mode)
+        dropped_value = tf.nn.dropout(variable, self.dropout_keep_p)
+        return tf.where(train_mode_batch, dropped_value, variable)
 
     def _embed(self, inputs: tf.Tensor) -> tf.Tensor:
         """Embed the input using the embedding matrix and apply dropout

@@ -9,7 +9,7 @@ from neuralmonkey.decoding_function import Attention, CoverageAttention
 from neuralmonkey.encoders.numpy_encoder import (VectorEncoder,
                                                  PostCNNImageEncoder)
 from neuralmonkey.encoders.sentence_encoder import SentenceEncoder
-from neuralmonkey.encoders.sentence_cnn_encoder import SentenceCNNEncoder 
+from neuralmonkey.encoders.sentence_cnn_encoder import SentenceCNNEncoder
 from neuralmonkey.tests.test_vocabulary import VOCABULARY
 
 SENTENCE_ENCODER = {
@@ -33,7 +33,8 @@ SENTENCE_CNN_ENCODER = {
     "data_id": (["marmelade"], [0]),
     "vocabulary": ([VOCABULARY], [0]),
     "highway_depth" : ([1, 10, 100], [-1, "ahoj", 3.14]),
-    "filters" : ([[(2, 10)], [(2, 50),(3, 20),(4, 10)]], ["ahoj", [], [(0, 0)]]),
+    "filters" : ([[(2, 10)], [(2, 50), (3, 20), (4, 10)]],
+                 ["ahoj", [], [(0, 0)]]),
     "segment_size" : ([1, 10, 10], [-1, 0, "ahoj", 3.14])
 }
 

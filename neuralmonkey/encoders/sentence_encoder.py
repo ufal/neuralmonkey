@@ -79,7 +79,7 @@ class SentenceEncoder(ModelPart, Attentive):
         self.parent_encoder = parent_encoder
 
         if max_input_len is not None and max_input_len <= 0:
-            raise ValueError("Input length must be positive.")
+            raise ValueError("Input length must be a positive integer.")
 
         log("Initializing sentence encoder, name: '{}'"
             .format(self.name))
