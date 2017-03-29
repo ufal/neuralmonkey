@@ -78,11 +78,6 @@ class GenericTrainer(object):
                                           for obj in objectives))
 
             if global_step is None:
-                global_step = tf.Variable(0, trainable=False,
-                                          name='global_step')
-            self.global_step = global_step
-
-            if global_step is None:
                 global_step = tf.Variable(
                     0, trainable=False, name='global_step')
             self.global_step = global_step
