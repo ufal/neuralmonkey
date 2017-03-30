@@ -4,6 +4,8 @@ import tensorflow as tf
 from typeguard import check_argument_types
 
 from neuralmonkey.encoders.attentive import Attentive
+from neuralmonkey.encoders.sentence_encoder import RNNCellTuple
+from neuralmonkey.encoders.sentence_encoder import SentenceEncoder
 from neuralmonkey.model.model_part import ModelPart, FeedDict
 from neuralmonkey.logging import log
 from neuralmonkey.nn.noisy_gru_cell import NoisyGRUCell
@@ -11,10 +13,6 @@ from neuralmonkey.nn.ortho_gru_cell import OrthoGRUCell
 from neuralmonkey.nn.highway import highway
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.vocabulary import Vocabulary
-
-# pylint: disable=invalid-name
-RNNCellTuple = Tuple[tf.contrib.rnn.RNNCell, tf.contrib.rnn.RNNCell]
-# pylint: enable=invalid-name
 
 
 class SentenceCNNEncoder(ModelPart, Attentive):
