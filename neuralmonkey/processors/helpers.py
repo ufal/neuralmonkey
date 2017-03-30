@@ -5,10 +5,16 @@ def preprocess_char_based(sentence: List[str]) -> List[str]:
     return list(" ".join(sentence))
 
 
-def postprocess_char_based(sentence: List[str]) -> List[str]:
-    joined = "".join(sentence)
-    tokenized = joined.split(" ")
-    return tokenized
+# TODO refactor post-processors to work on sentence level
+def postprocess_char_based(sentences: List[List[str]]) -> List[List[str]]:
+    result = []
+
+    for sentence in sentences:
+        joined = "".join(sentence)
+        tokenized = joined.split(" ")
+        result.append(tokenized)
+
+    return result
 
 
 def untruecase(
