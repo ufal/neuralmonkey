@@ -39,7 +39,9 @@ def audio_reader(prefix: str="",
         read_list = index_reader(prefix, encoding='binary')
 
         for audio_file in read_list(list_files):
-            yield load_file(audio_file)
+            with audio_file:
+                audio = load_file(audio_file)
+            yield audio
 
     return load
 
