@@ -20,7 +20,8 @@ def index_reader(prefix: str="", encoding: Optional[str]='utf-8') -> Callable:
     Args:
         prefix: Prefix of the paths to the files.
         encoding: Encoding in which to open the files. Use 'binary' for binary
-            mode, and None to get file paths.
+            mode, and None to get file paths (the latter does not work for tar
+            files). Default is 'utf-8'.
 
     Returns:
         The reader function that takes the index file and returns a generator
@@ -38,6 +39,10 @@ def index_reader(prefix: str="", encoding: Optional[str]='utf-8') -> Callable:
 
 
 def _read_tar(path: str, encoding: Optional[str]) -> Iterable[FileOrPath]:
+    if encoding is None:
+        # returning file paths is not supported for tar files
+        encoding = 'utf-8'
+
     with tarfile.open(path) as tar:
         for item in tar.getmembers():
             item_f = tar.extractfile(item)
