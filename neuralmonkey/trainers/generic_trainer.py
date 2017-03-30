@@ -26,9 +26,9 @@ class GenericTrainer(object):
     def __init__(self, objectives: List[Objective],
                  l1_weight: float = 0.0, l2_weight: float = 0.0,
                  clip_norm: Optional[float] = None, optimizer=None,
-                 global_step=None) -> None:
+                 global_step=None, name='trainer') -> None:
 
-        with tf.name_scope("trainer"):
+        with tf.name_scope(name):
             self.optimizer = optimizer or tf.train.AdamOptimizer(1e-4)
 
             with tf.name_scope('regularization'):
@@ -89,10 +89,10 @@ class GenericTrainer(object):
                 if grad is not None:
                     tf.summary.histogram(
                         'gr_' + var.name,
-                        grad, collections=["summary_gradients"])
+                        grad, collections=[name+"_summary_gradients"])
 
             self.histogram_summaries = tf.summary.merge(
-                tf.get_collection("summary_gradients"))
+                tf.get_collection(name+"_summary_gradients"))
             self.scalar_summaries = tf.summary.merge(
                 tf.get_collection("summary_train"))
 
