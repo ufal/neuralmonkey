@@ -26,7 +26,7 @@ neuralmonkey-logbook --logdir <EXPERIMENTS_DIR> [OPTION] ...
 
 ## Installation
 
-- You need Python 3.5 to run _Neural Monkey_.
+- You need Python 3.5.2 (or higher) to run _Neural Monkey_.
 
 - When using virtual environment, execute these commands to install the Python
   dependencies:
