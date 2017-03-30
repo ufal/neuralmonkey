@@ -44,12 +44,12 @@ def audio_reader(prefix: str="",
     return load
 
 
-def _load_wav(audio_file: IO) -> Audio:
+def _load_wav(audio_file: IO[bytes]) -> Audio:
     """Read a WAV file."""
     return Audio(*wavfile.read(audio_file))
 
 
-def _load_sph(audio_file: IO) -> Audio:
+def _load_sph(audio_file: IO[bytes]) -> Audio:
     """Read a NIST Sphere audio file using sox."""
     process = subprocess.Popen(['sox', '-t', 'sph', '-', '-t', 'wav', '-'],
                                stdin=audio_file,
