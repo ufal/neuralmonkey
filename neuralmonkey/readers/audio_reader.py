@@ -1,13 +1,14 @@
-from typing import Callable, Iterable, List, NamedTuple
+from typing import Callable, IO, Iterable, List, NamedTuple
 
 import io
-import os
 import subprocess
 import sys
 
 import numpy as np
 
 from scipy.io import wavfile
+
+from neuralmonkey.readers.index_reader import index_reader
 
 
 # pylint: disable=invalid-name
@@ -35,30 +36,30 @@ def audio_reader(prefix: str="",
             "Unsupported audio format: {}".format(audio_format))
 
     def load(list_files: List[str]) -> Iterable[Audio]:
-        for list_file in list_files:
-            with open(list_file) as f_list:
-                for audio_file in f_list:
-                    path = os.path.join(prefix, audio_file.rstrip())
-                    yield load_file(path)
+        read_list = index_reader(prefix, encoding='binary')
+
+        for audio_file in read_list(list_files):
+            yield load_file(audio_file)
 
     return load
 
 
-def _load_wav(path: str) -> Audio:
+def _load_wav(audio_file: IO) -> Audio:
     """Read a WAV file."""
-    return Audio(*wavfile.read(path))
+    return Audio(*wavfile.read(audio_file))
 
 
-def _load_sph(path: str) -> Audio:
-    """Read a NIST Sphere audio file using the sph2pipe utility."""
-    process = subprocess.Popen(['sph2pipe', '-f', 'wav', path],
+def _load_sph(audio_file: IO) -> Audio:
+    """Read a NIST Sphere audio file using sox."""
+    process = subprocess.Popen(['sox', '-t', 'sph', '-', '-t', 'wav', '-'],
+                               stdin=audio_file,
                                stdout=subprocess.PIPE,
                                stderr=sys.stderr)
     data = io.BytesIO(process.stdout.read())
 
     error_code = process.wait()
     if error_code != 0:
-        raise RuntimeError("sph2pipe exited with error code {} when "
-                           "processing {}".format(error_code, path))
+        raise RuntimeError("SoX exited with error code {} when "
+                           "processing {}".format(error_code, audio_file.name))
 
     return Audio(*wavfile.read(data))
