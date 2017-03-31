@@ -5,7 +5,6 @@ from typeguard import check_argument_types
 
 from neuralmonkey.encoders.attentive import Attentive
 from neuralmonkey.encoders.sentence_encoder import RNNCellTuple
-from neuralmonkey.encoders.sentence_encoder import SentenceEncoder
 from neuralmonkey.model.model_part import ModelPart, FeedDict
 from neuralmonkey.logging import log
 from neuralmonkey.nn.noisy_gru_cell import NoisyGRUCell
@@ -36,7 +35,7 @@ class SentenceCNNEncoder(ModelPart, Attentive):
                  attention_type: Optional[Any]=None,
                  attention_fertility: int=3,
                  use_noisy_activations: bool=False,
-                 parent_encoder: Optional["SentenceEncoder"]=None,
+                 parent_encoder: Optional["SentenceCNNEncoder"]=None,
                  save_checkpoint: Optional[str]=None,
                  load_checkpoint: Optional[str]=None) -> None:
         """Create a new instance of the sentence encoder.
