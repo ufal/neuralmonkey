@@ -59,6 +59,12 @@ def main() -> None:
                         action='append', dest='config_changes',
                         help='override an option in the configuration; the '
                         'syntax is [section.]option=value')
+    parser.add_argument('-i', '--init', dest='init_only', action='store_true',
+                        help='initialize the experiment directory and exit '
+                        'without building the model')
+    parser.add_argument('-f', '--overwrite', action='store_true',
+                        help='force overwriting the output directory; can be '
+                        'used to start an experiment created with --init')
     args = parser.parse_args()
 
     # define valid parameters and defaults
@@ -78,7 +84,7 @@ def main() -> None:
     # pylint: disable=no-member
     if (os.path.isdir(cfg.args.output) and
             os.path.exists(os.path.join(cfg.args.output, "experiment.ini"))):
-        if cfg.args.overwrite_output_dir:
+        if cfg.args.overwrite_output_dir or args.overwrite:
             # we do not want to delete the directory contents
             log("Directory with experiment.ini '{}' exists, "
                 "overwriting enabled, proceeding."
@@ -136,6 +142,10 @@ def main() -> None:
 
     cfg.save_file(ini_file)
     copyfile(args.config, orig_ini_file)
+
+    if args.init_only:
+        log("Experiment directory initialized. Exiting.")
+        exit(0)
 
     Logging.set_log_file(log_file)
 
