@@ -91,6 +91,10 @@ class RawRNNEncoder(ModelPart, Attentive):
     def _attention_mask(self) -> tf.Tensor:
         return self._input_mask
 
+    @property
+    def input_mask(self) -> tf.Tensor:
+        return self._input_mask
+
     def _create_input_placeholders(self) -> None:
         """Creates input placeholder nodes in the computation graph"""
         self.train_mode = tf.placeholder(tf.bool, shape=[],
