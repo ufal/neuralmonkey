@@ -76,7 +76,7 @@ class CNNEncoder(ModelPart, Attentive):
         self.data_id = data_id
         self.dropout_keep_prob = dropout_keep_prob
 
-        with tf.variable_scope(name):
+        with self.use_scope():
             self.dropout_placeholder = tf.placeholder(
                 tf.float32, name="dropout")
             self.train_mode = tf.placeholder(tf.bool, shape=[],

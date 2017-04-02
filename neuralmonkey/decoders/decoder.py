@@ -127,7 +127,7 @@ class Decoder(ModelPart):
             log("No output projection specified - using simple concatenation")
             self.output_projection = no_deep_output
 
-        with tf.variable_scope(name):
+        with self.use_scope():
             self._create_input_placeholders()
             self._create_training_placeholders()
             self._create_initial_state()

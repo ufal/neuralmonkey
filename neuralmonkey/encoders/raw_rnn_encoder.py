@@ -62,7 +62,7 @@ class RawRNNEncoder(ModelPart, Attentive):
         log("Initializing RNN encoder, name: '{}'"
             .format(self.name))
 
-        with tf.variable_scope(self.name):
+        with self.use_scope():
             self._create_input_placeholders()
 
             self._input_mask = tf.sequence_mask(self._input_lengths,

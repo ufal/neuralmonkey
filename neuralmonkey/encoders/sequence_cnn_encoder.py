@@ -48,7 +48,7 @@ class SequenceCNNEncoder(ModelPart):
         self.data_id = data_id
         self.max_input_len = max_input_len
 
-        with tf.variable_scope(self.name):
+        with self.use_scope():
             self.train_mode = tf.placeholder(tf.bool, shape=[],
                                              name="mode_placeholder")
 

@@ -32,7 +32,7 @@ class VectorEncoder(ModelPart):
             tf.float32, shape=[None, dimension])
         self.data_id = data_id
 
-        with tf.variable_scope(self.name):
+        with self.use_scope():
             if output_shape and dimension != output_shape:
                 project_w = tf.get_variable(
                     shape=[dimension, output_shape],
@@ -71,7 +71,7 @@ class PostCNNImageEncoder(ModelPart, Attentive):
 
         self.data_id = data_id
 
-        with tf.variable_scope(self.name):
+        with self.use_scope():
             features_shape = [None] + input_shape  # type: ignore
             self.image_features = tf.placeholder(tf.float32,
                                                  shape=features_shape,

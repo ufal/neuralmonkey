@@ -56,7 +56,7 @@ class FactoredEncoder(ModelPart, Attentive):
         self.dropout_keep_prob = dropout_keep_prob
 
         log("Building encoder graph, name: '{}'.".format(self.name))
-        with tf.variable_scope(self.name):
+        with self.use_scope():
             self._create_encoder_graph()
             log("Encoder graph constructed.")
     # pylint: enable=too-many-arguments
