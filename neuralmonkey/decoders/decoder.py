@@ -168,7 +168,7 @@ class Decoder(ModelPart):
                         for e in self.encoders
                         if isinstance(e, Attentive)}
 
-            self.train_logits, _ = self._attention_decoder(
+            self.train_logits, _ = self._decoding_loop(
                 embedded_go_symbols,
                 train_inputs=embedded_train_inputs,
                 train_mode=True)
@@ -186,7 +186,7 @@ class Decoder(ModelPart):
                     if isinstance(e, Attentive)}
 
             (self.runtime_logits,
-             self.runtime_rnn_states) = self._attention_decoder(
+             self.runtime_rnn_states) = self._decoding_loop(
                  embedded_go_symbols,
                  train_mode=False)
 
@@ -346,7 +346,7 @@ class Decoder(ModelPart):
         return logits, state, attns
 
     # pylint: disable=too-many-branches
-    def _attention_decoder(
+    def _decoding_loop(
             self,
             go_symbols: tf.Tensor,
             train_inputs: tf.Tensor = None,
@@ -393,6 +393,7 @@ class Decoder(ModelPart):
             if i > 0:
                 self.step_scope.reuse_variables()
 
+            # choose the input
             if step_logits is None:
                 assert i == 0
                 inp = go_symbols[0]
@@ -402,7 +403,9 @@ class Decoder(ModelPart):
                 prev_word_index = tf.argmax(step_logits, 1)
                 inp = self._embed_and_dropout(prev_word_index)
 
+            # perform the RNN step
             step_logits, state, attns = self.step(att_objects, inp, state, attns)
+
             logits.append(step_logits)
             states.append(state)
 
