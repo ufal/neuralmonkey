@@ -1,10 +1,11 @@
 import math
-from typing import cast, Iterable, List, Callable, Optional, Union, Any, Tuple
+from typing import cast, Iterable, List, Callable, Optional, Any, Tuple
 
 import numpy as np
 import tensorflow as tf
 from typeguard import check_argument_types
 
+from neuralmonkey.decoding_function import Attention
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.vocabulary import Vocabulary, START_TOKEN
 from neuralmonkey.model.model_part import ModelPart, FeedDict
@@ -25,7 +26,7 @@ class Decoder(ModelPart):
     used for the decoding.
     """
 
-    # pylint: disable=too-many-arguments,too-many-locals
+    # pylint: disable=too-many-arguments,too-many-locals,too-many-statements
     def __init__(self,
                  encoders: List[Any],
                  vocabulary: Vocabulary,
@@ -215,6 +216,7 @@ class Decoder(ModelPart):
             self._visualize_attention()
 
             log("Decoder initalized.")
+    # pylint: disable=too-many-arguments,too-many-locals,too-many-statements
 
     def _create_input_placeholders(self) -> None:
         """Creates input placeholder nodes in the computation graph"""
@@ -308,7 +310,11 @@ class Decoder(ModelPart):
 
         return self._runtime_attention_objects.get(encoder)
 
-    def step(self, att_objects, input_, prev_state, prev_attns):
+    def step(self,
+             att_objects: List[Attention],
+             input_: tf.Tensor,
+             prev_state: tf.Tensor,
+             prev_attns: List[tf.Tensor]):
 
         with tf.variable_scope(self.step_scope):
             cell = self._get_rnn_cell()
@@ -404,7 +410,8 @@ class Decoder(ModelPart):
                 inp = self.embed_and_dropout(prev_word_index)
 
             # perform the RNN step
-            step_logits, state, attns = self.step(att_objects, inp, state, attns)
+            step_logits, state, attns = self.step(
+                att_objects, inp, state, attns)
 
             logits.append(step_logits)
             states.append(state)
