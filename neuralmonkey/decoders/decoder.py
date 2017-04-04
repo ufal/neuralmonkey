@@ -151,7 +151,7 @@ class Decoder(ModelPart):
 
             # POSLEDNI TRAIN INPUT SE V DEKODOVACI FUNKCI NEPOUZIJE
             # (jen jako target)
-            embedded_train_inputs = self._embed_and_dropout(
+            embedded_train_inputs = self.embed_and_dropout(
                 self.train_inputs[:-1])
 
             # POZOR TADY SE NEDELA DROPOUT
@@ -277,7 +277,7 @@ class Decoder(ModelPart):
         else:
             self.embedding_matrix = self.embeddings_encoder.embedding_matrix
 
-    def _embed_and_dropout(self, inputs: tf.Tensor) -> tf.Tensor:
+    def embed_and_dropout(self, inputs: tf.Tensor) -> tf.Tensor:
         """Embed the input using the embedding matrix and apply dropout
 
         Arguments:
@@ -401,7 +401,7 @@ class Decoder(ModelPart):
                 inp = train_inputs[i - 1]
             else:
                 prev_word_index = tf.argmax(step_logits, 1)
-                inp = self._embed_and_dropout(prev_word_index)
+                inp = self.embed_and_dropout(prev_word_index)
 
             # perform the RNN step
             step_logits, state, attns = self.step(att_objects, inp, state, attns)
