@@ -124,6 +124,24 @@ documentation as well.
 - [Nematus](https://github.com/rsennrich/nematus) - A tool for training and
   running Neural Machine Translation models
 
+## Citation
+
+If you use the tool for academic purporses, please consider citing 
+[the following paper](https://ufal.mff.cuni.cz/pbml/107/art-helcl-libovicky.pdf):
+
+```bib
+@article{NeuralMonkey:2017,
+    author = {Jind{\v{r}}ich Helcl and Jind{\v{r}}ich Libovick{\'{y}}},
+    title = {Neural Monkey: An Open-source Tool for Sequence Learning},
+    journal = {The Prague Bulletin of Mathematical Linguistics},
+    year = {2017},
+    address = {Prague, Czech Republic},
+    number = {107},
+    pages = {5--17},
+    issn = {0032-6585}
+}
+```
+
 ## License
 
 The software is distributed under the [BSD
