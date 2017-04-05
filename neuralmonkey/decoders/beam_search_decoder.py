@@ -21,7 +21,7 @@ SearchState = NamedTuple("SearchState",
 SearchStepOutput = NamedTuple("SearchStepOutput",
                               [("scores", tf.Tensor),
                                ("parent_ids", tf.Tensor),
-                               ("predicted_ids", tf.Tensor)])
+                               ("token_ids", tf.Tensor)])
 # pylint: enable=invalid-name
 
 
@@ -43,7 +43,6 @@ class BeamSearchDecoder(ModelPart):
 
         self.outputs = self._decoding_loop()
 
-
     def _decoding_loop(self):
         state = SearchState(
             logprob_sum=tf.zeros([1]),
@@ -63,6 +62,7 @@ class BeamSearchDecoder(ModelPart):
 
         return outputs
 
+    # pylint: disable=too-many-locals
     def step(self, bs_state: SearchState) -> Tuple[SearchState,
                                                    SearchStepOutput]:
 
@@ -95,7 +95,7 @@ class BeamSearchDecoder(ModelPart):
         hyp_probs = bs_state.logprob_sum + logprobs
 
         # update hypothesis lengths
-        hyp_lengths = bs_state.lengths + bs_state.unfinished
+        hyp_lengths = bs_state.lengths + 1 - bs_state.finished
 
         # TODO do this the google way
         # shape(scores) = beam x vocabulary
@@ -137,7 +137,7 @@ class BeamSearchDecoder(ModelPart):
         output = SearchStepOutput(
             scores=topk_scores,
             parent_ids=next_beam_ids,
-            predicted_ids=next_word_ids)
+            token_ids=next_word_ids)
 
         search_state = SearchState(
             logprob_sum=next_logprob_sum,
@@ -148,6 +148,7 @@ class BeamSearchDecoder(ModelPart):
             last_attns=next_beam_prev_attns)
 
         return search_state, output
+    # pylint: enable=too-many-locals
 
     def feed_dict(self, dataset: Dataset, train: bool=False) -> FeedDict:
         """Populate the feed dictionary for the decoder object

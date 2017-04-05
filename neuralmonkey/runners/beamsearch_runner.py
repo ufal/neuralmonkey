@@ -1,0 +1,84 @@
+from typing import Callable, List, Dict, Optional
+
+import numpy as np
+
+from neuralmonkey.model.model_part import ModelPart
+from neuralmonkey.decoders.beam_search_decoder import (BeamSearchDecoder,
+                                                       SearchStepOutput)
+from neuralmonkey.runners.base_runner import (BaseRunner, Executable,
+                                              ExecutionResult, NextExecute)
+from neuralmonkey.vocabulary import Vocabulary
+
+
+class BeamSearchExecutable(Executable):
+    def __init__(self,
+                 rank: int,
+                 all_encoders: List[ModelPart],
+                 bs_outputs: List[SearchStepOutput],
+                 vocabulary: Vocabulary,
+                 postprocess: Optional[Callable]) -> None:
+
+        self._rank = rank
+        self._all_encoders = all_encoders
+        self._bs_outputs = bs_outputs
+        self._vocabulary = vocabulary
+        self._postprocess = postprocess
+
+        self.result = None  # type: Optional[ExecutionResult]
+
+    def next_to_execute(self) -> NextExecute:
+        return self._all_encoders, {'bs_outputs': self._bs_outputs}, {}
+
+    def collect_results(self, results: List[Dict]) -> None:
+        if len(results) > 1:
+            raise ValueError("Beam search runner does not support ensembling.")
+
+        evaluated_bs = results[0]['bs_outputs']
+
+        # pick the end of the hypothesis based on its rank
+        hyp_index = np.argpartition(
+            evaluated_bs[-1].scores, self._rank)[self._rank]
+        bs_score = evaluated_bs[-1].scores[hyp_index]
+
+        # now backtrack
+        output_tokens = []
+        for output in reversed(evaluated_bs):
+            token_id = output.token_ids[hyp_index]
+            token = self._vocabulary.index_to_word[token_id]
+            output_tokens.append(token)
+            hyp_index = output.parent_ids[hyp_index]
+        output_tokens.reverse()
+
+        decoded_tokens = [output_tokens]
+        if self._postprocess is not None:
+            decoded_tokens = self._postprocess([decoded_tokens])
+
+        self.result = ExecutionResult(
+            outputs=decoded_tokens,
+            losses=[bs_score],
+            scalar_summaries=None,
+            histogram_summaries=None,
+            image_summaries=None)
+
+
+class BeamSearchRunner(BaseRunner):
+    def __init__(self,
+                 output_series: str,
+                 rank: int,
+                 decoder: BeamSearchDecoder,
+                 postprocess: Optional[Callable[[List[str]],
+                                                List[str]]]=None) -> None:
+        super(BeamSearchRunner, self).__init__(output_series, decoder)
+        self._rank = rank
+        self._postprocess = postprocess
+
+    def get_executable(self,
+                       compute_losses: bool=False,
+                       summaries: bool=True) -> BeamSearchExecutable:
+        return BeamSearchExecutable(
+            self._rank, self.all_coders, self._decoder.bs_outputs,
+            self._decoder.vocabulary, self._postprocess)
+
+    @property
+    def loss_names(self) -> List[str]:
+        return ["beam_search_score"]
