@@ -1,6 +1,7 @@
 from typing import Callable, List, Dict, Optional
 
 import numpy as np
+from typeguard import check_argument_types
 
 from neuralmonkey.model.model_part import ModelPart
 from neuralmonkey.decoders.beam_search_decoder import (BeamSearchDecoder,
@@ -37,7 +38,7 @@ class BeamSearchExecutable(Executable):
 
         # pick the end of the hypothesis based on its rank
         hyp_index = np.argpartition(
-            evaluated_bs[-1].scores, self._rank)[self._rank]
+            evaluated_bs[-1].scores, self._rank - 1)[self._rank - 1]
         bs_score = evaluated_bs[-1].scores[hyp_index]
 
         # now backtrack
@@ -64,11 +65,18 @@ class BeamSearchExecutable(Executable):
 class BeamSearchRunner(BaseRunner):
     def __init__(self,
                  output_series: str,
-                 rank: int,
                  decoder: BeamSearchDecoder,
+                 rank: int=1,
                  postprocess: Optional[Callable[[List[str]],
                                                 List[str]]]=None) -> None:
         super(BeamSearchRunner, self).__init__(output_series, decoder)
+        assert check_argument_types()
+
+        if rank < 1 or rank > decoder.beam_size:
+            raise ValueError(
+                ("Rank of output hypothesis must be between 1 and the beam "
+                 "size ({}), was {}.").format(decoder.beam_size, rank))
+
         self._rank = rank
         self._postprocess = postprocess
 
@@ -76,9 +84,13 @@ class BeamSearchRunner(BaseRunner):
                        compute_losses: bool=False,
                        summaries: bool=True) -> BeamSearchExecutable:
         return BeamSearchExecutable(
-            self._rank, self.all_coders, self._decoder.bs_outputs,
+            self._rank, self.all_coders, self._decoder.outputs,
             self._decoder.vocabulary, self._postprocess)
 
     @property
     def loss_names(self) -> List[str]:
         return ["beam_search_score"]
+
+    @property
+    def decoder_data_id(self) -> Optional[str]:
+        return None

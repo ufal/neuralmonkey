@@ -1,9 +1,9 @@
-
-from typing import NamedTuple, Tuple, Optional
+from typing import NamedTuple, Tuple, Optional, List
 
 import tensorflow as tf
 from typeguard import check_argument_types
 
+from neuralmonkey.decoding_function import Attention
 from neuralmonkey.model.model_part import ModelPart, FeedDict
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.decoders.decoder import Decoder
@@ -43,33 +43,42 @@ class BeamSearchDecoder(ModelPart):
 
         self.outputs = self._decoding_loop()
 
+    @property
+    def beam_size(self):
+        return self._beam_size
+
+    @property
+    def vocabulary(self):
+        return self._parent_decoder.vocabulary
+
     def _decoding_loop(self):
+        # collect attention objects
+        att_objects = [self._parent_decoder.get_attention_object(e, False)
+                       for e in self._parent_decoder.encoders]
+        att_objects = [a for a in att_objects if a is not None]
+
         state = SearchState(
             logprob_sum=tf.zeros([1]),
-            lengths=tf.ones([1]),
+            lengths=tf.ones([1], dtype=tf.int32),
             finished=tf.zeros([1], dtype=tf.bool),
-            last_word_ids=tf.constant(START_TOKEN_INDEX),
+            last_word_ids=tf.expand_dims(tf.constant(START_TOKEN_INDEX), 0),
             last_state=self._parent_decoder.initial_state,
-            last_attns=[]
+            last_attns=[tf.zeros([1, a.attn_size]) for a in att_objects]
         )
 
         # TODO rewrite using tf.while_loop
 
         outputs = []
         for _ in range(self._max_steps):
-            state, output = self.step(state)
+            state, output = self.step(att_objects, state)
             outputs.append(output)
 
         return outputs
 
     # pylint: disable=too-many-locals
-    def step(self, bs_state: SearchState) -> Tuple[SearchState,
-                                                   SearchStepOutput]:
-
-        # collect attention objects
-        att_objects = [self._parent_decoder.get_attention_object(e, False)
-                       for e in self._parent_decoder.encoders]
-        att_objects = [a for a in att_objects if a is not None]
+    def step(self,
+             att_objects: List[Attention],
+             bs_state: SearchState) -> Tuple[SearchState, SearchStepOutput]:
 
         # embed the previously decoded word
         input_ = self._parent_decoder.embed_and_dropout(
@@ -88,18 +97,19 @@ class BeamSearchDecoder(ModelPart):
 
         # mask the probabilities
         # shape(logprobs) = beam x vocabulary
-        logprobs = (1 - bs_state.finished) * tf.nn.log_softmax(logits)
+        logprobs = (tf.expand_dims(1. - tf.to_float(bs_state.finished), 1) *
+                    tf.nn.log_softmax(logits))
 
         # update hypothesis scores
         # shape(hyp_probs) = beam x vocabulary
-        hyp_probs = bs_state.logprob_sum + logprobs
+        hyp_probs = tf.expand_dims(bs_state.logprob_sum, 1) + logprobs
 
         # update hypothesis lengths
-        hyp_lengths = bs_state.lengths + 1 - bs_state.finished
+        hyp_lengths = bs_state.lengths + 1 - tf.to_int32(bs_state.finished)
 
         # TODO do this the google way
         # shape(scores) = beam x vocabulary
-        scores = hyp_probs / hyp_lengths
+        scores = hyp_probs / tf.expand_dims(tf.to_float(hyp_lengths), 1)
 
         # flatten so we can use top_k
         scores_flat = tf.reshape(scores, [-1])
@@ -127,6 +137,7 @@ class BeamSearchDecoder(ModelPart):
 
         next_beam_prev_state = tf.gather(state, next_beam_ids)
         next_beam_prev_attns = [tf.gather(a, next_beam_ids) for a in attns]
+        next_lengths = tf.gather(hyp_lengths, next_beam_ids)
 
         # update finished flags
         has_just_finished = tf.equal(next_word_ids, END_TOKEN_INDEX)
@@ -141,7 +152,7 @@ class BeamSearchDecoder(ModelPart):
 
         search_state = SearchState(
             logprob_sum=next_logprob_sum,
-            lengths=hyp_lengths,
+            lengths=next_lengths,
             finished=next_finished,
             last_word_ids=next_word_ids,
             last_state=next_beam_prev_state,
