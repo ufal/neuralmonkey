@@ -35,7 +35,6 @@ class SentenceCNNEncoder(ModelPart, Attentive):
                  attention_type: Optional[Any]=None,
                  attention_fertility: int=3,
                  use_noisy_activations: bool=False,
-                 parent_encoder: Optional["SentenceCNNEncoder"]=None,
                  save_checkpoint: Optional[str]=None,
                  load_checkpoint: Optional[str]=None) -> None:
         """Create a new instance of the sentence encoder.
@@ -86,7 +85,6 @@ class SentenceCNNEncoder(ModelPart, Attentive):
         self.filters = filters
         self.dropout_keep_p = dropout_keep_prob
         self.use_noisy_activations = use_noisy_activations
-        self.parent_encoder = parent_encoder
 
         if max_input_len is not None and max_input_len <= 0:
             raise ValueError("Input length must be a positive integer.")
@@ -205,12 +203,9 @@ class SentenceCNNEncoder(ModelPart, Attentive):
         """
         # NOTE the note from the decoder's embedding matrix function applies
         # here also
-        if self.parent_encoder is not None:
-            self.embedding_matrix = self.parent_encoder.embedding_matrix
-        else:
-            self.embedding_matrix = tf.get_variable(
-                "word_embeddings", [self.vocabulary_size, self.embedding_size],
-                initializer=tf.random_normal_initializer(stddev=0.01))
+        self.embedding_matrix = tf.get_variable(
+            "word_embeddings", [self.vocabulary_size, self.embedding_size],
+            initializer=tf.random_normal_initializer(stddev=0.01))
 
     def _dropout(self, variable: tf.Tensor) -> tf.Tensor:
         """Perform dropout on a variable
@@ -241,9 +236,6 @@ class SentenceCNNEncoder(ModelPart, Attentive):
 
     def rnn_cells(self) -> RNNCellTuple:
         """Return the graph template to for creating RNN memory cells"""
-
-        if self.parent_encoder is not None:
-            return self.parent_encoder.rnn_cells()
 
         if self.use_noisy_activations:
             return(NoisyGRUCell(self.rnn_size, self.train_mode),
