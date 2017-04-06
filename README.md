@@ -74,28 +74,6 @@ with Neural Monkey.
 
 - `tests`: Test files
 
-The `neuralmonkey` package is organized into subpackages as follows:
-
-- `encoders`: The encoders (get sequences of data and encode them)
-- `decoders`: The decoders (get outputs of encoders and decode them)
-- `nn`: The NN (as in Neural Network components)
-- `trainers`: The trainers (train the whole thing)
-- `runners`: The runners (run the trained thing)
-- `readers`: The readers (read files)
-- `processors`: The pre- and postprocessors (pre- and postprocess data)
-- `evaluators`: The evaluators (used for measuring performance)
-- `config`: The configuration (loading, saving, parsing)
-- `logbook`: The Logbook (server for checking up on experiments)
-- `tests`: The unit tests
-
-## Additional Scripts
-
-- `caffe_image_features.py` extracts features from images using pre-trained network
-- `tokenize_data.py` tokenizes data
-- `postedit_prepare_data.py` compute edit operations from two sets of sentences
-- `postedit_reconstruct_data.py` applies edit operations to a set of sentences
-- `postedit_rule_based_fixes.py` some rule-based fixes for post-editing task
-
 ## Documentation
 
 You can find the API documentation of this package
@@ -126,7 +104,7 @@ documentation as well.
 
 ## Citation
 
-If you use the tool for academic purporses, please consider citing 
+If you use the tool for academic purporses, please consider citing
 [the following paper](https://ufal.mff.cuni.cz/pbml/107/art-helcl-libovicky.pdf):
 
 ```bib
@@ -138,7 +116,9 @@ If you use the tool for academic purporses, please consider citing
     address = {Prague, Czech Republic},
     number = {107},
     pages = {5--17},
-    issn = {0032-6585}
+    issn = {0032-6585},
+    doi = {10.1515/pralin-2017-0001},
+    url = {http://ufal.mff.cuni.cz/pbml/107/art-helcl-libovicky.pdf}
 }
 ```
 
