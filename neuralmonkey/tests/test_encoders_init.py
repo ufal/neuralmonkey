@@ -32,10 +32,10 @@ SENTENCE_CNN_ENCODER = {
     "use_noisy_activations": ([False], [0, "", "bflm"]),
     "data_id": (["marmelade"], [0]),
     "vocabulary": ([VOCABULARY], [0]),
-    "highway_depth" : ([1, 10, 100], [-1, "ahoj", 3.14]),
-    "filters" : ([[(2, 10)], [(2, 50), (3, 20), (4, 10)]],
-                 ["ahoj", [], [(0, 0)]]),
-    "segment_size" : ([1, 10, 10], [-1, 0, "ahoj", 3.14])
+    "highway_depth": ([1, 10, 100], [-1, "ahoj", 3.14]),
+    "filters": ([[(2, 10)], [(2, 50), (3, 20), (4, 10)]],
+                ["ahoj", [], [(0, 0)]]),
+    "segment_size": ([1, 10, 10], [-1, 0, "ahoj", 3.14])
 }
 
 VECTOR_ENCODER = {

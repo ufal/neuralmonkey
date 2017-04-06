@@ -115,7 +115,7 @@ class SentenceCNNEncoder(ModelPart, Attentive):
                         embedded_inputs,
                         w_filter,
                         stride=1,
-                        padding="VALID",
+                        padding="SAME",
                         name="conv")
 
                     # Apply nonlinearity
@@ -127,7 +127,8 @@ class SentenceCNNEncoder(ModelPart, Attentive):
                         expanded_conv_relu,
                         ksize=[1, self.segment_size, 1, 1],
                         strides=[1, self.segment_size, 1, 1],
-                        padding="SAME")
+                        padding="SAME",
+                        name="maxpool")
                     pooled_outputs.append(pooled)
 
             # Combine all the pooled features
@@ -175,7 +176,15 @@ class SentenceCNNEncoder(ModelPart, Attentive):
     @property
     def _attention_mask(self):
         # TODO tohle je proti OOP prirode
-        return self.input_mask
+        expanded = tf.expand_dims(
+            tf.expand_dims(self.input_mask, -1)
+            -1)
+        pooled = tf.nn.max_pool(
+            expanded,
+            ksize=[1, self.segment_size, 1, 1],
+            strides=[1, self.segment_size, 1, 1],
+            padding="SAME")
+        return tf.squeeze(pooled, [2, 3])
 
     @property
     def vocabulary_size(self):
