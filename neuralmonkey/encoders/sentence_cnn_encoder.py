@@ -14,6 +14,7 @@ from neuralmonkey.dataset import Dataset
 from neuralmonkey.vocabulary import Vocabulary
 
 
+# pylint: disable=too-many-instance-attributes
 class SentenceCNNEncoder(ModelPart, Attentive):
     """Encoder processing a sentence using a CNN then
     running a bidirectional RNN on the result.
