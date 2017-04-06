@@ -177,7 +177,7 @@ class SentenceCNNEncoder(ModelPart, Attentive):
     def _attention_mask(self):
         # TODO tohle je proti OOP prirode
         expanded = tf.expand_dims(
-            tf.expand_dims(self.input_mask, -1)
+            tf.expand_dims(self.input_mask, -1),
             -1)
         pooled = tf.nn.max_pool(
             expanded,
