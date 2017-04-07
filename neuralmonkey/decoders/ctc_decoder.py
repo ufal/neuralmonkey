@@ -128,14 +128,12 @@ class CTCDecoder(ModelPart):
             paddings = paddings.T
 
             # Need to convert the data to a sparse representation
-            bool_mask = (paddings == 1)
+            bool_mask = (paddings > 0.5)
             indices = np.stack(np.where(bool_mask), axis=1)
             values = vectors[bool_mask]
 
-            targets = tf.SparseTensorValue(
+            fd[self.train_targets] = tf.SparseTensorValue(
                 indices=indices, values=values,
                 dense_shape=vectors.shape)
-
-            fd[self.train_targets] = targets
 
         return fd
