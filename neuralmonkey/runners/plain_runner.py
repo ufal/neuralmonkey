@@ -12,6 +12,7 @@ from neuralmonkey.runners.base_runner import (BaseRunner, Executable,
 
 
 class PlainRunner(BaseRunner):
+    """A runner which takes the output from decoder.decoded."""
 
     def __init__(self,
                  output_series: str,
