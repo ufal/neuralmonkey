@@ -13,13 +13,13 @@ from neuralmonkey.vocabulary import END_TOKEN
 # pylint: disable=too-few-public-methods
 
 
-class CTCRunner(BaseRunner):
+class PlainRunner(BaseRunner):
 
     def __init__(self,
                  output_series: str,
                  decoder: Any,
                  postprocess: Callable[[List[str]], List[str]]=None) -> None:
-        super(CTCRunner, self).__init__(output_series, decoder)
+        super(PlainRunner, self).__init__(output_series, decoder)
         self._postprocess = postprocess
 
     def get_executable(self, compute_losses=False, summaries=True):
@@ -32,16 +32,16 @@ class CTCRunner(BaseRunner):
 
         fetches["decoded"] = self._decoder.decoded
 
-        return CTCExecutable(self.all_coders, fetches,
-                             self._decoder.vocabulary,
-                             self._postprocess)
+        return PlainExecutable(self.all_coders, fetches,
+                               self._decoder.vocabulary,
+                               self._postprocess)
 
     @property
     def loss_names(self) -> List[str]:
         return ["train_loss", "runtime_loss"]
 
 
-class CTCExecutable(Executable):
+class PlainExecutable(Executable):
 
     def __init__(self, all_coders, fetches, vocabulary, postprocess) -> None:
         self.all_coders = all_coders
@@ -57,14 +57,13 @@ class CTCExecutable(Executable):
         return self.all_coders, self._fetches, {}
 
     def collect_results(self, results: List[Dict]) -> None:
-        train_loss = 0.
-        runtime_loss = 0.
+        if len(results) != 1:
+            raise ValueError('PlainRunner needs exactly 1 execution result, '
+                             'got {}'.format(len(results)))
 
-        for sess_result in results:
-            train_loss += sess_result["train_loss"]
-            runtime_loss += sess_result["runtime_loss"]
-
-        decoded = sess_result["decoded"]
+        train_loss = results[0]["train_loss"]
+        runtime_loss = results[0]["runtime_loss"]
+        decoded = results[0]["decoded"]
 
         decoded_tokens = self._vocabulary.vectors_to_sentences(decoded)
 
