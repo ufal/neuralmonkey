@@ -42,9 +42,9 @@ class CTCDecoder(ModelPart):
 
             self.train_mode = tf.placeholder(tf.bool, name="train_mode")
 
-            # encoder.input_mask is batch-major
+            # encoder.states_mask is batch-major
             self._input_lengths = tf.reduce_sum(
-                tf.to_int32(self.encoder.input_mask), 1)
+                tf.to_int32(self.encoder.states_mask), 1)
 
             if beam_width == 1:
                 decoded, _ = tf.nn.ctc_greedy_decoder(

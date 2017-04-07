@@ -65,7 +65,7 @@ class RawRNNEncoder(ModelPart, Attentive):
         with self.use_scope():
             self._create_input_placeholders()
 
-            self._input_mask = tf.sequence_mask(self._input_lengths,
+            self.states_mask = tf.sequence_mask(self._input_lengths,
                                                 dtype=tf.float32)
 
             fw_cell, bw_cell = self.rnn_cells()  # type: RNNCellTuple
@@ -89,11 +89,7 @@ class RawRNNEncoder(ModelPart, Attentive):
 
     @property
     def _attention_mask(self) -> tf.Tensor:
-        return self._input_mask
-
-    @property
-    def input_mask(self) -> tf.Tensor:
-        return self._input_mask
+        return self.states_mask
 
     def _create_input_placeholders(self) -> None:
         """Creates input placeholder nodes in the computation graph"""
