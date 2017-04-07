@@ -19,7 +19,7 @@ function prep() {
 
   count=`wc -l <${name}.wavlist`
   [ "$count" -eq $exp_count ] \
-    || die "Expected $exp_count training WAVs, got $count"
+    || die "Expected $exp_count $name WAVs, got $count"
 
   grep -Eo '([01]_)+[01]' ${name}.wavlist | tr _ ' ' \
     | sed 's/0/NO/g; s/1/YES/g;' >${name}.txt \
