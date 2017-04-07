@@ -57,7 +57,7 @@ class CTCDecoder(ModelPart):
                     merge_repeated=self._merge_repeated_outputs)
 
             self.decoded = tf.sparse_tensor_to_dense(
-                decoded[0],
+                tf.sparse_transpose(decoded[0]),
                 default_value=self.vocabulary.get_word_index(END_TOKEN))
 
     @property
