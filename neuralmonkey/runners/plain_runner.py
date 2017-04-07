@@ -3,12 +3,10 @@ from typing import Callable, Dict, List, Any
 from typing import Optional
 # pylint: enable=unused-import
 
-import numpy as np
 import tensorflow as tf
 
 from neuralmonkey.runners.base_runner import (BaseRunner, Executable,
                                               ExecutionResult, NextExecute)
-from neuralmonkey.vocabulary import END_TOKEN
 
 # pylint: disable=too-few-public-methods
 

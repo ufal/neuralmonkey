@@ -1,4 +1,4 @@
-from typing import cast, Iterable, List, Optional
+from typing import Any, cast, Iterable, List, Optional
 
 import numpy as np
 import tensorflow as tf
@@ -15,9 +15,10 @@ class CTCDecoder(ModelPart):
     See `tf.nn.ctc_loss`, `tf.nn.ctc_greedy_decoder` etc.
     """
 
+    # pylint: disable=too-many-arguments
     def __init__(self,
                  name: str,
-                 encoder: ModelPart,
+                 encoder: Any,
                  vocabulary: Vocabulary,
                  data_id: str,
                  merge_repeated_targets: bool=False,
@@ -54,9 +55,6 @@ class CTCDecoder(ModelPart):
                     inputs=self._logits, sequence_length=self._input_lengths,
                     beam_width=self._beam_width,
                     merge_repeated=self._merge_repeated_outputs)
-
-            # # 1 is subtracted from labels in feed_dict, add it back now
-            # self.decoded = tf.sparse_tensor_to_dense(decoded[0]) + 1
 
             self.decoded = tf.sparse_tensor_to_dense(
                 decoded[0],
@@ -133,11 +131,6 @@ class CTCDecoder(ModelPart):
             bool_mask = (paddings == 1)
             indices = np.stack(np.where(bool_mask), axis=1)
             values = vectors[bool_mask]
-
-            # # Label 0 is now unused. Make the labels start from 0 again!
-            # # Label len(vocabulary) - 1 will be used by CTC as the empty label
-            # # instead
-            # values -= 1
 
             targets = tf.SparseTensorValue(
                 indices=indices, values=values,
