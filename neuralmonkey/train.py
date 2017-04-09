@@ -144,7 +144,11 @@ def main() -> None:
     copyfile(args.config, orig_ini_file)
 
     if args.init_only:
-        log("Experiment directory initialized. Exiting.")
+        log("Experiment directory initialized.")
+
+        cmd = [os.path.basename(sys.argv[0]), '-f', ini_file]
+        log("To start experiment, run: {}".format(' '.join(shlex.quote(a)
+                                                           for a in cmd)))
         exit(0)
 
     Logging.set_log_file(log_file)
