@@ -50,14 +50,16 @@ class BeamSearchExecutable(Executable):
             hyp_index = output.parent_ids[hyp_index]
         output_tokens.reverse()
 
-        decoded_tokens = []  # type: List[str]
+        before_eos_tokens = []  # type: List[str]
         for tok in output_tokens:
             if tok == END_TOKEN:
                 break
-            decoded_tokens.append(tok)
+            before_eos_tokens.append(tok)
 
         if self._postprocess is not None:
-            decoded_tokens = self._postprocess([decoded_tokens])
+            decoded_tokens = self._postprocess([before_eos_tokens])
+        else:
+            decoded_tokens = [before_eos_tokens]
 
         self.result = ExecutionResult(
             outputs=decoded_tokens,
