@@ -8,7 +8,7 @@ from neuralmonkey.decoders.beam_search_decoder import (BeamSearchDecoder,
                                                        SearchStepOutput)
 from neuralmonkey.runners.base_runner import (BaseRunner, Executable,
                                               ExecutionResult, NextExecute)
-from neuralmonkey.vocabulary import Vocabulary
+from neuralmonkey.vocabulary import Vocabulary, END_TOKEN
 
 
 class BeamSearchExecutable(Executable):
@@ -42,7 +42,7 @@ class BeamSearchExecutable(Executable):
         bs_score = evaluated_bs[-1].scores[hyp_index]
 
         # now backtrack
-        output_tokens = []
+        output_tokens = []  # type: List[str]
         for output in reversed(evaluated_bs):
             token_id = output.token_ids[hyp_index]
             token = self._vocabulary.index_to_word[token_id]
@@ -50,7 +50,12 @@ class BeamSearchExecutable(Executable):
             hyp_index = output.parent_ids[hyp_index]
         output_tokens.reverse()
 
-        decoded_tokens = [output_tokens]
+        decoded_tokens = []  # type: List[str]
+        for tok in output_tokens:
+            if tok == END_TOKEN:
+                break
+            decoded_tokens.append(tok)
+
         if self._postprocess is not None:
             decoded_tokens = self._postprocess([decoded_tokens])
 
