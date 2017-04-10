@@ -12,12 +12,17 @@ from neuralmonkey.nn.ortho_gru_cell import OrthoGRUCell
 from neuralmonkey.nn.highway import highway
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.vocabulary import Vocabulary
+from neuralmonkey.decorators import tensor
 
 
 # pylint: disable=too-many-instance-attributes
 class SentenceCNNEncoder(ModelPart, Attentive):
     """Encoder processing a sentence using a CNN then
     running a bidirectional RNN on the result.
+
+    Based on: Jason Lee, Kyunghyun Cho, Thomas Hofmann: Fully
+    Character-Level Neural Machine Translation without Explicit
+    Segmentation (https://arxiv.org/pdf/1610.03017.pdf)
     """
 
     # pylint: disable=too-many-arguments,too-many-locals
@@ -39,10 +44,6 @@ class SentenceCNNEncoder(ModelPart, Attentive):
                  save_checkpoint: Optional[str]=None,
                  load_checkpoint: Optional[str]=None) -> None:
         """Create a new instance of the sentence encoder.
-
-        Based on: Jason Lee, Kyunghyun Cho, Thomas Hofmann: Fully
-        Character-Level Neural Machine Translation without Explicit
-        Segmentation (https://arxiv.org/pdf/1610.03017.pdf)
 
         Arguments:
             vocabulary: Input vocabulary
@@ -173,7 +174,7 @@ class SentenceCNNEncoder(ModelPart, Attentive):
     def _attention_tensor(self):
         return self.__attention_tensor
 
-    @property
+    @tensor
     def _attention_mask(self):
         # TODO tohle je proti OOP prirode
         expanded = tf.expand_dims(
