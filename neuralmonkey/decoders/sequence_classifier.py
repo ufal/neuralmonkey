@@ -53,7 +53,7 @@ class SequenceClassifier(ModelPart):
         self.dropout_keep_prob = dropout_keep_prob
         self.max_output_len = 1
 
-        with tf.variable_scope(name):
+        with self.use_scope():
             self.learning_step = tf.get_variable(
                 "learning_step", [], trainable=False,
                 initializer=tf.constant_initializer(0))
