@@ -15,8 +15,6 @@ bin/neuralmonkey-train tests/classifier.ini
 bin/neuralmonkey-train tests/labeler.ini
 bin/neuralmonkey-train tests/language-model.ini
 bin/neuralmonkey-train tests/audio-classifier.ini
-
-[ -d tests/data/yesno ] || (cd tests/data && ./prepare_yesno.sh)
 bin/neuralmonkey-train tests/ctc.ini
 
 bin/neuralmonkey-train tests/small.ini

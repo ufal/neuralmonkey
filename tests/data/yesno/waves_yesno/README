@@ -1,0 +1,16 @@
+This dataset can be found at http://openslr.org/resources/1/waves_yesno.tar.gz
+
+This dataset was created for the Kaldi project (see kaldi.sf.net),
+by a contributor who prefes to remain anonymous.  The main point of the dataset is
+to provide a way to test out the Kaldi scripts for free.
+
+The archive "waves_yesno.tar.gz" contains 60 .wav files, sampled at 8 kHz.  All were recorded
+by the same male speaker, in English (although the individual is not a native speaker).
+In each file, the individual says 8 words; each word is either "yes" or "no", so each
+file is a random sequence of 8 yes-es or noes.  There is no separate transcription provided; the
+sequence is encoded in the filename, with 1 for yes and 0 for no, for instance:
+
+# tar -xvzf waves_yesno.tar.gz
+waves_yesno/1_0_1_1_1_0_1_0.wav
+waves_yesno/0_1_1_0_0_1_1_0.wav
+...
