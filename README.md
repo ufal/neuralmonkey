@@ -102,6 +102,11 @@ documentation as well.
 - [Nematus](https://github.com/rsennrich/nematus) - A tool for training and
   running Neural Machine Translation models
 
+- [seq2seq](https://github.com/google/seq2seq) - a general-purpose
+  encoder-decoder framework for Tensorflow
+
+- [OpenNMT](https://github.com/opennmt/opennmt) - open sourcce NMT in Torch
+
 ## Citation
 
 If you use the tool for academic purporses, please consider citing
