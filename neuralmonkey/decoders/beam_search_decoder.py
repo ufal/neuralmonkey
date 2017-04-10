@@ -26,12 +26,18 @@ SearchStepOutput = NamedTuple("SearchStepOutput",
 
 
 class BeamSearchDecoder(ModelPart):
+    """In-graph beam search for batch size 1.
 
+    The hypothesis scoring algorithm is taken from
+    https://arxiv.org/pdf/1609.08144.pdf. Length normalization is parameter
+    alpha from equation 14.
+    """
     def __init__(self,
                  name: str,
                  parent_decoder: Decoder,
                  max_steps: int,
                  beam_size: int,
+                 length_normalization: float,
                  save_checkpoint: Optional[str]=None,
                  load_checkpoint: Optional[str]=None) -> None:
         ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
@@ -40,6 +46,7 @@ class BeamSearchDecoder(ModelPart):
         self._parent_decoder = parent_decoder
         self._beam_size = beam_size
         self._max_steps = max_steps
+        self._length_normalization = length_normalization
 
         self.outputs = self._decoding_loop()
 
@@ -107,9 +114,9 @@ class BeamSearchDecoder(ModelPart):
         # update hypothesis lengths
         hyp_lengths = bs_state.lengths + 1 - tf.to_int32(bs_state.finished)
 
-        # TODO do this the google way
         # shape(scores) = beam x vocabulary
-        scores = hyp_probs / tf.expand_dims(tf.to_float(hyp_lengths), 1)
+        scores = hyp_probs / tf.expand_dims(
+            self._length_penalty(hyp_lengths), 1)
 
         # flatten so we can use top_k
         scores_flat = tf.reshape(scores, [-1])
@@ -172,3 +179,9 @@ class BeamSearchDecoder(ModelPart):
         assert len(dataset) == 1
 
         return {}
+
+    def _length_penalty(self, lengths):
+        """lp term from eq. 14"""
+
+        return ((5. + tf.to_float(lengths)) ** self._length_normalization /
+                (5. + 1.) ** self._length_normalization)
