@@ -36,7 +36,7 @@ class CTCDecoder(ModelPart):
         self._merge_repeated_outputs = merge_repeated_outputs
         self._beam_width = beam_width
 
-        with tf.variable_scope(name):
+        with self.use_scope():
             self.train_targets = tf.sparse_placeholder(tf.int32,
                                                        name="targets")
 
