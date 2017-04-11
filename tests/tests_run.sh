@@ -15,6 +15,7 @@ bin/neuralmonkey-train tests/classifier.ini
 bin/neuralmonkey-train tests/labeler.ini
 bin/neuralmonkey-train tests/language-model.ini
 bin/neuralmonkey-train tests/audio-classifier.ini
+bin/neuralmonkey-train tests/ctc.ini
 
 bin/neuralmonkey-train tests/small.ini
 bin/neuralmonkey-run tests/small.ini tests/test_data.ini

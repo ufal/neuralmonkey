@@ -117,6 +117,10 @@ class SentenceEncoder(ModelPart, Attentive):
         return self.input_mask
 
     @property
+    def states_mask(self):
+        return self.input_mask
+
+    @property
     def vocabulary_size(self):
         return len(self.vocabulary)
 
