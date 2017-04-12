@@ -215,7 +215,7 @@ class LazyDataset(Dataset):
                     raise Exception(
                         ("The source series ({}) of the '{}' preprocessor "
                          "is not defined in the dataset.").format(
-                             src_id, func.__name__))
+                             src_id, str(func)))
                 self.preprocess_series[tgt_id] = (src_id, func)
 
     def has_series(self, name: str) -> bool:
@@ -380,7 +380,7 @@ def load_dataset_from_files(
                     raise Exception(
                         ("The source series ({}) of the '{}' preprocessor "
                          "is not defined in the dataset.").format(
-                             src_id, function.__name__))
+                             src_id, str(function)))
                 series[tgt_id] = list(map(function, series[src_id]))
 
         dataset = Dataset(name, series, series_outputs)
