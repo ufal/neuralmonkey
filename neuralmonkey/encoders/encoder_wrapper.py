@@ -26,7 +26,7 @@ class EncoderWrapper(ModelPart, Attentive):
         self._use_sentinels = use_sentinels
         self._share_attn_projections = share_attn_projections
 
-        self.encoded = tf.concat(1, [e.encoded for e in encoders])
+        self.encoded = tf.concat([e.encoded for e in encoders], 1)
 
     def create_attention_object(self):
         return self._attention_type(
@@ -147,7 +147,7 @@ class FlatMultiAttention(MultiAttention):
                 self._encoders_masks.append(
                     tf.ones([tf.shape(self._encoders_masks[0])[0], 1]))
 
-            self.masks_concat = tf.concat(1, self._encoders_masks)
+            self.masks_concat = tf.concat(self._encoders_masks, 1)
 
     def get_encoder_projections(self, scope):
         encoder_projections = []
@@ -229,7 +229,7 @@ def _sentinel(state, prev_state, input_):
     with tf.variable_scope("sentinel"):
 
         decoder_state_size = state.get_shape()[-1].value
-        concatenation = tf.concat(1, [prev_state, input_])
+        concatenation = tf.concat([prev_state, input_], 1)
 
         gate = tf.nn.sigmoid(linear(concatenation, decoder_state_size))
         sentinel_value = gate * state
@@ -271,7 +271,7 @@ class HierarchicalMultiAttention(MultiAttention):
                 proj_ctxs.append(proj_sentinel)
                 attn_logits.append(sentinel_logit)
 
-            attention_distr = tf.nn.softmax(tf.concat(1, attn_logits))
+            attention_distr = tf.nn.softmax(tf.concat(attn_logits, 1))
             self.attentions_in_time.append(attention_distr)
 
             if self._share_projections:
@@ -287,7 +287,7 @@ class HierarchicalMultiAttention(MultiAttention):
                         linear(sentinel_value, self._state_size,
                                scope="proj_sentinel"), 1))
 
-            projections_concat = tf.concat(1, output_cxts)
+            projections_concat = tf.concat(output_cxts, 1)
             context = tf.reduce_sum(
                 tf.expand_dims(attention_distr, 2) * projections_concat, [1])
 
