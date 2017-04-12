@@ -94,7 +94,7 @@ class SentenceCNNEncoder(ModelPart, Attentive):
         log("Initializing sentence encoder, name: '{}'"
             .format(self.name))
 
-        with tf.variable_scope(self.name):
+        with self.use_scope():
             self._create_input_placeholders()
             with tf.variable_scope('input_projection'):
                 self._create_embedding_matrix()
