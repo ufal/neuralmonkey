@@ -4,7 +4,7 @@ import gzip
 from neuralmonkey.readers.utils import FILETYPER
 
 
-def get_plain_text_reader(encoding: str="utf-8"):
+def get_plain_text_reader(encoding: str = "utf-8"):
     """Get reader for space-separated tokenized text."""
     def reader(files: List[str]) -> Iterable[List[str]]:
         for path in files:

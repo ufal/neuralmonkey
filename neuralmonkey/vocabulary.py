@@ -64,7 +64,7 @@ def from_file(path: str) -> 'Vocabulary':
     return vocabulary
 
 
-def from_wordlist(path: str, encoding: str="utf-8") -> 'Vocabulary':
+def from_wordlist(path: str, encoding: str = "utf-8") -> 'Vocabulary':
     """Loads vocabulary from a wordlist.
 
     Arguments:
@@ -93,9 +93,9 @@ def from_wordlist(path: str, encoding: str="utf-8") -> 'Vocabulary':
 # pylint: disable=too-many-arguments
 # helper function, this number of parameters is needed
 def from_dataset(datasets: List[Dataset], series_ids: List[str], max_size: int,
-                 save_file: str=None, overwrite: bool=False,
-                 min_freq: Optional[int]=None,
-                 unk_sample_prob: float=0.5) -> 'Vocabulary':
+                 save_file: str = None, overwrite: bool = False,
+                 min_freq: Optional[int] = None,
+                 unk_sample_prob: float = 0.5) -> 'Vocabulary':
     """Loads vocabulary from a dataset with an option to save it.
 
     Arguments:
@@ -149,7 +149,7 @@ def from_dataset(datasets: List[Dataset], series_ids: List[str], max_size: int,
     return vocabulary
 
 
-def from_bpe(path: str, encoding: str="utf-8") -> 'Vocabulary':
+def from_bpe(path: str, encoding: str = "utf-8") -> 'Vocabulary':
     """Loads vocabulary from Byte-pair encoding merge list.
 
     NOTE: The frequencies of words in this vocabulary are not computed from
@@ -189,9 +189,9 @@ def from_bpe(path: str, encoding: str="utf-8") -> 'Vocabulary':
 
 
 def initialize_vocabulary(directory: str, name: str,
-                          datasets: List[Dataset]=None,
-                          series_ids: List[str]=None,
-                          max_size: int=None) -> 'Vocabulary':
+                          datasets: List[Dataset] = None,
+                          series_ids: List[str] = None,
+                          max_size: int = None) -> 'Vocabulary':
     """This function is supposed to initialize vocabulary when called from
     the configuration file. It first checks whether the vocabulary is already
     loaded on the provided path and if not, it tries to generate it from
@@ -231,8 +231,8 @@ def initialize_vocabulary(directory: str, name: str,
 
 class Vocabulary(collections.Sized):
 
-    def __init__(self, tokenized_text: List[str]=None,
-                 unk_sample_prob: float=0.0) -> None:
+    def __init__(self, tokenized_text: List[str] = None,
+                 unk_sample_prob: float = 0.0) -> None:
         """Create a new instance of a vocabulary.
 
         Arguments:
@@ -366,7 +366,7 @@ class Vocabulary(collections.Sized):
         """
         if min_freq > 1:
             # count how many words there are with frequency < min_freq
-            infreq_word_count = sum([1 for w in self.word_count.keys()
+            infreq_word_count = sum([1 for w in self.word_count
                                      if self.word_count[w] < min_freq])
             log("Removing {} infrequent (<{}) words from vocabulary".format(
                 infreq_word_count, min_freq))
@@ -376,11 +376,11 @@ class Vocabulary(collections.Sized):
     def sentences_to_tensor(
             self,
             sentences: List[List[str]],
-            max_len: Optional[int]=None,
-            pad_to_max_len: bool=True,
-            train_mode: bool=False,
-            add_start_symbol: bool=False,
-            add_end_symbol: bool=False) -> Tuple[np.ndarray, np.ndarray]:
+            max_len: Optional[int] = None,
+            pad_to_max_len: bool = True,
+            train_mode: bool = False,
+            add_start_symbol: bool = False,
+            add_end_symbol: bool = False) -> Tuple[np.ndarray, np.ndarray]:
         """Generate the tensor representation for the provided sentences.
 
         Arguments:
@@ -468,7 +468,7 @@ class Vocabulary(collections.Sized):
 
         return [s[:-1] if s[-1] == END_TOKEN else s for s in sentences]
 
-    def save_to_file(self, path: str, overwrite: bool=False) -> None:
+    def save_to_file(self, path: str, overwrite: bool = False) -> None:
         """Save the vocabulary to a file.
 
         Arguments:
@@ -486,7 +486,7 @@ class Vocabulary(collections.Sized):
         with open(path, 'wb') as f_pickle:
             pickle.dump(self, f_pickle)
 
-    def log_sample(self, size: int=5):
+    def log_sample(self, size: int = 5):
         """Logs a sample of the vocabulary
 
         Arguments:

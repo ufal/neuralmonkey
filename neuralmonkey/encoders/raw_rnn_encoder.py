@@ -26,11 +26,11 @@ class RawRNNEncoder(ModelPart, Attentive):
                  data_id: str,
                  rnn_size: int,
                  input_dimension: int,
-                 max_input_len: Optional[int]=None,
-                 dropout_keep_prob: float=1.0,
-                 attention_type: Optional[Any]=None,
-                 save_checkpoint: Optional[str]=None,
-                 load_checkpoint: Optional[str]=None) -> None:
+                 max_input_len: Optional[int] = None,
+                 dropout_keep_prob: float = 1.0,
+                 attention_type: Optional[Any] = None,
+                 save_checkpoint: Optional[str] = None,
+                 load_checkpoint: Optional[str] = None) -> None:
         """Creates a new instance of the encoder.
 
         Arguments:
@@ -111,7 +111,7 @@ class RawRNNEncoder(ModelPart, Attentive):
         return (OrthoGRUCell(self.rnn_size),
                 OrthoGRUCell(self.rnn_size))
 
-    def feed_dict(self, dataset: Dataset, train: bool=False) -> FeedDict:
+    def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
         """Populate the feed dictionary with the encoder inputs.
 
         Arguments:

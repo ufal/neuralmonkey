@@ -46,7 +46,7 @@ class NoisyGRUCell(tf.contrib.rnn.RNNCell):
 
 
 def noisy_activation(x, generic, linearized, training,
-                     alpha: float=1.1, c: float=0.5):
+                     alpha: float = 1.1, c: float = 0.5):
     """
     Implements the noisy activation with Half-Normal Noise for Hard-Saturation
     functions. See http://arxiv.org/abs/1603.00391, Algorithm 1.
@@ -71,6 +71,9 @@ def noisy_activation(x, generic, linearized, training,
         c: Standard deviation of the sampled noise.
 
     """
+
+    # pylint: disable=invalid-unary-operand-type
+    # to enable 'minus tf.Tensor'
 
     delta = generic(x) - linearized(x)
     d = -tf.sign(x) * tf.sign(1 - alpha)

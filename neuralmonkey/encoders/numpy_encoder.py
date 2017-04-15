@@ -17,9 +17,9 @@ class VectorEncoder(ModelPart):
                  name: str,
                  dimension: int,
                  data_id: str,
-                 output_shape: Optional[int]=None,
-                 save_checkpoint: Optional[str]=None,
-                 load_checkpoint: Optional[str]=None) -> None:
+                 output_shape: Optional[int] = None,
+                 save_checkpoint: Optional[str] = None,
+                 load_checkpoint: Optional[str] = None) -> None:
         ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
         assert check_argument_types()
 
@@ -47,7 +47,7 @@ class VectorEncoder(ModelPart):
                 self.encoded = self.vector
 
     # pylint: disable=unused-argument
-    def feed_dict(self, dataset: Dataset, train: bool=False) -> FeedDict:
+    def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
         return {self.vector: dataset.get_series(self.data_id)}
 
 
@@ -58,9 +58,9 @@ class PostCNNImageEncoder(ModelPart, Attentive):
                  input_shape: List[int],
                  output_shape: int,
                  data_id: str,
-                 attention_type: Callable=None,
-                 save_checkpoint: Optional[str]=None,
-                 load_checkpoint: Optional[str]=None) -> None:
+                 attention_type: Callable = None,
+                 save_checkpoint: Optional[str] = None,
+                 load_checkpoint: Optional[str] = None) -> None:
         ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
         Attentive.__init__(self, attention_type)
         assert check_argument_types()
@@ -100,7 +100,7 @@ class PostCNNImageEncoder(ModelPart, Attentive):
     def _attention_tensor(self):
         return self.__attention_tensor
 
-    def feed_dict(self, dataset: Dataset, train: bool=False) -> FeedDict:
+    def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
         res = {}  # type: FeedDict
         res[self.image_features] = dataset.get_series(self.data_id)
 

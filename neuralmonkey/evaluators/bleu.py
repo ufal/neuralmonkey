@@ -5,8 +5,8 @@ import numpy as np
 
 class BLEUEvaluator(object):
 
-    def __init__(self, n: int=4, deduplicate: bool=False,
-                 name: Optional[str]=None) -> None:
+    def __init__(self, n: int = 4, deduplicate: bool = False,
+                 name: Optional[str] = None) -> None:
         self.n = n
         self.deduplicate = deduplicate
 
@@ -28,7 +28,7 @@ class BLEUEvaluator(object):
 
     @staticmethod
     def ngram_counts(sentence: List[str], n: int,
-                     lowercase: bool, delimiter: str=" ") -> Counter:
+                     lowercase: bool, delimiter: str = " ") -> Counter:
         """Get n-grams from a sentence
 
         Arguments:
@@ -163,7 +163,7 @@ class BLEUEvaluator(object):
 
     @staticmethod
     def bleu(hypotheses: List[List[str]], references: List[List[List[str]]],
-             ngrams: int=4, case_sensitive: bool=True):
+             ngrams: int = 4, case_sensitive: bool = True):
         """Computes BLEU on a corpus with multiple references using uniform
         weights. Default is to use smoothing as in reference implementation on:
         https://github.com/ufal/qtleap/blob/master/cuni_train/bin/mteval-v13a.pl#L831-L873

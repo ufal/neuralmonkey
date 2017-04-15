@@ -17,9 +17,9 @@ class SequenceLabeler(ModelPart):
                  encoder: SentenceEncoder,
                  vocabulary: Vocabulary,
                  data_id: str,
-                 dropout_keep_prob: float=1.0,
-                 save_checkpoint: Optional[str]=None,
-                 load_checkpoint: Optional[str]=None) -> None:
+                 dropout_keep_prob: float = 1.0,
+                 save_checkpoint: Optional[str] = None,
+                 load_checkpoint: Optional[str] = None) -> None:
         ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
 
         self.encoder = encoder
@@ -116,7 +116,7 @@ class SequenceLabeler(ModelPart):
         logits = tf.tanh(multiplication_3d + dmultiplication_3d + biases_3d)
         return logits
 
-    def feed_dict(self, dataset: Dataset, train: bool=False) -> FeedDict:
+    def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
         fd = {}  # type: FeedDict
 
         sentences = cast(Iterable[List[str]],

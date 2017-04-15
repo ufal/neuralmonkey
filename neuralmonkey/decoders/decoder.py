@@ -32,21 +32,22 @@ class Decoder(ModelPart):
                  data_id: str,
                  name: str,
                  max_output_len: int,
-                 dropout_keep_prob: float=1.0,
-                 rnn_size: Optional[int]=None,
-                 embedding_size: Optional[int]=None,
+                 dropout_keep_prob: float = 1.0,
+                 rnn_size: Optional[int] = None,
+                 embedding_size: Optional[int] = None,
                  output_projection: Optional[Callable[
-                     [tf.Tensor, tf.Tensor, List[tf.Tensor]], tf.Tensor]]=None,
+                     [tf.Tensor, tf.Tensor, List[tf.Tensor]],
+                     tf.Tensor]]=None,
                  encoder_projection: Optional[Callable[
                      [tf.Tensor, Optional[int], Optional[List[Any]]],
                      tf.Tensor]]=None,
-                 use_attention: bool=False,
-                 embeddings_encoder: Optional[Any]=None,
-                 attention_on_input: bool=True,
-                 rnn_cell: str='GRU',
-                 conditional_gru: bool=False,
-                 save_checkpoint: Optional[str]=None,
-                 load_checkpoint: Optional[str]=None) -> None:
+                 use_attention: bool = False,
+                 embeddings_encoder: Optional[Any] = None,
+                 attention_on_input: bool = True,
+                 rnn_cell: str = 'GRU',
+                 conditional_gru: bool = False,
+                 save_checkpoint: Optional[str] = None,
+                 load_checkpoint: Optional[str] = None) -> None:
         """Create a refactored version of monster decoder.
 
         Arguments:
@@ -107,7 +108,7 @@ class Decoder(ModelPart):
                 self.embeddings_encoder.embedding_matrix.get_shape()[1].value)
 
         if self.encoder_projection is None:
-            if len(self.encoders) == 0:
+            if not self.encoders:
                 log("No encoder - language model only.")
                 self.encoder_projection = empty_initial_state
             elif rnn_size is None:
@@ -320,8 +321,8 @@ class Decoder(ModelPart):
     def get_attention_object(self, encoder, train_mode: bool):
         if train_mode:
             return self._train_attention_objects.get(encoder)
-        else:
-            return self._runtime_attention_objects.get(encoder)
+
+        return self._runtime_attention_objects.get(encoder)
 
     # pylint: disable=too-many-branches
     def _attention_decoder(
@@ -329,8 +330,8 @@ class Decoder(ModelPart):
             go_symbols: tf.Tensor,
             train_inputs: tf.Tensor=None,
             attention_on_input=True,
-            conditional_gru: bool=False,
-            train_mode: bool=False,
+            conditional_gru: bool = False,
+            train_mode: bool = False,
             scope: Union[str, tf.VariableScope]=None) -> Tuple[
                 List[tf.Tensor], List[tf.Tensor]]:
         """Run the decoder RNN.
@@ -357,10 +358,8 @@ class Decoder(ModelPart):
             if self._rnn_cell == 'GRU':
                 state = self.initial_state
             elif self._rnn_cell == 'LSTM':
-                # pylint: disable=redefined-variable-type
                 state = tf.contrib.rnn.LSTMStateTuple(
                     self.initial_state, self.initial_state)
-                # pylint: enable=redefined-variable-type
             else:
                 raise ValueError("Unknown RNN cell.")
 
@@ -433,7 +432,7 @@ class Decoder(ModelPart):
                 collections=["summary_val_plots"],
                 max_outputs=256)
 
-    def feed_dict(self, dataset: Dataset, train: bool=False) -> FeedDict:
+    def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
         """Populate the feed dictionary for the decoder object
 
         Arguments:

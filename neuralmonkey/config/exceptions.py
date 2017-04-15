@@ -12,7 +12,7 @@ class IniError(Exception):
     def __init__(self,
                  line: int,
                  message: str,
-                 original_exc: Optional[Exception]=None) -> None:
+                 original_exc: Optional[Exception] = None) -> None:
         """ Creates an instance of the exception.
 
         Arguments:

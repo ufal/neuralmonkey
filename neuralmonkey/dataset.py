@@ -45,7 +45,7 @@ class Dataset(collections.Sized):
             Exception when the lengths in the dataset do not match.
         """
         lengths = [len(list(v)) for v in self._series.values()
-                   if isinstance(v, list) or isinstance(v, np.ndarray)]
+                   if isinstance(v, (list, np.ndarray))]
 
         if len(set(lengths)) > 1:
             err_str = ["{}: {}".format(s, len(list(self._series[s])))
@@ -61,9 +61,9 @@ class Dataset(collections.Sized):
         """
         if not list(self._series.values()):
             return 0
-        else:
-            first_series = next(iter(self._series.values()))
-            return len(list(first_series))
+
+        first_series = next(iter(self._series.values()))
+        return len(list(first_series))
 
     def has_series(self, name: str) -> bool:
         """Check if the dataset contains a series of a given name.
@@ -76,7 +76,7 @@ class Dataset(collections.Sized):
         """
         return name in self._series
 
-    def get_series(self, name: str, allow_none: bool=False) -> Iterable:
+    def get_series(self, name: str, allow_none: bool = False) -> Iterable:
         """Get the data series with a given name.
 
         Arguments:
@@ -91,8 +91,8 @@ class Dataset(collections.Sized):
         """
         if allow_none:
             return self._series.get(name)
-        else:
-            return self._series[name]
+
+        return self._series[name]
 
     @property
     def series_ids(self) -> Iterable[str]:
@@ -165,7 +165,8 @@ class LazyDataset(Dataset):
     def __init__(self, name: str,
                  series_paths_and_readers: Dict[str, Tuple[List[str], Reader]],
                  series_outputs: Dict[str, str],
-                 preprocessors: List[Tuple[str, str, Callable]]=None) -> None:
+                 preprocessors: List[Tuple[str, str, Callable]] = None
+                ) -> None:
         """Create a new instance of the lazy dataset.
 
         Arguments:
@@ -206,7 +207,7 @@ class LazyDataset(Dataset):
         return (name in self.series_paths_and_readers
                 or name in self.preprocess_series)
 
-    def get_series(self, name: str, allow_none: bool=False) -> Iterable:
+    def get_series(self, name: str, allow_none: bool = False) -> Iterable:
         """Get the data series with a given name.
 
         This function opens a new file handle and returns a generator which
@@ -271,8 +272,8 @@ PREPROCESSED_SERIES = re.compile("pre_([^_]*)$")
 
 
 def load_dataset_from_files(
-        name: str=None, lazy: bool=False,
-        preprocessors: List[Tuple[str, str, Callable]]=None,
+        name: str = None, lazy: bool = False,
+        preprocessors: List[Tuple[str, str, Callable]] = None,
         **kwargs) -> Dataset:
 
     """Load a dataset from the files specified by the provided arguments.
@@ -338,9 +339,7 @@ def load_dataset_from_files(
                              src_id, function.__name__))
                 series[tgt_id] = list(map(function, series[src_id]))
 
-        # pylint: disable=redefined-variable-type
         dataset = Dataset(name, series, series_outputs)
-        # pylint: enable=redefined-variable-type
         log("Dataset length: {}".format(len(dataset)))
 
     _preprocessed_datasets(dataset, kwargs)

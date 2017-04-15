@@ -33,7 +33,7 @@ vocabulary_from_dataset = deprecated(vocabulary.from_dataset)
 initialize_vocabulary = vocabulary.initialize_vocabulary
 
 
-def adam_optimizer(learning_rate: float=1e-4) -> tf.train.AdamOptimizer:
+def adam_optimizer(learning_rate: float = 1e-4) -> tf.train.AdamOptimizer:
     return tf.train.AdamOptimizer(learning_rate)
 
 
@@ -41,5 +41,6 @@ def adadelta_optimizer(**kwargs) -> tf.train.AdadeltaOptimizer:
     return tf.train.AdadeltaOptimizer(**kwargs)
 
 
-def variable(initial_value=0, trainable: bool=False, **kwargs) -> tf.Variable:
+def variable(initial_value=0,
+             trainable: bool = False, **kwargs) -> tf.Variable:
     return tf.Variable(initial_value, trainable, **kwargs)

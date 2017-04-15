@@ -54,11 +54,11 @@ class ImageNet(ModelPart, Attentive):
                  network_type: str,
                  attention_layer: Optional[str],
                  attention_state_size: int,
-                 attention_type: Type=Attention,
-                 fine_tune: bool=False,
-                 encoded_layer: Optional[str]=None,
-                 load_checkpoint: Optional[str]=None,
-                 save_checkpoint: Optional[str]=None) -> None:
+                 attention_type: Type = Attention,
+                 fine_tune: bool = False,
+                 encoded_layer: Optional[str] = None,
+                 load_checkpoint: Optional[str] = None,
+                 save_checkpoint: Optional[str] = None) -> None:
         """Initialize pre-trained ImageNet network.
 
         Args:
@@ -162,7 +162,7 @@ class ImageNet(ModelPart, Attentive):
     def _attention_tensor(self) -> tf.Tensor:
         return self.__attention_tensor
 
-    def feed_dict(self, dataset: Dataset, train: bool=False) -> FeedDict:
+    def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
         images = np.array(dataset.get_series(self.data_id))
         assert images.shape[1:] == (self.HEIGHT, self.WIDTH, 3)
 

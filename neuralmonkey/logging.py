@@ -43,7 +43,7 @@ class Logging(object):
         print(text, file=sys.stderr)
 
     @staticmethod
-    def log(message: str, color: str='yellow') -> None:
+    def log(message: str, color: str = 'yellow') -> None:
         """Logs message with a colored timestamp."""
         log_print("{}: {}".format(colored(
             Logging._get_time(), color), message))
@@ -70,7 +70,7 @@ class Logging(object):
         log_print("")
 
     @staticmethod
-    def debug(message: str, label: Optional[str]=None):
+    def debug(message: str, label: Optional[str] = None):
         if 'none' in Logging.debug_enabled:
             return
 

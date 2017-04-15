@@ -19,10 +19,10 @@ class SequenceCNNEncoder(ModelPart):
                  data_id: str,
                  embedding_size: int,
                  filters: List[Tuple[int, int]],
-                 max_input_len: Optional[int]=None,
-                 dropout_keep_prob: float=1.0,
-                 save_checkpoint: Optional[str]=None,
-                 load_checkpoint: Optional[str]=None) -> None:
+                 max_input_len: Optional[int] = None,
+                 dropout_keep_prob: float = 1.0,
+                 save_checkpoint: Optional[str] = None,
+                 load_checkpoint: Optional[str] = None) -> None:
         """Creates a new instance of the CNN sequence encoder.
 
         Based on: Yoon Kim: Convolutional Neural Networks for Sentence
@@ -98,7 +98,7 @@ class SequenceCNNEncoder(ModelPart):
             self.encoded = tf.concat(pooled_outputs, axis=1)
     # pylint: enable=too-many-arguments,too-many-locals
 
-    def feed_dict(self, dataset: Dataset, train: bool=False) -> FeedDict:
+    def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
         """Populate the feed dictionary with the encoder inputs.
 
         Encoder input placeholders:

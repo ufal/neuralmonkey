@@ -51,7 +51,7 @@ class RepresentationRunner(BaseRunner):
     def __init__(self,
                  output_series: str,
                  encoder: ModelPart,
-                 used_session: int=0) -> None:
+                 used_session: int = 0) -> None:
         """Initialize the representation runner.
 
         Args:

@@ -7,8 +7,10 @@ from neuralmonkey.readers.audio_reader import Audio
 
 
 # pylint: disable=invalid-name
-def SpeechFeaturesPreprocessor(feature_type: str='mfcc', delta_order: int=0,
-                               delta_window: int=2, **kwargs) -> Callable:
+def SpeechFeaturesPreprocessor(feature_type: str = 'mfcc',
+                               delta_order: int = 0,
+                               delta_window: int = 2,
+                               **kwargs) -> Callable:
     """Calculate speech features.
 
     First, the given type of features (e.g. MFCC) is computed using a window

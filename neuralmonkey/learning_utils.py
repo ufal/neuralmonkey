@@ -33,16 +33,16 @@ def training_loop(tf_manager: TensorFlowManager,
                   log_directory: str,
                   evaluators: EvalConfiguration,
                   runners: List[BaseRunner],
-                  test_datasets: Optional[List[Dataset]]=None,
-                  logging_period: int=20,
-                  validation_period: int=500,
-                  val_preview_input_series: Optional[List[str]]=None,
-                  val_preview_output_series: Optional[List[str]]=None,
-                  val_preview_num_examples: int=15,
-                  train_start_offset: int=0,
-                  runners_batch_size: Optional[int]=None,
-                  initial_variables: Optional[Union[str, List[str]]]=None,
-                  postprocess: Postprocess=None) -> None:
+                  test_datasets: Optional[List[Dataset]] = None,
+                  logging_period: int = 20,
+                  validation_period: int = 500,
+                  val_preview_input_series: Optional[List[str]] = None,
+                  val_preview_output_series: Optional[List[str]] = None,
+                  val_preview_num_examples: int = 15,
+                  train_start_offset: int = 0,
+                  runners_batch_size: Optional[int] = None,
+                  initial_variables: Optional[Union[str, List[str]]] = None,
+                  postprocess: Postprocess = None) -> None:
 
     # TODO finish the list
     """
@@ -245,8 +245,8 @@ def run_on_dataset(tf_manager: TensorFlowManager,
                    runners: List[BaseRunner],
                    dataset: Dataset,
                    postprocess: Postprocess,
-                   write_out: bool=False,
-                   batch_size: Optional[int]=None) -> Tuple[
+                   write_out: bool = False,
+                   batch_size: Optional[int] = None) -> Tuple[
                        List[ExecutionResult], Dict[str, List[Any]]]:
     """Apply the model on a dataset and optionally write outputs to files.
 
@@ -344,7 +344,7 @@ def _log_continuous_evaluation(tb_writer: tf.summary.FileWriter,
                                epoch: int,
                                max_epochs: int,
                                execution_results: List[ExecutionResult],
-                               train: bool=False) -> None:
+                               train: bool = False) -> None:
     """Log the evaluation results and the TensorBoard summaries."""
 
     color, prefix = ("yellow", "train") if train else ("blue", "val")
@@ -396,8 +396,8 @@ def print_final_evaluation(name: str, eval_result: Evaluation) -> None:
     line_len = 22
     log("Evaluating model on \"{}\"".format(name))
 
-    for name, value in eval_result.items():
-        space = "".join([" " for _ in range(line_len - len(name))])
+    for i_name, value in eval_result.items():
+        space = "".join([" " for _ in range(line_len - len(i_name))])
         log("... {}:{} {:.4g}".format(name, space, value))
 
     log_print("")
@@ -406,18 +406,20 @@ def print_final_evaluation(name: str, eval_result: Evaluation) -> None:
 def _data_item_to_str(item: Any) -> str:
     if isinstance(item, list):
         return " ".join([str(i) for i in item])
-    elif isinstance(item, str):
+
+    if isinstance(item, str):
         return item
-    elif isinstance(item, np.ndarray):
+
+    if isinstance(item, np.ndarray):
         return "numpy tensor"
-    else:
-        return str(item)
+
+    return str(item)
 
 
 def _print_examples(dataset: Dataset,
                     outputs: Dict[str, List[Any]],
-                    val_preview_input_series: Optional[List[str]]=None,
-                    val_preview_output_series: Optional[List[str]]=None,
+                    val_preview_input_series: Optional[List[str]] = None,
+                    val_preview_output_series: Optional[List[str]] = None,
                     num_examples=15) -> None:
     """Print examples of the model output.
 
@@ -443,7 +445,7 @@ def _print_examples(dataset: Dataset,
     target_series_names = [s for s in dataset.series_ids if s in outputs]
     output_series_names = list(outputs.keys())
 
-    assert len(outputs) > 0
+    assert outputs
 
     if val_preview_input_series is not None:
         target_series_names = [s for s in target_series_names

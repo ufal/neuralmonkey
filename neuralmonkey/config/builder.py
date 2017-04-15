@@ -172,7 +172,7 @@ def instantiate_class(name: str,
 
 def build_config(config_dicts: Dict[str, Any],
                  ignore_names: Set[str],
-                 warn_unused: bool=False) -> Dict[str, Any]:
+                 warn_unused: bool = False) -> Dict[str, Any]:
     """ Builds the model from the configuration
 
     Arguments:
@@ -202,7 +202,7 @@ def build_config(config_dicts: Dict[str, Any],
     if warn_unused:
         existing_names = {x[7:] for x in existing_objects.keys()} | {'main'}
         unused = config_dicts.keys() - existing_names
-        if len(unused) > 0:
+        if unused:
             warn("Configuration contains unused sections: "
                  + str(unused) + ".")
 

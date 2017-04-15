@@ -16,8 +16,8 @@ class BeerWrapper(object):
 
     def __init__(self,
                  wrapper: str,
-                 name: str="BEER",
-                 encoding: str="utf-8") -> None:
+                 name: str = "BEER",
+                 encoding: str = "utf-8") -> None:
         """Initialize the BEER wrapper.
 
         Args:
@@ -58,7 +58,7 @@ class BeerWrapper(object):
             proc_stdout = output_proc.stdout.decode("utf-8")  # type: ignore
             lines = proc_stdout.splitlines()
 
-            if len(lines) == 0:
+            if not lines:
                 return 0.0
 
             try:

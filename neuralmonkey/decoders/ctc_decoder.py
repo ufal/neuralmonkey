@@ -21,11 +21,11 @@ class CTCDecoder(ModelPart):
                  encoder: Any,
                  vocabulary: Vocabulary,
                  data_id: str,
-                 merge_repeated_targets: bool=False,
-                 merge_repeated_outputs: bool=True,
-                 beam_width: int=1,
-                 save_checkpoint: Optional[str]=None,
-                 load_checkpoint: Optional[str]=None) -> None:
+                 merge_repeated_targets: bool = False,
+                 merge_repeated_outputs: bool = True,
+                 beam_width: int = 1,
+                 save_checkpoint: Optional[str] = None,
+                 load_checkpoint: Optional[str] = None) -> None:
         ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
 
         self.encoder = encoder
@@ -110,7 +110,7 @@ class CTCDecoder(ModelPart):
         logits = multiplication_3d + biases_3d
         return tf.transpose(logits, perm=[1, 0, 2])  # time major
 
-    def feed_dict(self, dataset: Dataset, train: bool=False) -> FeedDict:
+    def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
         fd = {}  # type: FeedDict
 
         sentences = cast(Iterable[List[str]],

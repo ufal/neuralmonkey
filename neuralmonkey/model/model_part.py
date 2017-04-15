@@ -18,8 +18,8 @@ class ModelPart(metaclass=ABCMeta):
     """Base class of all model parts."""
     def __init__(self,
                  name: str,
-                 save_checkpoint: Optional[str]=None,
-                 load_checkpoint: Optional[str]=None) -> None:
+                 save_checkpoint: Optional[str] = None,
+                 load_checkpoint: Optional[str] = None) -> None:
         self._name = name
         self._save_checkpoint = save_checkpoint
         self._load_checkpoint = load_checkpoint

@@ -65,7 +65,7 @@ class WordAlignmentDecoder(ModelPart):
     def cost(self) -> tf.Tensor:
         return self.train_loss
 
-    def feed_dict(self, dataset: Dataset, train: bool=False) -> FeedDict:
+    def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
         fd = {}
 
         alignment = dataset.get_series(self.data_id, allow_none=True)

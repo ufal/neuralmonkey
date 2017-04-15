@@ -14,8 +14,8 @@ from scipy.io import wavfile
 Audio = NamedTuple("Audio", [('rate', int), ('data', np.ndarray)])
 
 
-def audio_reader(prefix: str="",
-                 audio_format: str="wav") -> Callable:
+def audio_reader(prefix: str = "",
+                 audio_format: str = "wav") -> Callable:
     """Get a reader of audio files loading them from a list of pahts.
 
     Args:

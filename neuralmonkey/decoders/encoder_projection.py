@@ -17,7 +17,7 @@ from neuralmonkey.logging import log
 # The function must conform the API
 def empty_initial_state(train_mode: tf.Tensor,
                         rnn_size: Optional[int],
-                        encoders: Optional[List[Any]]=None) -> tf.Tensor:
+                        encoders: Optional[List[Any]] = None) -> tf.Tensor:
     """Return an empty vector
 
     Arguments:
@@ -43,8 +43,8 @@ def linear_encoder_projection(
         dropout_keep_prob: The dropout keep probability
     """
     def func(train_mode: tf.Tensor,
-             rnn_size: Optional[int]=None,
-             encoders: Optional[List[Any]]=None) -> tf.Tensor:
+             rnn_size: Optional[int] = None,
+             encoders: Optional[List[Any]] = None) -> tf.Tensor:
         """Linearly project the encoders' encoded value to rnn_size
         and apply dropout
 
@@ -73,8 +73,8 @@ def linear_encoder_projection(
 
 def concat_encoder_projection(
         train_mode: tf.Tensor,
-        rnn_size: Optional[int]=None,
-        encoders: Optional[List[Any]]=None) -> tf.Tensor:
+        rnn_size: Optional[int] = None,
+        encoders: Optional[List[Any]] = None) -> tf.Tensor:
     """Create the initial state by concatenating the encoders' encoded values
 
     Arguments:

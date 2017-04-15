@@ -22,10 +22,10 @@ class FactoredEncoder(ModelPart, Attentive):
                  data_ids: List[str],
                  embedding_sizes: List[int],
                  rnn_size: int,
-                 dropout_keep_prob: float=1.0,
-                 attention_type: Optional[Any]=None,
-                 save_checkpoint: Optional[str]=None,
-                 load_checkpoint: Optional[str]=None) -> None:
+                 dropout_keep_prob: float = 1.0,
+                 attention_type: Optional[Any] = None,
+                 save_checkpoint: Optional[str] = None,
+                 load_checkpoint: Optional[str] = None) -> None:
         """Construct a new instance of the factored encoder.
 
         Args:
@@ -177,7 +177,7 @@ class FactoredEncoder(ModelPart, Attentive):
         for _, (_, padding_weights) in factor_vectors_and_weights.items():
             paddings = padding_weights
 
-            if len(lengths) == 0:
+            if not lengths:
                 lengths = [sum(p) for p in padding_weights]
             else:
                 lengths_this = [sum(p) for p in padding_weights]

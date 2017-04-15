@@ -116,8 +116,8 @@ def _score_expanded(n: int,
 def _try_append(first, second):
     if first is None:
         return second
-    else:
-        return np.append(first, second, axis=0)
+
+    return np.append(first, second, axis=0)
 
 
 def likelihood_beam_score(decoded, logprobs):
@@ -182,8 +182,9 @@ class RuntimeRnnRunner(BaseRunner):
 
     def __init__(self,
                  output_series: str, decoder,
-                 beam_size: int=1, beam_scoring_f=likelihood_beam_score,
-                 postprocess: Callable[[List[str]], List[str]]=None) -> None:
+                 beam_size: int = 1, beam_scoring_f=likelihood_beam_score,
+                 postprocess: Callable[[List[str]], List[str]] = None
+                ) -> None:
         super(RuntimeRnnRunner, self).__init__(output_series, decoder)
 
         self._initial_fetches = [decoder.runtime_rnn_states[0]]

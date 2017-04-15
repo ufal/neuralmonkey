@@ -4,7 +4,7 @@ import pyter
 # pylint: disable=too-few-public-methods
 class TEREvalutator(object):
     """Compute TER using the pyter library."""
-    def __init__(self, name: str="TER") -> None:
+    def __init__(self, name: str = "TER") -> None:
         self.name = name
 
     def __call__(self, decoded, references) -> float:
