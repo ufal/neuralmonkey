@@ -280,7 +280,17 @@ def run_on_dataset(tf_manager: TensorFlowManager,
     if postprocess is not None:
         for series_name, postprocessor in postprocess:
             postprocessed = postprocessor(dataset, result_data)
+            if not hasattr(postprocessed, '__len__'):
+                postprocessed = list(postprocessed)
+
             result_data[series_name] = postprocessed
+
+    # check output series lengths
+    for series_id, data in result_data.items():
+        if len(data) != len(dataset):
+            warn("Output '{}' for dataset '{}' has length {}, but "
+                 "len(dataset) == {}".format(series_id, dataset.name,
+                                             len(data), len(dataset)))
 
     if write_out:
         for series_id, data in result_data.items():
