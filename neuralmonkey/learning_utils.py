@@ -396,9 +396,9 @@ def print_final_evaluation(name: str, eval_result: Evaluation) -> None:
     line_len = 22
     log("Evaluating model on \"{}\"".format(name))
 
-    for i_name, value in eval_result.items():
-        space = "".join([" " for _ in range(line_len - len(i_name))])
-        log("... {}:{} {:.4g}".format(name, space, value))
+    for eval_name, value in eval_result.items():
+        space = "".join([" " for _ in range(line_len - len(eval_name))])
+        log("... {}:{} {:.4g}".format(eval_name, space, value))
 
     log_print("")
 
