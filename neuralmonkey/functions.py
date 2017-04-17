@@ -18,7 +18,7 @@ def inverse_sigmoid_decay(param, rate, min_value: float = 0.,
 
     with tf.name_scope(name, "InverseSigmoidDecay",
                        [rate, param, min_value, max_value]) as s_name:
-        result = rate / (rate + tf.exp(param/rate))
+        result = rate / (rate + tf.exp(param / rate))
         result = result * (max_value - min_value) + min_value
         result = tf.cast(result, dtype, name=s_name)
 

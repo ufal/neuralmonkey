@@ -350,7 +350,7 @@ def _log_continuous_evaluation(tb_writer: tf.summary.FileWriter,
     color, prefix = ("yellow", "train") if train else ("blue", "val")
 
     if tf_manager.report_gpu_memory_consumption:
-        meminfostr = "  "+gpu_memusage()
+        meminfostr = "  " + gpu_memusage()
     else:
         meminfostr = ""
 
@@ -358,7 +358,7 @@ def _log_continuous_evaluation(tb_writer: tf.summary.FileWriter,
     eval_string = "Epoch {}/{}  Instances {}  {}".format(epoch, max_epochs,
                                                          seen_instances,
                                                          eval_string)
-    eval_string = eval_string+meminfostr
+    eval_string = eval_string + meminfostr
     log(eval_string, color=color)
 
     if tb_writer:

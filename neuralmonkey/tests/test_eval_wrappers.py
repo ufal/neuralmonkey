@@ -84,7 +84,7 @@ class TestExternalEvaluators(unittest.TestCase):
     def test_f1(self):
         f1_evaluator = F1Evaluator()
         f1val = f1_evaluator([BIO], [BIO_REF])
-        self.assertAlmostEqual(f1val, 8.0/13.0)
+        self.assertAlmostEqual(f1val, 8.0 / 13.0)
 
 
 if __name__ == "__main__":

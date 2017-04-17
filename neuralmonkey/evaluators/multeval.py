@@ -70,7 +70,7 @@ class MultEvalWrapper(object):
                 return 0.0
             try:
                 filtered = float(lines[1].split()[1])
-                eval_score = filtered/100.
+                eval_score = filtered / 100.
                 return eval_score
             except IndexError:
                 log("Error: Malformed output from MultEval wrapper:",

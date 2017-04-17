@@ -120,9 +120,9 @@ class ImageNet(ModelPart, Attentive):
                 net_output = end_points[attention_layer]
 
                 if len(net_output.get_shape()) != 4:
-                    raise ValueError((
-                        "Endpoint '{}' for network '{}' cannot be "
-                        "a convolutional map, its dimensionality is: {}."
+                    raise ValueError(
+                        ("Endpoint '{}' for network '{}' cannot be "
+                         "a convolutional map, its dimensionality is: {}."
                         ).format(attention_layer, network_type,
                                  ", ".join([str(d.value) for d in
                                             net_output.get_shape()])))

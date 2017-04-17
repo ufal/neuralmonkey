@@ -370,7 +370,7 @@ class Vocabulary(collections.Sized):
                                      if self.word_count[w] < min_freq])
             log("Removing {} infrequent (<{}) words from vocabulary".format(
                 infreq_word_count, min_freq))
-            new_size = len(self)-infreq_word_count
+            new_size = len(self) - infreq_word_count
             self.truncate(new_size)
 
     def sentences_to_tensor(

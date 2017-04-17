@@ -58,7 +58,7 @@ class GLEUEvaluator(object):
         corpus_generated_length = 0
         corpus_target_length = 0
 
-        for n in range(1, ngrams+1):
+        for n in range(1, ngrams + 1):
             for hypothesis, references in zip(hypotheses, references_list):
                 reference_counters = []
 
