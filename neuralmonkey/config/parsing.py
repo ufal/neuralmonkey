@@ -54,12 +54,12 @@ def _split_on_commas(string: str) -> List[str]:
     openings = []  # type: List[Optional[str]]
 
     for i, char in enumerate(string):
-        if char == ',' and len(openings) == 0:
-            if len(char_buffer) > 0:
+        if char == ',' and not openings:
+            if char_buffer:
                 items.append("".join(char_buffer))
             char_buffer = []
             continue
-        elif char == ' ' and len(char_buffer) == 0:
+        elif char == ' ' and not char_buffer:
             continue
         elif char == '(' or char == '[':
             openings.append(char)
@@ -71,7 +71,7 @@ def _split_on_commas(string: str) -> List[str]:
                 raise Exception('Invalid bracket end "]", col {}.'.format(i))
         char_buffer.append(char)
 
-    if len(char_buffer) > 0:
+    if char_buffer:
         items.append("".join(char_buffer))
     return items
 
@@ -125,7 +125,8 @@ def _parse_value(string: str) -> Any:
     raise Exception("Cannot parse value: '{}'.".format(string)) from None
 
 
-def _parse_ini(config_file: Iterable[str], filename: str="") -> Dict[str, Any]:
+def _parse_ini(config_file: Iterable[str],
+               filename: str = "") -> Dict[str, Any]:
     """ Parses an INI file into a dictionary """
 
     line_numbers = (line.strip() + " " + str(i + 1)
@@ -165,8 +166,8 @@ def _apply_change(config_dict: Dict[str, Any], setting: str) -> None:
 
 
 def parse_file(config_file: Iterable[str],
-               changes: Optional[Iterable[str]]=None) -> Tuple[Dict[str, Any],
-                                                               Dict[str, Any]]:
+               changes: Optional[Iterable[str]] = None
+              ) -> Tuple[Dict[str, Any], Dict[str, Any]]:
     """ Parses an INI file and creates all values """
 
     parsed_dicts = OrderedDict()  # type: Dict[str, Any]

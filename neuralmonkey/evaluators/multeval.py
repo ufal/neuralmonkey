@@ -11,9 +11,9 @@ from neuralmonkey.logging import log
 class MultEvalWrapper(object):
     """Wrapper for mult-eval's reference BLEU and METEOR scorer."""
 
-    def __init__(self, wrapper: str, name: str="MultEval",
-                 encoding: str="utf-8",
-                 metric: str="bleu", language: str="en") -> None:
+    def __init__(self, wrapper: str, name: str = "MultEval",
+                 encoding: str = "utf-8",
+                 metric: str = "bleu", language: str = "en") -> None:
         """
         :param wrapper: path to multeval.sh script
         :param name: name of the evaluator
@@ -66,11 +66,11 @@ class MultEvalWrapper(object):
             proc_stdout = output_proc.stdout.decode("utf-8")  # type: ignore
             lines = proc_stdout.splitlines()
 
-            if len(lines) == 0:
+            if not lines:
                 return 0.0
             try:
                 filtered = float(lines[1].split()[1])
-                eval_score = filtered/100.
+                eval_score = filtered / 100.
                 return eval_score
             except IndexError:
                 log("Error: Malformed output from MultEval wrapper:",

@@ -8,7 +8,7 @@ class F1Evaluator(object):
     the entity (I), the rest is outside the entity (O).
     """
 
-    def __init__(self, name: str="F1 measure") -> None:
+    def __init__(self, name: str = "F1 measure") -> None:
         self.name = name
 
     def __call__(self, decoded: List[List[str]],
@@ -17,7 +17,7 @@ class F1Evaluator(object):
         f1sum = 0.0
         for d, r in zip(decoded, references):
             f1sum += F1Evaluator.f1_score(d, r)
-        return f1sum/len(decoded)
+        return f1sum / len(decoded)
 
     @staticmethod
     def chunk2set(seq: List[str]) -> Set[str]:

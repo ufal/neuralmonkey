@@ -14,8 +14,8 @@ class GLEUEvaluator(object):
 
     Ngram counts are based on the bleu methods."""
 
-    def __init__(self, n: int=4, deduplicate: bool=False,
-                 name: Optional[str]=None) -> None:
+    def __init__(self, n: int = 4, deduplicate: bool = False,
+                 name: Optional[str] = None) -> None:
         self.n = n
         self.deduplicate = deduplicate
         self.bleu = BLEUEvaluator(n=4, deduplicate=deduplicate, name="BLEU")
@@ -58,7 +58,7 @@ class GLEUEvaluator(object):
         corpus_generated_length = 0
         corpus_target_length = 0
 
-        for n in range(1, ngrams+1):
+        for n in range(1, ngrams + 1):
             for hypothesis, references in zip(hypotheses, references_list):
                 reference_counters = []
 
@@ -89,8 +89,8 @@ class GLEUEvaluator(object):
     @staticmethod
     def gleu(hypotheses: List[List[str]],
              references: List[List[List[str]]],
-             ngrams: int=4,
-             case_sensitive: bool=True) -> float:
+             ngrams: int = 4,
+             case_sensitive: bool = True) -> float:
         """Computes GLEU on a corpus with multiple references. No smoothing.
 
         Arguments:

@@ -22,7 +22,7 @@ def xent_objective(decoder, weight=None) -> Objective:
 class CrossEntropyTrainer(GenericTrainer):
 
     def __init__(self, decoders: List[Any],
-                 decoder_weights: Optional[List[ObjectiveWeight]]=None,
+                 decoder_weights: Optional[List[ObjectiveWeight]] = None,
                  l1_weight=0., l2_weight=0.,
                  clip_norm=False, optimizer=None, global_step=None) -> None:
 

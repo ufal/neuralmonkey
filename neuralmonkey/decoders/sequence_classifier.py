@@ -25,9 +25,9 @@ class SequenceClassifier(ModelPart):
                  data_id: str,
                  layers: List[int],
                  activation_fn: Callable[[tf.Tensor], tf.Tensor]=tf.nn.relu,
-                 dropout_keep_prob: float=0.5,
-                 save_checkpoint: Optional[str]=None,
-                 load_checkpoint: Optional[str]=None) -> None:
+                 dropout_keep_prob: float = 0.5,
+                 save_checkpoint: Optional[str] = None,
+                 load_checkpoint: Optional[str] = None) -> None:
         """Construct a new instance of the sequence classifier.
         Args:
             name: Name of the decoder. Should be unique accross all Neural
@@ -97,7 +97,7 @@ class SequenceClassifier(ModelPart):
     def decoded(self):
         return self.decoded_seq
 
-    def feed_dict(self, dataset: Dataset, train: bool=False) -> FeedDict:
+    def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
         sentences = cast(Iterable[List[str]],
                          dataset.get_series(self.data_id, allow_none=True))
 

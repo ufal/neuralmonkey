@@ -5,7 +5,7 @@ import numpy as np
 
 class EditDistanceEvaluator(object):
 
-    def __init__(self, name: str="Edit distance") -> None:
+    def __init__(self, name: str = "Edit distance") -> None:
         self.name = name
 
     def __call__(self, decoded: List[List[str]],

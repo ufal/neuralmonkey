@@ -14,7 +14,7 @@ class BPEPreprocessor(object):
     Code: https://github.com/rsennrich/subword-nmt
     """
 
-    def __init__(self, merge_file: str, separator: str="@@") -> None:
+    def __init__(self, merge_file: str, separator: str = "@@") -> None:
         log("Initializing BPE preprocessor")
 
         with open(merge_file, "r") as f_data:
@@ -27,7 +27,7 @@ class BPEPreprocessor(object):
         for word in sentence:
 
             # Hack. TODO: inspect why there are empty sentences
-            if len(word) == 0:
+            if word:
                 output.append(word)
                 continue
 
@@ -42,7 +42,7 @@ class BPEPreprocessor(object):
 
 class BPEPostprocessor(object):
 
-    def __init__(self, separator: str="@@") -> None:
+    def __init__(self, separator: str = "@@") -> None:
         esc = re.escape(separator)
         self.pattern = re.compile(esc + r" ")
 

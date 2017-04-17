@@ -30,8 +30,8 @@ def collect_encoders(coder):
                                     for enc in coder.encoders))
     if hasattr(coder, "encoder"):
         return set([coder]).union(collect_encoders(coder.encoder))
-    else:
-        return set([coder])
+
+    return set([coder])
 
 
 class BaseRunner(object):
@@ -63,7 +63,7 @@ def reduce_execution_results(
         for i, loss in enumerate(result.losses):
             losses_sum[i] += loss
         # TODO aggregate TensorBoard summaries
-    if len(outputs) > 0 and isinstance(outputs[0], np.ndarray):
+    if outputs and isinstance(outputs[0], np.ndarray):
         outputs = np.array(outputs)
     losses = [l / max(len(outputs), 1) for l in losses_sum]
     return ExecutionResult(outputs, losses,

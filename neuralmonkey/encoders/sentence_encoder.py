@@ -32,14 +32,14 @@ class SentenceEncoder(ModelPart, Attentive):
                  data_id: str,
                  embedding_size: int,
                  rnn_size: int,
-                 max_input_len: Optional[int]=None,
-                 dropout_keep_prob: float=1.0,
-                 attention_type: Optional[Any]=None,
-                 attention_fertility: int=3,
-                 use_noisy_activations: bool=False,
-                 parent_encoder: Optional["SentenceEncoder"]=None,
-                 save_checkpoint: Optional[str]=None,
-                 load_checkpoint: Optional[str]=None) -> None:
+                 max_input_len: Optional[int] = None,
+                 dropout_keep_prob: float = 1.0,
+                 attention_type: Optional[Any] = None,
+                 attention_fertility: int = 3,
+                 use_noisy_activations: bool = False,
+                 parent_encoder: Optional["SentenceEncoder"] = None,
+                 save_checkpoint: Optional[str] = None,
+                 load_checkpoint: Optional[str] = None) -> None:
         """Create a new instance of the sentence encoder.
 
         Arguments:
@@ -194,7 +194,7 @@ class SentenceEncoder(ModelPart, Attentive):
         return (OrthoGRUCell(self.rnn_size),
                 OrthoGRUCell(self.rnn_size))
 
-    def feed_dict(self, dataset: Dataset, train: bool=False) -> FeedDict:
+    def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
         """Populate the feed dictionary with the encoder inputs.
 
         Encoder input placeholders:

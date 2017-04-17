@@ -17,7 +17,8 @@ class PlainRunner(BaseRunner):
     def __init__(self,
                  output_series: str,
                  decoder: Any,
-                 postprocess: Callable[[List[str]], List[str]]=None) -> None:
+                 postprocess: Callable[[List[str]], List[str]] = None
+                ) -> None:
         super(PlainRunner, self).__init__(output_series, decoder)
         self._postprocess = postprocess
 

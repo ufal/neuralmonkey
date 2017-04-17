@@ -24,8 +24,8 @@ BIAS_REGEX = re.compile(r'[Bb]ias')
 class GenericTrainer(object):
 
     def __init__(self, objectives: List[Objective],
-                 l1_weight: float=0.0, l2_weight: float=0.0,
-                 clip_norm: Optional[float]=None, optimizer=None,
+                 l1_weight: float = 0.0, l2_weight: float = 0.0,
+                 clip_norm: Optional[float] = None, optimizer=None,
                  global_step=None) -> None:
 
         with tf.name_scope("trainer"):

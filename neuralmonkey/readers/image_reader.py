@@ -6,10 +6,10 @@ ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 
 def image_reader(prefix="",
-                 pad_w: Optional[int]=None,
-                 pad_h: Optional[int]=None,
-                 rescale: bool=False,
-                 mode: str='RGB') -> Callable:
+                 pad_w: Optional[int] = None,
+                 pad_h: Optional[int] = None,
+                 rescale: bool = False,
+                 mode: str = 'RGB') -> Callable:
     """Get a reader of images loading them from a list of pahts.
 
     Args:
@@ -66,8 +66,8 @@ def image_reader(prefix="",
 
 
 def imagenet_reader(prefix: str,
-                    target_width: int=227,
-                    target_height: int=227) -> Callable:
+                    target_width: int = 227,
+                    target_height: int = 227) -> Callable:
     """Load and prepare image the same way as Caffe scripts."""
     def load(list_files: List[str]) -> Iterable[np.ndarray]:
         for list_file in list_files:

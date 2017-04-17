@@ -37,13 +37,13 @@ class TensorFlowManager(object):
     def __init__(self,
                  num_sessions: int,
                  num_threads: int,
-                 save_n_best: int=1,
-                 minimize_metric: bool=False,
-                 variable_files: Optional[List[str]]=None,
-                 gpu_allow_growth: bool=True,
-                 per_process_gpu_memory_fraction: float=1.0,
-                 report_gpu_memory_consumption: bool=False,
-                 enable_tf_debug: bool=False) -> None:
+                 save_n_best: int = 1,
+                 minimize_metric: bool = False,
+                 variable_files: Optional[List[str]] = None,
+                 gpu_allow_growth: bool = True,
+                 per_process_gpu_memory_fraction: float = 1.0,
+                 report_gpu_memory_consumption: bool = False,
+                 enable_tf_debug: bool = False) -> None:
         """Initialize a TensorflowManager.
 
         At this moment the graph must already exist. This method initializes
@@ -114,14 +114,14 @@ class TensorFlowManager(object):
     def _is_better(self, score1: float, score2: float) -> bool:
         if self.minimize_metric:
             return score1 < score2
-        else:
-            return score1 > score2
+
+        return score1 > score2
 
     def _argworst(self, scores: List[float]) -> int:
         if self.minimize_metric:
             return np.argmax(scores)
-        else:
-            return np.argmin(scores)
+
+        return np.argmin(scores)
 
     def _update_best_symlink(self, var_index: int) -> None:
         if os.path.islink(self.link_best_vars):

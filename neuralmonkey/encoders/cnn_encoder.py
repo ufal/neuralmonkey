@@ -43,13 +43,13 @@ class CNNEncoder(ModelPart, Attentive):
                  data_id: str,
                  convolutions: List[Tuple[int, int, Optional[int]]],
                  image_height: int, image_width: int, pixel_dim: int,
-                 fully_connected: Optional[List[int]]=None,
-                 batch_normalization: bool=True,
-                 local_response_normalization: bool=True,
-                 dropout_keep_prob: float=0.5,
-                 attention_type: Type=Attention,
-                 save_checkpoint: Optional[str]=None,
-                 load_checkpoint: Optional[str]=None) -> None:
+                 fully_connected: Optional[List[int]] = None,
+                 batch_normalization: bool = True,
+                 local_response_normalization: bool = True,
+                 dropout_keep_prob: float = 0.5,
+                 attention_type: Type = Attention,
+                 save_checkpoint: Optional[str] = None,
+                 load_checkpoint: Optional[str] = None) -> None:
         """Initialize a convolutional network for image processing.
 
         Args:
@@ -157,7 +157,7 @@ class CNNEncoder(ModelPart, Attentive):
     def _attention_mask(self) -> tf.Tensor:
         return self.__attention_mask
 
-    def feed_dict(self, dataset: Dataset, train: bool=False) -> FeedDict:
+    def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
         # if it is from the pickled file, it is list, not numpy tensor,
         # so convert it as as a prevention
         images = np.array(dataset.get_series(self.data_id))

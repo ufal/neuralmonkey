@@ -26,9 +26,9 @@ class Configuration(object):
     # pylint: disable=too-many-arguments
     def add_argument(self,
                      name: str,
-                     required: bool=False,
-                     default: Any=None,
-                     cond: Callable[[Any], bool]=None) -> None:
+                     required: bool = False,
+                     default: Any = None,
+                     cond: Callable[[Any], bool] = None) -> None:
 
         if name in self.names:
             raise Exception("Data filed defined multiple times.")
@@ -61,7 +61,8 @@ class Configuration(object):
                 n_space.__dict__[name] = value
         return n_space
 
-    def load_file(self, path: str, changes: Optional[List[str]]=None) -> None:
+    def load_file(self, path: str,
+                  changes: Optional[List[str]] = None) -> None:
         log("Loading INI file: '{}'".format(path), color='blue')
 
         try:
