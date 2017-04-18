@@ -1,10 +1,11 @@
 import math
-from typing import cast, Iterable, List, Callable, Optional, Union, Any, Tuple
+from typing import cast, Iterable, List, Callable, Optional, Any, Tuple
 
 import numpy as np
 import tensorflow as tf
 from typeguard import check_argument_types
 
+from neuralmonkey.decoding_function import Attention
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.vocabulary import Vocabulary, START_TOKEN
 from neuralmonkey.model.model_part import ModelPart, FeedDict
@@ -25,7 +26,7 @@ class Decoder(ModelPart):
     used for the decoding.
     """
 
-    # pylint: disable=too-many-arguments,too-many-locals
+    # pylint: disable=too-many-arguments,too-many-locals,too-many-statements
     def __init__(self,
                  encoders: List[Any],
                  vocabulary: Vocabulary,
@@ -91,6 +92,8 @@ class Decoder(ModelPart):
         self.encoder_projection = encoder_projection
         self.use_attention = use_attention
         self.embeddings_encoder = embeddings_encoder
+        self._conditional_gru = conditional_gru
+        self._attention_on_input = attention_on_input
         self._rnn_cell = rnn_cell
 
         if self.embedding_size is None and self.embeddings_encoder is None:
@@ -129,6 +132,9 @@ class Decoder(ModelPart):
             self.output_projection = no_deep_output
 
         with self.use_scope():
+            with tf.variable_scope("attention_decoder") as self.step_scope:
+                pass
+
             self._create_input_placeholders()
             self._create_training_placeholders()
             self._create_initial_state()
@@ -146,7 +152,7 @@ class Decoder(ModelPart):
 
             # POSLEDNI TRAIN INPUT SE V DEKODOVACI FUNKCI NEPOUZIJE
             # (jen jako target)
-            embedded_train_inputs = self._embed_and_dropout(
+            embedded_train_inputs = self.embed_and_dropout(
                 self.train_inputs[:-1])
 
             # POZOR TADY SE NEDELA DROPOUT
@@ -163,10 +169,8 @@ class Decoder(ModelPart):
                         for e in self.encoders
                         if isinstance(e, Attentive)}
 
-            train_rnn_outputs, _ = self._attention_decoder(
+            self.train_logits, _ = self._decoding_loop(
                 embedded_go_symbols,
-                attention_on_input=attention_on_input,
-                conditional_gru=conditional_gru,
                 train_inputs=embedded_train_inputs,
                 train_mode=True)
 
@@ -182,29 +186,10 @@ class Decoder(ModelPart):
                     for e in self.encoders
                     if isinstance(e, Attentive)}
 
-            (self.runtime_rnn_outputs,
-             self.runtime_rnn_states) = self._attention_decoder(
+            (self.runtime_logits,
+             self.runtime_rnn_states) = self._decoding_loop(
                  embedded_go_symbols,
-                 attention_on_input=attention_on_input,
-                 conditional_gru=conditional_gru,
                  train_mode=False)
-
-            self.hidden_states = self.runtime_rnn_outputs
-
-            def decode(rnn_outputs: List[tf.Tensor]) -> Tuple[
-                    List[tf.Tensor], List[tf.Tensor]]:
-                with tf.name_scope("output_projection"):
-                    logits = []
-                    decoded = []
-
-                    for out in rnn_outputs:
-                        out_activation = self._logit_function(out)
-                        logits.append(out_activation)
-                        decoded.append(tf.argmax(out_activation[:, 1:], 1) + 1)
-
-                    return decoded, logits
-
-            _, self.train_logits = decode(train_rnn_outputs)
 
             train_targets = tf.transpose(self.train_inputs)
 
@@ -218,8 +203,8 @@ class Decoder(ModelPart):
             self.train_logprobs = [tf.nn.log_softmax(l)
                                    for l in self.train_logits]
 
-            self.decoded, self.runtime_logits = decode(
-                self.runtime_rnn_outputs)
+            self.decoded = [tf.argmax(logit[:, 1:], 1) + 1 for logit in
+                            self.runtime_logits]
 
             self.runtime_loss = tf.contrib.seq2seq.sequence_loss(
                 tf.stack(self.runtime_logits, 1), train_targets,
@@ -231,6 +216,7 @@ class Decoder(ModelPart):
             self._visualize_attention()
 
             log("Decoder initalized.")
+    # pylint: disable=too-many-arguments,too-many-locals,too-many-statements
 
     def _create_input_placeholders(self) -> None:
         """Creates input placeholder nodes in the computation graph"""
@@ -293,7 +279,7 @@ class Decoder(ModelPart):
         else:
             self.embedding_matrix = self.embeddings_encoder.embedding_matrix
 
-    def _embed_and_dropout(self, inputs: tf.Tensor) -> tf.Tensor:
+    def embed_and_dropout(self, inputs: tf.Tensor) -> tf.Tensor:
         """Embed the input using the embedding matrix and apply dropout
 
         Arguments:
@@ -324,15 +310,53 @@ class Decoder(ModelPart):
 
         return self._runtime_attention_objects.get(encoder)
 
+    def step(self,
+             att_objects: List[Attention],
+             input_: tf.Tensor,
+             prev_state: tf.Tensor,
+             prev_attns: List[tf.Tensor]):
+
+        with tf.variable_scope(self.step_scope):
+            cell = self._get_rnn_cell()
+
+            # Merge input and previous attentions into one vector of the
+            # right size.
+            if self._attention_on_input:
+                x = linear([input_] + prev_attns, self.embedding_size)
+            else:
+                x = input_
+
+            # Run the RNN.
+            cell_output, state = cell(x, prev_state)
+
+            # Run the attention mechanism.
+            attns = [a.attention(cell_output) for a in att_objects]
+
+            if self._conditional_gru:
+                x_2 = linear(
+                    attns, self.embedding_size, scope="cond_gru_2_linproj")
+                # Run the RNN for the second time
+                cell_output, state = cell(
+                    x_2, state, scope="cond_gru_2_cell")
+
+            with tf.name_scope("rnn_output_projection"):
+                if attns:
+                    output = linear([cell_output] + attns,
+                                    cell.output_size,
+                                    scope="AttnOutputProjection")
+                else:
+                    output = cell_output
+
+            logits = self._logit_function(output)
+
+        return logits, state, attns
+
     # pylint: disable=too-many-branches
-    def _attention_decoder(
+    def _decoding_loop(
             self,
             go_symbols: tf.Tensor,
             train_inputs: tf.Tensor=None,
-            attention_on_input=True,
-            conditional_gru: bool = False,
-            train_mode: bool = False,
-            scope: Union[str, tf.VariableScope]=None) -> Tuple[
+            train_mode: bool = False) -> Tuple[
                 List[tf.Tensor], List[tf.Tensor]]:
         """Run the decoder RNN.
 
@@ -340,9 +364,6 @@ class Decoder(ModelPart):
             go_symbols: The tensor of start symbols of shape (1, batch_size)
             train_inputs: Training inputs to feed the decoder with. These are
                 not used when `train_mode = False`
-            attention_on_input: Flag whether attention from previous time step
-                is fed to the input in the next step.
-            conditional_gru: Flag that enables conditional GRU architecture
             train_mode: Boolean flag whether the decoder is running in
                 train (with ground truth inputs) or runtime mode (with inputs
                 decoded using the loop function)
@@ -352,72 +373,42 @@ class Decoder(ModelPart):
                        for e in self.encoders]
         att_objects = [a for a in att_objects if a is not None]
 
-        cell = self._get_rnn_cell()
+        if self._rnn_cell == 'GRU':
+            state = self.initial_state
+        elif self._rnn_cell == 'LSTM':
+            state = tf.contrib.rnn.LSTMStateTuple(
+                self.initial_state, self.initial_state)
+        else:
+            raise ValueError("Unknown RNN cell.")
 
-        with tf.variable_scope(scope or "attention_decoder"):
-            if self._rnn_cell == 'GRU':
-                state = self.initial_state
-            elif self._rnn_cell == 'LSTM':
-                state = tf.contrib.rnn.LSTMStateTuple(
-                    self.initial_state, self.initial_state)
+        step_logits = None
+
+        attns = [tf.zeros([self.batch_size, a.attn_size])
+                 for a in att_objects]
+        states = []
+        logits = []
+        for i in range(self.max_output_len):
+            if i > 0:
+                self.step_scope.reuse_variables()
+
+            # choose the input
+            if step_logits is None:
+                assert i == 0
+                inp = go_symbols[0]
+            elif train_mode:
+                inp = train_inputs[i - 1]
             else:
-                raise ValueError("Unknown RNN cell.")
+                prev_word_index = tf.argmax(step_logits, 1)
+                inp = self.embed_and_dropout(prev_word_index)
 
-            outputs = []
-            prev = None
+            # perform the RNN step
+            step_logits, state, attns = self.step(
+                att_objects, inp, state, attns)
 
-            attns = [tf.zeros([self.batch_size, a.attn_size])
-                     for a in att_objects]
-            states = []
-            for i in range(self.max_output_len):
-                if i > 0:
-                    tf.get_variable_scope().reuse_variables()
+            logits.append(step_logits)
+            states.append(state)
 
-                if prev is None:
-                    assert i == 0
-                    inp = go_symbols[0]
-                elif train_mode:
-                    inp = train_inputs[i - 1]
-                else:
-                    with tf.variable_scope("loop_function", reuse=True):
-                        out_activation = self._logit_function(prev)
-                        prev_word_index = tf.argmax(out_activation, 1)
-                        inp = self._embed_and_dropout(prev_word_index)
-
-                # Merge input and previous attentions into one vector of the
-                # right size.
-                if attention_on_input:
-                    x = linear([inp] + attns, self.embedding_size)
-                else:
-                    x = inp
-
-                # Run the RNN.
-                cell_output, state = cell(x, state)
-
-                # Run the attention mechanism.
-                attns = [a.attention(cell_output) for a in att_objects]
-
-                if conditional_gru:
-                    x_2 = linear(
-                        attns, self.embedding_size, scope="cond_gru_2_linproj")
-                    # Run the RNN for the second time
-                    cell_output, state = cell(
-                        x_2, state, scope="cond_gru_2_cell")
-
-                states.append(state)
-
-                with tf.name_scope("rnn_output_projection"):
-                    if attns:
-                        output = linear([cell_output] + attns,
-                                        cell.output_size,
-                                        scope="AttnOutputProjection")
-                    else:
-                        output = cell_output
-
-                prev = output
-                outputs.append(output)
-
-        return outputs, states
+        return logits, states
 
     def _visualize_attention(self) -> None:
         """Create image summaries with attentions"""

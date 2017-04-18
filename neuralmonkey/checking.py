@@ -8,7 +8,7 @@ from typing import List, Optional, Iterable
 
 import tensorflow as tf
 
-from neuralmonkey.logging import log, debug, warn
+from neuralmonkey.logging import log, debug
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.runners.base_runner import BaseRunner
 
@@ -29,8 +29,8 @@ def check_dataset_and_coders(dataset: Dataset,
             elif hasattr(c, "data_ids"):
                 data_list.extend([(d, c) for d in c.data_ids])
             else:
-                warn(("Coder: {} does not have"
-                      "a data attribute").format(c))
+                log(("Coder: {} does not have "
+                     "a data attribute.").format(c))
 
     debug("Found series: {}".format(str(data_list)), "checking")
     missing = []

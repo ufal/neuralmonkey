@@ -136,7 +136,8 @@ def training_loop(tf_manager: TensorFlowManager,
                         summaries=True)
                     train_results, train_outputs = run_on_dataset(
                         tf_manager, runners, batch_dataset,
-                        postprocess, write_out=False)
+                        postprocess, write_out=False,
+                        batch_size=runners_batch_size)
                     # ensure train outputs are iterable more than once
                     train_outputs = {k: list(v) for k, v
                                      in train_outputs.items()}
@@ -268,7 +269,8 @@ def run_on_dataset(tf_manager: TensorFlowManager,
 
     """
     contains_targets = all(dataset.has_series(runner.decoder_data_id)
-                           for runner in runners)
+                           for runner in runners
+                           if runner.decoder_data_id is not None)
 
     all_results = tf_manager.execute(dataset, runners,
                                      compute_losses=contains_targets,
