@@ -153,6 +153,21 @@ class Dataset(collections.Sized):
                 "Can't series that already exist: {}".format(name))
         self._series[name] = series
 
+    def subset(self, start: int, length: int) -> "Dataset":
+
+        # new name
+        subset_name = "{}.{}.{}".format(self.name, start, length)
+
+        # new outputs
+        subset_outputs = {k: "{}.{:010}".format(v, start)
+                          for k, v in self.series_outputs.items()}
+
+        # new series
+        subset_series = {k: v[start:start+length]
+                         for k, v in self._series.items()}
+
+        return Dataset(subset_name, subset_series, subset_outputs)
+
 
 class LazyDataset(Dataset):
     """Implements the lazy dataset.
@@ -263,6 +278,27 @@ class LazyDataset(Dataset):
     def add_series(self, name: str, series: Iterable[Any]) -> None:
         raise NotImplementedError(
             "Lazy dataset does not support adding series.")
+
+    def subset(self, start: int, length: int) -> "Dataset":
+        # new name
+        subset_name = "{}.{}.{}".format(self.name, start, length)
+
+        # new outputs
+        subset_outputs = {k: "{}.{:010}".format(v, start)
+                          for k, v in self.series_outputs.items()}
+
+        # new series
+        # TODO make this more efficient with large datasets
+        subset_series = {}
+
+        for s_id, (paths, reader) in self.series_paths_and_readers.items():
+            generator = reader(paths)
+            for _ in range(start):
+                next(generator)
+
+            subset_series[s_id] = [next(generator) for _ in range(length)]
+
+        return Dataset(subset_name, subset_series, subset_outputs)
 
 
 # pylint: disable=invalid-name
