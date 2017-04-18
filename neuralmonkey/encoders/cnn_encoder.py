@@ -166,8 +166,8 @@ class CNNEncoder(ModelPart, Attentive):
         f_dict[self.input_op] = images / 225.0
 
         # it is one everywhere where non-zero, i.e. zero columns are masked out
-        f_dict[self.padding_masks] = \
-            np.sum(np.sign(images), axis=3, keepdims=True)
+        f_dict[self.padding_masks] = np.sum(
+            np.sign(images), axis=3, keepdims=True)
 
         if train:
             f_dict[self.dropout_placeholder] = self.dropout_keep_prob

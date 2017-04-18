@@ -45,8 +45,8 @@ def _n_best_indices(scores: np.ndarray, n: int) -> np.ndarray:
 def _score_expanded(n: int,
                     batch_size: int,
                     expanded: List[ExpandedBeamBatch],
-                    scoring_function: ScoringFunction) -> \
-        Tuple[List[np.ndarray], List[np.ndarray]]:
+                    scoring_function: ScoringFunction
+                   ) -> Tuple[List[np.ndarray], List[np.ndarray]]:
     """Score expanded beams.
 
     After all hypotheses have their possible continuations, we need to score

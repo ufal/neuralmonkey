@@ -17,8 +17,8 @@ for cont, (prep, article) in zip(CONTRACTIONS, UNCONTRACTED_FORMS):
     CONTRACT[article][prep] = cont
 
 
-EIN_TYPE_PRONOUNS = \
-    re.compile("^(ein|[mdsk]ein|ihr|unser|euer|Ihr)(e|es|er|em|en)$")
+EIN_TYPE_PRONOUNS = re.compile(
+    "^(ein|[mdsk]ein|ihr|unser|euer|Ihr)(e|es|er|em|en)$")
 DER_TYPE_PRONOUNS = re.compile("^(dies|welch|jed|all)(e|es|er|em|en)$")
 
 # pylint: disable=too-few-public-methods
@@ -74,8 +74,8 @@ class GermanPostprocessor(object):
 
         compound = False
         for word in sentence:
-            if self.contracting and word in CONTRACT \
-                    and result and result[-1] in CONTRACT[word]:
+            if (self.contracting and word in CONTRACT
+                    and result and result[-1] in CONTRACT[word]):
                 result[-1] = CONTRACT[word][result[-1]]
             elif self.pronouns and word.startswith("<<"):
                 if result:

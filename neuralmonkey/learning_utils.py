@@ -379,10 +379,10 @@ def _log_continuous_evaluation(tb_writer: tf.summary.FileWriter,
                 if summaries is not None:
                     tb_writer.add_summary(summaries, seen_instances)
 
-        external_str = \
-            tf.Summary(value=[tf.Summary.Value(tag=prefix + "_" + name,
-                                               simple_value=value)
-                              for name, value in eval_result.items()])
+        external_str = tf.Summary(
+            value=[tf.Summary.Value(tag=prefix + "_" + name,
+                                    simple_value=value)
+                   for name, value in eval_result.items()])
         tb_writer.add_summary(external_str, seen_instances)
 
 

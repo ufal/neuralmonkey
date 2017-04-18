@@ -42,8 +42,8 @@ class TestVocabulary(unittest.TestCase):
                                                     add_end_symbol=True)
         senteces_again = VOCABULARY.vectors_to_sentences(vectors[1:])
 
-        for orig_sentence, reconstructed_sentence in \
-                zip(TOKENIZED_CORPUS, senteces_again):
+        for orig_sentence, reconstructed_sentence in zip(
+                TOKENIZED_CORPUS, senteces_again):
             self.assertSequenceEqual(orig_sentence, reconstructed_sentence)
 
     def test_min_freq(self):
