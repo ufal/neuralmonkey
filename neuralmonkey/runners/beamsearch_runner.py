@@ -73,9 +73,8 @@ class BeamSearchRunner(BaseRunner):
     def __init__(self,
                  output_series: str,
                  decoder: BeamSearchDecoder,
-                 rank: int=1,
-                 postprocess: Optional[Callable[[List[str]],
-                                                List[str]]]=None) -> None:
+                 rank: int = 1,
+                 postprocess: Callable[[List[str]], List[str]] = None) -> None:
         super(BeamSearchRunner, self).__init__(output_series, decoder)
         assert check_argument_types()
 
@@ -88,8 +87,8 @@ class BeamSearchRunner(BaseRunner):
         self._postprocess = postprocess
 
     def get_executable(self,
-                       compute_losses: bool=False,
-                       summaries: bool=True) -> BeamSearchExecutable:
+                       compute_losses: bool = False,
+                       summaries: bool = True) -> BeamSearchExecutable:
         return BeamSearchExecutable(
             self._rank, self.all_coders, self._decoder.outputs,
             self._decoder.vocabulary, self._postprocess)

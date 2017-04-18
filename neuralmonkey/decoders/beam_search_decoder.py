@@ -1,4 +1,4 @@
-from typing import NamedTuple, Tuple, Optional, List
+from typing import NamedTuple, Tuple, List
 
 import tensorflow as tf
 from typeguard import check_argument_types
@@ -38,8 +38,8 @@ class BeamSearchDecoder(ModelPart):
                  max_steps: int,
                  beam_size: int,
                  length_normalization: float,
-                 save_checkpoint: Optional[str]=None,
-                 load_checkpoint: Optional[str]=None) -> None:
+                 save_checkpoint: str = None,
+                 load_checkpoint: str = None) -> None:
         ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
         assert check_argument_types()
 
@@ -168,7 +168,7 @@ class BeamSearchDecoder(ModelPart):
         return search_state, output
     # pylint: enable=too-many-locals
 
-    def feed_dict(self, dataset: Dataset, train: bool=False) -> FeedDict:
+    def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
         """Populate the feed dictionary for the decoder object
 
         Arguments:

@@ -355,11 +355,8 @@ class Decoder(ModelPart):
     def _decoding_loop(
             self,
             go_symbols: tf.Tensor,
-            train_inputs: tf.Tensor = None,
-            attention_on_input = True,
-            conditional_gru: bool = False,
-            train_mode: bool = False,
-            scope: Union[str, tf.VariableScope] = None) -> Tuple[
+            train_inputs: tf.Tensor=None,
+            train_mode: bool = False) -> Tuple[
                 List[tf.Tensor], List[tf.Tensor]]:
         """Run the decoder RNN.
 
@@ -367,9 +364,6 @@ class Decoder(ModelPart):
             go_symbols: The tensor of start symbols of shape (1, batch_size)
             train_inputs: Training inputs to feed the decoder with. These are
                 not used when `train_mode = False`
-            attention_on_input: Flag whether attention from previous time step
-                is fed to the input in the next step.
-            conditional_gru: Flag that enables conditional GRU architecture
             train_mode: Boolean flag whether the decoder is running in
                 train (with ground truth inputs) or runtime mode (with inputs
                 decoded using the loop function)
@@ -382,10 +376,8 @@ class Decoder(ModelPart):
         if self._rnn_cell == 'GRU':
             state = self.initial_state
         elif self._rnn_cell == 'LSTM':
-            # pylint: disable=redefined-variable-type
             state = tf.contrib.rnn.LSTMStateTuple(
                 self.initial_state, self.initial_state)
-            # pylint: enable=redefined-variable-type
         else:
             raise ValueError("Unknown RNN cell.")
 
