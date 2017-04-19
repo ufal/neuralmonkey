@@ -17,7 +17,7 @@ class BPEPreprocessor(object):
     def __init__(self, merge_file: str, separator: str = "@@") -> None:
         log("Initializing BPE preprocessor")
 
-        with open(merge_file, "r") as f_data:
+        with open(merge_file, "r", encoding="utf-8") as f_data:
             self.bpe = BPE(f_data, separator)
 
     def __call__(self, sentence: List[str]) -> List[str]:
