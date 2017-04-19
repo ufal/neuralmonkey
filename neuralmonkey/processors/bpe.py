@@ -14,10 +14,13 @@ class BPEPreprocessor(object):
     Code: https://github.com/rsennrich/subword-nmt
     """
 
-    def __init__(self, merge_file: str, separator: str = "@@") -> None:
+    def __init__(self,
+                 merge_file: str,
+                 separator: str = "@@",
+                 encoding: str = "utf-8") -> None:
         log("Initializing BPE preprocessor")
 
-        with open(merge_file, "r") as f_data:
+        with open(merge_file, "r", encoding=encoding) as f_data:
             self.bpe = BPE(f_data, separator)
 
     def __call__(self, sentence: List[str]) -> List[str]:
