@@ -163,7 +163,7 @@ class Dataset(collections.Sized):
                           for k, v in self.series_outputs.items()}
 
         # new series
-        subset_series = {k: v[start:start+length]
+        subset_series = {k: v[start:start + length]
                          for k, v in self._series.items()}
 
         return Dataset(subset_name, subset_series, subset_outputs)
