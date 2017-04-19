@@ -16,15 +16,22 @@ class Attention(object):
 
     # For maintaining the same API as in CoverageAttention
 
-    def __init__(self, attention_states, scope, attention_state_size,
-                 input_weights=None, attention_fertility=None) -> None:
+    def __init__(self,
+                 attention_states: tf.Tensor,
+                 scope: str,
+                 attention_state_size: int = None,
+                 input_weights: tf.Tensor = None,
+                 attention_fertility: int = None) -> None:
         """Create the attention object.
 
         Args:
             attention_states: A Tensor of shape (batch x time x state_size)
-                              with the output states of the encoder.
+                with the output states of the encoder.
             scope: The name of the variable scope in the graph used by this
-                   attention object.
+                attention object.
+            attention_state_size: (Optional) the size of the attention inner
+                state. If not supplied, the encoder rnn size will be used
+                (x2 for bidirectional encoders)
             input_weights: (Optional) The padding weights on the input.
             attention_fertility: (Optional) For the Coverage attention
                 compatibilty, maximum fertility of one word.
@@ -35,19 +42,20 @@ class Attention(object):
         self.attention_states = attention_states
         self.input_weights = input_weights
 
-        with tf.variable_scope(scope):
-            self.attn_size = attention_states.get_shape()[2].value
+        self.attn_size = attention_states.get_shape()[2].value
+        self.attention_state_size = attention_state_size
 
+        if self.attention_state_size is None:
+            self.attention_state_size = self.attn_size
+
+        with tf.variable_scope(scope):
             # To calculate W1 * h_t we use a 1-by-1 convolution, need to
             # reshape before.
             self.att_states_reshaped = tf.expand_dims(self.attention_states, 2)
 
-            # Size of query vectors for attention.
-            self.attention_vec_size = attention_state_size
-
             # This variable corresponds to Bahdanau's U_a in the paper
             k = tf.get_variable(
-                "AttnW", [1, 1, self.attn_size, self.attention_vec_size],
+                "AttnW", [1, 1, self.attn_size, self.attention_state_size],
                 initializer=tf.random_normal_initializer(stddev=0.001))
 
             self.hidden_features = tf.nn.conv2d(self.att_states_reshaped, k,
@@ -57,7 +65,7 @@ class Attention(object):
             # see comments on disabling invalid names below
             self.v = tf.get_variable(
                 name="AttnV",
-                shape=[self.attention_vec_size],
+                shape=[self.attention_state_size],
                 initializer=tf.random_normal_initializer(stddev=.001))
             self.v_bias = tf.get_variable(
                 "AttnV_b", [], initializer=tf.constant_initializer(0))
@@ -73,8 +81,8 @@ class Attention(object):
             # as zeros
             varscope.set_initializer(
                 tf.random_normal_initializer(stddev=0.001))
-            y = linear(query_state, self.attention_vec_size, scope=varscope)
-            y = tf.reshape(y, [-1, 1, 1, self.attention_vec_size])
+            y = linear(query_state, self.attention_state_size, scope=varscope)
+            y = tf.reshape(y, [-1, 1, 1, self.attention_state_size])
 
             # pylint: disable=invalid-name
             # code copied from tensorflow. Suggestion: rename the variables
