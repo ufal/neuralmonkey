@@ -51,7 +51,7 @@ def create_config() -> Configuration:
     return config
 
 
-# pylint: disable=too-many-statements
+# pylint: disable=too-many-statements, too-many-locals, too-many-branches
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('config', metavar='INI-FILE',

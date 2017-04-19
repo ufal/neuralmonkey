@@ -23,7 +23,7 @@ Postprocess = Optional[List[Tuple[SeriesName, Callable]]]
 
 
 # pylint: disable=too-many-arguments, too-many-locals, too-many-branches
-# pylint: disable=too-many-statements
+# pylint: disable=too-many-statements, too-many-nested-blocks
 def training_loop(tf_manager: TensorFlowManager,
                   epochs: int,
                   trainer: GenericTrainer,  # TODO better annotate
@@ -50,36 +50,36 @@ def training_loop(tf_manager: TensorFlowManager,
         tf_manager: TensorFlowManager with initialized sessions.
         epochs: Number of epochs for which the algoritm will learn.
         trainer: The trainer object containg the TensorFlow code for computing
-                 the loss and optimization operation.
+            the loss and optimization operation.
         batch_size: how many examples are trained at once.
         train_dataset: Dataset used for training
         log_directory: Directory where the TensordBoard log will be generated.
-                       If None, nothing will be done.
+            If None, nothing will be done.
         evaluators: List of evaluators. The last evaluator is used as the main.
-                    An evaluator is a tuple of the name of the generated
-                    series, the name of the dataset series the generated one is
-                    evaluated with and the evaluation function. If only one
-                    series names is provided, it means the generated and
-                    dataset series have the same name.
+            An evaluator is a tuple of the name of the generated
+            series, the name of the dataset series the generated one is
+            evaluated with and the evaluation function. If only one
+            series names is provided, it means the generated and
+            dataset series have the same name.
         runners: List of runners for logging and evaluation runs
         val_dataset: Dataset used for evaluation of validation error
         val_datasets: List of datasets used for evaluation of validation error.
-                      You must specify either val_dataset or val_datasets.
+            You must specify either val_dataset or val_datasets.
         test_datasets: List of datasets used for testing
         logging_period: after how many batches should the logging happen
         validation_period: after how many batches should the validation happen
         val_preview_input_series: inputs of examples to preview
         val_preview_output_series: outputs of examples to preview
         val_preview_num_examples: how many examples should be printed during
-                                  validation
+            validation
         train_start_offset: how many lines from the training dataset should be
-                            skipped
+            skipped
         runners_batch_size: batch size of runners. It is the same as batch_size
-                            if not specified
+            if not specified
         initial_variables: variables used for initialization, for example for
-                           continuation of training
+            continuation of training
         postprocess: Function that takes the output sentence as produced by the
-                     decoder and transforms into tokenized sentence.
+            decoder and transforms into tokenized sentence.
     """
 
     if val_dataset is not None:
@@ -184,22 +184,39 @@ def training_loop(tf_manager: TensorFlowManager,
                                        train=True, summaries=False)
 
                 if step % validation_period == validation_period - 1:
-                    for validation_dataset in val_datasets:
+                    for val_id in range(len(val_datasets)):
                         val_results, val_outputs = run_on_dataset(
-                            tf_manager, runners, validation_dataset,
+                            tf_manager, runners, val_datasets[val_id],
                             postprocess, write_out=False,
                             batch_size=runners_batch_size)
                         # ensure val outputs are iterable more than once
                         val_outputs = {k: list(v)
                                        for k, v in val_outputs.items()}
                         val_evaluation = evaluation(
-                            evaluators, validation_dataset, runners,
+                            evaluators, val_datasets[val_id], runners,
                             val_results,
                             val_outputs)
 
-                        this_score = val_evaluation[main_metric]
-                        tf_manager.validation_hook(this_score, epoch_n,
-                                                   batch_n)
+                        # The last validation set is selected to be the main
+                        if val_id == len(val_datasets) - 1:
+                            this_score = val_evaluation[main_metric]
+                            tf_manager.validation_hook(this_score, epoch_n,
+                                                       batch_n)
+
+                            if this_score == tf_manager.best_score:
+                                best_score_str = colored(
+                                    "{:.4g}".format(tf_manager.best_score),
+                                    attrs=['bold'])
+                            else:
+                                best_score_str = "{:.4g}".format(
+                                    tf_manager.best_score)
+
+                            log("best {} on validation: {} (in epoch {}, "
+                                "after batch number {})"
+                                .format(main_metric, best_score_str,
+                                        tf_manager.best_score_epoch,
+                                        tf_manager.best_score_batch),
+                                color='blue')
 
                         log("Validation (epoch {}, batch number {}):"
                             .format(epoch_n, batch_n), color='blue')
@@ -211,23 +228,8 @@ def training_loop(tf_manager: TensorFlowManager,
                                                    epochs,
                                                    val_results, train=False)
 
-                        if this_score == tf_manager.best_score:
-                            best_score_str = colored(
-                                "{:.4g}".format(tf_manager.best_score),
-                                attrs=['bold'])
-                        else:
-                            best_score_str = "{:.4g}".format(
-                                tf_manager.best_score)
-
-                        log("best {} on validation: {} (in epoch {}, "
-                            "after batch number {})"
-                            .format(main_metric, best_score_str,
-                                    tf_manager.best_score_epoch,
-                                    tf_manager.best_score_batch),
-                            color='blue')
-
                         log_print("")
-                        _print_examples(validation_dataset, val_outputs,
+                        _print_examples(val_datasets[val_id], val_outputs,
                                         val_preview_input_series,
                                         val_preview_output_series,
                                         val_preview_num_examples)
