@@ -119,12 +119,11 @@ def main() -> None:
                 raise EnvironmentError(
                     "Some SGE environment variables are missing")
 
-            start = int(os.environ["SGE_TASK_FIRST"]) - 1
             length = int(os.environ["SGE_TASK_STEPSIZE"])
-            task_id = int(os.environ["SGE_TASK_ID"])
+            start = int(os.environ["SGE_TASK_ID"]) - 1
 
             log("Running grid task {} starting at {} with step {}"
-                .format(task_id, start, length))
+                .format(start // length, start, length))
 
             dataset = dataset.subset(start, length)
 
