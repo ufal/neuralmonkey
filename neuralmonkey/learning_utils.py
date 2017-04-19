@@ -190,13 +190,16 @@ def training_loop(tf_manager: TensorFlowManager,
                             postprocess, write_out=False,
                             batch_size=runners_batch_size)
                         # ensure val outputs are iterable more than once
-                        val_outputs = {k: list(v) for k, v in val_outputs.items()}
+                        val_outputs = {k: list(v)
+                                       for k, v in val_outputs.items()}
                         val_evaluation = evaluation(
-                            evaluators, validation_dataset, runners, val_results,
+                            evaluators, validation_dataset, runners,
+                            val_results,
                             val_outputs)
 
                         this_score = val_evaluation[main_metric]
-                        tf_manager.validation_hook(this_score, epoch_n, batch_n)
+                        tf_manager.validation_hook(this_score, epoch_n,
+                                                   batch_n)
 
                         log("Validation (epoch {}, batch number {}):"
                             .format(epoch_n, batch_n), color='blue')
@@ -213,7 +216,8 @@ def training_loop(tf_manager: TensorFlowManager,
                                 "{:.4g}".format(tf_manager.best_score),
                                 attrs=['bold'])
                         else:
-                            best_score_str = "{:.4g}".format(tf_manager.best_score)
+                            best_score_str = "{:.4g}".format(
+                                tf_manager.best_score)
 
                         log("best {} on validation: {} (in epoch {}, "
                             "after batch number {})"
