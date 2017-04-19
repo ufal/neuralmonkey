@@ -43,28 +43,42 @@ def training_loop(tf_manager: TensorFlowManager,
                   runners_batch_size: Optional[int] = None,
                   initial_variables: Optional[Union[str, List[str]]] = None,
                   postprocess: Postprocess = None) -> None:
-
-    # TODO finish the list
     """
     Performs the training loop for given graph and data.
-
     Args:
         tf_manager: TensorFlowManager with initialized sessions.
         epochs: Number of epochs for which the algoritm will learn.
         trainer: The trainer object containg the TensorFlow code for computing
-            the loss and optimization operation.
-        train_dataset:
-        val_dataset:
-        postprocess: Function that takes the output sentence as produced by the
-            decoder and transforms into tokenized sentence.
+                 the loss and optimization operation.
+        batch_size: how many examples are trained at once.
+        train_dataset: Dataset used for training
+        val_dataset: Dataset used for evaluation of validation error
         log_directory: Directory where the TensordBoard log will be generated.
-            If None, nothing will be done.
+                       If None, nothing will be done.
         evaluators: List of evaluators. The last evaluator is used as the main.
-            An evaluator is a tuple of the name of the generated series, the
-            name of the dataset series the generated one is evaluated with and
-            the evaluation function. If only one series names is provided, it
-            means the generated and dataset series have the same name.
+                    An evaluator is a tuple of the name of the generated
+                    series, the name of the dataset series the generated one is
+                    evaluated with and the evaluation function. If only one
+                    series names is provided, it means the generated and
+                    dataset series have the same name.
+        runners: List of runners for logging and evaluation runs
+        test_datasets: List of datasets used for testing
+        logging_period: after how many batches should the logging happen
+        validation_period: after how many batches should the validation happen
+        val_preview_input_series: inputs of examples to preview
+        val_preview_output_series: outputs of examples to preview
+        val_preview_num_examples: how many examples should be printed during
+                                  validation
+        train_start_offset: how many lines from the training dataset should be
+                            skipped
+        runners_batch_size: batch size of runners. It is the same as batch_size
+                            if not specified
+        initial_variables: variables used for initialization, for example for
+                           continuation of training
+        postprocess: Function that takes the output sentence as produced by the
+                     decoder and transforms into tokenized sentence.
     """
+
     if validation_period < logging_period:
         raise AssertionError(
             "Validation period can't be smaller than logging period.")
@@ -75,7 +89,6 @@ def training_loop(tf_manager: TensorFlowManager,
     if tf_manager.report_gpu_memory_consumption:
         log("GPU memory usage: {}".format(gpu_memusage()))
 
-    # TODO DOCUMENT_THIS
     if runners_batch_size is None:
         runners_batch_size = batch_size
 
