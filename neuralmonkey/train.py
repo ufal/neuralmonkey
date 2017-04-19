@@ -26,8 +26,7 @@ def create_config() -> Configuration:
     config.add_argument('trainer')
     config.add_argument('batch_size', cond=lambda x: x > 0)
     config.add_argument('train_dataset')
-    config.add_argument('val_dataset', required=False)
-    config.add_argument('val_datasets', required=False)
+    config.add_argument('val_dataset')
     config.add_argument('output')
     config.add_argument('evaluation')
     config.add_argument('runners')
@@ -174,10 +173,10 @@ def main() -> None:
     try:
         check_dataset_and_coders(cfg.model.train_dataset,
                                  cfg.model.runners)
-        if cfg.model.val_dataset is not None:
+        if cfg.model.val_dataset is str:
             check_dataset_and_coders(cfg.model.val_dataset, cfg.model.runners)
-        if cfg.model.val_datasets is not None:
-            for val_dataset in cfg.model.val_datasets:
+        else:
+            for val_dataset in cfg.model.val_dataset:
                 check_dataset_and_coders(val_dataset, cfg.model.runners)
     except CheckingException as exc:
         log(str(exc), color='red')
@@ -199,7 +198,6 @@ def main() -> None:
         evaluators=cfg.model.evaluation,
         runners=cfg.model.runners,
         val_dataset=cfg.model.val_dataset,
-        val_datasets=cfg.model.val_datasets,
         test_datasets=cfg.model.test_datasets,
         logging_period=cfg.model.logging_period,
         validation_period=cfg.model.validation_period,

@@ -32,8 +32,7 @@ def training_loop(tf_manager: TensorFlowManager,
                   log_directory: str,
                   evaluators: EvalConfiguration,
                   runners: List[BaseRunner],
-                  val_dataset: Dataset,
-                  val_datasets: List[Dataset],
+                  val_dataset: Union[str, List[str]],
                   test_datasets: Optional[List[Dataset]] = None,
                   logging_period: int = 20,
                   validation_period: int = 500,
@@ -62,9 +61,9 @@ def training_loop(tf_manager: TensorFlowManager,
             series names is provided, it means the generated and
             dataset series have the same name.
         runners: List of runners for logging and evaluation runs
-        val_dataset: Dataset used for evaluation of validation error
-        val_datasets: List of datasets used for evaluation of validation error.
-            You must specify either val_dataset or val_datasets.
+        val_dataset: Dataset used for evaluation of validation error or a list
+            of datasets used for evaluation of validation error. The last
+            dataset is used as the main one for storing best results.
         test_datasets: List of datasets used for testing
         logging_period: after how many batches should the logging happen
         validation_period: after how many batches should the validation happen
@@ -82,17 +81,8 @@ def training_loop(tf_manager: TensorFlowManager,
             decoder and transforms into tokenized sentence.
     """
 
-    if val_dataset is not None:
-        warn("Argument val_dataset will be deprecated "
-             "and replaced by val_datasets")
-        if val_datasets is None:
-            val_datasets = [val_dataset]
-        else:
-            raise AssertionError("You cannot specify both val_dataset "
-                                 "and val_datasets.")
-
-    if val_datasets is None:
-        raise AssertionError("You must specify val_datasets.")
+    if val_dataset is str:
+        val_dataset = [val_dataset]
 
     if validation_period < logging_period:
         raise AssertionError(
@@ -184,21 +174,21 @@ def training_loop(tf_manager: TensorFlowManager,
                                        train=True, summaries=False)
 
                 if step % validation_period == validation_period - 1:
-                    for val_id in range(len(val_datasets)):
+                    for val_id in range(len(val_dataset)):
                         val_results, val_outputs = run_on_dataset(
-                            tf_manager, runners, val_datasets[val_id],
+                            tf_manager, runners, val_dataset[val_id],
                             postprocess, write_out=False,
                             batch_size=runners_batch_size)
                         # ensure val outputs are iterable more than once
                         val_outputs = {k: list(v)
                                        for k, v in val_outputs.items()}
                         val_evaluation = evaluation(
-                            evaluators, val_datasets[val_id], runners,
+                            evaluators, val_dataset[val_id], runners,
                             val_results,
                             val_outputs)
 
                         # The last validation set is selected to be the main
-                        if val_id == len(val_datasets) - 1:
+                        if val_id == len(val_dataset) - 1:
                             this_score = val_evaluation[main_metric]
                             tf_manager.validation_hook(this_score, epoch_n,
                                                        batch_n)
@@ -229,7 +219,7 @@ def training_loop(tf_manager: TensorFlowManager,
                                                    val_results, train=False)
 
                         log_print("")
-                        _print_examples(val_datasets[val_id], val_outputs,
+                        _print_examples(val_dataset[val_id], val_outputs,
                                         val_preview_input_series,
                                         val_preview_output_series,
                                         val_preview_num_examples)
