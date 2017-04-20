@@ -12,6 +12,7 @@ from neuralmonkey.tf_manager import TensorFlowManager
 from neuralmonkey.runners.base_runner import BaseRunner, ExecutionResult
 from neuralmonkey.trainers.generic_trainer import GenericTrainer
 from neuralmonkey.tf_utils import gpu_memusage
+from typeguard import check_argument_types
 
 # pylint: disable=invalid-name
 Evaluation = Dict[str, float]
@@ -76,9 +77,11 @@ def training_loop(tf_manager: TensorFlowManager,
             if not specified
         initial_variables: variables used for initialization, for example for
             continuation of training
-        postprocess: takes an output sequence of a runner and transforms it
-            into a different one
+        postprocess: A function which takes the dataset with its output series
+            and generates additional series from them.
     """
+
+    assert check_argument_types()
 
     if isinstance(val_dataset, Dataset):
         val_datasets = [val_dataset]
@@ -219,7 +222,6 @@ def training_loop(tf_manager: TensorFlowManager,
                             tb_writer, tf_manager, main_metric, val_evaluation,
                             seen_instances, epoch_n, epochs, val_results,
                             train=False)
-
 
     except KeyboardInterrupt:
         log("Training interrupted by user.")
