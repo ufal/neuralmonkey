@@ -28,10 +28,10 @@ def training_loop(tf_manager: TensorFlowManager,
                   epochs: int,
                   trainer: GenericTrainer,  # TODO better annotate
                   batch_size: int,
-                  train_dataset: Dataset,
                   log_directory: str,
                   evaluators: EvalConfiguration,
                   runners: List[BaseRunner],
+                  train_dataset: Dataset,
                   val_dataset: Union[Dataset, List[Dataset]],
                   test_datasets: Optional[List[Dataset]] = None,
                   logging_period: int = 20,
@@ -50,8 +50,7 @@ def training_loop(tf_manager: TensorFlowManager,
         epochs: Number of epochs for which the algoritm will learn.
         trainer: The trainer object containg the TensorFlow code for computing
             the loss and optimization operation.
-        batch_size: how many examples are trained at once.
-        train_dataset: Dataset used for training
+        batch_size: number of examples in one mini-batch
         log_directory: Directory where the TensordBoard log will be generated.
             If None, nothing will be done.
         evaluators: List of evaluators. The last evaluator is used as the main.
@@ -61,27 +60,27 @@ def training_loop(tf_manager: TensorFlowManager,
             series names is provided, it means the generated and
             dataset series have the same name.
         runners: List of runners for logging and evaluation runs
-        val_dataset: Dataset used for evaluation of validation error or a list
-            of datasets used for evaluation of validation error. The last
-            dataset is used as the main one for storing best results.
+        train_dataset: Dataset used for training
+        val_dataset: used for validation. Can be Dataset or a list of datasets.
+            The last dataset is used as the main one for storing best results.
         test_datasets: List of datasets used for testing
         logging_period: after how many batches should the logging happen
         validation_period: after how many batches should the validation happen
-        val_preview_input_series: inputs of examples to preview
-        val_preview_output_series: outputs of examples to preview
+        val_preview_input_series: which input series to preview in validation
+        val_preview_output_series: which output series to preview in validation
         val_preview_num_examples: how many examples should be printed during
             validation
         train_start_offset: how many lines from the training dataset should be
-            skipped
+            skipped. The training starts from the next batch.
         runners_batch_size: batch size of runners. It is the same as batch_size
             if not specified
         initial_variables: variables used for initialization, for example for
             continuation of training
-        postprocess: Function that takes the output sentence as produced by the
-            decoder and transforms into tokenized sentence.
+        postprocess: takes an output sequence of a runner and transforms it
+            into a different one
     """
 
-    if val_dataset is not list:
+    if isinstance(val_dataset, Dataset):
         val_datasets = [val_dataset]
     else:
         val_datasets = val_dataset
@@ -127,8 +126,8 @@ def training_loop(tf_manager: TensorFlowManager,
 
     if log_directory:
         log("Initializing TensorBoard summary writer.")
-        tb_writer = tf.summary.FileWriter(log_directory,
-                                          tf_manager.sessions[0].graph)
+        tb_writer = tf.summary.FileWriter(
+            log_directory, tf_manager.sessions[0].graph)
         log("TensorBoard writer initialized.")
 
     log("Starting training")
@@ -165,12 +164,10 @@ def training_loop(tf_manager: TensorFlowManager,
                         evaluators, batch_dataset, runners,
                         train_results, train_outputs)
 
-                    _log_continuous_evaluation(tb_writer, tf_manager,
-                                               main_metric,
-                                               train_evaluation,
-                                               seen_instances, epoch_n,
-                                               epochs, trainer_result,
-                                               train=True)
+                    _log_continuous_evaluation(
+                        tb_writer, tf_manager, main_metric, train_evaluation,
+                        seen_instances, epoch_n, epochs, trainer_result,
+                        train=True)
                 else:
                     tf_manager.execute(batch_dataset, [trainer],
                                        train=True, summaries=False)
@@ -185,8 +182,7 @@ def training_loop(tf_manager: TensorFlowManager,
                         val_outputs = {k: list(v)
                                        for k, v in val_outputs.items()}
                         val_evaluation = evaluation(
-                            evaluators, valset, runners,
-                            val_results,
+                            evaluators, valset, runners, val_results,
                             val_outputs)
 
                         # The last validation set is selected to be the main
@@ -210,21 +206,20 @@ def training_loop(tf_manager: TensorFlowManager,
                                         tf_manager.best_score_batch),
                                 color='blue')
 
+                        _print_examples(
+                            valset, val_outputs, val_preview_input_series,
+                            val_preview_output_series,
+                            val_preview_num_examples)
+                        log_print("")
+
                         log("Validation (epoch {}, batch number {}):"
                             .format(epoch_n, batch_n), color='blue')
 
-                        _log_continuous_evaluation(tb_writer, tf_manager,
-                                                   main_metric,
-                                                   val_evaluation,
-                                                   seen_instances, epoch_n,
-                                                   epochs,
-                                                   val_results, train=False)
+                        _log_continuous_evaluation(
+                            tb_writer, tf_manager, main_metric, val_evaluation,
+                            seen_instances, epoch_n, epochs, val_results,
+                            train=False)
 
-                        log_print("")
-                        _print_examples(valset, val_outputs,
-                                        val_preview_input_series,
-                                        val_preview_output_series,
-                                        val_preview_num_examples)
 
     except KeyboardInterrupt:
         log("Training interrupted by user.")
