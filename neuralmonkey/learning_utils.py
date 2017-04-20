@@ -82,7 +82,9 @@ def training_loop(tf_manager: TensorFlowManager,
     """
 
     if val_dataset is not list:
-        val_dataset = [val_dataset]
+        val_datasets = [val_dataset]
+    else:
+        val_datasets = val_dataset
 
     if validation_period < logging_period:
         raise AssertionError(
@@ -174,7 +176,7 @@ def training_loop(tf_manager: TensorFlowManager,
                                        train=True, summaries=False)
 
                 if step % validation_period == validation_period - 1:
-                    for val_id, valset in enumerate(val_dataset):
+                    for val_id, valset in enumerate(val_datasets):
                         val_results, val_outputs = run_on_dataset(
                             tf_manager, runners, valset,
                             postprocess, write_out=False,
@@ -188,7 +190,7 @@ def training_loop(tf_manager: TensorFlowManager,
                             val_outputs)
 
                         # The last validation set is selected to be the main
-                        if val_id == len(val_dataset) - 1:
+                        if val_id == len(val_datasets) - 1:
                             this_score = val_evaluation[main_metric]
                             tf_manager.validation_hook(this_score, epoch_n,
                                                        batch_n)
