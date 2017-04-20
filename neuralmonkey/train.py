@@ -173,7 +173,7 @@ def main() -> None:
     try:
         check_dataset_and_coders(cfg.model.train_dataset,
                                  cfg.model.runners)
-        if cfg.model.val_dataset is str:
+        if cfg.model.val_dataset is not list:
             check_dataset_and_coders(cfg.model.val_dataset, cfg.model.runners)
         else:
             for val_dataset in cfg.model.val_dataset:

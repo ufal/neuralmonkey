@@ -32,7 +32,7 @@ def training_loop(tf_manager: TensorFlowManager,
                   log_directory: str,
                   evaluators: EvalConfiguration,
                   runners: List[BaseRunner],
-                  val_dataset: Union[str, List[str]],
+                  val_dataset: Union[Dataset, List[Dataset]],
                   test_datasets: Optional[List[Dataset]] = None,
                   logging_period: int = 20,
                   validation_period: int = 500,
@@ -81,7 +81,7 @@ def training_loop(tf_manager: TensorFlowManager,
             decoder and transforms into tokenized sentence.
     """
 
-    if val_dataset is str:
+    if val_dataset is not list:
         val_dataset = [val_dataset]
 
     if validation_period < logging_period:
@@ -174,16 +174,16 @@ def training_loop(tf_manager: TensorFlowManager,
                                        train=True, summaries=False)
 
                 if step % validation_period == validation_period - 1:
-                    for val_id in range(len(val_dataset)):
+                    for val_id, valset in enumerate(val_dataset):
                         val_results, val_outputs = run_on_dataset(
-                            tf_manager, runners, val_dataset[val_id],
+                            tf_manager, runners, valset,
                             postprocess, write_out=False,
                             batch_size=runners_batch_size)
                         # ensure val outputs are iterable more than once
                         val_outputs = {k: list(v)
                                        for k, v in val_outputs.items()}
                         val_evaluation = evaluation(
-                            evaluators, val_dataset[val_id], runners,
+                            evaluators, valset, runners,
                             val_results,
                             val_outputs)
 
@@ -219,7 +219,7 @@ def training_loop(tf_manager: TensorFlowManager,
                                                    val_results, train=False)
 
                         log_print("")
-                        _print_examples(val_dataset[val_id], val_outputs,
+                        _print_examples(valset, val_outputs,
                                         val_preview_input_series,
                                         val_preview_output_series,
                                         val_preview_num_examples)
