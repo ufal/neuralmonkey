@@ -15,6 +15,7 @@ from neuralmonkey.checking import CheckingException, check_dataset_and_coders
 from neuralmonkey.logging import Logging, log
 from neuralmonkey.config.configuration import Configuration
 from neuralmonkey.learning_utils import training_loop
+from neuralmonkey.dataset import Dataset
 
 
 def create_config() -> Configuration:
@@ -50,7 +51,7 @@ def create_config() -> Configuration:
     return config
 
 
-# pylint: disable=too-many-statements
+# pylint: disable=too-many-statements, too-many-locals, too-many-branches
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('config', metavar='INI-FILE',
@@ -173,8 +174,11 @@ def main() -> None:
     try:
         check_dataset_and_coders(cfg.model.train_dataset,
                                  cfg.model.runners)
-        check_dataset_and_coders(cfg.model.val_dataset,
-                                 cfg.model.runners)
+        if isinstance(cfg.model.val_dataset, Dataset):
+            check_dataset_and_coders(cfg.model.val_dataset, cfg.model.runners)
+        else:
+            for val_dataset in cfg.model.val_dataset:
+                check_dataset_and_coders(val_dataset, cfg.model.runners)
     except CheckingException as exc:
         log(str(exc), color='red')
         exit(1)
@@ -190,11 +194,11 @@ def main() -> None:
         epochs=cfg.model.epochs,
         trainer=cfg.model.trainer,
         batch_size=cfg.model.batch_size,
-        train_dataset=cfg.model.train_dataset,
-        val_dataset=cfg.model.val_dataset,
         log_directory=cfg.model.output,
         evaluators=cfg.model.evaluation,
         runners=cfg.model.runners,
+        train_dataset=cfg.model.train_dataset,
+        val_dataset=cfg.model.val_dataset,
         test_datasets=cfg.model.test_datasets,
         logging_period=cfg.model.logging_period,
         validation_period=cfg.model.validation_period,
