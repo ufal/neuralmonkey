@@ -123,6 +123,10 @@ def from_dataset(datasets: List[Dataset], series_ids: List[str], max_size: int,
             warn("Inferring vocabulary from lazy dataset!")
 
         for series_id in series_ids:
+            if not dataset.has_series(series_id):
+                warn("Data series '{}' not present in the dataset"
+                     .format(series_id))
+
             series = dataset.get_series(series_id, allow_none=True)
             if series:
                 vocabulary.add_tokenized_text(
@@ -143,7 +147,6 @@ def from_dataset(datasets: List[Dataset], series_ids: List[str], max_size: int,
         directory = os.path.dirname(save_file)
         if not os.path.exists(directory):
             os.makedirs(directory)
-
         vocabulary.save_to_file(save_file, overwrite)
 
     return vocabulary
