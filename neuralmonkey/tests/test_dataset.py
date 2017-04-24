@@ -5,10 +5,10 @@ import unittest
 from neuralmonkey.dataset import LazyDataset
 from neuralmonkey.readers.plain_text_reader import UtfPlainTextReader
 
+
 class TestDataset(unittest.TestCase):
 
     def test_nonexistent_file(self):
-
         paths_and_readers = {
             "source": (["some_nonexistent_file"], UtfPlainTextReader)}
 
