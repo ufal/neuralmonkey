@@ -11,7 +11,7 @@ class MultilayerPerceptron(object):
                  activation_fn=tf.nn.relu) -> None:
 
         with tf.variable_scope(name):
-            last_layer_size = mlp_input.get_shape()[1].value
+            last_layer_size = mlp_input.get_shape()[-1].value
 
             last_layer = multilayer_projection(mlp_input,
                                                layer_configuration,
