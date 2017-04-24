@@ -1,5 +1,6 @@
 """ Implementation of the dataset class. """
 
+import os
 import random
 import re
 import collections
@@ -181,6 +182,13 @@ class LazyDataset(Dataset):
             parent_series.update({s[1]: None for s in preprocessors})
         super().__init__(name, parent_series, series_outputs)
         self.series_paths_and_readers = series_paths_and_readers
+
+        for series_name, (paths, _) in series_paths_and_readers.items():
+            for path in paths:
+                if not os.path.isfile(path):
+                    raise FileNotFoundError(
+                        "File not found. Series: {}, Path: {}"
+                        .format(series_name, path))
 
         self.preprocess_series = {}  # type: Dict[str, Tuple[str, Callable]]
         if preprocessors is not None:
