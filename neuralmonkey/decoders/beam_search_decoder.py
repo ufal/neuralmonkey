@@ -112,7 +112,7 @@ class BeamSearchDecoder(ModelPart):
 
         finished_row = tf.one_hot(
             PAD_TOKEN_INDEX,
-            len(self._parent_decoder.vocabulary),
+            len(self.parent_decoder.vocabulary),
             dtype=tf.float32,
             on_value=0.,
             off_value=tf.float32.min)
