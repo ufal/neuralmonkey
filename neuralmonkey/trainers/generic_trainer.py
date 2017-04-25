@@ -43,9 +43,9 @@ class GenericTrainer(object):
             # unweighted losses for fetching
             self.losses = [o.loss for o in objectives] + [l1_value, l2_value]
             tf.summary.scalar('train_l1', l1_value,
-                              collections=["summary_train"])
+                              collections=[name+"summary_train"])
             tf.summary.scalar('train_l2', l2_value,
-                              collections=["summary_train"])
+                              collections=[name+"summary_train"])
 
             # if the objective does not have its own gradients,
             # just use TF to do the derivative
@@ -93,8 +93,9 @@ class GenericTrainer(object):
 
             self.histogram_summaries = tf.summary.merge(
                 tf.get_collection(name+"_summary_gradients"))
+            #TODO(kocmi) zde jsem zablokoval pridavani skalarnich summaries z jinych casti modelu
             self.scalar_summaries = tf.summary.merge(
-                tf.get_collection("summary_train"))
+                tf.get_collection(name+"summary_train"))
 
     def _get_gradients(self, tensor: tf.Tensor) -> Gradients:
         gradient_list = self.optimizer.compute_gradients(tensor)

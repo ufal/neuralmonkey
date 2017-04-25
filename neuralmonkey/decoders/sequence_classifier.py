@@ -6,6 +6,7 @@ from neuralmonkey.dataset import Dataset
 from neuralmonkey.vocabulary import Vocabulary
 from neuralmonkey.model.model_part import ModelPart, FeedDict
 from neuralmonkey.nn.mlp import MultilayerPerceptron
+from neuralmonkey.nn.projection import dropout
 
 
 # pylint: disable=too-many-instance-attributes
@@ -26,6 +27,7 @@ class SequenceClassifier(ModelPart):
                  layers: List[int],
                  activation_fn: Callable[[tf.Tensor], tf.Tensor]=tf.nn.relu,
                  dropout_keep_prob: float = 0.5,
+                 dropout_input: float = 1.0,
                  save_checkpoint: Optional[str] = None,
                  load_checkpoint: Optional[str] = None) -> None:
         """Construct a new instance of the sequence classifier.
@@ -51,9 +53,10 @@ class SequenceClassifier(ModelPart):
         self.layers = layers
         self.activation_fn = activation_fn
         self.dropout_keep_prob = dropout_keep_prob
+        self.dropout_input = dropout_input
         self.max_output_len = 1
 
-        with self.use_scope():
+        with tf.variable_scope(name):
             self.train_mode = tf.placeholder(tf.bool, name="train_mode")
             self.learning_step = tf.get_variable(
                 "learning_step", [], trainable=False,
@@ -62,6 +65,9 @@ class SequenceClassifier(ModelPart):
             self.gt_inputs = [tf.placeholder(
                 tf.int32, shape=[None], name="targets")]
             mlp_input = tf.concat([enc.encoded for enc in encoders], 1)
+
+            mlp_input = dropout(mlp_input, self.dropout_input, self.train_mode)
+
             mlp = MultilayerPerceptron(
                 mlp_input, layers, self.dropout_keep_prob, len(vocabulary),
                 activation_fn=self.activation_fn, train_mode=self.train_mode)
@@ -104,10 +110,10 @@ class SequenceClassifier(ModelPart):
 
         fd = {}  # type: FeedDict
 
+
         if sentences is not None:
             label_tensors, _ = self.vocabulary.sentences_to_tensor(
                 sentences_list, self.max_output_len)
-
             fd[self.gt_inputs[0]] = label_tensors[0]
 
         fd[self.train_mode] = train

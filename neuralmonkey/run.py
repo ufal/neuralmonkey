@@ -111,6 +111,8 @@ def main() -> None:
         raise ValueError("Only one test dataset supported when using --grid")
 
     for dataset in datasets_model.test_datasets:
+        runner = [CONFIG.model.runners[-1]]  # hack for kaggle competition
+        log("Using runner with output serie: " + runner[0].output_series)
         if args.grid:
             if ("SGE_TASK_FIRST" not in os.environ
                     or "SGE_TASK_LAST" not in os.environ
@@ -137,7 +139,7 @@ def main() -> None:
             runners_batch_size = CONFIG.model.runners_batch_size
 
         execution_results, output_data = run_on_dataset(
-            CONFIG.model.tf_manager, CONFIG.model.runners,
+            CONFIG.model.tf_manager, runner,
             dataset, CONFIG.model.postprocess, write_out=True,
             batch_size=runners_batch_size)
         # TODO what if there is no ground truth

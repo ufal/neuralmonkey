@@ -30,12 +30,12 @@ Postprocess = Optional[List[Tuple[SeriesName, Callable]]]
 # pylint: disable=too-many-statements, too-many-nested-blocks
 def training_loop(tf_manager: TensorFlowManager,
                   epochs: int,
-                  trainer: GenericTrainer,  # TODO better annotate
+                  trainer: Union[GenericTrainer, List[GenericTrainer]],  # TODO better annotate
                   batch_size: int,
                   log_directory: str,
                   evaluators: EvalConfiguration,
                   runners: List[BaseRunner],
-                  train_dataset: Dataset,
+                  train_dataset: Union[Dataset, List[Dataset]],
                   val_dataset: Union[Dataset, List[Dataset]],
                   test_datasets: Optional[List[Dataset]] = None,
                   logging_period: Union[str, int] = 20,
@@ -94,6 +94,16 @@ def training_loop(tf_manager: TensorFlowManager,
     else:
         val_datasets = val_dataset
 
+    if isinstance(train_dataset, Dataset):
+        train_datasets = [train_dataset]
+    else:
+        train_datasets = train_dataset
+
+    if isinstance(trainer, GenericTrainer):
+        trainers = [trainer]
+    else:
+        trainers = trainer
+
     log_period_batch, log_period_time = _resolve_period(logging_period)
     val_period_batch, val_period_time = _resolve_period(validation_period)
 
@@ -130,7 +140,7 @@ def training_loop(tf_manager: TensorFlowManager,
         # Assume we don't look at coder checkpoints when global
         # initial variables are supplied
         tf_manager.initialize_model_parts(
-            runners + [trainer], save=True)  # type: ignore
+            runners + trainers, save=True)  # type: ignore
     else:
         tf_manager.restore(initial_variables)
 
@@ -140,6 +150,32 @@ def training_loop(tf_manager: TensorFlowManager,
             log_directory, tf_manager.sessions[0].graph)
         log("TensorBoard writer initialized.")
 
+    # this is because we are using lazy datasets which do not know its length
+    lengths = {}
+    total_lines = 0
+    for i in range(len(train_datasets)):
+        lengths[i] = sum(1 for _ in open(next(iter(train_datasets[i].series_paths_and_readers.values()))[0][0]))
+        total_lines += lengths[i]
+
+    log('Dataset lengths: '+str(lengths))
+
+    """ MIXING ALGORITHM
+     0) vypocitej delku vsech korpusu
+     0) vypocitej koeficienty jako soucet_delek/delka_corpusu
+     1) nastav counter rovny koeficientu kazdeho korpusu
+     2) IF je nejaky z counteru <=0:
+            vytvor batch pro dany corpus a pricti k danemu counteru koeficient korpusu
+        ELSE:
+            odecti jedna od vsech counteru
+     3) opakuj 2) dokud jsou nejaka data v korpusu
+    """
+    mixing_coefs = {}
+    counter = {}
+    for i in range(len(lengths)):
+        mixing_coefs[i] = total_lines/lengths[i]
+        counter[i] = mixing_coefs[i]
+
+
     log("Starting training")
     last_log_time = time.process_time()
     last_val_time = time.process_time()
@@ -148,33 +184,65 @@ def training_loop(tf_manager: TensorFlowManager,
             log_print("")
             log("Epoch {} starts".format(epoch_n), color='red')
 
-            train_dataset.shuffle()
-            train_batched_datasets = train_dataset.batch_dataset(batch_size)
+            train_batched_datasetss = []
+            dataset_finished = {}
+            for i in range(len(train_datasets)):
+                train_datasets[i].shuffle()
+                train_batched_datasetss.append(enumerate(train_datasets[i].batch_dataset(batch_size)))
+                dataset_finished[i] = False
 
-            if epoch_n == 1 and train_start_offset:
-                if not isinstance(train_dataset, LazyDataset):
-                    warn("Not skipping training instances with "
-                         "shuffled in-memory dataset")
-                else:
-                    _skip_lines(train_start_offset, train_batched_datasets)
+            while not all(dataset_finished[dfk] for dfk in dataset_finished):
+                corpus_id = -1
+                while corpus_id==-1:
+                    for k in counter:
+                        if counter[k]<=0:
+                            corpus_id = k
+                            counter[k] += mixing_coefs[k]
+                            break
+                    if corpus_id == -1:
+                        for k in counter:
+                            counter[k] -= 1
 
-            for batch_n, batch_dataset in enumerate(train_batched_datasets):
+                trainer = trainers[corpus_id]
+                train_batched_datasets = train_batched_datasetss[corpus_id]
+
+                try:
+                    batch_n, batch_dataset = next(train_batched_datasets)
+                except StopIteration:
+                    dataset_finished[corpus_id] = True
+                    continue
+
                 step += 1
+
+
+                # TODO(kocmi) opravit
+                # if epoch_n == 1 and train_start_offset:
+                #     if not isinstance(train_dataset, LazyDataset):
+                #         warn("Not skipping training instances with "
+                #              "shuffled in-memory dataset")
+                #     else:
+                #         _skip_lines(train_start_offset, train_batched_datasets)
+
+                # First find out which runners can run on this dataset
+                runner = get_runners_from_dataset(runners, batch_dataset)
+                # Then start evaluation with them only if there is at least one
+                # pridat to i do validace
+
                 seen_instances += len(batch_dataset)
                 if _is_logging_time(step, log_period_batch,
-                                    last_log_time, log_period_time):
+                                    last_log_time, log_period_time)  and len(runner)>0:
                     trainer_result = tf_manager.execute(
                         batch_dataset, [trainer], train=True,
                         summaries=True)
                     train_results, train_outputs = run_on_dataset(
-                        tf_manager, runners, batch_dataset,
+                        tf_manager, runner, batch_dataset,
                         postprocess, write_out=False,
                         batch_size=runners_batch_size)
                     # ensure train outputs are iterable more than once
                     train_outputs = {k: list(v) for k, v
                                      in train_outputs.items()}
                     train_evaluation = evaluation(
-                        evaluators, batch_dataset, runners,
+                        evaluators, batch_dataset, runner,
                         train_results, train_outputs)
 
                     _log_continuous_evaluation(
@@ -195,14 +263,14 @@ def training_loop(tf_manager: TensorFlowManager,
                         val_examples += len(valset)
 
                         val_results, val_outputs = run_on_dataset(
-                            tf_manager, runners, valset,
+                            tf_manager, runner, valset,
                             postprocess, write_out=False,
                             batch_size=runners_batch_size)
                         # ensure val outputs are iterable more than once
                         val_outputs = {k: list(v)
                                        for k, v in val_outputs.items()}
                         val_evaluation = evaluation(
-                            evaluators, valset, runners, val_results,
+                            evaluators, valset, runner, val_results,
                             val_outputs)
 
                         valheader = ("Validation (epoch {}, batch number {}):"
@@ -280,16 +348,25 @@ def training_loop(tf_manager: TensorFlowManager,
         tf_manager.restore_best_vars()
 
     for dataset in test_datasets:
+        runner = get_runners_from_dataset(runners, dataset)
         test_results, test_outputs = run_on_dataset(
-            tf_manager, runners, dataset, postprocess,
+            tf_manager, runner, dataset, postprocess,
             write_out=True, batch_size=runners_batch_size)
         # ensure test outputs are iterable more than once
         test_outputs = {k: list(v) for k, v in test_outputs.items()}
-        eval_result = evaluation(evaluators, dataset, runners,
+        eval_result = evaluation(evaluators, dataset, runner,
                                  test_results, test_outputs)
         print_final_evaluation(dataset.name, eval_result)
 
     log("Finished.")
+
+
+def get_runners_from_dataset(runners, dataset):
+    runner = []
+    for r in runners:
+        if dataset.has_series(r.decoder_data_id):
+            runner.append(r)
+    return runner
 
 
 def _is_logging_time(step: int, logging_period_batch: int,
@@ -499,10 +576,11 @@ def _format_evaluation_line(evaluation_res: Evaluation,
                               for name, value in evaluation_res.items()
                               if name != main_metric)
 
-    eval_string += colored(
-        "    {}: {:.4g}".format(main_metric,
-                                evaluation_res[main_metric]),
-        attrs=['bold'])
+    if main_metric in evaluation_res:
+        eval_string += colored(
+            "    {}: {:.4g}".format(main_metric,
+                                    evaluation_res[main_metric]),
+            attrs=['bold'])
 
     return eval_string
 

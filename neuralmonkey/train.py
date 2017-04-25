@@ -171,17 +171,18 @@ def main() -> None:
 
     cfg.model.tf_manager.init_saving(variables_file_prefix)
 
-    try:
-        check_dataset_and_coders(cfg.model.train_dataset,
-                                 cfg.model.runners)
-        if isinstance(cfg.model.val_dataset, Dataset):
-            check_dataset_and_coders(cfg.model.val_dataset, cfg.model.runners)
-        else:
-            for val_dataset in cfg.model.val_dataset:
-                check_dataset_and_coders(val_dataset, cfg.model.runners)
-    except CheckingException as exc:
-        log(str(exc), color='red')
-        exit(1)
+    # TODO(kocmi) opet zprovoznit kontrolu
+    # try:
+    #     check_dataset_and_coders(cfg.model.train_dataset,
+    #                              cfg.model.runners)
+    #     if isinstance(cfg.model.val_dataset, Dataset):
+    #         check_dataset_and_coders(cfg.model.val_dataset, cfg.model.runners)
+    #     else:
+    #         for val_dataset in cfg.model.val_dataset:
+    #             check_dataset_and_coders(val_dataset, cfg.model.runners)
+    # except CheckingException as exc:
+    #     log(str(exc), color='red')
+    #     exit(1)
 
     Logging.print_header(cfg.model.name)
 

@@ -72,6 +72,7 @@ class TensorFlowManager(object):
         session_cfg.gpu_options.allow_growth = gpu_allow_growth
         session_cfg.gpu_options.per_process_gpu_memory_fraction = \
             per_process_gpu_memory_fraction
+
         self.report_gpu_memory_consumption = report_gpu_memory_consumption
 
         if save_n_best < 1:
