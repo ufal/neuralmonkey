@@ -100,3 +100,16 @@ class BeamSearchRunner(BaseRunner):
     @property
     def decoder_data_id(self) -> Optional[str]:
         return None
+
+
+def beam_search_runner_range(output_series: str,
+                             decoder: BeamSearchDecoder,
+                             max_rank: int = 1,
+                             postprocess: Callable[
+                                 [List[str]], List[str]]=None
+                            ) -> List[BeamSearchRunner]:
+    """List of runners for different the range of ranks."""
+    assert check_argument_types()
+    return [BeamSearchRunner("{}.rank{:03d}".format(output_series, r),
+                             decoder, r, postprocess)
+            for r in range(1, max_rank + 1)]

@@ -30,6 +30,9 @@ def collect_encoders(coder):
                                     for enc in coder.encoders))
     if hasattr(coder, "encoder"):
         return set([coder]).union(collect_encoders(coder.encoder))
+    if hasattr(coder, "parent_decoder"):
+        return set([coder]).union(collect_encoders(coder.parent_decoder))
+    # TODO replace by .get_predecesor method of ModelPart
 
     return set([coder])
 

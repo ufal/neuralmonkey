@@ -44,7 +44,7 @@ class BeamSearchDecoder(ModelPart):
         ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
         assert check_argument_types()
 
-        self._parent_decoder = parent_decoder
+        self.parent_decoder = parent_decoder
         self._beam_size = beam_size
         self._max_steps = max_steps
         self._length_normalization = length_normalization
@@ -57,12 +57,12 @@ class BeamSearchDecoder(ModelPart):
 
     @property
     def vocabulary(self):
-        return self._parent_decoder.vocabulary
+        return self.parent_decoder.vocabulary
 
     def _decoding_loop(self):
         # collect attention objects
-        att_objects = [self._parent_decoder.get_attention_object(e, False)
-                       for e in self._parent_decoder.encoders]
+        att_objects = [self.parent_decoder.get_attention_object(e, False)
+                       for e in self.parent_decoder.encoders]
         att_objects = [a for a in att_objects if a is not None]
 
         state = SearchState(
@@ -70,7 +70,7 @@ class BeamSearchDecoder(ModelPart):
             lengths=tf.ones([1], dtype=tf.int32),
             finished=tf.zeros([1], dtype=tf.bool),
             last_word_ids=tf.expand_dims(tf.constant(START_TOKEN_INDEX), 0),
-            last_state=self._parent_decoder.initial_state,
+            last_state=self.parent_decoder.initial_state,
             last_attns=[tf.zeros([1, a.attn_size]) for a in att_objects]
         )
 
@@ -89,18 +89,18 @@ class BeamSearchDecoder(ModelPart):
              bs_state: SearchState) -> Tuple[SearchState, SearchStepOutput]:
 
         # embed the previously decoded word
-        input_ = self._parent_decoder.embed_and_dropout(
+        input_ = self.parent_decoder.embed_and_dropout(
             bs_state.last_word_ids)
 
         # don't want to use this decoder with uninitialized parent
-        assert self._parent_decoder.step_scope.reuse
+        assert self.parent_decoder.step_scope.reuse
 
         # run the parent decoder decoding step
         # shapes:
         # logits: beam x vocabulary
         # state: beam x rnn_size
         # attns: encoder x beam x context vector size
-        logits, state, attns = self._parent_decoder.step(
+        logits, state, attns = self.parent_decoder.step(
             att_objects, input_, bs_state.last_state, bs_state.last_attns)
 
         # mask the probabilities
@@ -150,10 +150,10 @@ class BeamSearchDecoder(ModelPart):
         # pylint: enable=no-member
 
         next_word_ids = tf.mod(topk_indices,
-                               len(self._parent_decoder.vocabulary))
+                               len(self.parent_decoder.vocabulary))
 
         next_beam_ids = tf.div(topk_indices,
-                               len(self._parent_decoder.vocabulary))
+                               len(self.parent_decoder.vocabulary))
 
         next_beam_prev_state = tf.gather(state, next_beam_ids)
         next_beam_prev_attns = [tf.gather(a, next_beam_ids) for a in attns]
