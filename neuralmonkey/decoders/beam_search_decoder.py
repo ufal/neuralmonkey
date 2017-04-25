@@ -7,7 +7,8 @@ from neuralmonkey.decoding_function import Attention
 from neuralmonkey.model.model_part import ModelPart, FeedDict
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.decoders.decoder import Decoder
-from neuralmonkey.vocabulary import START_TOKEN_INDEX, END_TOKEN_INDEX
+from neuralmonkey.vocabulary import (START_TOKEN_INDEX, END_TOKEN_INDEX,
+                                     PAD_TOKEN_INDEX)
 
 # pylint: disable=invalid-name
 SearchState = NamedTuple("SearchState",
@@ -104,8 +105,20 @@ class BeamSearchDecoder(ModelPart):
 
         # mask the probabilities
         # shape(logprobs) = beam x vocabulary
-        logprobs = (tf.expand_dims(1. - tf.to_float(bs_state.finished), 1) *
-                    tf.nn.log_softmax(logits))
+        logprobs = tf.nn.log_softmax(logits)
+
+        finished_mask = tf.expand_dims(tf.to_float(bs_state.finished), 1)
+        unfinished_logprobs = (1. - finished_mask) * logprobs
+
+        finished_row = tf.one_hot(
+            PAD_TOKEN_INDEX,
+            len(self._parent_decoder.vocabulary),
+            dtype=tf.float32,
+            on_value=0.,
+            off_value=tf.float32.min)
+
+        finished_logprobs = finished_mask * finished_row
+        logprobs = unfinished_logprobs + finished_logprobs
 
         # update hypothesis scores
         # shape(hyp_probs) = beam x vocabulary
