@@ -28,5 +28,6 @@ Getting Started
    visualization
    features
    tf_manager
+   running
    benchmark
    internal_dev

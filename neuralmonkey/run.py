@@ -1,5 +1,5 @@
-import sys
 import os
+import argparse
 
 from neuralmonkey.logging import log, log_print
 from neuralmonkey.config.configuration import Configuration
@@ -81,28 +81,52 @@ def initialize_for_running(output_dir, tf_manager, variable_files) -> None:
 
 def main() -> None:
     # pylint: disable=no-member,broad-except
-    if len(sys.argv) != 3:
-        print("Usage: run.py <run_ini_file> <test_datasets>")
-        exit(1)
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("config", metavar="INI-FILE",
+                        help="the configuration file of the experiment")
+    parser.add_argument('datasets', metavar='INI-TEST-DATASETS',
+                        help="the configuration of the test datasets")
+    parser.add_argument("-g", "--grid", dest="grid", action="store_true",
+                        help="look at the SGE variables for slicing the data")
+    args = parser.parse_args()
 
     test_datasets = Configuration()
     test_datasets.add_argument('test_datasets')
     test_datasets.add_argument('variables')
 
-    CONFIG.load_file(sys.argv[1])
+    CONFIG.load_file(args.config)
     CONFIG.build_model()
-    test_datasets.load_file(sys.argv[2])
+    test_datasets.load_file(args.datasets)
     test_datasets.build_model()
-    datesets_model = test_datasets.model
+    datasets_model = test_datasets.model
     initialize_for_running(CONFIG.model.output, CONFIG.model.tf_manager,
-                           datesets_model.variables)
+                           datasets_model.variables)
 
     print("")
 
     evaluators = [(e[0], e[0], e[1]) if len(e) == 2 else e
                   for e in CONFIG.model.evaluation]
 
-    for dataset in datesets_model.test_datasets:
+    if args.grid and len(datasets_model.test_datasets) > 1:
+        raise ValueError("Only one test dataset supported when using --grid")
+
+    for dataset in datasets_model.test_datasets:
+        if args.grid:
+            if ("SGE_TASK_FIRST" not in os.environ
+                    or "SGE_TASK_LAST" not in os.environ
+                    or "SGE_TASK_STEPSIZE" not in os.environ
+                    or "SGE_TASK_ID" not in os.environ):
+                raise EnvironmentError(
+                    "Some SGE environment variables are missing")
+
+            length = int(os.environ["SGE_TASK_STEPSIZE"])
+            start = int(os.environ["SGE_TASK_ID"]) - 1
+
+            log("Running grid task {} starting at {} with step {}"
+                .format(start // length, start, length))
+
+            dataset = dataset.subset(start, length)
+
         execution_results, output_data = run_on_dataset(
             CONFIG.model.tf_manager, CONFIG.model.runners,
             dataset, CONFIG.model.postprocess, write_out=True,
