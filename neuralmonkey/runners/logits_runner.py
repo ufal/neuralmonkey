@@ -1,4 +1,6 @@
-from typing import Dict, List, Any, Set
+"""A runner outputing logits or normalized distriution from a decoder."""
+
+from typing import Dict, List, Any
 # pylint: disable=unused-import
 from typing import Optional
 # pylint: enable=unused-import
@@ -17,7 +19,7 @@ from neuralmonkey.vocabulary import Vocabulary
 class LogitsExecutable(Executable):
 
     def __init__(self,
-                 all_coders: Set[ModelPart],
+                 all_coders: List[ModelPart],
                  fetches: FeedDict,
                  vocabulary: Vocabulary,
                  normalize: bool = True,
