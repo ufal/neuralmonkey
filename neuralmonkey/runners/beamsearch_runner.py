@@ -104,12 +104,34 @@ class BeamSearchRunner(BaseRunner):
 
 def beam_search_runner_range(output_series: str,
                              decoder: BeamSearchDecoder,
-                             max_rank: int = 1,
+                             max_rank: int = 10,
                              postprocess: Callable[
                                  [List[str]], List[str]]=None
                             ) -> List[BeamSearchRunner]:
-    """List of runners for different the range of ranks."""
+    """List of runners for different the range of ranks from 1 to max_rank.
+
+    This means there is max_rank output series where the n-th series contains
+    the n-th best hypothesis from the beam search.
+
+    Args:
+        output_series: Prefix of output series.
+        decoder: Beam search decoder shared by all runners.
+        max_rank: Maximum rank of the hypotheses.
+        postprocess: Series-level postprocess applied on output.
+
+    Returns:
+        List of beam search runners getting hypotheses with rank from 1 to
+        max_rank.
+    """
+
     assert check_argument_types()
+
+    if max_rank > decoder.beam_size:
+        raise ValueError(
+            ("The maximum rank ({}) cannot be "
+             "bigger than beam size {}.").format(
+                 max_rank, decoder.beam_size))
+
     return [BeamSearchRunner("{}.rank{:03d}".format(output_series, r),
                              decoder, r, postprocess)
             for r in range(1, max_rank + 1)]
