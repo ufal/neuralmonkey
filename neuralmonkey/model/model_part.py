@@ -51,7 +51,7 @@ class ModelPart(metaclass=ABCMeta):
     def _init_saver(self) -> None:
         if not self._saver:
             parts_variables = tf.get_collection(
-                tf.GraphKeys.GLOBAL_VARIABLES, scope=self._variable_scope.name)
+                tf.GraphKeys.TRAINABLE_VARIABLES, scope=self._variable_scope.name)
 
             with self.use_scope():
                 self._saver = tf.train.Saver(var_list=parts_variables)
