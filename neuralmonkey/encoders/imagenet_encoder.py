@@ -152,9 +152,9 @@ class ImageNet(ModelPart, Attentive):
         if not self._saver:
             with tf.variable_scope(self._name, reuse=True):
                 local_variables = tf.get_collection(
-                    tf.GraphKeys.VARIABLES, scope=self._name)
+                    tf.GraphKeys.GLOBAL_VARIABLES, scope=self._name)
                 slim_variables = tf.get_collection(
-                    tf.GraphKeys.VARIABLES, scope=self._network_type)
+                    tf.GraphKeys.GLOBAL_VARIABLES, scope=self._network_type)
                 self._saver = tf.train.Saver(
                     var_list=local_variables + slim_variables)
 

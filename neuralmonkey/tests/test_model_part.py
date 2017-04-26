@@ -29,7 +29,7 @@ class Test(unittest.TestCase):
             load_checkpoint=checkpoint_file.name)
 
         encoders_variables = tf.get_collection(
-            tf.GraphKeys.VARIABLES, scope="enc")
+            tf.GraphKeys.GLOBAL_VARIABLES, scope="enc")
 
         sess_1 = tf.Session()
         sess_1.run(tf.global_variables_initializer())
