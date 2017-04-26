@@ -2,6 +2,8 @@
 """
 Select lines from N files according to an index file. This work nicely in
 combination with the max_column_finder.py script.
+
+These two scripts are particularly useful for hypotheses rescoring.
 """
 import argparse
 

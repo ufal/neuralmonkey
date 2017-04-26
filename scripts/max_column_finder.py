@@ -3,6 +3,8 @@
 For each line in N input files with scores, outputs the index of the file
 which has maximum value on that line.
 Output can be processed with the column_selector.py script.
+
+These two scripts are particularly useful for hypotheses rescoring.
 """
 import argparse
 import numpy as np
