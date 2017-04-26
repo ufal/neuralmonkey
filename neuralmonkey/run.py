@@ -141,7 +141,7 @@ def main() -> None:
         execution_results, output_data = run_on_dataset(
             CONFIG.model.tf_manager, runner,
             dataset, CONFIG.model.postprocess, write_out=True,
-            batch_size=runners_batch_size)
+            batch_size=2000)
         # TODO what if there is no ground truth
         eval_result = evaluation(evaluators, dataset, CONFIG.model.runners,
                                  execution_results, output_data)

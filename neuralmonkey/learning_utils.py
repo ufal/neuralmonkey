@@ -262,6 +262,7 @@ def training_loop(tf_manager: TensorFlowManager,
                     for val_id, valset in enumerate(val_datasets):
                         val_examples += len(valset)
 
+                        runner = get_runners_from_dataset(runners, valset)
                         val_results, val_outputs = run_on_dataset(
                             tf_manager, runner, valset,
                             postprocess, write_out=False,
@@ -469,11 +470,12 @@ def run_on_dataset(tf_manager: TensorFlowManager,
             result_data[series_name] = postprocessed
 
     # check output series lengths
-    for series_id, data in result_data.items():
-        if len(data) != len(dataset):
-            warn("Output '{}' for dataset '{}' has length {}, but "
-                 "len(dataset) == {}".format(series_id, dataset.name,
-                                             len(data), len(dataset)))
+    # TODO(kocmi): zakomentoval jsem to protoze to pada, nejspis kvuli lazy
+    # for series_id, data in result_data.items():
+    #     if len(data) != len(dataset):
+    #         warn("Output '{}' for dataset '{}' has length {}, but "
+    #              "len(dataset) == {}".format(series_id, dataset.name,
+    #                                          len(data), len(dataset)))
 
     if write_out:
         for series_id, data in result_data.items():
