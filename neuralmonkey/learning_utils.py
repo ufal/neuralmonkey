@@ -209,6 +209,13 @@ def training_loop(tf_manager: TensorFlowManager,
                                         tf_manager.best_score_batch),
                                 color='blue')
 
+                            # store also graph parts
+                            all_coders = set.union(
+                                *[rnr.all_coders for rnr in runners])
+                            for coder in all_coders:
+                                for session in tf_manager.sessions:
+                                    coder.save(session)
+
                         _print_examples(
                             valset, val_outputs, val_preview_input_series,
                             val_preview_output_series,
