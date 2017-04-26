@@ -68,17 +68,49 @@ class LogitsExecutable(Executable):
 
 # pylint: disable=too-few-public-methods
 class LogitsRunner(BaseRunner):
-    """A runner which takes the output from decoder.decoded."""
+    """A runner which takes the output from decoder.decoded_logits.
+
+    The logits / normalized probabilities are outputted as tab-separates string
+    values. If the decoder produces a list of logits (as the recurrent
+    decoder), the tab separated arrays are separated with commas.
+    Alternatively, we may be interested in a single distribution dimension.
+    """
 
     def __init__(self,
                  output_series: str,
                  decoder: Any,
                  normalize: bool = True,
-                 pick_index: int = None) -> None:
+                 pick_index: int = None,
+                 pick_value: str = None) -> None:
+        """Initializes the logits runner.
+
+        Args:
+            output_series: Name of the series produces by the runner.
+            decoder: A decoder having logits.
+            normalize: Flag whether the logits should be normalized with
+                softmax.
+            pick_index: If not None, it specifies the index of the logit or the
+                probability that should be on output.
+            pick_value: If not None, it specifies a value from the decoder's
+                vocabulary whose logit or probability should be on output.
+        """
         super(LogitsRunner, self).__init__(output_series, decoder)
         assert check_argument_types()
+
+        if pick_index is not None and pick_value is not None:
+            raise ValueError("Either a pick index or a vocabulary value can "
+                             "be specified, not both at the same time.")
+
         self._normalize = normalize
-        self._pick_index = pick_index
+        if pick_value is not None:
+            if pick_value in decoder.vocabulary:
+                self._pick_index = decoder.vocabulary.word_to_index[pick_index]
+            else:
+                raise ValueError(
+                    "Value '{}' is not in vocabulary of decoder '{}'".format(
+                        pick_value, decoder.name))
+        else:
+            self._pick_index = pick_index
 
     def get_executable(self,
                        compute_losses: bool = False,
