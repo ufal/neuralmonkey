@@ -108,7 +108,7 @@ def beam_search_runner_range(output_series: str,
                              postprocess: Callable[
                                  [List[str]], List[str]]=None
                             ) -> List[BeamSearchRunner]:
-    """List of runners for different the range of ranks from 1 to max_rank.
+    """A list of beam search runners for a range of ranks from 1 to max_rank.
 
     This means there is max_rank output series where the n-th series contains
     the n-th best hypothesis from the beam search.
