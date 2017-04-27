@@ -4,7 +4,8 @@
 from typing import Any, Callable, Dict, List, Tuple, Optional, Union, Iterable
 import numpy as np
 import tensorflow as tf
-import time, re
+import time
+import re
 from datetime import timedelta
 from termcolor import colored
 
@@ -92,26 +93,8 @@ def training_loop(tf_manager: TensorFlowManager,
     else:
         val_datasets = val_dataset
 
-    if isinstance(logging_period, int) and isinstance(validation_period, int):
-        logging_period_batch = logging_period
-        logging_period_time = None
-        validation_period_batch = validation_period
-        validation_period_time = None
-        if validation_period_batch < logging_period_batch:
-            raise AssertionError(
-                "Validation period can't be smaller than logging period.")
-    elif isinstance(logging_period, str) and \
-            isinstance(validation_period, str):
-        logging_period_batch = None
-        logging_period_time = parse_time(logging_period)
-        validation_period_batch = None
-        validation_period_time = parse_time(validation_period)
-        if validation_period_time < logging_period_time:
-            raise AssertionError(
-                "Validation period can't be smaller than logging period.")
-    else:
-        raise AssertionError(
-            "Validation and logging period must be of same type.")
+    log_period_batch, log_period_time = resolve_period(logging_period)
+    val_period_batch, val_period_time = resolve_period(validation_period)
 
     _check_series_collisions(runners, postprocess)
 
@@ -176,8 +159,8 @@ def training_loop(tf_manager: TensorFlowManager,
             for batch_n, batch_dataset in enumerate(train_batched_datasets):
                 step += 1
                 seen_instances += len(batch_dataset)
-                if is_logging_time(step, logging_period_batch,
-                                   last_log_time, logging_period_time):
+                if is_logging_time(step, log_period_batch,
+                                   last_log_time, log_period_time):
                     trainer_result = tf_manager.execute(
                         batch_dataset, [trainer], train=True,
                         summaries=True)
@@ -201,8 +184,8 @@ def training_loop(tf_manager: TensorFlowManager,
                     tf_manager.execute(batch_dataset, [trainer],
                                        train=True, summaries=False)
 
-                if is_logging_time(step, validation_period_batch,
-                                   last_val_time, validation_period_time):
+                if is_logging_time(step, val_period_batch,
+                                   last_val_time, val_period_time):
                     for val_id, valset in enumerate(val_datasets):
                         val_results, val_outputs = run_on_dataset(
                             tf_manager, runners, valset,
@@ -282,22 +265,26 @@ def is_logging_time(step, logging_period_batch, last_log_time,
         return last_log_time + logging_period_time < time.time()
 
 
-def parse_time(period: str):
-    regex = re.compile(
-        r'((?P<days>\d+?)d)?((?P<hours>\d+?)h)?((?P<minutes>\d+?)m)?'
-        r'((?P<seconds>\d+?)s)?')
-    parts = regex.match(period)
-    if not parts:
-        raise AssertionError(
-            "Validation or logging period have incorrect format. "
-            "It should be in format or a subset: 3h5m14s")
+def resolve_period(period):
+    if isinstance(period, int):
+        return period, None
+    else:
+        regex = re.compile(
+            r'((?P<days>\d+?)d)?((?P<hours>\d+?)h)?((?P<minutes>\d+?)m)?'
+            r'((?P<seconds>\d+?)s)?')
+        parts = regex.match(period)
+        if not parts:
+            raise AssertionError(
+                "Validation or logging period have incorrect format. "
+                "It should be in format or a subset: 3h5m14s")
 
-    parts = parts.groupdict()
-    time_params = {}
-    for (name, param) in parts.items():
-        if param:
-            time_params[name] = int(param)
-    return timedelta(**time_params).total_seconds()
+        parts = parts.groupdict()
+        time_params = {}
+        for (name, param) in parts.items():
+            if param:
+                time_params[name] = int(param)
+
+        return None, timedelta(**time_params).total_seconds()
 
 
 def _check_series_collisions(runners: List[BaseRunner],
