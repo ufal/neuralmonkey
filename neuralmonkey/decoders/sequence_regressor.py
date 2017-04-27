@@ -47,7 +47,7 @@ class SequenceRegressor(ModelPart):
             self.gt_inputs = tf.placeholder(tf.float32, shape=[None],
                                             name="targets")
 
-            mlp_input = tf.concat(1, [enc.encoded for enc in encoders])
+            mlp_input = tf.concat([enc.encoded for enc in encoders], 1)
             mlp = MultilayerPerceptron(
                 mlp_input, layers, self.dropout_placeholder, 1)
 
@@ -56,10 +56,10 @@ class SequenceRegressor(ModelPart):
             self.prediction = mlp.logits
             self.cost = tf.reduce_mean(tf.square(mlp.logits - self.gt_inputs))
 
-            tf.scalar_summary(
+            tf.summary.scalar(
                 'val_optimization_cost', self.cost,
                 collections=["summary_val"])
-            tf.scalar_summary(
+            tf.summary.scalar(
                 'train_optimization_cost',
                 self.cost, collections=["summary_train"])
     # pylint: enable=too-many-arguments
