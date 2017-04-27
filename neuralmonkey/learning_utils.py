@@ -4,7 +4,8 @@
 from typing import Any, Callable, Dict, List, Tuple, Optional, Union, Iterable
 import numpy as np
 import tensorflow as tf
-import time
+import time, re
+from datetime import timedelta
 from termcolor import colored
 
 from neuralmonkey.logging import log, log_print, warn
@@ -67,9 +68,9 @@ def training_loop(tf_manager: TensorFlowManager,
             The last dataset is used as the main one for storing best results.
         test_datasets: List of datasets used for testing
         logging_period: after how many batches should the logging happen. It
-            can also be defined as a time period: X sec/min/hours/days
+            can also be defined as a time period in format or a subset: 3h5m14s
         validation_period: after how many batches should the validation happen.
-            It can also be defined as a time period: X sec/min/hours/days
+            It can also be defined as a time period in format: 4d13h5m14s
         val_preview_input_series: which input series to preview in validation
         val_preview_output_series: which output series to preview in validation
         val_preview_num_examples: how many examples should be printed during
@@ -92,19 +93,26 @@ def training_loop(tf_manager: TensorFlowManager,
         val_datasets = val_dataset
 
     if isinstance(logging_period, int) and isinstance(validation_period, int):
-        timed_logging = False
+        logging_period_batch = logging_period
+        logging_period_time = None
+        validation_period_batch = validation_period
+        validation_period_time = None
+        if validation_period_batch < logging_period_batch:
+            raise AssertionError(
+                "Validation period can't be smaller than logging period.")
     elif isinstance(logging_period, str) and \
             isinstance(validation_period, str):
-        timed_logging = True
-        logging_period = timeperiod_to_seconds(logging_period)
-        validation_period = timeperiod_to_seconds(validation_period)
+        logging_period_batch = None
+        logging_period_time = parse_time(logging_period)
+        validation_period_batch = None
+        validation_period_time = parse_time(validation_period)
+        if validation_period_time < logging_period_time:
+            raise AssertionError(
+                "Validation period can't be smaller than logging period.")
     else:
         raise AssertionError(
             "Validation and logging period must be of same type.")
 
-    if validation_period < logging_period:
-        raise AssertionError(
-            "Validation period can't be smaller than logging period.")
     _check_series_collisions(runners, postprocess)
 
     _log_model_variables()
@@ -148,8 +156,8 @@ def training_loop(tf_manager: TensorFlowManager,
         log("TensorBoard writer initialized.")
 
     log("Starting training")
-    logging_ticks = time.time()
-    validation_ticks = time.time()
+    last_log_time = time.time()
+    last_val_time = time.time()
     try:
         for epoch_n in range(1, epochs + 1):
             log_print("")
@@ -168,10 +176,8 @@ def training_loop(tf_manager: TensorFlowManager,
             for batch_n, batch_dataset in enumerate(train_batched_datasets):
                 step += 1
                 seen_instances += len(batch_dataset)
-                if (not timed_logging and
-                        step % logging_period == logging_period - 1) or \
-                    (timed_logging and
-                        logging_ticks + logging_period < time.time()):
+                if is_logging_time(step, logging_period_batch,
+                                   last_log_time, logging_period_time):
                     trainer_result = tf_manager.execute(
                         batch_dataset, [trainer], train=True,
                         summaries=True)
@@ -190,15 +196,13 @@ def training_loop(tf_manager: TensorFlowManager,
                         tb_writer, tf_manager, main_metric, train_evaluation,
                         seen_instances, epoch_n, epochs, trainer_result,
                         train=True)
-                    logging_ticks = time.time()
+                    last_log_time = time.time()
                 else:
                     tf_manager.execute(batch_dataset, [trainer],
                                        train=True, summaries=False)
 
-                if (not timed_logging and
-                        step % validation_period == validation_period - 1) or \
-                    (timed_logging and
-                        validation_ticks + validation_period < time.time()):
+                if is_logging_time(step, validation_period_batch,
+                                   last_val_time, validation_period_time):
                     for val_id, valset in enumerate(val_datasets):
                         val_results, val_outputs = run_on_dataset(
                             tf_manager, runners, valset,
@@ -245,7 +249,7 @@ def training_loop(tf_manager: TensorFlowManager,
                             tb_writer, tf_manager, main_metric, val_evaluation,
                             seen_instances, epoch_n, epochs, val_results,
                             train=False)
-                    validation_ticks = time.time()
+                    last_val_time = time.time()
 
     except KeyboardInterrupt:
         log("Training interrupted by user.")
@@ -270,23 +274,30 @@ def training_loop(tf_manager: TensorFlowManager,
     log("Finished.")
 
 
-def timeperiod_to_seconds(period: str):
-    parts = period.split(' ')
-    seconds = 0
-    if parts[1].startswith('s'):  # seconds
-        seconds = int(parts[0])
-    elif parts[1].startswith('m'):  # minutes
-        seconds = int(parts[0])*60
-    elif parts[1].startswith('h'):  # hours
-        seconds = int(parts[0])*60*60
-    elif parts[1].startswith('d'):  # days
-        seconds = int(parts[0])*24*60*60
+def is_logging_time(step, logging_period_batch, last_log_time,
+                    logging_period_time):
+    if logging_period_batch is not None:
+        return step % logging_period_batch == logging_period_batch - 1
     else:
+        return last_log_time + logging_period_time < time.time()
+
+
+def parse_time(period: str):
+    regex = re.compile(
+        r'((?P<days>\d+?)d)?((?P<hours>\d+?)h)?((?P<minutes>\d+?)m)?'
+        r'((?P<seconds>\d+?)s)?')
+    parts = regex.match(period)
+    if not parts:
         raise AssertionError(
             "Validation or logging period have incorrect format. "
-            "It should be: X sec/min/hours/days")
+            "It should be in format or a subset: 3h5m14s")
 
-    return seconds
+    parts = parts.groupdict()
+    time_params = {}
+    for (name, param) in parts.items():
+        if param:
+            time_params[name] = int(param)
+    return timedelta(**time_params).total_seconds()
 
 
 def _check_series_collisions(runners: List[BaseRunner],
