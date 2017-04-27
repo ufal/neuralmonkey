@@ -70,7 +70,7 @@ class RegressionRunExecutable(Executable):
             predictions = self._postprocess(predictions)
 
         self.result = ExecutionResult(
-            outputs=predictions,
+            outputs=predictions.tolist(),
             losses=[mse_loss],
             scalar_summaries=None,
             histogram_summaries=None,

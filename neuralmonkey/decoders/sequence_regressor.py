@@ -24,7 +24,7 @@ class SequenceRegressor(ModelPart):
                  encoders: List[Any],
                  data_id: str,
                  layers: Optional[List[int]]=None,
-                 activation: Callable[[tf.Tensor], tf.Tensor]=tf.tanh,
+                 activation_fn: Callable[[tf.Tensor], tf.Tensor]=tf.tanh,
                  dropout_keep_prob: float=0.5,
                  save_checkpoint: Optional[str]=None,
                  load_checkpoint: Optional[str]=None) -> None:
@@ -33,7 +33,7 @@ class SequenceRegressor(ModelPart):
         self.encoders = encoders
         self.data_id = data_id
         self.layers = layers
-        self.activation = activation
+        self.activation_fn = activation_fn
         self.dropout_keep_prob = dropout_keep_prob
         self.max_output_len = 1
 
@@ -49,11 +49,12 @@ class SequenceRegressor(ModelPart):
 
             mlp_input = tf.concat([enc.encoded for enc in encoders], 1)
             mlp = MultilayerPerceptron(
-                mlp_input, layers, self.dropout_placeholder, 1)
+                mlp_input, layers, self.dropout_placeholder, 1,
+                activation_fn=self.activation_fn)
 
             assert_shape(mlp.logits, [-1, 1])
 
-            self.prediction = mlp.logits
+            self.decoded_logit = mlp.logits
             self.cost = tf.reduce_mean(tf.square(mlp.logits - self.gt_inputs))
 
             tf.summary.scalar(
