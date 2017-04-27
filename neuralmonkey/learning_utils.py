@@ -2,11 +2,11 @@
 # TODO de-clutter this file!
 
 from typing import Any, Callable, Dict, List, Tuple, Optional, Union, Iterable
-import numpy as np
-import tensorflow as tf
 import time
 import re
 from datetime import timedelta
+import numpy as np
+import tensorflow as tf
 from termcolor import colored
 
 from neuralmonkey.logging import log, log_print, warn
@@ -261,8 +261,7 @@ def is_logging_time(step, logging_period_batch, last_log_time,
                     logging_period_time):
     if logging_period_batch is not None:
         return step % logging_period_batch == logging_period_batch - 1
-    else:
-        return last_log_time + logging_period_time < time.time()
+    return last_log_time + logging_period_time < time.time()
 
 
 def resolve_period(period):
