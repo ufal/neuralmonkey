@@ -161,7 +161,7 @@ def training_loop(tf_manager: TensorFlowManager,
                 step += 1
                 seen_instances += len(batch_dataset)
                 if _is_logging_time(step, log_period_batch,
-                                   last_log_time, log_period_time):
+                                    last_log_time, log_period_time):
                     trainer_result = tf_manager.execute(
                         batch_dataset, [trainer], train=True,
                         summaries=True)
@@ -186,7 +186,7 @@ def training_loop(tf_manager: TensorFlowManager,
                                        train=True, summaries=False)
 
                 if _is_logging_time(step, val_period_batch,
-                                   last_val_time, val_period_time):
+                                    last_val_time, val_period_time):
                     for val_id, valset in enumerate(val_datasets):
                         val_results, val_outputs = run_on_dataset(
                             tf_manager, runners, valset,
@@ -275,7 +275,7 @@ def _resolve_period(period):
         parts = regex.match(period)
 
         if not parts:
-            raise AssertionError(
+            raise ValueError(
                 "Validation or logging period have incorrect format. "
                 "It should be in format: 3h; 5m; 14s")
 
@@ -287,7 +287,7 @@ def _resolve_period(period):
 
         delta_seconds = timedelta(**time_params).total_seconds()
         if delta_seconds <= 0:
-            raise AssertionError(
+            raise ValueError(
                 "Validation or logging period must be bigger than 0")
         return None, delta_seconds
 
