@@ -187,6 +187,7 @@ def training_loop(tf_manager: TensorFlowManager,
 
                 if _is_logging_time(step, val_period_batch,
                                     last_val_time, val_period_time):
+                    val_duration_start = time.process_time()
                     for val_id, valset in enumerate(val_datasets):
                         val_results, val_outputs = run_on_dataset(
                             tf_manager, runners, valset,
@@ -242,6 +243,22 @@ def training_loop(tf_manager: TensorFlowManager,
                             tb_writer, tf_manager, main_metric, val_evaluation,
                             seen_instances, epoch_n, epochs, val_results,
                             train=False)
+
+                    # how long was the training between validations
+                    training_duration = val_duration_start - last_val_time
+                    val_duration = time.process_time() - val_duration_start
+
+                    # the training should take at least twice the time of val.
+                    if training_duration > 2 * val_duration:
+                        log("Training between last validations was {} "
+                            "seconds, the validation took {} seconds."
+                            .format(training_duration, val_duration))
+                    else:
+                        warn("Training between last validations was {} "
+                             "seconds, the validation took {} seconds. "
+                             "You are not training efficiently."
+                             .format(training_duration, val_duration))
+
                     last_val_time = time.process_time()
 
     except KeyboardInterrupt:
