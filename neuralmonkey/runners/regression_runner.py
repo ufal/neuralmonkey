@@ -27,6 +27,8 @@ class RegressionRunner(BaseRunner):
 
         if compute_losses:
             fetches = {"mse": self._decoder.cost}
+        else:
+            fetches = {}
 
         fetches["prediction"] = self._decoder.decoded_logit
 
