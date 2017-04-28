@@ -23,11 +23,11 @@ class SequenceRegressor(ModelPart):
                  name: str,
                  encoders: List[Any],
                  data_id: str,
-                 layers: Optional[List[int]]=None,
-                 activation_fn: Callable[[tf.Tensor], tf.Tensor]=tf.tanh,
-                 dropout_keep_prob: float=0.5,
-                 save_checkpoint: Optional[str]=None,
-                 load_checkpoint: Optional[str]=None) -> None:
+                 layers: Optional[List[int]] = None,
+                 activation_fn: Callable[[tf.Tensor], tf.Tensor] = tf.tanh,
+                 dropout_keep_prob: float = 0.5,
+                 save_checkpoint: Optional[str] = None,
+                 load_checkpoint: Optional[str] = None) -> None:
         ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
 
         self.encoders = encoders
@@ -77,14 +77,15 @@ class SequenceRegressor(ModelPart):
     def decoded(self):
         return self.decoded_logit
 
-    def feed_dict(self, dataset: Dataset, train: bool=False) -> FeedDict:
+    def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
         sentences = cast(Iterable[List[str]],
                          dataset.get_series(self.data_id, allow_none=True))
 
         sentences_list = list(sentences) if sentences is not None else None
 
         fd = {}  # type: FeedDict
-        fd[self.gt_inputs] = list(zip(*sentences_list))[0]
+        if sentences_list is not None:
+            fd[self.gt_inputs] = list(zip(*sentences_list))[0]
 
         if train:
             fd[self.dropout_placeholder] = self.dropout_keep_prob
