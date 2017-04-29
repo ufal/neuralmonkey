@@ -209,6 +209,15 @@ def training_loop(tf_manager: TensorFlowManager,
                                 best_score_str = colored(
                                     "{:.4g}".format(tf_manager.best_score),
                                     attrs=['bold'])
+
+                                # store also graph parts
+                                all_coders = set.union(
+                                    *[rnr.all_coders
+                                      for rnr in runners +
+                                      [trainer]])  # type: ignore
+                                for coder in all_coders:
+                                    for session in tf_manager.sessions:
+                                        coder.save(session)
                             else:
                                 best_score_str = "{:.4g}".format(
                                     tf_manager.best_score)
