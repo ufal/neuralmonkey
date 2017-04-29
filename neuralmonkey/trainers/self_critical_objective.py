@@ -63,9 +63,9 @@ def self_critical_objective(decoder: Decoder,
 
     # rewards, shape (batch)
     train_reward = tf.py_func(
-        reward_function, [train_decoded, reference], tf.float32)
+        reward_function, [reference, train_decoded], tf.float32)
     runtime_reward = tf.py_func(
-        reward_function, [runtime_decoded, reference], tf.float32)
+        reward_function, [reference, runtime_decoded], tf.float32)
 
     # REINFORCE gradient, shape (time, batch, vocab)
     reward_gradient = reinforce_gradient(
@@ -115,6 +115,7 @@ def sentence_bleu(references: np.array, hypotheses: np.array) -> np.array:
 
         bleu_scores.append(brevity_penalty * precision)
 
+    assert all(0 <= s <= 1 for s in bleu_scores)
     return np.array(bleu_scores, dtype=np.float32)
 
 
@@ -125,8 +126,8 @@ def _count_matching_n_grams(ref: np.array,
     for n_gram in _get_n_grams(ref, n):
         ref_counts[str(n_gram)] += 1
 
-    matched_n_grams = 0 if n == 0 else 1
-    total_n_grams = 0 if n == 0 else 1
+    matched_n_grams = 0 if n == 1 else 1
+    total_n_grams = 0 if n == 1 else 1
     hyp_n_grams = _get_n_grams(hyp, n)
     for n_gram in hyp_n_grams:
         n_gram_s = str(n_gram)
@@ -135,6 +136,7 @@ def _count_matching_n_grams(ref: np.array,
             ref_counts[n_gram_s] -= 1
         total_n_grams += 1
 
+    assert matched_n_grams <= total_n_grams
     return matched_n_grams, total_n_grams
 
 
