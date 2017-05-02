@@ -55,6 +55,7 @@ def self_critical_objective(decoder: Decoder,
     # logits, shape (time, batch, vocab)
     train_logits = tf.stack(decoder.train_logits)
     runtime_logits = tf.stack(decoder.runtime_logits)
+    runtime_mask = tf.stack(decoder.runtime_mask)
 
     # decoded, shape (time, batch)
     train_decoded = tf.argmax(train_logits, axis=2)
@@ -73,7 +74,8 @@ def self_critical_objective(decoder: Decoder,
 
     # multiply the partial derivatives, shape (time, batch, vocab)
     # pylint: disable=invalid-unary-operand-type
-    loss_matrix = -reward_gradient * runtime_logits
+    loss_matrix = (-reward_gradient * runtime_logits
+                   * tf.expand_dims(tf.to_float(runtime_mask), 2))
     # pylint: enable=invalid-unary-operand-type
 
     # sum the matrix up (dot product of rows, sum over time, and over batch)
@@ -155,12 +157,12 @@ def sentence_gleu(references: np.ndarray,
         precision = np.sum(matched_counts) / np.sum(hyp_n_grams_counts)
         recall = np.sum(matched_counts) / np.sum(ref_n_grams_counts)
 
-        assert 0. < precision < 1.0
-        assert 0. < recall < 1.0
+        assert 0. <= precision <= 1.0
+        assert 0. <= recall <= 1.0
 
         gleu_scores.append(min(precision, recall))
 
-    return np.array(gleu_scores)
+    return np.array(gleu_scores, dtype=np.float32)
 
 
 def _count_matching_n_grams(ref: np.ndarray,
