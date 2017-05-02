@@ -101,3 +101,4 @@ log = Logging.log
 log_print = Logging.log_print
 debug = Logging.debug
 warn = Logging.warn
+notice = Logging.notice

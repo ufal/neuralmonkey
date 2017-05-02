@@ -9,7 +9,7 @@ import numpy as np
 import tensorflow as tf
 from termcolor import colored
 
-from neuralmonkey.logging import log, log_print, warn
+from neuralmonkey.logging import log, log_print, warn, notice
 from neuralmonkey.dataset import Dataset, LazyDataset
 from neuralmonkey.tf_manager import TensorFlowManager
 from neuralmonkey.runners.base_runner import BaseRunner, ExecutionResult
@@ -124,6 +124,7 @@ def training_loop(tf_manager: TensorFlowManager,
 
     step = 0
     seen_instances = 0
+    last_seen_instances = 0
 
     if initial_variables is None:
         # Assume we don't look at coder checkpoints when global
@@ -249,15 +250,21 @@ def training_loop(tf_manager: TensorFlowManager,
                     val_duration = time.process_time() - val_duration_start
 
                     # the training should take at least twice the time of val.
+                    steptime = (training_duration /
+                                (seen_instances-last_seen_instances))
+                    last_seen_instances = seen_instances
                     if training_duration > 2 * val_duration:
-                        log("Training between last validations was {} "
-                            "seconds, the validation took {} seconds."
-                            .format(training_duration, val_duration))
+                        log("Training between last validations was {:.2f} "
+                            "seconds, the validation took {:.2f} seconds. "
+                            "One instance was trained in {:.2f} seconds"
+                            .format(training_duration, val_duration, steptime))
                     else:
-                        warn("Training between last validations was {} "
-                             "seconds, the validation took {} seconds. "
-                             "You are not training efficiently."
-                             .format(training_duration, val_duration))
+                        notice("Training between last validations was {:.2f} "
+                               "seconds, the validation took {:.2f} seconds. "
+                               "One instance was trained in {:.2f} seconds"
+                               "You are not training efficiently."
+                               .format(training_duration, val_duration,
+                                       steptime))
 
                     last_val_time = time.process_time()
 
