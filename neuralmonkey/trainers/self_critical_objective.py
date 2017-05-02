@@ -19,7 +19,7 @@ from neuralmonkey.vocabulary import END_TOKEN_INDEX
 
 
 # pylint: disable=invalid-name
-RewardFunction = Callable[[np.array, np.array], np.array]
+RewardFunction = Callable[[np.ndarray, np.ndarray], np.ndarray]
 # pylint: enable=invalid-name
 
 
@@ -87,7 +87,8 @@ def self_critical_objective(decoder: Decoder,
         weight=weight)
 
 
-def sentence_bleu(references: np.array, hypotheses: np.array) -> np.array:
+def sentence_bleu(references: np.ndarray,
+                  hypotheses: np.ndarray) -> np.ndarray:
     """Compute index-based sentence-level BLEU score.
 
     Computes sentence level BLEU on indices outputed by the decoder, i.e.
@@ -102,7 +103,12 @@ def sentence_bleu(references: np.array, hypotheses: np.array) -> np.array:
         hyp_n_grams_counts = []
 
         for n in range(1, 5):
-            matched, total = _count_matching_n_grams(ref, hyp, n)
+            matched, total, _ = _count_matching_n_grams(ref, hyp, n)
+
+            if n > 1:
+                matched += 1
+                total += 1
+
             matched_counts.append(matched)
             hyp_n_grams_counts.append(total)
 
@@ -116,31 +122,73 @@ def sentence_bleu(references: np.array, hypotheses: np.array) -> np.array:
         bleu_scores.append(brevity_penalty * precision)
 
     assert all(0 <= s <= 1 for s in bleu_scores)
-    return np.array(bleu_scores, dtype=np.float32)
+    return np.ndarray(bleu_scores, dtype=np.float32)
 
 
-def _count_matching_n_grams(ref: np.array,
-                            hyp: np.array,
+def sentence_gleu(references: np.ndarray,
+                  hypotheses: np.ndarray) -> np.ndarray:
+    """Compute index-based GLEU score.
+
+    GLEU score is a sentence-level metric used in Google's Neural MT as a
+    reward in reinforcement learning (https://arxiv.org/abs/1609.08144).
+    It is a minimum of precision and recall on 1- to 4-grams.
+
+    It operates over the indices emitted by the decoder which are not
+    necessarily tokens (could be characters or subword units).
+    """
+    gleu_scores = []
+
+    for ref, hyp in zip(np.transpose(references),
+                        np.transpose(hypotheses)):
+
+        matched_counts = []
+        hyp_n_grams_counts = []
+        ref_n_grams_counts = []
+
+        for n in range(1, 5):
+            matched, total_hyp, total_ref = _count_matching_n_grams(
+                ref, hyp, n)
+            matched_counts.append(matched)
+            hyp_n_grams_counts.append(total_hyp)
+            ref_n_grams_counts.append(total_ref)
+
+        precision = np.sum(matched_counts) / np.sum(hyp_n_grams_counts)
+        recall = np.sum(matched_counts) / np.sum(ref_n_grams_counts)
+
+        assert 0. < precision < 1.0
+        assert 0. < recall < 1.0
+
+        gleu_scores.append(min(precision, recall))
+
+    return np.array(gleu_scores)
+
+
+def _count_matching_n_grams(ref: np.ndarray,
+                            hyp: np.ndarray,
                             n: int) -> Tuple[int, int]:
     ref_counts = Counter()  # type: Counter[str]
+    total_ref_n_grams = 0
     for n_gram in _get_n_grams(ref, n):
         ref_counts[str(n_gram)] += 1
+        total_ref_n_grams += 1
 
-    matched_n_grams = 0 if n == 1 else 1
-    total_n_grams = 0 if n == 1 else 1
+    matched_n_grams = 0
+    total_hyp_n_grams = 0
     hyp_n_grams = _get_n_grams(hyp, n)
     for n_gram in hyp_n_grams:
         n_gram_s = str(n_gram)
         if ref_counts[n_gram_s] > 0:
             matched_n_grams += 1
             ref_counts[n_gram_s] -= 1
-        total_n_grams += 1
+        total_hyp_n_grams += 1
 
-    assert matched_n_grams <= total_n_grams
-    return matched_n_grams, total_n_grams
+    assert matched_n_grams <= total_hyp_n_grams
+    assert matched_n_grams <= total_ref_n_grams
+
+    return matched_n_grams, total_hyp_n_grams, total_ref_n_grams
 
 
-def _get_n_grams(indices: np.array, order: int) -> Iterable[np.array]:
+def _get_n_grams(indices: np.ndarray, order: int) -> Iterable[np.ndarray]:
     all_n_grams = [indices[i:i + order]
                    for i in range(len(indices) - order + 1)]
     return takewhile(lambda g: g[-1] != END_TOKEN_INDEX, all_n_grams)
