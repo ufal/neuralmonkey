@@ -26,7 +26,7 @@ def linear(inputs, size, scope="LinearProjection"):
 
         return tf.contrib.layers.fully_connected(
             inputs, size, biases_initializer=tf.zeros_initializer(),
-            scope=scope)
+            activation_fn=None, scope=scope)
 
 
 def nonlinear(inputs, size, activation, scope="NonlinearProjection"):
