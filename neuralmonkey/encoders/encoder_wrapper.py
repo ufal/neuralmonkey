@@ -84,8 +84,8 @@ class MultiAttention(metaclass=ABCMeta):
                       vector_value: tf.Tensor,
                       scope: str) -> tf.Tensor:
         """Get logit for a single vector, e.g., sentinel vector."""
-        assert_shape(projected_decoder_state, [None, 1, -1])
-        assert_shape(vector_value, [None, -1])
+        assert_shape(projected_decoder_state, [-1, 1, -1])
+        assert_shape(vector_value, [-1, -1])
 
         with tf.variable_scope("{}_logit".format(scope)):
             vector_bias = tf.get_variable(
@@ -107,7 +107,7 @@ class MultiAttention(metaclass=ABCMeta):
                 self.attn_v *
                 tf.tanh(projected_decoder_state + proj_vector_for_logit),
                 [2]) + vector_bias
-            assert_shape(vector_logit, [None, 1])
+            assert_shape(vector_logit, [-1, 1])
             return proj_vector_for_ctx, vector_logit
 
 
@@ -121,10 +121,10 @@ class FlatMultiAttention(MultiAttention):
         # pylint: enable=protected-access
 
         for e_m in self._encoders_masks:
-            assert_shape(e_m, [None, -1])
+            assert_shape(e_m, [-1, -1])
 
         for e_t in self._encoders_tensors:
-            assert_shape(e_t, [None, -1, -1])
+            assert_shape(e_t, [-1, -1, -1])
 
         with tf.variable_scope(self._scope):
             self.encoder_projections_for_logits = \
@@ -170,7 +170,7 @@ class FlatMultiAttention(MultiAttention):
 
                 projected_2d = tf.matmul(
                     encoder_tensor_2d, proj_matrix) + proj_bias
-                assert_shape(projected_2d, [None, self._state_size])
+                assert_shape(projected_2d, [-1, self._state_size])
 
                 projection = tf.reshape(projected_2d, [encoder_tensor_shape[0],
                                                        encoder_tensor_shape[1],
@@ -184,7 +184,7 @@ class FlatMultiAttention(MultiAttention):
             projected_state = linear(decoder_state, self._state_size)
             projected_state = tf.expand_dims(projected_state, 1)
 
-            assert_shape(projected_state, [None, 1, self._state_size])
+            assert_shape(projected_state, [-1, 1, self._state_size])
 
             logits = []
 
@@ -234,7 +234,7 @@ def _sentinel(state, prev_state, input_):
         gate = tf.nn.sigmoid(linear(concatenation, decoder_state_size))
         sentinel_value = gate * state
 
-        assert_shape(sentinel_value, [None, decoder_state_size])
+        assert_shape(sentinel_value, [-1, decoder_state_size])
 
         return sentinel_value
 
@@ -253,7 +253,7 @@ class HierarchicalMultiAttention(MultiAttention):
             projected_state = linear(decoder_state, self._state_size)
             projected_state = tf.expand_dims(projected_state, 1)
 
-            assert_shape(projected_state, [None, 1, self._state_size])
+            assert_shape(projected_state, [-1, 1, self._state_size])
             attn_ctx_vectors = [
                 a.attention(decoder_state, decoder_prev_state, decoder_input)
                 for a in self._attn_objs]
