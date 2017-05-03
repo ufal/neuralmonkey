@@ -1,4 +1,4 @@
-from typing import Any, Callable, List, Optional, Tuple
+from typing import Any, Callable, List, Optional, Tuple, NamedTuple
 
 import numpy as np
 import tensorflow as tf
@@ -13,19 +13,20 @@ from neuralmonkey.nn.utils import dropout
 from neuralmonkey.dataset import Dataset
 
 
-# pylint: disable=too-few-public-methods
-class RNNSpec(object):
-    def __init__(self,
-                 size: int,
-                 direction: str = 'both',
-                 cell_type: str = 'GRU') -> None:
-        self.size = size
-        self.cell_type = cell_type
-        self.direction = direction
-# pylint: enable=too-few-public-methods
+# pylint: disable=invalid-name
+RNNSpec = NamedTuple('RNNSpec', [('size', int),
+                                 ('direction', str),
+                                 ('cell_type', str)])
+# pylint: enable=invalid-name
 
 
-def _rnn_cell(spec: RNNSpec) -> Callable[[], RNNCell]:
+def _make_rnn_spec(size: int,
+                   direction: str = 'both',
+                   cell_type: str = 'GRU') -> RNNSpec:
+    return RNNSpec(size, direction, cell_type)
+
+
+def _make_rnn_cell(spec: RNNSpec) -> Callable[[], RNNCell]:
     """Return the graph template for creating RNN cells."""
     if spec.cell_type == 'GRU':
         def cell():
@@ -60,7 +61,8 @@ class RawRNNEncoder(ModelPart, Attentive):
             data_id: Identifier of the data series fed to this encoder
             name: An unique identifier for this encoder
             rnn_layers: A list of tuples specifying the size and, optionally,
-                the direction and cell type of each RNN layer.
+                the direction ('forward', 'backward' or 'both') and cell type
+                ('GRU' or 'LSTM') of each RNN layer.
 
         Keyword arguments:
             dropout_keep_prob: The dropout keep probability
@@ -75,7 +77,7 @@ class RawRNNEncoder(ModelPart, Attentive):
 
         self.data_id = data_id
 
-        self._rnn_layers = [RNNSpec(*r) for r in rnn_layers]
+        self._rnn_layers = [_make_rnn_spec(*r) for r in rnn_layers]
         self.max_input_len = max_input_len
         self.input_size = input_size
         self.dropout_keep_prob = dropout_keep_prob
@@ -90,10 +92,17 @@ class RawRNNEncoder(ModelPart, Attentive):
                                                 dtype=tf.float32)
 
             states = self.inputs
+            states_reversed = False
+
+            def reverse_states():
+                nonlocal states, states_reversed
+                states = tf.reverse_sequence(
+                    states, self._input_lengths, batch_dim=0, seq_dim=1)
+                states_reversed = not states_reversed
 
             for i, layer in enumerate(self._rnn_layers):
                 with tf.variable_scope('rnn_{}'.format(i)):
-                    cell = _rnn_cell(layer)
+                    cell = _make_rnn_cell(layer)
                     if layer.direction == 'both':
                         outputs_tup, encoded_tup = (
                             tf.nn.bidirectional_dynamic_rnn(
@@ -101,9 +110,26 @@ class RawRNNEncoder(ModelPart, Attentive):
                                 dtype=tf.float32)
                         )
 
+                        if states_reversed:
+                            # treat forward as backward and vice versa
+                            states_tup = tuple(reversed(outputs_tup))
+                            encoded_tup = tuple(reversed(encoded_tup))
+                            states_reversed = False
+
                         states = tf.concat(outputs_tup, 2)
                         encoded = tf.concat(encoded_tup, 1)
                     elif layer.direction == 'forward':
+                        if states_reversed:
+                            reverse_states()
+
+                        states, encoded = tf.nn.dynamic_rnn(
+                            cell(), states,
+                            sequence_length=self._input_lengths,
+                            dtype=tf.float32)
+                    elif layer.direction == 'backward':
+                        if not states_reversed:
+                            reverse_states()
+
                         states, encoded = tf.nn.dynamic_rnn(
                             cell(), states,
                             sequence_length=self._input_lengths,
@@ -115,6 +141,9 @@ class RawRNNEncoder(ModelPart, Attentive):
                     if i < len(self._rnn_layers):
                         states = dropout(states, self.dropout_keep_prob,
                                          self.train_mode)
+
+            if states_reversed:
+                reverse_states()
 
             self.hidden_states = states
             self.encoded = encoded
