@@ -23,29 +23,33 @@ RewardFunction = Callable[[np.ndarray, np.ndarray], np.ndarray]
 # pylint: enable=invalid-name
 
 
-def reinforce_gradient(reward: tf.Tensor,
-                       baseline: tf.Tensor,
-                       decoded: tf.Tensor,
-                       decoder: Decoder) -> tf.Tensor:
-    """Gradients of loss w.r.t. decoder logits.
+def reinforce_score(reward: tf.Tensor,
+                    baseline: tf.Tensor,
+                    decoded: tf.Tensor,
+                    logits: tf.Tensor) -> tf.Tensor:
+    """Cost function whose derivative is the REINFORCE equation.
 
-    This implements the central equation of the REINFORCE algorithm that
-    estimates the gradients of the loss with respect to decoder logits. The
-    ``stop_gradients`` function is applied on the gradients, such that it
-    will not be further differentiated by TensorFlow.
+    This implements the primitive function to the central equation of the
+    REINFORCE algorithm that estimates the gradients of the loss with respect
+    to decoder logits.
+
+    It uses the fact that the second term of the product (the difference of the
+    word distribution and one hot vector of the decoded word) is a derivative
+    of negative log likelihood of the decoded word. The reward function and the
+    baseline are however treated as a constant, so they influence the derivate
+    only as a multiplicatively.
     """
 
+    # shape (1, batch, 1)
     reward_diff = tf.expand_dims(tf.expand_dims(reward - baseline, 0), 2)
 
     # runtime probabilities, shape (time, batch, vocab)
-    runtime_probs = tf.nn.softmax(decoder.runtime_logits)
-    runtime_decoded_onehot = tf.one_hot(decoded,
-                                        len(decoder.vocabulary))
+    decoded_neg_likelihood = tf.nn.sparse_softmax_cross_entropy_with_logits(
+        labels=decoded, logits=logits)
 
     # REINFORCE gradient, shape (time, batch, vocab)
-    gradient = tf.stop_gradient(
-        reward_diff * (runtime_probs - runtime_decoded_onehot))
-    return tf.stop_gradient(gradient)
+    score = tf.stop_gradient(reward_diff) * decoded_neg_likelihood
+    return score
 
 
 def self_critical_objective(decoder: Decoder,
@@ -73,28 +77,29 @@ def self_critical_objective(decoder: Decoder,
         tf.reduce_mean(runtime_reward),
         collections=["summary_train"])
 
-    # REINFORCE gradient, shape (time, batch, vocab)
-    reward_gradient = reinforce_gradient(
-        runtime_reward, train_reward, runtime_decoded, decoder)
+    # REINFORCE score: shape (time, batch, vocab)
+    score_by_word = reinforce_score(
+        runtime_reward, train_reward, runtime_decoded, runtime_logits)
 
-    # multiply the partial derivatives, shape (time, batch, vocab)
-    # pylint: disable=invalid-unary-operand-type
-    loss_matrix = (-reward_gradient * runtime_logits
-                   * tf.expand_dims(tf.to_float(runtime_mask), 2))
-    # pylint: enable=invalid-unary-operand-type
+    masked_score_by_word = (score_by_word *
+                            tf.expand_dims(tf.to_float(runtime_mask), 2))
 
     # sum the matrix up (dot product of rows, sum over time, and over batch)
-    cost = tf.reduce_sum(loss_matrix)
+    score = tf.reduce_sum(masked_score_by_word)
+
+    # pylint: disable=invalid-unary-operand-type
+    loss = -score
+    # pylint: enable=invalid-unary-operand-type
 
     tf.summary.scalar(
         "train_{}/self_critical_cost".format(decoder.data_id),
-        cost,
+        loss,
         collections=["summary_train"])
 
     return Objective(
         name="{}_self_critical".format(decoder.name),
         decoder=decoder,
-        loss=cost,
+        loss=loss,
         gradients=None,
         weight=weight)
 
