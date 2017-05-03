@@ -112,22 +112,15 @@ class RawRNNEncoder(ModelPart, Attentive):
 
                         if states_reversed:
                             # treat forward as backward and vice versa
-                            states_tup = tuple(reversed(outputs_tup))
+                            outputs_tup = tuple(reversed(outputs_tup))
                             encoded_tup = tuple(reversed(encoded_tup))
                             states_reversed = False
 
                         states = tf.concat(outputs_tup, 2)
                         encoded = tf.concat(encoded_tup, 1)
-                    elif layer.direction == 'forward':
-                        if states_reversed:
-                            reverse_states()
-
-                        states, encoded = tf.nn.dynamic_rnn(
-                            cell(), states,
-                            sequence_length=self._input_lengths,
-                            dtype=tf.float32)
-                    elif layer.direction == 'backward':
-                        if not states_reversed:
+                    elif layer.direction in ['forward', 'backward']:
+                        should_be_reversed = (layer.direction == 'backward')
+                        if states_reversed != should_be_reversed:
                             reverse_states()
 
                         states, encoded = tf.nn.dynamic_rnn(
