@@ -86,6 +86,11 @@ def self_critical_objective(decoder: Decoder,
     # sum the matrix up (dot product of rows, sum over time, and over batch)
     cost = tf.reduce_sum(loss_matrix)
 
+    tf.summary.scalar(
+        "train_{}/self_critical_cost".format(decoder.data_id),
+        cost,
+        collections=["summary_train"])
+
     return Objective(
         name="{}_self_critical".format(decoder.name),
         decoder=decoder,
