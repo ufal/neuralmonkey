@@ -44,22 +44,29 @@ class LogitsExecutable(Executable):
 
         train_loss = results[0]["train_loss"]
         runtime_loss = results[0]["runtime_loss"]
+
+        # logits_list in shape (time, batch, vocab)
         logits_list = results[0]["logits"]
 
-        outputs = []
-        for instance in logits_list:
-            instace_logits = []
-            for logits in instance:
+        # outputs are lists of strings (batch, time)
+        outputs = [[] for _ in logits_list[0]]  # type: List[List[str]]
+
+        for time_step in logits_list:
+            for logits, output_list in zip(time_step, outputs):
+
                 if self._normalize:
                     logits = np.exp(logits) / np.sum(np.exp(logits), axis=0)
                 if self._pick_index:
-                    instace_logits.append(str(logits[self._pick_index]))
+                    instance_logits = str(logits[self._pick_index])
                 else:
-                    instace_logits.append("\t".join(str(l) for l in logits))
-            outputs.append(",".join(instace_logits))
+                    instance_logits = ",".join(str(l) for l in logits)
+
+                output_list.append(instance_logits)
+
+        str_outputs = ["\t".join(l) for l in outputs]
 
         self.result = ExecutionResult(
-            outputs=outputs,
+            outputs=str_outputs,
             losses=[train_loss, runtime_loss],
             scalar_summaries=None,
             histogram_summaries=None,
@@ -104,7 +111,7 @@ class LogitsRunner(BaseRunner):
         self._normalize = normalize
         if pick_value is not None:
             if pick_value in decoder.vocabulary:
-                self._pick_index = decoder.vocabulary.word_to_index[pick_index]
+                self._pick_index = decoder.vocabulary.word_to_index[pick_value]
             else:
                 raise ValueError(
                     "Value '{}' is not in vocabulary of decoder '{}'".format(

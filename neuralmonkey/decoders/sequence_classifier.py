@@ -105,10 +105,11 @@ class SequenceClassifier(ModelPart):
 
         fd = {}  # type: FeedDict
 
-        label_tensors, _ = self.vocabulary.sentences_to_tensor(
-            sentences_list, self.max_output_len)
+        if sentences is not None:
+            label_tensors, _ = self.vocabulary.sentences_to_tensor(
+                sentences_list, self.max_output_len)
 
-        fd[self.gt_inputs[0]] = label_tensors[0]
+            fd[self.gt_inputs[0]] = label_tensors[0]
 
         if train:
             fd[self.dropout_placeholder] = self.dropout_keep_prob
