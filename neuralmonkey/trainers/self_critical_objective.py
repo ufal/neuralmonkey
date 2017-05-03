@@ -68,6 +68,11 @@ def self_critical_objective(decoder: Decoder,
     runtime_reward = tf.py_func(
         reward_function, [reference, runtime_decoded], tf.float32)
 
+    tf.summary.scalar(
+        "train_{}/{}".format(decoder.data_id, reward_function.__name__),
+        tf.reduce_mean(runtime_reward),
+        collections=["summary_train"])
+
     # REINFORCE gradient, shape (time, batch, vocab)
     reward_gradient = reinforce_gradient(
         runtime_reward, train_reward, runtime_decoded, decoder)
