@@ -101,7 +101,7 @@ class RawRNNEncoder(ModelPart, Attentive):
                 states_reversed = not states_reversed
 
             for i, layer in enumerate(self._rnn_layers):
-                with tf.variable_scope('rnn_{}'.format(i)):
+                with tf.variable_scope('rnn_{}_{}'.format(i, layer.direction)):
                     cell = _make_rnn_cell(layer)
                     if layer.direction == 'both':
                         outputs_tup, encoded_tup = (
