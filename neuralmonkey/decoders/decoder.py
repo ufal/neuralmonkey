@@ -358,7 +358,7 @@ class Decoder(ModelPart):
             go_symbols: tf.Tensor,
             train_inputs: tf.Tensor=None,
             train_mode: bool = False) -> Tuple[
-                List[tf.Tensor], List[tf.Tensor]]:
+                List[tf.Tensor], List[tf.Tensor], List[tf.Tensor]]:
         """Run the decoder RNN.
 
         Arguments:
@@ -386,10 +386,10 @@ class Decoder(ModelPart):
 
         attns = [tf.zeros([self.batch_size, a.attn_size])
                  for a in att_objects]
-        states = []
-        logits = []
+        states = []  # type: List[tf.Tensor]
+        logits = []  # type: List[tf.Tensor]
 
-        mask = []
+        mask = []  # type: List[tf.Tensor]
         finished = tf.zeros([self.batch_size], dtype=tf.bool)
 
         for i in range(self.max_output_len):
