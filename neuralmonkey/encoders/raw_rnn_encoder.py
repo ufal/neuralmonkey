@@ -131,9 +131,9 @@ class RawRNNEncoder(ModelPart, Attentive):
                         raise ValueError(
                             "Unknown RNN direction {}".format(layer.direction))
 
-                    if i < len(self._rnn_layers):
-                        states = dropout(states, self.dropout_keep_prob,
-                                         self.train_mode)
+                if i < len(self._rnn_layers) - 1:
+                    states = dropout(states, self.dropout_keep_p,
+                                     self.train_mode)
 
             if states_reversed:
                 reverse_states()
