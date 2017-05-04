@@ -257,16 +257,12 @@ def training_loop(tf_manager: TensorFlowManager,
                                 (seen_instances - last_seen_instances))
                     valtime = val_duration / val_examples
                     last_seen_instances = seen_instances
-                    message = ("Training between last validations took {:.2f}s"
-                               ", the validation took {:.2f}s. "
-                               "One instance was trained in {:.2f}s. "
-                               "One instance was validated in {:.2f}s."
-                               .format(training_duration, val_duration,
-                                       steptime, valtime))
+                    log("Validation time: {:.2f}s, inter-validation: {:.2f}s, "
+                        "per-instance (train): {:.2f}s, per-instance (val): "
+                        "{:.2f}s".format(val_duration, training_duration,
+                                         steptime, valtime), color="blue")
                     if training_duration > 2 * val_duration:
-                        log(message)
-                    else:
-                        notice(message + " You are not training efficiently.")
+                        notice("Validation period setting is inefficient.")
 
                     last_val_time = time.process_time()
 
