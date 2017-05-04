@@ -127,7 +127,6 @@ def main() -> None:
 
             dataset = dataset.subset(start, length)
 
-
         if CONFIG.model.runners_batch_size is None:
             runners_batch_size = CONFIG.model.batch_size
         else:
