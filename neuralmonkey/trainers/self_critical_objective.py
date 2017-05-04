@@ -41,7 +41,7 @@ def reinforce_score(reward: tf.Tensor,
     """
 
     # shape (1, batch, 1)
-    reward_diff = tf.expand_dims(tf.expand_dims(reward - baseline, 0), 2)
+    reward_diff = tf.expand_dims(reward - baseline, 0)
 
     # runtime probabilities, shape (time, batch, vocab)
     decoded_neg_likelihood = tf.nn.sparse_softmax_cross_entropy_with_logits(
@@ -82,7 +82,7 @@ def self_critical_objective(decoder: Decoder,
         runtime_reward, train_reward, runtime_decoded, runtime_logits)
 
     float_mask = tf.to_float(runtime_mask)
-    masked_score_by_word = (score_by_word * tf.expand_dims(float_mask, 2))
+    masked_score_by_word = score_by_word * float_mask
 
     # sum the matrix up (dot product of rows, sum over time, and over batch)
     # pylint: disable=invalid-unary-operand-type
@@ -127,17 +127,20 @@ def sentence_bleu(references: np.ndarray,
             matched_counts.append(matched)
             hyp_n_grams_counts.append(total)
 
-        precision = (
-            np.prod(matched_counts) / np.prod(hyp_n_grams_counts)) ** .25
-        ref_len = sum(1 for _ in
-                      takewhile(lambda i: i != END_TOKEN_INDEX, ref))
-        brevity_penalty = np.min([
-            1., np.exp(1 - ref_len / hyp_n_grams_counts[0])])
+        if hyp_n_grams_counts[0] == 0:
+            bleu_scores.append(0.)
+        else:
+            precision = (
+                np.prod(matched_counts) / np.prod(hyp_n_grams_counts)) ** .25
+            ref_len = sum(1 for _ in
+                          takewhile(lambda i: i != END_TOKEN_INDEX, ref))
+            brevity_penalty = np.min([
+                1., np.exp(1 - ref_len / hyp_n_grams_counts[0])])
 
-        bleu_scores.append(brevity_penalty * precision)
+            bleu_scores.append(brevity_penalty * precision)
 
     assert all(0 <= s <= 1 for s in bleu_scores)
-    return np.ndarray(bleu_scores, dtype=np.float32)
+    return np.array(bleu_scores, dtype=np.float32)
 
 
 def sentence_gleu(references: np.ndarray,
