@@ -127,10 +127,16 @@ def main() -> None:
 
             dataset = dataset.subset(start, length)
 
+
+        if CONFIG.model.runners_batch_size is None:
+            runners_batch_size = CONFIG.model.batch_size
+        else:
+            runners_batch_size = CONFIG.model.runners_batch_size
+
         execution_results, output_data = run_on_dataset(
             CONFIG.model.tf_manager, CONFIG.model.runners,
             dataset, CONFIG.model.postprocess, write_out=True,
-            batch_size=CONFIG.model.runners_batch_size)
+            batch_size=runners_batch_size)
         # TODO what if there is no ground truth
         eval_result = evaluation(evaluators, dataset, CONFIG.model.runners,
                                  execution_results, output_data)
