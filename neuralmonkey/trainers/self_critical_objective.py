@@ -81,14 +81,12 @@ def self_critical_objective(decoder: Decoder,
     score_by_word = reinforce_score(
         runtime_reward, train_reward, runtime_decoded, runtime_logits)
 
-    masked_score_by_word = (score_by_word *
-                            tf.expand_dims(tf.to_float(runtime_mask), 2))
+    float_mask = tf.to_float(runtime_mask)
+    masked_score_by_word = (score_by_word * tf.expand_dims(float_mask, 2))
 
     # sum the matrix up (dot product of rows, sum over time, and over batch)
-    score = tf.reduce_sum(masked_score_by_word)
-
     # pylint: disable=invalid-unary-operand-type
-    loss = -score
+    loss = -tf.reduce_sum(masked_score_by_word) / tf.reduce_sum(float_mask)
     # pylint: enable=invalid-unary-operand-type
 
     tf.summary.scalar(
