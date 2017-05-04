@@ -63,7 +63,7 @@ class LogitsExecutable(Executable):
 
                 output_list.append(instance_logits)
 
-        str_outputs = ["\t".join(l) for l in outputs]
+        str_outputs = [["\t".join(l)] for l in outputs]
 
         self.result = ExecutionResult(
             outputs=str_outputs,
