@@ -189,7 +189,10 @@ def training_loop(tf_manager: TensorFlowManager,
                 if _is_logging_time(step, val_period_batch,
                                     last_val_time, val_period_time):
                     val_duration_start = time.process_time()
+                    val_examples = 0
                     for val_id, valset in enumerate(val_datasets):
+                        val_examples += len(valset)
+
                         val_results, val_outputs = run_on_dataset(
                             tf_manager, runners, valset,
                             postprocess, write_out=False,
@@ -251,20 +254,19 @@ def training_loop(tf_manager: TensorFlowManager,
 
                     # the training should take at least twice the time of val.
                     steptime = (training_duration /
-                                (seen_instances-last_seen_instances))
+                                (seen_instances - last_seen_instances))
+                    valtime = val_duration / val_examples
                     last_seen_instances = seen_instances
-                    if training_duration > 2 * val_duration:
-                        log("Training between last validations was {:.2f} "
-                            "seconds, the validation took {:.2f} seconds. "
-                            "One instance was trained in {:.2f} seconds"
-                            .format(training_duration, val_duration, steptime))
-                    else:
-                        notice("Training between last validations was {:.2f} "
-                               "seconds, the validation took {:.2f} seconds. "
-                               "One instance was trained in {:.2f} seconds"
-                               "You are not training efficiently."
+                    message = ("Training between last validations took {:.2f}s"
+                               ", the validation took {:.2f}s. "
+                               "One instance was trained in {:.2f}s. "
+                               "One instance was validated in {:.2f}s."
                                .format(training_duration, val_duration,
-                                       steptime))
+                                       steptime, valtime))
+                    if training_duration > 2 * val_duration:
+                        log(message)
+                    else:
+                        notice(message + " You are not training efficiently.")
 
                     last_val_time = time.process_time()
 
