@@ -30,7 +30,7 @@ class BPEPreprocessor(object):
         for word in sentence:
 
             # Hack. TODO: inspect why there are empty sentences
-            if word:
+            if not word:
                 output.append(word)
                 continue
 
