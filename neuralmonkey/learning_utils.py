@@ -9,7 +9,7 @@ import numpy as np
 import tensorflow as tf
 from termcolor import colored
 
-from neuralmonkey.logging import log, log_print, warn
+from neuralmonkey.logging import log, log_print, warn, notice
 from neuralmonkey.dataset import Dataset, LazyDataset
 from neuralmonkey.tf_manager import TensorFlowManager
 from neuralmonkey.runners.base_runner import BaseRunner, ExecutionResult
@@ -124,6 +124,7 @@ def training_loop(tf_manager: TensorFlowManager,
 
     step = 0
     seen_instances = 0
+    last_seen_instances = 0
 
     if initial_variables is None:
         # Assume we don't look at coder checkpoints when global
@@ -187,7 +188,12 @@ def training_loop(tf_manager: TensorFlowManager,
 
                 if _is_logging_time(step, val_period_batch,
                                     last_val_time, val_period_time):
+                    log_print("")
+                    val_duration_start = time.process_time()
+                    val_examples = 0
                     for val_id, valset in enumerate(val_datasets):
+                        val_examples += len(valset)
+
                         val_results, val_outputs = run_on_dataset(
                             tf_manager, runners, valset,
                             postprocess, write_out=False,
@@ -198,6 +204,16 @@ def training_loop(tf_manager: TensorFlowManager,
                         val_evaluation = evaluation(
                             evaluators, valset, runners, val_results,
                             val_outputs)
+
+                        valheader = ("Validation (epoch {}, batch number {}):"
+                                     .format(epoch_n, batch_n))
+                        log(valheader, color='blue')
+                        _print_examples(
+                            valset, val_outputs, val_preview_input_series,
+                            val_preview_output_series,
+                            val_preview_num_examples)
+                        log_print("")
+                        log(valheader, color='blue')
 
                         # The last validation set is selected to be the main
                         if val_id == len(val_datasets) - 1:
@@ -229,19 +245,28 @@ def training_loop(tf_manager: TensorFlowManager,
                                         tf_manager.best_score_batch),
                                 color='blue')
 
-                        _print_examples(
-                            valset, val_outputs, val_preview_input_series,
-                            val_preview_output_series,
-                            val_preview_num_examples)
-                        log_print("")
-
-                        log("Validation (epoch {}, batch number {}):"
-                            .format(epoch_n, batch_n), color='blue')
-
                         _log_continuous_evaluation(
                             tb_writer, tf_manager, main_metric, val_evaluation,
                             seen_instances, epoch_n, epochs, val_results,
                             train=False)
+
+                    # how long was the training between validations
+                    training_duration = val_duration_start - last_val_time
+                    val_duration = time.process_time() - val_duration_start
+
+                    # the training should take at least twice the time of val.
+                    steptime = (training_duration /
+                                (seen_instances - last_seen_instances))
+                    valtime = val_duration / val_examples
+                    last_seen_instances = seen_instances
+                    log("Validation time: {:.2f}s, inter-validation: {:.2f}s, "
+                        "per-instance (train): {:.2f}s, per-instance (val): "
+                        "{:.2f}s".format(val_duration, training_duration,
+                                         steptime, valtime), color="blue")
+                    if training_duration > 2 * val_duration:
+                        notice("Validation period setting is inefficient.")
+
+                    log_print("")
                     last_val_time = time.process_time()
 
     except KeyboardInterrupt:

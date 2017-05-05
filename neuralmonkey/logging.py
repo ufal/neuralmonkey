@@ -49,6 +49,12 @@ class Logging(object):
             Logging._get_time(), color), message))
 
     @staticmethod
+    def notice(message: str) -> None:
+        """Logs notice with a colored timestamp."""
+        log_print("{}: {}".format(colored(
+            Logging._get_time(), 'red'), message))
+
+    @staticmethod
     def warn(message: str) -> None:
         """Logs a warning."""
         log_print(colored("{}: Warning! {}".format(
@@ -95,3 +101,4 @@ log = Logging.log
 log_print = Logging.log_print
 debug = Logging.debug
 warn = Logging.warn
+notice = Logging.notice
