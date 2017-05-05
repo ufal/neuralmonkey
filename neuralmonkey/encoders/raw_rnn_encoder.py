@@ -1,4 +1,4 @@
-from typing import Any, Callable, List, Optional, Tuple, NamedTuple
+from typing import Any, Callable, List, Optional, Tuple, Union, NamedTuple
 
 import numpy as np
 import tensorflow as tf
@@ -17,6 +17,8 @@ from neuralmonkey.dataset import Dataset
 RNNSpec = NamedTuple('RNNSpec', [('size', int),
                                  ('direction', str),
                                  ('cell_type', str)])
+
+RNNSpecTuple = Union[Tuple[int], Tuple[int, str], Tuple[int, str, str]]
 # pylint: enable=invalid-name
 
 
@@ -49,7 +51,7 @@ class RawRNNEncoder(ModelPart, Attentive):
                  name: str,
                  data_id: str,
                  input_size: int,
-                 rnn_layers: List[Tuple],
+                 rnn_layers: List[RNNSpecTuple],
                  max_input_len: Optional[int] = None,
                  dropout_keep_prob: float = 1.0,
                  attention_type: Optional[Any] = None,
