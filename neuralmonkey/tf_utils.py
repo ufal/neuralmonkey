@@ -3,6 +3,8 @@
 
 """Small helper functions for TensorFlow."""
 
+import os
+
 from subprocess import check_output
 from tensorflow.python.client import device_lib as _device_lib
 
@@ -37,14 +39,22 @@ def gpu_memusage() -> str:
     if not has_gpu():
         return ''
 
+    visible_gpus = os.getenv('CUDA_VISIBLE_DEVICES')
+    if visible_gpus:
+        id_param = '--id=' + visible_gpus
+    else:
+        id_param = ''
+
     # gpu_query_columns = ('index', 'uuid', 'name', 'temperature.gpu',
     #                      'utilization.gpu', 'memory.used', 'memory.total')
     gpu_query_columns = ('index', 'memory.used', 'memory.total')
     gpu_list = []
 
     smi_output = check_output(
-        r'nvidia-smi --query-gpu={query_cols} --format=csv,noheader,nounits'
-        .format(query_cols=','.join(gpu_query_columns)),
+        'nvidia-smi {id_param} --query-gpu={query_cols} '
+        '--format=csv,noheader,nounits'
+        .format(query_cols=','.join(gpu_query_columns),
+                id_param=id_param),
         shell=True).decode().strip()
 
     for line in smi_output.split('\n'):
