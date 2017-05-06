@@ -39,23 +39,20 @@ def gpu_memusage() -> str:
     if not has_gpu():
         return ''
 
-    visible_gpus = os.getenv('CUDA_VISIBLE_DEVICES')
-    if visible_gpus:
-        id_param = '--id=' + visible_gpus
-    else:
-        id_param = ''
-
     # gpu_query_columns = ('index', 'uuid', 'name', 'temperature.gpu',
     #                      'utilization.gpu', 'memory.used', 'memory.total')
     gpu_query_columns = ('index', 'memory.used', 'memory.total')
     gpu_list = []
 
-    smi_output = check_output(
-        'nvidia-smi {id_param} --query-gpu={query_cols} '
-        '--format=csv,noheader,nounits'
-        .format(query_cols=','.join(gpu_query_columns),
-                id_param=id_param),
-        shell=True).decode().strip()
+    command = ['nvidia-smi',
+               '--query-gpu=' + ','.join(gpu_query_columns),
+               '--format=csv,noheader,nounits']
+
+    visible_gpus = os.getenv('CUDA_VISIBLE_DEVICES')
+    if visible_gpus:
+        command.append('--id=' + visible_gpus)
+
+    smi_output = check_output(command).decode().strip()
 
     for line in smi_output.split('\n'):
         if not line:
