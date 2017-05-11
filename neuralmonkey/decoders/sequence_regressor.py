@@ -2,9 +2,10 @@ from typing import cast, Any, Callable, Iterable, Optional, List
 
 import tensorflow as tf
 
+from typeguard import check_argument_types
+from neuralmonkey.nn.projection import multilayer_projection
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.model.model_part import ModelPart, FeedDict
-from neuralmonkey.nn.mlp import MultilayerPerceptron
 from neuralmonkey.checking import assert_shape
 
 # tests: lint, mypy
@@ -24,11 +25,12 @@ class SequenceRegressor(ModelPart):
                  encoders: List[Any],
                  data_id: str,
                  layers: Optional[List[int]] = None,
-                 activation_fn: Callable[[tf.Tensor], tf.Tensor] = tf.tanh,
+                 activation_fn: Callable[[tf.Tensor], tf.Tensor]=tf.tanh,
                  dropout_keep_prob: float = 0.5,
                  save_checkpoint: Optional[str] = None,
                  load_checkpoint: Optional[str] = None) -> None:
         ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
+        assert check_argument_types()
 
         self.encoders = encoders
         self.data_id = data_id
@@ -48,14 +50,16 @@ class SequenceRegressor(ModelPart):
                                             name="targets")
 
             mlp_input = tf.concat([enc.encoded for enc in encoders], 1)
-            mlp = MultilayerPerceptron(
-                mlp_input, layers, self.dropout_placeholder, 1,
-                activation_fn=self.activation_fn)
+            # TODO extend it to output into multidimensional space
+            layers.append(1)
+            mlp = multilayer_projection(
+                mlp_input, layers, activation=self.activation_fn,
+                dropout_plc=self.dropout_placeholder)
 
-            assert_shape(mlp.logits, [-1, 1])
+            assert_shape(mlp, [-1, 1])
 
-            self.decoded_logit = mlp.logits
-            self.cost = tf.reduce_mean(tf.square(mlp.logits - self.gt_inputs))
+            self.predicted = mlp
+            self.cost = tf.reduce_mean(tf.square(mlp - self.gt_inputs))
 
             tf.summary.scalar(
                 'val_optimization_cost', self.cost,
@@ -75,7 +79,7 @@ class SequenceRegressor(ModelPart):
 
     @property
     def decoded(self):
-        return self.decoded_logit
+        return self.predicted
 
     def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
         sentences = cast(Iterable[List[str]],

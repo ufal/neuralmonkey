@@ -5,6 +5,8 @@ from typing import Dict, List, Optional, Callable, Any
 import numpy as np
 import tensorflow as tf
 
+from typeguard import check_argument_types
+from neuralmonkey.decoders.sequence_regressor import SequenceRegressor
 from neuralmonkey.model.model_part import ModelPart
 from neuralmonkey.runners.base_runner import (BaseRunner, Executable,
                                               ExecutionResult, NextExecute)
@@ -15,14 +17,15 @@ class RegressionRunner(BaseRunner):
 
     def __init__(self,
                  output_series: str,
-                 decoder: Any,
-                 postprocess: Callable[[float], float]=None) -> None:
+                 decoder: SequenceRegressor,
+                 postprocess: Callable[[float], float] = None) -> None:
         super(RegressionRunner, self).__init__(output_series, decoder)
+        assert check_argument_types()
 
         self._postprocess = postprocess
 
     def get_executable(self,
-                       compute_losses: bool=False,
+                       compute_losses: bool = False,
                        summaries=True) -> Executable:
 
         if compute_losses:
@@ -30,7 +33,7 @@ class RegressionRunner(BaseRunner):
         else:
             fetches = {}
 
-        fetches["prediction"] = self._decoder.decoded_logit
+        fetches["prediction"] = self._decoder.predicted
 
         return RegressionRunExecutable(self.all_coders, fetches,
                                        self._postprocess)
@@ -45,7 +48,7 @@ class RegressionRunExecutable(Executable):
     def __init__(self,
                  all_coders: List[ModelPart],
                  fetches: Dict[str, tf.Tensor],
-                 postprocess: Callable[[float], float]=None) -> None:
+                 postprocess: Callable[[float], float] = None) -> None:
 
         self.all_coders = all_coders
         self._fetches = fetches
