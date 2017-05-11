@@ -6,6 +6,7 @@ import tensorflow as tf
 from neuralmonkey.checking import assert_shape
 from neuralmonkey.model.model_part import ModelPart
 from neuralmonkey.encoders.attentive import Attentive
+from neuralmonkey.nn.utils import dropout
 from neuralmonkey.logging import log
 from neuralmonkey.vocabulary import Vocabulary
 
@@ -82,8 +83,7 @@ class FactoredEncoder(ModelPart, Attentive):
 
     # pylint: disable=too-many-locals
     def _create_encoder_graph(self):
-        self.dropout_placeholder = tf.placeholder(tf.float32, name="dropout")
-        self.is_training = tf.placeholder(tf.bool, name="is_training")
+        self.train_mode = tf.placeholder(tf.bool, name="is_training")
 
         self.padding_weights = [
             tf.placeholder(tf.float32, shape=[None], name="input_{}".format(i))
@@ -122,7 +122,7 @@ class FactoredEncoder(ModelPart, Attentive):
                                for i in inputs]
 
             dropped_embedded_inputs = [
-                tf.nn.dropout(i, self.dropout_placeholder)
+                dropout(i, self.dropout_keep_prob, self.train_mode)
                 for i in embedded_inputs]
 
             # Resulting shape is batch x embedding_size
@@ -152,8 +152,9 @@ class FactoredEncoder(ModelPart, Attentive):
         self.encoded = tf.concat(encoded_tup, 1)
 
         self.__attention_tensor = tf.concat(self.outputs_bidi, 2)
-        self.__attention_tensor = tf.nn.dropout(self.__attention_tensor,
-                                                self.dropout_placeholder)
+        self.__attention_tensor = dropout(self.__attention_tensor,
+                                          self.dropout_keep_prob,
+                                          self.train_mode)
         self.__attention_mask = tf.concat(
             [tf.expand_dims(w, 1) for w in self.padding_weights], 1)
 
@@ -196,10 +197,6 @@ class FactoredEncoder(ModelPart, Attentive):
         for plc, padding in zip(self.padding_weights, paddings):
             fd[plc] = padding
 
-        if train:
-            fd[self.dropout_placeholder] = self.dropout_keep_prob
-        else:
-            fd[self.dropout_placeholder] = 1.0
-        fd[self.is_training] = train
+        fd[self.train_mode] = train
 
         return fd

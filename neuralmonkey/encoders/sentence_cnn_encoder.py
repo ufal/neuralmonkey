@@ -9,6 +9,7 @@ from neuralmonkey.model.model_part import ModelPart, FeedDict
 from neuralmonkey.logging import log
 from neuralmonkey.nn.noisy_gru_cell import NoisyGRUCell
 from neuralmonkey.nn.ortho_gru_cell import OrthoGRUCell
+from neuralmonkey.nn.utils import dropout
 from neuralmonkey.nn.highway import highway
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.vocabulary import Vocabulary
@@ -163,8 +164,8 @@ class SentenceCNNEncoder(ModelPart, Attentive):
             self.hidden_states = tf.concat(outputs_bidi_tup, 2)
 
             with tf.variable_scope('attention_tensor'):
-                self.__attention_tensor = self._dropout(
-                    self.hidden_states)
+                self.__attention_tensor = dropout(
+                    self.hidden_states, self.dropout_keep_p, self.train_mode)
 
             self.encoded = tf.concat(encoded_tup, 1)
 
@@ -218,24 +219,6 @@ class SentenceCNNEncoder(ModelPart, Attentive):
             "word_embeddings", [self.vocabulary_size, self.embedding_size],
             initializer=tf.random_normal_initializer(stddev=0.01))
 
-    def _dropout(self, variable: tf.Tensor) -> tf.Tensor:
-        """Perform dropout on a variable
-
-        Arguments:
-            variable: The variable to be dropped out
-
-        Returns:
-            The dropped value of the variable
-        """
-        if self.dropout_keep_p == 1.0:
-            return variable
-
-        # TODO as soon as TF.12 is out, remove this line and use train_mode
-        # directly
-        train_mode_batch = tf.fill(tf.shape(variable)[:1], self.train_mode)
-        dropped_value = tf.nn.dropout(variable, self.dropout_keep_p)
-        return tf.where(train_mode_batch, dropped_value, variable)
-
     def _embed(self, inputs: tf.Tensor) -> tf.Tensor:
         """Embed the input using the embedding matrix and apply dropout
 
@@ -243,7 +226,7 @@ class SentenceCNNEncoder(ModelPart, Attentive):
             inputs: The Tensor to be embedded and dropped out.
         """
         embedded = tf.nn.embedding_lookup(self.embedding_matrix, inputs)
-        return self._dropout(embedded)
+        return dropout(embedded, self.dropout_keep_p, self.train_mode)
 
     def rnn_cells(self) -> RNNCellTuple:
         """Return the graph template to for creating RNN memory cells"""
