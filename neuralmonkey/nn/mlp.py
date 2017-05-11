@@ -23,9 +23,9 @@ class MultilayerPerceptron(object):
                 self.n_params += last_layer_size * size
                 last_layer_size = size
 
-            with tf.variable_scope("classification_layer"):
+            with tf.variable_scope("classification_layer") as varscope:
                 self.n_params += last_layer_size * output_size
-                self.logits = linear(last_layer, output_size)
+                self.logits = linear(last_layer, output_size, scope=varscope)
 
     @property
     def softmax(self):

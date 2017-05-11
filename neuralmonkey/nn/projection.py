@@ -18,7 +18,7 @@ def linear(inputs, size, scope="LinearProjection"):
     Returns:
         A tensor of shape batch x size
     """
-    with tf.variable_scope(scope):
+    with tf.variable_scope(scope) as varscope:
         if isinstance(inputs, list):
             # if there is a list of tensor on the input, concatenate along
             # the last dimension and project.
@@ -26,7 +26,7 @@ def linear(inputs, size, scope="LinearProjection"):
 
         return tf.contrib.layers.fully_connected(
             inputs, size, biases_initializer=tf.zeros_initializer(),
-            activation_fn=None, scope=scope)
+            activation_fn=None, scope=varscope)
 
 
 def nonlinear(inputs, size, activation, scope="NonlinearProjection"):
@@ -63,8 +63,8 @@ def maxout(inputs, size, scope="MaxoutProjection"):
     Returns:
         A tensor of shape batch x size
     """
-    with tf.variable_scope(scope):
-        projected = linear(inputs, size * 2, scope=scope)
+    with tf.variable_scope(scope) as varscope:
+        projected = linear(inputs, size * 2, scope=varscope)
         maxout_input = tf.reshape(projected, [-1, 1, 2, size])
         maxpooled = tf.nn.max_pool(
             maxout_input, [1, 1, 2, 1], [1, 1, 2, 1], "SAME")

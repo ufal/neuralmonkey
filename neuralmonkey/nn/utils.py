@@ -6,7 +6,8 @@ import tensorflow as tf
 
 def dropout(variable: tf.Tensor,
             keep_prob: float,
-            train_mode: tf.Tensor) -> tf.Tensor:
+            train_mode: tf.Tensor,
+            scope="dropout") -> tf.Tensor:
     """Performs dropout on a variable, depending on mode.
 
     Arguments:
@@ -16,7 +17,7 @@ def dropout(variable: tf.Tensor,
     """
     # Maintain clean graph - no dropout op when there is none applied
     # TODO maybe use math.isclose instead of this comparison
-    with tf.variable_scope("dropout"):
+    with tf.variable_scope(scope):
         if keep_prob == 1.0:
             return variable
 
