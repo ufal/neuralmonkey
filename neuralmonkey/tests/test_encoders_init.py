@@ -4,6 +4,9 @@
 import random
 import string
 import unittest
+import copy
+
+from typing import Dict, List, Any, Iterable
 
 from neuralmonkey.decoding_function import Attention, CoverageAttention
 from neuralmonkey.encoders.numpy_encoder import (VectorEncoder,
@@ -12,106 +15,187 @@ from neuralmonkey.encoders.sentence_encoder import SentenceEncoder
 from neuralmonkey.encoders.sentence_cnn_encoder import SentenceCNNEncoder
 from neuralmonkey.tests.test_vocabulary import VOCABULARY
 
-SENTENCE_ENCODER = {
-    "max_input_len": ([1, 10, 100], [-1, 0, "ahoj", 3.14]),
-    "embedding_size": ([1, 10, 100], [-1, 0, "ahoj", 3.14]),
-    "rnn_size": ([1, 10, 100], [-1, 0, "ahoj", 3.14]),
-    "dropout_keep_prob": ([0.1, 1.0], [-1, 1.5, "huhu"]),
-    "attention_type": ([Attention, CoverageAttention, None], ["baf"]),
-    "use_noisy_activations": ([False], [0, "", "bflm"]),
-    "data_id": (["marmelade"], [0]),
-    "vocabulary": ([VOCABULARY], [0])
+
+SENTENCE_ENCODER_GOOD = {
+    "name": ["encoder"],
+    "vocabulary": [VOCABULARY],
+    "data_id": ["marmelade"],
+    "embedding_size": [20],
+    "rnn_size": [30],
+    "max_input_len": [None, 15],
+    "dropout_keep_prob": [0.5, 1.],
+    "attention_type": [Attention, CoverageAttention, None],
+    "attention_fertility": [1],
+    "use_noisy_activations": [False],
+    "parent_encoder": [None]
 }
 
-SENTENCE_CNN_ENCODER = {
-    "max_input_len": ([1, 10, 100], [-1, 0, "ahoj", 3.14]),
-    "embedding_size": ([1, 10, 100], [-1, 0, "ahoj", 3.14]),
-    "rnn_size": ([1, 10, 100], [-1, 0, "ahoj", 3.14]),
-    "dropout_keep_prob": ([0.1, 1.0], [-1, 1.5, "huhu"]),
-    "attention_type": ([Attention, CoverageAttention, None], ["baf"]),
-    "use_noisy_activations": ([False], [0, "", "bflm"]),
-    "data_id": (["marmelade"], [0]),
-    "vocabulary": ([VOCABULARY], [0]),
-    "highway_depth": ([1, 10, 100], [-1, "ahoj", 3.14]),
-    "filters": ([[(2, 10)], [(2, 50), (3, 20), (4, 10)]],
-                ["ahoj", [], [(0, 0)]]),
-    "segment_size": ([1, 10, 10], [-1, 0, "ahoj", 3.14])
+SENTENCE_ENCODER_BAD = {
+    "nonexistent": ["ahoj"],
+    "name": [None, 1],
+    "vocabulary": [0, None, "ahoj", dict()],
+    "data_id": [0, None, VOCABULARY],
+    "embedding_size": [-1, 0, "ahoj", 3.14, VOCABULARY, SentenceEncoder, None],
+    "rnn_size": [-1, 0, "ahoj", 3.14, VOCABULARY, SentenceEncoder, None],
+    "max_input_len": [-1, 0, "ahoj", 3.14, VOCABULARY, SentenceEncoder],
+    "dropout_keep_prob": [0.0, 0, -1.0, 2.0, "ahoj", VOCABULARY, None],
+    "attention_type": [-1, "ahoj", VOCABULARY, SentenceEncoder],
+    "attention_fertility": [None, "ahoj", VOCABULARY, SentenceEncoder],
+    "use_noisy_activations": [None, SentenceEncoder],
+    "parent_encoder": [0, "ahoj", VOCABULARY, SentenceEncoder]
 }
 
-VECTOR_ENCODER = {
-    "data_id": (["marmelade"], [0]),
-    "dimension": ([1, 100], [0, -1, "hoj", 3.14]),
-    "output_shape": ([1, 100], [0, -1, "hoj", 3.14])
+SENTENCE_CNN_ENCODER_GOOD = {
+    "name": ["cnn_encoder"],
+    "vocabulary": [VOCABULARY],
+    "data_id": ["marmelade"],
+    "embedding_size": [20],
+    "segment_size": [10],
+    "highway_depth": [11],
+    "rnn_size": [30],
+    "filters": [[(2, 10)], [(3, 20), (4, 10)]],
+    "max_input_len": [None, 17],
+    "dropout_keep_prob": [0.5, 1.],
+    "attention_type": [Attention, CoverageAttention, None],
+    "use_noisy_activations": [False]
 }
 
-POST_CNN_IMAGE_ENCODER = {
-    "data_id": (["marmelade"], [0]),
-    "attention_type": ([Attention, CoverageAttention, None], ["baf"]),
-    "output_shape": ([1, 100], [0, -1, "hoj", 3.14]),
-    "input_shape": ([[1, 2, 3], [10, 20, 3]],
-                    [3, [10, 20], [-1, 10, 20], "baf"])
+SENTENCE_CNN_ENCODER_BAD = {
+    "nonexistent": ["ahoj"],
+    "name": [None, 1],
+    "vocabulary": [0, None, "ahoj", dict()],
+    "data_id": [0, None, VOCABULARY],
+    "embedding_size": [-1, 0, "ahoj", 3.14, VOCABULARY, SentenceEncoder, None],
+    "segment_size": [-1, 0, "ahoj", 3.14, VOCABULARY, None],
+    "highway_depth": [-1, "ahoj", 3.14, SentenceEncoder, None],
+    "rnn_size": [-1, 0, "ahoj", 3.14, VOCABULARY, SentenceEncoder, None],
+    "filters": ["ahoj", [], [(0, 0)], [(1, 2, 3)], [VOCABULARY, None],
+                [(None, None)]],
+    "max_input_len": [-1, 0, "ahoj", 3.14, VOCABULARY, SentenceEncoder],
+    "dropout_keep_prob": [0.0, 0, -1.0, 2.0, "ahoj", VOCABULARY, None],
+    "attention_type": [-1, "ahoj", VOCABULARY, SentenceEncoder],
+    "attention_fertility": [None, "ahoj", VOCABULARY, SentenceEncoder],
+    "use_noisy_activations": [None, SentenceEncoder]
+}
+
+VECTOR_ENCODER_GOOD = {
+    "name": ["vector_encoder"],
+    "dimension": [10],
+    "data_id": ["marmelade"],
+    "output_shape": [1, None, 100]
+}
+
+VECTOR_ENCODER_BAD = {
+    "nonexistent": ["ahoj"],
+    "name": [None, 1],
+    "dimension": [0, -1, "ahoj", 3.14, VOCABULARY, SentenceEncoder, None],
+    "data_id": [3.14, VOCABULARY, None],
+    "output_shape": [0, -1, "ahoj", 3.14, VOCABULARY]
+}
+
+POST_CNN_IMAGE_ENCODER_GOOD = {
+    "name": ["vector_encoder"],
+    "input_shape": [[1, 2, 3], [10, 20, 3]],
+    "output_shape": [10],
+    "data_id": ["marmelade"],
+    "attention_type": [Attention, CoverageAttention, None]
+}
+
+POST_CNN_IMAGE_ENCODER_BAD = {
+    "nonexistent": ["ahoj"],
+    "name": [None, 1],
+    "data_id": [3.14, VOCABULARY, None],
+    "attention_type": [-1, "ahoj", VOCABULARY, SentenceEncoder],
+    "output_shape": [0, -1, "hoj", 3.14, None, VOCABULARY, SentenceEncoder],
+    "input_shape": [3, [10, 20], [-1, 10, 20], "123", "ahoj", 3.14,
+                    VOCABULARY, []]
 }
 
 
-def get_all_combinations(rest_arg_names, params):
-    """Recursively get all combinations of arguments."""
-    this_param = rest_arg_names[0]
-    good_values, bad_values = params[this_param]
-    if len(rest_arg_names) == 1:
-        for value in good_values:
-            yield {this_param: value}, True
-        for value in bad_values:
-            yield {this_param: value}, False
+def traverse_combinations(
+        params: Dict[str, List[Any]],
+        partial_params: Dict[str, Any]) -> Iterable[Dict[str, Any]]:
+    params = copy.copy(params)
+
+    if len(params) > 0:
+        pivot_key, values = params.popitem()
+
+        for val in values:
+            partial_params[pivot_key] = val
+            yield from traverse_combinations(params, partial_params)
     else:
-        rest_combinations = get_all_combinations(rest_arg_names[1:], params)
-        for combination, good in rest_combinations:
-            for value in good_values:
-                res = {this_param: value}
-                res.update(combination)
-                yield res, good
-            for value in bad_values:
-                res = {this_param: value}
-                res.update(combination)
-                yield res, False
+        yield partial_params
 
 
 class TestEncodersInit(unittest.TestCase):
-    def _construct_all_objects(self, enc_type, params):
-        """Construct all object with given type and param combinations."""
-        arg_names = list(params.keys())
 
-        all_args = list(get_all_combinations(arg_names, params))
+    def _run_constructors(self, encoder_type, good_params, bad_params):
+        good_index = 0
+        good_options = {par: value[good_index]
+                        for par, value in good_params.items()}
 
-        for args, good in all_args:
-            name = ''.join(random.choice(string.ascii_lowercase)
-                           for i in range(20))
-            log_args = ", ".join(["{}={}".format(k, v)
-                                  for k, v in args.items()])
-            args['name'] = name
+        name_suffix = 0
 
-            try:
-                if good:
-                    enc_type(**args)
-                else:
+        for key, bad_values in bad_params.items():
+            for value in bad_values:
+                options = copy.copy(good_options)
+                options[key] = value
+                if key != "name":
+                    options["name"] = "{}_{}".format(options["name"],
+                                                     name_suffix)
+                name_suffix += 1
+
+                try:
                     with self.assertRaises(Exception):
-                        enc_type(**args)
-            except Exception:
-                print("FAILED '{}', configuration: {}".format(
-                    enc_type, log_args))
+                        encoder_type(**options)
+                except:
+                    print("FAILED '{}', configuration: {}".format(
+                        encoder_type, str(options)))
+                    raise
+
+        for good_param_combo in traverse_combinations(good_params, {}):
+            try:
+                options = copy.copy(good_param_combo)
+                options["name"] = "{}_{}".format(options["name"], name_suffix)
+                name_suffix += 1
+
+                encoder_type(**options)
+            except:
+                print("Good param combo FAILED: {}, configuration: {}".format(
+                    encoder_type, str(options)))
                 raise
 
     def test_sentence_encoder(self):
-        self._construct_all_objects(SentenceEncoder, SENTENCE_ENCODER)
+        with self.assertRaises(Exception):
+            SentenceEncoder()
+
+        self._run_constructors(SentenceEncoder,
+                               SENTENCE_ENCODER_GOOD,
+                               SENTENCE_ENCODER_BAD)
 
     def test_sentence_cnn_encoder(self):
-        self._construct_all_objects(SentenceCNNEncoder, SENTENCE_CNN_ENCODER)
+        with self.assertRaises(Exception):
+            SentenceCNNEncoder()
+
+        self._run_constructors(SentenceCNNEncoder,
+                               SENTENCE_CNN_ENCODER_GOOD,
+                               SENTENCE_CNN_ENCODER_BAD)
 
     def test_vector_encoder(self):
-        self._construct_all_objects(VectorEncoder, VECTOR_ENCODER)
+        with self.assertRaises(Exception):
+            VectorEncoder()
+
+        self._run_constructors(VectorEncoder,
+                               VECTOR_ENCODER_GOOD,
+                               VECTOR_ENCODER_BAD)
 
     def test_post_cnn_encoder(self):
-        self._construct_all_objects(PostCNNImageEncoder,
-                                    POST_CNN_IMAGE_ENCODER)
+        with self.assertRaises(Exception):
+            PostCNNImageEncoder()
+
+        self._run_constructors(PostCNNImageEncoder,
+                               POST_CNN_IMAGE_ENCODER_GOOD,
+                               POST_CNN_IMAGE_ENCODER_BAD)
 
 
 if __name__ == "__main__":
