@@ -77,8 +77,6 @@ class CNNEncoder(ModelPart, Attentive):
         self.dropout_keep_prob = dropout_keep_prob
 
         with self.use_scope():
-            self.dropout_placeholder = tf.placeholder(
-                tf.float32, name="dropout")
             self.train_mode = tf.placeholder(tf.bool, shape=[],
                                              name="mode_placeholder")
             self.input_op = tf.placeholder(
@@ -141,7 +139,8 @@ class CNNEncoder(ModelPart, Attentive):
                 self.encoded = multilayer_projection(
                     last_layer_flat, fully_connected,
                     activation=tf.nn.relu,
-                    dropout_plc=self.dropout_placeholder)
+                    dropout_keep_prob=dropout_keep_prob,
+                    train_mode=self.train_mode)
 
             self.__attention_tensor = tf.reshape(
                 last_layer, [-1, last_width * last_height, last_n_channels])
@@ -169,9 +168,5 @@ class CNNEncoder(ModelPart, Attentive):
         f_dict[self.padding_masks] = \
             np.sum(np.sign(images), axis=3, keepdims=True)
 
-        if train:
-            f_dict[self.dropout_placeholder] = self.dropout_keep_prob
-        else:
-            f_dict[self.dropout_placeholder] = 1.0
         f_dict[self.train_mode] = train
         return f_dict

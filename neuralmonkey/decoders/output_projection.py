@@ -49,9 +49,8 @@ def maxout_output(maxout_size):
     return _projection
 
 
-# TODO fix this so it does not need dropout_plc. But it needs to be
-# able to do dropout!! So does maxout, BTW..
-def mlp_output(layer_sizes, dropout_plc=None, activation=tf.tanh):
+def mlp_output(layer_sizes, dropout_keep_prob=None, train_mode: tf.Tensor=None,
+               activation=tf.tanh):
     """Compute RNN deep output using the multilayer perceptron
     with a specified activation function.
     (Pascanu et al., 2013 [https://arxiv.org/pdf/1312.6026v5.pdf])
@@ -67,7 +66,8 @@ def mlp_output(layer_sizes, dropout_plc=None, activation=tf.tanh):
 
         return multilayer_projection(mlp_input, layer_sizes,
                                      activation=activation,
-                                     dropout_plc=dropout_plc,
+                                     dropout_keep_prob=dropout_keep_prob,
+                                     train_mode=train_mode,
                                      scope="deep_output_mlp")
 
     return _projection

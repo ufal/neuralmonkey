@@ -2,6 +2,7 @@
 This module implements various types of projections.
 """
 import tensorflow as tf
+from neuralmonkey.nn.utils import dropout
 
 
 def linear(inputs, size, scope="LinearProjection"):
@@ -74,14 +75,15 @@ def maxout(inputs, size, scope="MaxoutProjection"):
 
 
 def multilayer_projection(input_, layer_sizes, activation=tf.nn.relu,
-                          dropout_plc=None, scope="mlp"):
+                          dropout_keep_prob=None, train_mode: tf.Tensor=None,
+                          scope="mlp"):
     mlp_input = input_
 
     with tf.variable_scope(scope):
         for i, size in enumerate(layer_sizes):
             mlp_input = nonlinear(mlp_input, size, activation=activation,
                                   scope="mlp_layer_{}".format(i))
-            if dropout_plc is not None:
-                mlp_input = tf.nn.dropout(mlp_input, dropout_plc)
+            if dropout_keep_prob is not None:
+                mlp_input = dropout(mlp_input, dropout_keep_prob, train_mode)
 
     return mlp_input

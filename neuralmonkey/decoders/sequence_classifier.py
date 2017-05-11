@@ -54,18 +54,17 @@ class SequenceClassifier(ModelPart):
         self.max_output_len = 1
 
         with self.use_scope():
+            self.train_mode = tf.placeholder(tf.bool, name="train_mode")
             self.learning_step = tf.get_variable(
                 "learning_step", [], trainable=False,
                 initializer=tf.constant_initializer(0))
 
-            self.dropout_placeholder = \
-                tf.placeholder(tf.float32, name="dropout_plc")
             self.gt_inputs = [tf.placeholder(
                 tf.int32, shape=[None], name="targets")]
             mlp_input = tf.concat([enc.encoded for enc in encoders], 1)
             mlp = MultilayerPerceptron(
-                mlp_input, layers, self.dropout_placeholder, len(vocabulary),
-                activation_fn=self.activation_fn)
+                mlp_input, layers, self.dropout_keep_prob, len(vocabulary),
+                activation_fn=self.activation_fn, train_mode=self.train_mode)
 
             self.loss_with_gt_ins = tf.reduce_mean(
                 tf.nn.sparse_softmax_cross_entropy_with_logits(
@@ -111,9 +110,6 @@ class SequenceClassifier(ModelPart):
 
             fd[self.gt_inputs[0]] = label_tensors[0]
 
-        if train:
-            fd[self.dropout_placeholder] = self.dropout_keep_prob
-        else:
-            fd[self.dropout_placeholder] = 1.0
+        fd[self.train_mode] = train
 
         return fd
