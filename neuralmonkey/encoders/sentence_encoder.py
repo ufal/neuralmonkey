@@ -75,7 +75,7 @@ class SentenceEncoder(ModelPart, Attentive):
         self.max_input_len = max_input_len
         self.embedding_size = embedding_size
         self.rnn_size = rnn_size
-        self.dropout_keep_p = dropout_keep_prob
+        self.dropout_keep_prob = dropout_keep_prob
         self.use_noisy_activations = use_noisy_activations
         self.parent_encoder = parent_encoder
 
@@ -102,7 +102,8 @@ class SentenceEncoder(ModelPart, Attentive):
 
             with tf.variable_scope('attention_tensor'):
                 self.__attention_tensor = dropout(
-                    self.hidden_states, self.dropout_keep_p, self.train_mode)
+                    self.hidden_states, self.dropout_keep_prob,
+                    self.train_mode)
 
             self.encoded = tf.concat(encoded_tup, 1)
 
@@ -162,7 +163,7 @@ class SentenceEncoder(ModelPart, Attentive):
             inputs: The Tensor to be embedded and dropped out.
         """
         embedded = tf.nn.embedding_lookup(self.embedding_matrix, inputs)
-        return dropout(embedded, self.dropout_keep_p, self.train_mode)
+        return dropout(embedded, self.dropout_keep_prob, self.train_mode)
 
     def rnn_cells(self) -> RNNCellTuple:
         """Return the graph template to for creating RNN memory cells"""

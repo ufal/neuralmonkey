@@ -86,7 +86,7 @@ class SentenceCNNEncoder(ModelPart, Attentive):
         self.highway_depth = highway_depth
         self.rnn_size = rnn_size
         self.filters = filters
-        self.dropout_keep_p = dropout_keep_prob
+        self.dropout_keep_prob = dropout_keep_prob
         self.use_noisy_activations = use_noisy_activations
 
         if max_input_len is not None and max_input_len <= 0:
@@ -165,7 +165,7 @@ class SentenceCNNEncoder(ModelPart, Attentive):
 
             with tf.variable_scope('attention_tensor'):
                 self.__attention_tensor = dropout(
-                    self.hidden_states, self.dropout_keep_p, self.train_mode)
+                    self.hidden_states, self.dropout_keep_prob, self.train_mode)
 
             self.encoded = tf.concat(encoded_tup, 1)
 
@@ -226,7 +226,7 @@ class SentenceCNNEncoder(ModelPart, Attentive):
             inputs: The Tensor to be embedded and dropped out.
         """
         embedded = tf.nn.embedding_lookup(self.embedding_matrix, inputs)
-        return dropout(embedded, self.dropout_keep_p, self.train_mode)
+        return dropout(embedded, self.dropout_keep_prob, self.train_mode)
 
     def rnn_cells(self) -> RNNCellTuple:
         """Return the graph template to for creating RNN memory cells"""
