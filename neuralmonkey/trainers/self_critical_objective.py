@@ -1,7 +1,7 @@
 """Training objective for self-critical learning.
 
-Self-critic learning is a modifcation of the REINFORCE algorithm that uses the
-reward of the train-time decoder output as a baselie in the update step.
+Self-critic learning is a modification of the REINFORCE algorithm that uses the
+reward of the train-time decoder output as a baseline in the update step.
 
 For more details see: https://arxiv.org/pdf/1612.00563.pdf
 """
@@ -12,6 +12,7 @@ from collections import Counter
 
 import numpy as np
 import tensorflow as tf
+from typeguard import check_argument_types
 
 from neuralmonkey.trainers.generic_trainer import Objective
 from neuralmonkey.decoders.decoder import Decoder
@@ -37,7 +38,7 @@ def reinforce_score(reward: tf.Tensor,
     word distribution and one hot vector of the decoded word) is a derivative
     of negative log likelihood of the decoded word. The reward function and the
     baseline are however treated as a constant, so they influence the derivate
-    only as a multiplicatively.
+    only multiplicatively.
     """
 
     # shape (1, batch, 1)
@@ -55,6 +56,18 @@ def reinforce_score(reward: tf.Tensor,
 def self_critical_objective(decoder: Decoder,
                             reward_function: RewardFunction,
                             weight: float = None) -> Objective:
+    """Self-critical objective.
+
+    Args:
+        decoder: A recurrent decoder.
+        reward_function: A reward function computing score in Python.
+        weight: Mixing weight for a trainer.
+
+    Returns:
+        Objective object to be used in generic trainer.
+    """
+
+    assert check_argument_types()
 
     # logits, shape (time, batch, vocab)
     train_logits = tf.stack(decoder.train_logits)
