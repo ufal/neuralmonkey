@@ -18,7 +18,8 @@ class Attentive(metaclass=ABCMeta):
         self._attention_type = attention_type
         self._attention_kwargs = kwargs
 
-        if not issubclass(attention_type, Attention):
+        if attention_type is not None and not issubclass(attention_type,
+                                                         Attention):
             raise ValueError("Attention type is not subclass of the "
                              "Attention class")
 

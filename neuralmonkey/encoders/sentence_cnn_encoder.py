@@ -92,7 +92,25 @@ class SentenceCNNEncoder(ModelPart, Attentive):
         if max_input_len is not None and max_input_len <= 0:
             raise ValueError("Input length must be a positive integer.")
 
-        log("Initializing sentence encoder, name: '{}'"
+        if embedding_size <= 0:
+            raise ValueError("Embedding size must be a positive integer.")
+
+        if rnn_size <= 0:
+            raise ValueError("RNN size must be a positive integer.")
+
+        if highway_depth <= 0:
+            raise ValueError("Highway depth must be a positive integer.")
+
+        if segment_size <= 0:
+            raise ValueError("Segment size be a positive integer.")
+
+        for filter_size, num_filters in self.filters:
+            if filter_size <= 0:
+                raise ValueError("Filter size must be a positive integer.")
+            if num_filters <= 0:
+                raise ValueError("Number of filters must be a positive integer.")
+
+        log("Initializing convolutional sentence encoder, name: '{}'"
             .format(self.name))
 
         with self.use_scope():
@@ -170,7 +188,7 @@ class SentenceCNNEncoder(ModelPart, Attentive):
 
             self.encoded = tf.concat(encoded_tup, 1)
 
-        log("Sentence encoder initialized")
+        log("Convolutional sentence encoder initialized")
 
     @property
     def _attention_tensor(self):

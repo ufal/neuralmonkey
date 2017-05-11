@@ -17,15 +17,15 @@ class VectorEncoder(ModelPart):
                  name: str,
                  dimension: int,
                  data_id: str,
-                 output_shape: Optional[int] = None,
-                 save_checkpoint: Optional[str] = None,
-                 load_checkpoint: Optional[str] = None) -> None:
+                 output_shape: int = None,
+                 save_checkpoint: str = None,
+                 load_checkpoint: str = None) -> None:
         ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
         assert check_argument_types()
 
         if dimension <= 0:
             raise ValueError("Input vector dimension must be postive.")
-        if output_shape <= 0:
+        if output_shape is not None and output_shape <= 0:
             raise ValueError("Output vector dimension must be postive.")
 
         self.vector = tf.placeholder(
@@ -33,7 +33,7 @@ class VectorEncoder(ModelPart):
         self.data_id = data_id
 
         with self.use_scope():
-            if output_shape and dimension != output_shape:
+            if output_shape is not None and dimension != output_shape:
                 project_w = tf.get_variable(
                     shape=[dimension, output_shape],
                     name="img_init_proj_W")
