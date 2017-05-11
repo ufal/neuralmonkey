@@ -49,6 +49,8 @@ def maxout_output(maxout_size):
     return _projection
 
 
+# TODO fix this so it does not need train_mode. But it needs to be
+# able to do dropout!! So does maxout, BTW..
 def mlp_output(layer_sizes, dropout_keep_prob=None, train_mode: tf.Tensor=None,
                activation=tf.tanh):
     """Compute RNN deep output using the multilayer perceptron

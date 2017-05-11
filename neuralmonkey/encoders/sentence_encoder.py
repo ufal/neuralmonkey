@@ -128,8 +128,7 @@ class SentenceEncoder(ModelPart, Attentive):
 
     def _create_input_placeholders(self):
         """Creates input placeholder nodes in the computation graph"""
-        self.train_mode = tf.placeholder(tf.bool, shape=[],
-                                         name="mode_placeholder")
+        self.train_mode = tf.placeholder(tf.bool, shape=[], name="train_mode")
 
         self.inputs = tf.placeholder(tf.int32,
                                      shape=[None, None],

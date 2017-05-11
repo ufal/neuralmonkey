@@ -78,7 +78,7 @@ class CNNEncoder(ModelPart, Attentive):
 
         with self.use_scope():
             self.train_mode = tf.placeholder(tf.bool, shape=[],
-                                             name="mode_placeholder")
+                                             name="train_mode")
             self.input_op = tf.placeholder(
                 tf.float32,
                 shape=(None, image_height, image_width, pixel_dim),

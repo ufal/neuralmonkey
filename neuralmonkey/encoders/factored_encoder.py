@@ -83,7 +83,7 @@ class FactoredEncoder(ModelPart, Attentive):
 
     # pylint: disable=too-many-locals
     def _create_encoder_graph(self):
-        self.train_mode = tf.placeholder(tf.bool, name="is_training")
+        self.train_mode = tf.placeholder(tf.bool, name="train_mode")
 
         self.padding_weights = [
             tf.placeholder(tf.float32, shape=[None], name="input_{}".format(i))

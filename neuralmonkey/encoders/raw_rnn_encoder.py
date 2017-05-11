@@ -94,8 +94,7 @@ class RawRNNEncoder(ModelPart, Attentive):
 
     def _create_input_placeholders(self) -> None:
         """Creates input placeholder nodes in the computation graph"""
-        self.train_mode = tf.placeholder(tf.bool, shape=[],
-                                         name="mode_placeholder")
+        self.train_mode = tf.placeholder(tf.bool, shape=[], name="train_mode")
 
         self.inputs = tf.placeholder(tf.float32,
                                      shape=[None, None,

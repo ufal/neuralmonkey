@@ -165,7 +165,8 @@ class SentenceCNNEncoder(ModelPart, Attentive):
 
             with tf.variable_scope('attention_tensor'):
                 self.__attention_tensor = dropout(
-                    self.hidden_states, self.dropout_keep_prob, self.train_mode)
+                    self.hidden_states, self.dropout_keep_prob,
+                    self.train_mode)
 
             self.encoded = tf.concat(encoded_tup, 1)
 
@@ -194,8 +195,7 @@ class SentenceCNNEncoder(ModelPart, Attentive):
 
     def _create_input_placeholders(self):
         """Creates input placeholder nodes in the computation graph"""
-        self.train_mode = tf.placeholder(tf.bool, shape=[],
-                                         name="mode_placeholder")
+        self.train_mode = tf.placeholder(tf.bool, shape=[], name="train_mode")
 
         self.inputs = tf.placeholder(tf.int32,
                                      shape=[None, None],

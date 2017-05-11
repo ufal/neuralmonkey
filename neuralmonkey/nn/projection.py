@@ -27,7 +27,7 @@ def linear(inputs, size, scope="LinearProjection"):
 
         return tf.contrib.layers.fully_connected(
             inputs, size, biases_initializer=tf.zeros_initializer(),
-            activation_fn=None, scope=varscope)
+            activation_fn=None, scope=scope)
 
 
 def nonlinear(inputs, size, activation, scope="NonlinearProjection"):
@@ -65,7 +65,7 @@ def maxout(inputs, size, scope="MaxoutProjection"):
         A tensor of shape batch x size
     """
     with tf.variable_scope(scope) as varscope:
-        projected = linear(inputs, size * 2, scope=varscope)
+        projected = linear(inputs, size * 2, scope=scope)
         maxout_input = tf.reshape(projected, [-1, 1, 2, size])
         maxpooled = tf.nn.max_pool(
             maxout_input, [1, 1, 2, 1], [1, 1, 2, 1], "SAME")
@@ -74,8 +74,8 @@ def maxout(inputs, size, scope="MaxoutProjection"):
         return reshaped
 
 
-def multilayer_projection(input_, layer_sizes, activation=tf.nn.relu,
-                          dropout_keep_prob=None, train_mode: tf.Tensor=None,
+def multilayer_projection(input_, layer_sizes, train_mode: tf.Tensor,
+                          activation=tf.nn.relu, dropout_keep_prob=1.0,
                           scope="mlp"):
     mlp_input = input_
 
@@ -83,7 +83,6 @@ def multilayer_projection(input_, layer_sizes, activation=tf.nn.relu,
         for i, size in enumerate(layer_sizes):
             mlp_input = nonlinear(mlp_input, size, activation=activation,
                                   scope="mlp_layer_{}".format(i))
-            if dropout_keep_prob is not None:
-                mlp_input = dropout(mlp_input, dropout_keep_prob, train_mode)
+            mlp_input = dropout(mlp_input, dropout_keep_prob, train_mode)
 
     return mlp_input

@@ -1,4 +1,5 @@
 import tensorflow as tf
+from typing import List
 from neuralmonkey.nn.projection import linear, multilayer_projection
 
 
@@ -6,9 +7,11 @@ class MultilayerPerceptron(object):
     """ General implementation of the multilayer perceptron. """
 
     # pylint: disable=too-many-arguments
-    def __init__(self, mlp_input, layer_configuration, dropout_keep_prob,
-                 output_size, name: str = 'multilayer_perceptron',
-                 activation_fn=tf.nn.relu, train_mode: tf.Tensor=None) -> None:
+    def __init__(self, mlp_input: tf.Tensor, layer_configuration: List[int],
+                 dropout_keep_prob: float,
+                 output_size: int, train_mode: tf.Tensor,
+                 name: str = 'multilayer_perceptron',
+                 activation_fn=tf.nn.relu, ) -> None:
 
         with tf.variable_scope(name):
             last_layer_size = mlp_input.get_shape()[-1].value
@@ -24,7 +27,7 @@ class MultilayerPerceptron(object):
 
             with tf.variable_scope("classification_layer") as varscope:
                 self.n_params += last_layer_size * output_size
-                self.logits = linear(last_layer, output_size, scope=varscope)
+                self.logits = linear(last_layer, output_size)
 
     @property
     def softmax(self):
