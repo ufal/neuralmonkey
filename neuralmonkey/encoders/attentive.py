@@ -1,9 +1,10 @@
 from abc import ABCMeta, abstractproperty
 import tensorflow as tf
 
+from neuralmonkey.decoding_function import Attention
+
+
 # pylint: disable=too-few-public-methods
-
-
 class Attentive(metaclass=ABCMeta):
     """A base class fro an attentive part of graph (typically encoder).
 
@@ -16,6 +17,10 @@ class Attentive(metaclass=ABCMeta):
     def __init__(self, attention_type, **kwargs):
         self._attention_type = attention_type
         self._attention_kwargs = kwargs
+
+        if not issubclass(attention_type, Attention):
+            raise ValueError("Attention type is not subclass of the "
+                             "Attention class")
 
     def create_attention_object(self):
         """Attention object that can be used in decoder."""

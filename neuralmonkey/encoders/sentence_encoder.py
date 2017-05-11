@@ -35,7 +35,7 @@ class SentenceEncoder(ModelPart, Attentive):
                  rnn_size: int,
                  max_input_len: Optional[int] = None,
                  dropout_keep_prob: float = 1.0,
-                 attention_type: Optional[Any] = None,
+                 attention_type: type = None,
                  attention_fertility: int = 3,
                  use_noisy_activations: bool = False,
                  parent_encoder: Optional["SentenceEncoder"] = None,
@@ -81,6 +81,12 @@ class SentenceEncoder(ModelPart, Attentive):
 
         if max_input_len is not None and max_input_len <= 0:
             raise ValueError("Input length must be a positive integer.")
+
+        if embedding_size <= 0:
+            raise ValueError("Embedding size must be a positive integer.")
+
+        if rnn_size <= 0:
+            raise ValueError("RNN size must be a positive integer.")
 
         log("Initializing sentence encoder, name: '{}'"
             .format(self.name))
