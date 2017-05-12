@@ -19,7 +19,7 @@ def linear(inputs, size, scope="LinearProjection"):
     Returns:
         A tensor of shape batch x size
     """
-    with tf.variable_scope(scope) as varscope:
+    with tf.variable_scope(scope):
         if isinstance(inputs, list):
             # if there is a list of tensor on the input, concatenate along
             # the last dimension and project.
@@ -64,7 +64,7 @@ def maxout(inputs, size, scope="MaxoutProjection"):
     Returns:
         A tensor of shape batch x size
     """
-    with tf.variable_scope(scope) as varscope:
+    with tf.variable_scope(scope):
         projected = linear(inputs, size * 2, scope=scope)
         maxout_input = tf.reshape(projected, [-1, 1, 2, size])
         maxpooled = tf.nn.max_pool(

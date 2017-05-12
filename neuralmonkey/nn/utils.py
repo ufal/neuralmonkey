@@ -15,8 +15,9 @@ def dropout(variable: tf.Tensor,
         train_mode: A bool Tensor specifying whether to dropout or not
     """
     # Maintain clean graph - no dropout op when there is none applied
-    if keep_prob == 1.0:
-        return variable
+    with tf.name_scope("dropout"):
+        if keep_prob == 1.0:
+            return variable
 
-    dropped_value = tf.nn.dropout(variable, keep_prob)
-    return tf.where(train_mode, dropped_value, variable)
+        dropped_value = tf.nn.dropout(variable, keep_prob)
+        return tf.where(train_mode, dropped_value, variable)

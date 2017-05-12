@@ -34,6 +34,18 @@ class TestDropout(unittest.TestCase):
             expected_dropped_size = 10000 * (1 - kprob)
 
             self.assertTrue(np.isclose(expected_dropped_size, dsize, atol=100))
+            
+    def test_train_false(self):
+        """Checks that dropout does not """
+
+        var = tf.ones([10000])
+        s = tf.Session()
+
+        dropped_var = dropout(var, 0.1, tf.constant(False))
+        dropped_size = tf.reduce_sum(dropped_var)
+        dsize = s.run(dropped_size)
+
+        self.assertTrue(np.equal(10000, dsize, atol=100))
 
 
 if __name__ == "__main__":
