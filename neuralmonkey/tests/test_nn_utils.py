@@ -27,7 +27,8 @@ class TestDropout(unittest.TestCase):
 
         for kprob in [0.1, 0.7]:
             dropped_var = dropout(var, kprob, tf.constant(True))
-            dropped_size = tf.reduce_sum(tf.to_int32(tf.equal(dropped_var, 0.0)))
+            dropped_size = tf.reduce_sum(
+                tf.to_int32(tf.equal(dropped_var, 0.0)))
 
             dsize = s.run(dropped_size)
 
@@ -36,7 +37,7 @@ class TestDropout(unittest.TestCase):
             self.assertTrue(np.isclose(expected_dropped_size, dsize, atol=100))
             
     def test_train_false(self):
-        """Checks that dropout does not """
+        """Checks that dropout is not used when not training"""
 
         var = tf.ones([10000])
         s = tf.Session()

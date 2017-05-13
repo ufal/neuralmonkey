@@ -1,5 +1,5 @@
-import tensorflow as tf
 from typing import List
+import tensorflow as tf
 from neuralmonkey.nn.projection import linear, multilayer_projection
 
 
