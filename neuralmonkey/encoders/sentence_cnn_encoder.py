@@ -30,16 +30,17 @@ class SentenceCNNEncoder(ModelPart, Attentive):
     # pylint: disable=too-many-statements
     def __init__(self,
                  name: str,
-                 vocabulary: Vocabulary,
                  data_id: str,
-                 embedding_size: int,
-                 segment_size: int,
-                 highway_depth: int,
-                 rnn_size: int,
-                 filters: List[Tuple[int, int]],
+                 vocabulary: Vocabulary=None,
+                 embedding_size: int=-1,
+                 segment_size: int=-1,
+                 highway_depth: int=-1,
+                 rnn_size: int=-1,
+                 filters: List[Tuple[int, int]]=None,
                  max_input_len: Optional[int] = None,
                  dropout_keep_prob: float = 1.0,
                  attention_type: Optional[Any] = None,
+                 parent_encoder: Optional["SentenceCNNEncoder"]=None,
                  attention_fertility: int = 3,
                  use_noisy_activations: bool = False,
                  save_checkpoint: Optional[str] = None,
@@ -71,6 +72,21 @@ class SentenceCNNEncoder(ModelPart, Attentive):
             attention_fertility: Fertility parameter used with
                 CoverageAttention (default 3).
         """
+
+        if parent_encoder is not None:
+            name = parent_encoder.name
+            vocabulary = parent_encoder.vocabulary
+            max_input_len = parent_encoder.max_input_len
+            embedding_size = parent_encoder.embedding_size
+            dropout_keep_prob = parent_encoder.dropout_keep_prob
+            segment_size = parent_encoder.segment_size
+            highway_depth = parent_encoder.highway_depth
+            rnn_size = parent_encoder.rnn_size
+            filters = parent_encoder.filters
+            use_noisy_activations = parent_encoder.use_noisy_activations
+            save_checkpoint = None  # neukladej duplikat
+            load_checkpoint = None
+
         ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
         Attentive.__init__(
             self, attention_type, attention_fertility=attention_fertility)
@@ -113,9 +129,9 @@ class SentenceCNNEncoder(ModelPart, Attentive):
         log("Initializing convolutional sentence encoder, name: '{}'"
             .format(self.name))
 
-        with self.use_scope():
+        with tf.variable_scope(self.name, reuse=(pare)):
             self._create_input_placeholders()
-            with tf.variable_scope('input_projection'):
+            with tf.variable_scope('input_projection', reuse=True):
                 self._create_embedding_matrix()
                 embedded_inputs = self._embed(self.inputs)  # type: tf.Tensor
                 self.embedded_inputs = embedded_inputs

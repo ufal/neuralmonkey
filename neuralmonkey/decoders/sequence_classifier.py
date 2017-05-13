@@ -72,11 +72,11 @@ class SequenceClassifier(ModelPart):
                 mlp_input, layers, self.dropout_keep_prob, len(vocabulary),
                 activation_fn=self.activation_fn, train_mode=self.train_mode)
 
-            self.loss_with_gt_ins = tf.reduce_mean(
+            self.train_xents = tf.reduce_mean(
                 tf.nn.sparse_softmax_cross_entropy_with_logits(
                     logits=mlp.logits, labels=self.gt_inputs[0]))
-            self.loss_with_decoded_ins = self.loss_with_gt_ins
-            self.cost = self.loss_with_gt_ins
+            self.loss_with_decoded_ins = self.train_xents
+            self.cost = self.train_xents
 
             self.decoded_seq = [mlp.classification]
             self.decoded_logits = [mlp.logits]
@@ -92,7 +92,7 @@ class SequenceClassifier(ModelPart):
 
     @property
     def train_loss(self):
-        return self.loss_with_gt_ins
+        return self.train_xents
 
     @property
     def runtime_loss(self):

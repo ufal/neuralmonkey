@@ -47,6 +47,7 @@ def create_config() -> Configuration:
     config.add_argument('random_seed', required=False)
     config.add_argument('initial_variables', required=False, default=None)
     config.add_argument('overwrite_output_dir', required=False, default=False)
+    config.add_argument('early_stop', required=False, default=None)
 
     return config
 
@@ -209,4 +210,5 @@ def main() -> None:
         postprocess=cfg.model.postprocess,
         train_start_offset=cfg.model.train_start_offset,
         runners_batch_size=cfg.model.runners_batch_size,
-        initial_variables=cfg.model.initial_variables)
+        initial_variables=cfg.model.initial_variables,
+        early_stop=cfg.model.early_stop)

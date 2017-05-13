@@ -46,7 +46,8 @@ def training_loop(tf_manager: TensorFlowManager,
                   train_start_offset: int = 0,
                   runners_batch_size: Optional[int] = None,
                   initial_variables: Optional[Union[str, List[str]]] = None,
-                  postprocess: Postprocess = None) -> None:
+                  postprocess: Postprocess = None,
+                  early_stop: int = None) -> None:
     """
     Performs the training loop for given graph and data.
     Args:
@@ -179,8 +180,12 @@ def training_loop(tf_manager: TensorFlowManager,
     log("Starting training")
     last_log_time = time.process_time()
     last_val_time = time.process_time()
+    validation_scores = []
+    stop = False
     try:
         for epoch_n in range(1, epochs + 1):
+            if stop:
+                break
             log_print("")
             log("Epoch {} starts".format(epoch_n), color='red')
 
@@ -230,7 +235,7 @@ def training_loop(tf_manager: TensorFlowManager,
 
                 seen_instances += len(batch_dataset)
                 if _is_logging_time(step, log_period_batch,
-                                    last_log_time, log_period_time)  and len(runner)>0:
+                                    last_log_time, log_period_time) and len(runner)>0:
                     trainer_result = tf_manager.execute(
                         batch_dataset, [trainer], train=True,
                         summaries=True)
@@ -255,7 +260,7 @@ def training_loop(tf_manager: TensorFlowManager,
                                        train=True, summaries=False)
 
                 if _is_logging_time(step, val_period_batch,
-                                    last_val_time, val_period_time):
+                                    last_val_time, val_period_time) and len(runner) > 0:
                     log_print("")
                     val_duration_start = time.process_time()
                     val_examples = 0
@@ -287,6 +292,7 @@ def training_loop(tf_manager: TensorFlowManager,
                         # The last validation set is selected to be the main
                         if val_id == len(val_datasets) - 1:
                             this_score = val_evaluation[main_metric]
+                            validation_scores.append(this_score)
                             tf_manager.validation_hook(this_score, epoch_n,
                                                        batch_n)
 
@@ -297,9 +303,7 @@ def training_loop(tf_manager: TensorFlowManager,
 
                                 # store also graph parts
                                 all_coders = set.union(
-                                    *[rnr.all_coders
-                                      for rnr in runners +
-                                      [trainer]])  # type: ignore
+                                    *[rnr.all_coders for rnr in runner])
                                 for coder in all_coders:
                                     for session in tf_manager.sessions:
                                         coder.save(session)
@@ -313,6 +317,23 @@ def training_loop(tf_manager: TensorFlowManager,
                                         tf_manager.best_score_epoch,
                                         tf_manager.best_score_batch),
                                 color='blue')
+
+                            if early_stop is not None and early_stop > 0:
+                                # if last K validations were worse than best_result
+                                stop = True
+                                for result in validation_scores[-early_stop:]:
+                                    if abs(result - tf_manager.best_score) < tf_manager.best_score * 0.05:
+                                        # if result == tf_manager.best_score:
+                                        stop = False
+
+                        _print_examples(
+                            valset, val_outputs, val_preview_input_series,
+                            val_preview_output_series,
+                            val_preview_num_examples)
+                        log_print("")
+
+                        log("Validation (epoch {}, batch number {}):"
+                            .format(epoch_n, batch_n), color='blue')
 
                         _log_continuous_evaluation(
                             tb_writer, tf_manager, main_metric, val_evaluation,
@@ -337,6 +358,9 @@ def training_loop(tf_manager: TensorFlowManager,
 
                     log_print("")
                     last_val_time = time.process_time()
+                    if stop:
+                        break
+
 
     except KeyboardInterrupt:
         log("Training interrupted by user.")
@@ -486,8 +510,12 @@ def run_on_dataset(tf_manager: TensorFlowManager,
                     log('Result saved as numpy array to "{}"'.format(path))
                 else:
                     with open(path, 'w') as f_out:
-                        f_out.writelines(
-                            [" ".join(sent) + "\n" for sent in data])
+                        # TODO(kocmi): hack pro kaggle
+                        if isinstance(data[0][0], float):
+                            f_out.writelines("{}\n".format(number[0]) for number in data)
+                        else:
+                            f_out.writelines(
+                                [" ".join(sent) + "\n" for sent in data])
                     log("Result saved as plain text \"{}\"".format(path))
             else:
                 log("There is no output file for dataset: {}"

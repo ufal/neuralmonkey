@@ -32,6 +32,7 @@ CONFIG.ignore_argument('minimize')
 CONFIG.ignore_argument('random_seed')
 CONFIG.ignore_argument('save_n_best')
 CONFIG.ignore_argument('overwrite_output_dir')
+CONFIG.ignore_argument('early_stop')
 
 
 def default_variable_file(output_dir):
@@ -141,7 +142,7 @@ def main() -> None:
         execution_results, output_data = run_on_dataset(
             CONFIG.model.tf_manager, runner,
             dataset, CONFIG.model.postprocess, write_out=True,
-            batch_size=2000)
+            batch_size=1000)
         # TODO what if there is no ground truth
         eval_result = evaluation(evaluators, dataset, CONFIG.model.runners,
                                  execution_results, output_data)
