@@ -59,7 +59,8 @@ class SequenceRegressor(ModelPart):
             assert_shape(mlp, [-1, 1])
 
             self.predicted = mlp
-            self.cost = tf.reduce_mean(tf.square(mlp - self.gt_inputs))
+            self.cost = tf.reduce_mean(
+                tf.square(mlp - tf.expand_dims(self.gt_inputs, 1)))
 
             tf.summary.scalar(
                 'val_optimization_cost', self.cost,
