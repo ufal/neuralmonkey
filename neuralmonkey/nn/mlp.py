@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Callable
 import tensorflow as tf
 from neuralmonkey.nn.projection import linear, multilayer_projection
 
@@ -7,11 +7,14 @@ class MultilayerPerceptron(object):
     """ General implementation of the multilayer perceptron. """
 
     # pylint: disable=too-many-arguments
-    def __init__(self, mlp_input: tf.Tensor, layer_configuration: List[int],
+    def __init__(self,
+                 mlp_input: tf.Tensor,
+                 layer_configuration: List[int],
                  dropout_keep_prob: float,
-                 output_size: int, train_mode: tf.Tensor,
-                 name: str = 'multilayer_perceptron',
-                 activation_fn=tf.nn.relu, ) -> None:
+                 output_size: int,
+                 train_mode: tf.Tensor,
+                 activation_fn: Callable[[tf.Tensor], tf.Tensor] = tf.nn.relu,
+                 name: str = 'multilayer_perceptron') -> None:
 
         with tf.variable_scope(name):
             last_layer_size = mlp_input.get_shape()[-1].value

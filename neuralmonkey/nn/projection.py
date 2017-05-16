@@ -1,11 +1,14 @@
 """
 This module implements various types of projections.
 """
+from typing import List, Callable
 import tensorflow as tf
 from neuralmonkey.nn.utils import dropout
 
 
-def linear(inputs, size, scope="LinearProjection"):
+def linear(inputs: tf.Tensor,
+           size: int,
+           scope: str = "LinearProjection"):
     """Simple linear projection
 
     y = Wx + b
@@ -30,7 +33,10 @@ def linear(inputs, size, scope="LinearProjection"):
             activation_fn=None, scope=scope)
 
 
-def nonlinear(inputs, size, activation, scope="NonlinearProjection"):
+def nonlinear(inputs: tf.Tensor,
+              size: int,
+              activation: Callable[[tf.Tensor], tf.Tensor],
+              scope: str = "NonlinearProjection"):
     """Linear projection with non-linear activation function
 
     y = activation(Wx + b)
@@ -48,7 +54,9 @@ def nonlinear(inputs, size, activation, scope="NonlinearProjection"):
         return activation(linear(inputs, size, scope=varscope))
 
 
-def maxout(inputs, size, scope="MaxoutProjection"):
+def maxout(inputs: tf.Tensor,
+           size: int,
+           scope: str = "MaxoutProjection"):
     """Implementation of Maxout layer (Goodfellow et al., 2013)
     http://arxiv.org/pdf/1302.4389.pdf
 
@@ -74,9 +82,13 @@ def maxout(inputs, size, scope="MaxoutProjection"):
         return reshaped
 
 
-def multilayer_projection(input_, layer_sizes, train_mode: tf.Tensor,
-                          activation=tf.nn.relu, dropout_keep_prob=1.0,
-                          scope="mlp"):
+def multilayer_projection(
+        input_: tf.Tensor,
+        layer_sizes: List[int],
+        train_mode: tf.Tensor,
+        activation: Callable[[tf.Tensor], tf.Tensor] = tf.nn.relu,
+        dropout_keep_prob: float = 1.0,
+        scope: str = "mlp"):
     mlp_input = input_
 
     with tf.variable_scope(scope):

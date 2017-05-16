@@ -35,7 +35,7 @@ class TestDropout(unittest.TestCase):
             expected_dropped_size = 10000 * (1 - kprob)
 
             self.assertTrue(np.isclose(expected_dropped_size, dsize, atol=100))
-            
+
     def test_train_false(self):
         """Checks that dropout is not used when not training"""
 
