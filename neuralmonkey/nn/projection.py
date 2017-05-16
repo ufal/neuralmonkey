@@ -86,7 +86,7 @@ def multilayer_projection(
         input_: tf.Tensor,
         layer_sizes: List[int],
         train_mode: tf.Tensor,
-        activation: Callable[[tf.Tensor], tf.Tensor] = tf.nn.relu,
+        activation: Callable[[tf.Tensor], tf.Tensor]=tf.nn.relu,
         dropout_keep_prob: float = 1.0,
         scope: str = "mlp"):
     mlp_input = input_

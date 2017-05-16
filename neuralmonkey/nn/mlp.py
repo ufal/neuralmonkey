@@ -13,7 +13,7 @@ class MultilayerPerceptron(object):
                  dropout_keep_prob: float,
                  output_size: int,
                  train_mode: tf.Tensor,
-                 activation_fn: Callable[[tf.Tensor], tf.Tensor] = tf.nn.relu,
+                 activation_fn: Callable[[tf.Tensor], tf.Tensor]=tf.nn.relu,
                  name: str = 'multilayer_perceptron') -> None:
 
         with tf.variable_scope(name):
