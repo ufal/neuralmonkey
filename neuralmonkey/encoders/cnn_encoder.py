@@ -139,7 +139,7 @@ class CNNEncoder(ModelPart, Attentive):
                 self.encoded = multilayer_projection(
                     last_layer_flat, fully_connected,
                     activation=tf.nn.relu,
-                    dropout_keep_prob=dropout_keep_prob,
+                    dropout_keep_prob=self.dropout_keep_prob,
                     train_mode=self.train_mode)
 
             self.__attention_tensor = tf.reshape(
