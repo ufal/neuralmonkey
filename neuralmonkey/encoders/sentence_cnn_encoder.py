@@ -108,7 +108,7 @@ class SentenceCNNEncoder(ModelPart, Attentive):
             if filter_size <= 0:
                 raise ValueError("Filter size must be a positive integer.")
             if num_filters <= 0:
-                raise ValueError("Number of filters must be a positive integer.")
+                raise ValueError("Number of filters must be a positive int.")
 
         log("Initializing convolutional sentence encoder, name: '{}'"
             .format(self.name))

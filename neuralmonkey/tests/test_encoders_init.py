@@ -148,7 +148,7 @@ class TestEncodersInit(unittest.TestCase):
                 try:
                     with self.assertRaises(Exception):
                         encoder_type(**options)
-                except:
+                except Exception:
                     print("FAILED '{}', configuration: {}".format(
                         encoder_type, str(options)))
                     raise
@@ -160,7 +160,7 @@ class TestEncodersInit(unittest.TestCase):
                 name_suffix += 1
 
                 encoder_type(**options)
-            except:
+            except Exception:
                 print("Good param combo FAILED: {}, configuration: {}".format(
                     encoder_type, str(options)))
                 raise
