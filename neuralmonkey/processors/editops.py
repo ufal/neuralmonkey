@@ -25,7 +25,7 @@ class Postprocess(object):
     def __init__(
             self, source_id: str, edits_id: str,
             result_postprocess: Callable[
-                [Iterable[List[str]]], Iterable[List[str]]] = None) -> None:
+                [Iterable[List[str]]], Iterable[List[str]]]=None) -> None:
 
         self._source_id = source_id
         self._edits_id = edits_id
