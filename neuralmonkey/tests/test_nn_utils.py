@@ -46,7 +46,7 @@ class TestDropout(unittest.TestCase):
         dropped_size = tf.reduce_sum(dropped_var)
         dsize = s.run(dropped_size)
 
-        self.assertTrue(10000 == dsize)
+        self.assertTrue(dsize == 10000)
 
 
 if __name__ == "__main__":
