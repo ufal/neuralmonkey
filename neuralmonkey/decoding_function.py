@@ -196,5 +196,5 @@ class RecurrentAttention(object):
                 initial_state_bw=initial_state,
                 dtype=tf.float32)
 
-            return tf.concat(1, encoded_tup)
+            return tf.concat(encoded_tup, 1)
 # pylint: disable=unused-argument,too-few-public-methods
