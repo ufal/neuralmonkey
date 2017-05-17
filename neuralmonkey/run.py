@@ -121,6 +121,10 @@ def main() -> None:
 
             length = int(os.environ["SGE_TASK_STEPSIZE"])
             start = int(os.environ["SGE_TASK_ID"]) - 1
+            end = int(os.environ["SGE_TASK_LAST"]) - 1
+
+            if start + length > end:
+                length = end - start + 1
 
             log("Running grid task {} starting at {} with step {}"
                 .format(start // length, start, length))
