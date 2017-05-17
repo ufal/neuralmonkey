@@ -1,4 +1,4 @@
-from typing import Any, Callable, Dict, Iterable, List, Optional
+from typing import Any, Callable, Dict, Iterable, List
 
 import numpy as np
 
@@ -22,8 +22,11 @@ class Preprocess(object):
 
 class Postprocess(object):
     """Proprocessor applying edit operations on a series."""
-    def __init__(self, source_id: str, edits_id: str,
-                 result_postprocess: Optional[Callable]=None) -> None:
+    def __init__(
+            self, source_id: str, edits_id: str,
+            result_postprocess: Callable[
+                [Iterable[List[str]]], Iterable[List[str]]] = None) -> None:
+
         self._source_id = source_id
         self._edits_id = edits_id
         self._result_postprocess = result_postprocess
@@ -49,8 +52,8 @@ class Postprocess(object):
 
         if self._result_postprocess is not None:
             return self._result_postprocess(reconstructed_seq)
-        else:
-            return reconstructed_seq
+
+        return reconstructed_seq
 # pylint: enable=too-few-public-methods
 
 
