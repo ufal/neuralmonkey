@@ -1,4 +1,4 @@
-from typing import Optional, Tuple, Any
+from typing import Optional, Tuple
 
 import tensorflow as tf
 from typeguard import check_argument_types

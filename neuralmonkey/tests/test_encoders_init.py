@@ -1,8 +1,6 @@
 #!/usr/bin/env python3.5
 """Test init methods of encoders."""
 
-import random
-import string
 import unittest
 import copy
 
@@ -117,7 +115,7 @@ def traverse_combinations(
         partial_params: Dict[str, Any]) -> Iterable[Dict[str, Any]]:
     params = copy.copy(params)
 
-    if len(params) > 0:
+    if params:
         pivot_key, values = params.popitem()
 
         for val in values:
@@ -167,7 +165,10 @@ class TestEncodersInit(unittest.TestCase):
 
     def test_sentence_encoder(self):
         with self.assertRaises(Exception):
+            # pylint: disable=no-value-for-parameter
+            # on purpose, should fail
             SentenceEncoder()
+            # pylint: enable=no-value-for-parameter
 
         self._run_constructors(SentenceEncoder,
                                SENTENCE_ENCODER_GOOD,
@@ -175,7 +176,10 @@ class TestEncodersInit(unittest.TestCase):
 
     def test_sentence_cnn_encoder(self):
         with self.assertRaises(Exception):
+            # pylint: disable=no-value-for-parameter
+            # on purpose, should fail
             SentenceCNNEncoder()
+            # pylint: enable=no-value-for-parameter
 
         self._run_constructors(SentenceCNNEncoder,
                                SENTENCE_CNN_ENCODER_GOOD,
@@ -183,7 +187,10 @@ class TestEncodersInit(unittest.TestCase):
 
     def test_vector_encoder(self):
         with self.assertRaises(Exception):
+            # pylint: disable=no-value-for-parameter
+            # on purpose, should fail
             VectorEncoder()
+            # pylint: enable=no-value-for-parameter
 
         self._run_constructors(VectorEncoder,
                                VECTOR_ENCODER_GOOD,
@@ -191,7 +198,10 @@ class TestEncodersInit(unittest.TestCase):
 
     def test_post_cnn_encoder(self):
         with self.assertRaises(Exception):
+            # pylint: disable=no-value-for-parameter
+            # on purpose, should fail
             PostCNNImageEncoder()
+            # pylint: enable=no-value-for-parameter
 
         self._run_constructors(PostCNNImageEncoder,
                                POST_CNN_IMAGE_ENCODER_GOOD,
