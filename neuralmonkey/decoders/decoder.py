@@ -220,7 +220,7 @@ class Decoder(ModelPart):
 
     def _create_input_placeholders(self) -> None:
         """Creates input placeholder nodes in the computation graph"""
-        self.train_mode = tf.placeholder(tf.bool, name="decoder_train_mode")
+        self.train_mode = tf.placeholder(tf.bool, name="train_mode")
 
         self.go_symbols = tf.placeholder(tf.int32, shape=[1, None],
                                          name="decoder_go_symbols")

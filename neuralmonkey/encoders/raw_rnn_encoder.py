@@ -57,7 +57,7 @@ class RawRNNEncoder(ModelPart, Attentive):
         self.rnn_size = rnn_size
         self.max_input_len = max_input_len
         self.input_dimension = input_dimension
-        self.dropout_keep_p = dropout_keep_prob
+        self.dropout_keep_prob = dropout_keep_prob
 
         log("Initializing RNN encoder, name: '{}'"
             .format(self.name))
@@ -77,7 +77,8 @@ class RawRNNEncoder(ModelPart, Attentive):
 
             with tf.variable_scope('attention_tensor'):
                 self.__attention_tensor = dropout(
-                    self.hidden_states, self.dropout_keep_p, self.train_mode)
+                    self.hidden_states, self.dropout_keep_prob,
+                    self.train_mode)
 
             self.encoded = tf.concat(encoded_tup, 1)
 
@@ -93,8 +94,7 @@ class RawRNNEncoder(ModelPart, Attentive):
 
     def _create_input_placeholders(self) -> None:
         """Creates input placeholder nodes in the computation graph"""
-        self.train_mode = tf.placeholder(tf.bool, shape=[],
-                                         name="mode_placeholder")
+        self.train_mode = tf.placeholder(tf.bool, shape=[], name="train_mode")
 
         self.inputs = tf.placeholder(tf.float32,
                                      shape=[None, None,

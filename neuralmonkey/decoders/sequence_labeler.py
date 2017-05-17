@@ -36,7 +36,7 @@ class SequenceLabeler(ModelPart):
         self.train_weights = tf.placeholder(tf.float32, shape=[None, None],
                                             name="labeler_padding_weights")
 
-        self.train_mode = tf.placeholder(tf.bool, name="labeler_train_mode")
+        self.train_mode = tf.placeholder(tf.bool, name="train_mode")
 
     @property
     def train_loss(self) -> tf.Tensor:

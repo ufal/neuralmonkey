@@ -50,7 +50,7 @@ class SequenceCNNEncoder(ModelPart):
 
         with self.use_scope():
             self.train_mode = tf.placeholder(tf.bool, shape=[],
-                                             name="mode_placeholder")
+                                             name="train_mode")
 
             self.inputs = tf.placeholder(tf.int32,
                                          shape=[None, None],
