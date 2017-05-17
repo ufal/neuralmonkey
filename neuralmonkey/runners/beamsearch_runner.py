@@ -104,7 +104,7 @@ class BeamSearchRunner(BaseRunner):
 
 def beam_search_runner_range(output_series: str,
                              decoder: BeamSearchDecoder,
-                             max_rank: int = 10,
+                             max_rank: int = None,
                              postprocess: Callable[
                                  [List[str]], List[str]]=None
                             ) -> List[BeamSearchRunner]:
@@ -125,6 +125,9 @@ def beam_search_runner_range(output_series: str,
     """
 
     assert check_argument_types()
+
+    if max_rank is None:
+        max_rank = decoder.beam_size
 
     if max_rank > decoder.beam_size:
         raise ValueError(
