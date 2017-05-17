@@ -263,7 +263,7 @@ def training_loop(tf_manager: TensorFlowManager,
                         "per-instance (train): {:.2f}s, per-instance (val): "
                         "{:.2f}s".format(val_duration, training_duration,
                                          steptime, valtime), color="blue")
-                    if training_duration > 2 * val_duration:
+                    if training_duration < 2 * val_duration:
                         notice("Validation period setting is inefficient.")
 
                     log_print("")
