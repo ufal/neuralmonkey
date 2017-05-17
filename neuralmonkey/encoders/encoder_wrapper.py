@@ -57,12 +57,12 @@ class MultiAttention(metaclass=ABCMeta):
                  encoders: List[Attentive],
                  state_size: int,
                  scope: Union[tf.VariableScope, str],
-                 share_projections: bool=False,
-                 use_sentinels: bool=False) -> None:
+                 share_projections: bool = False,
+                 use_sentinels: bool = False) -> None:
         self._encoders = encoders
         self._state_size = state_size
         self._scope = scope
-        self.attentions_in_time = []
+        self.attentions_in_time = []  # type: List[tf.Tensor]
         self._share_projections = share_projections
         self._use_sentinels = use_sentinels
 

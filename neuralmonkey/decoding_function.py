@@ -20,7 +20,7 @@ class Attention(object):
                  attention_states: tf.Tensor,
                  scope: str,
                  attention_state_size: int = None,
-                 input_weights: tf.Tensor = None,
+                 input_weights: tf.Tensor=None,
                  attention_fertility: int = None) -> None:
         """Create the attention object.
 
@@ -145,6 +145,7 @@ class CoverageAttention(Attention):
         return logits
 
 
+# pylint: disable=too-few-public-methods
 class RecurrentAttention(object):
     """From article `Recurrent Neural Machine Translation
     `<https://arxiv.org/pdf/1607.08725v1.pdf>`_
@@ -176,10 +177,10 @@ class RecurrentAttention(object):
         self.fw_cell = OrthoGRUCell(self._state_size)
         self.bw_cell = OrthoGRUCell(self._state_size)
 
+    # pylint: disable=unused-argument
     def attention(self, query_state, prev_state, _):
 
-        with tf.variable_scope(
-                self._scope + "/RecurrentAttention") as varscope:
+        with tf.variable_scope(self._scope + "/RecurrentAttn") as varscope:
             initial_state = linear(query_state, self._state_size, varscope)
             initial_state = tf.tanh(initial_state)
 
@@ -196,3 +197,4 @@ class RecurrentAttention(object):
                 dtype=tf.float32)
 
             return tf.concat(1, encoded_tup)
+# pylint: disable=unused-argument,too-few-public-methods
