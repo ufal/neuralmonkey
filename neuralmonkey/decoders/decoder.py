@@ -7,7 +7,7 @@ from typeguard import check_argument_types
 
 from neuralmonkey.decoding_function import Attention
 from neuralmonkey.dataset import Dataset
-from neuralmonkey.vocabulary import Vocabulary, START_TOKEN
+from neuralmonkey.vocabulary import Vocabulary, START_TOKEN, END_TOKEN_INDEX
 from neuralmonkey.model.model_part import ModelPart, FeedDict
 from neuralmonkey.logging import log, warn
 from neuralmonkey.nn.utils import dropout
@@ -169,7 +169,7 @@ class Decoder(ModelPart):
                         for e in self.encoders
                         if isinstance(e, Attentive)}
 
-            self.train_logits, _ = self._decoding_loop(
+            self.train_logits, _, _ = self._decoding_loop(
                 embedded_go_symbols,
                 train_inputs=embedded_train_inputs,
                 train_mode=True)
@@ -187,7 +187,8 @@ class Decoder(ModelPart):
                     if isinstance(e, Attentive)}
 
             (self.runtime_logits,
-             self.runtime_rnn_states) = self._decoding_loop(
+             self.runtime_rnn_states,
+             self.runtime_mask) = self._decoding_loop(
                  embedded_go_symbols,
                  train_mode=False)
 
@@ -357,7 +358,7 @@ class Decoder(ModelPart):
             go_symbols: tf.Tensor,
             train_inputs: tf.Tensor=None,
             train_mode: bool = False) -> Tuple[
-                List[tf.Tensor], List[tf.Tensor]]:
+                List[tf.Tensor], List[tf.Tensor], List[tf.Tensor]]:
         """Run the decoder RNN.
 
         Arguments:
@@ -385,8 +386,12 @@ class Decoder(ModelPart):
 
         attns = [tf.zeros([self.batch_size, a.attn_size])
                  for a in att_objects]
-        states = []
-        logits = []
+        states = []  # type: List[tf.Tensor]
+        logits = []  # type: List[tf.Tensor]
+
+        mask = []  # type: List[tf.Tensor]
+        finished = tf.zeros([self.batch_size], dtype=tf.bool)
+
         for i in range(self.max_output_len):
             if i > 0:
                 self.step_scope.reuse_variables()
@@ -405,10 +410,16 @@ class Decoder(ModelPart):
             step_logits, state, attns = self.step(
                 att_objects, inp, state, attns)
 
+            next_word_id = tf.argmax(step_logits, axis=1)
+            has_just_finished = tf.equal(next_word_id, END_TOKEN_INDEX)
+            finished = tf.logical_or(has_just_finished, finished)
+
+            mask.append(tf.logical_not(finished))
+
             logits.append(step_logits)
             states.append(state)
 
-        return logits, states
+        return logits, states, mask
 
     def _visualize_attention(self) -> None:
         """Create image summaries with attentions"""
