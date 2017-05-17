@@ -285,7 +285,6 @@ As for the evaluation, you need to create ``translation_run.ini``:
   [eval_data]
   class=dataset.load_dataset_from_files
   s_source="exp-nm-mt/data/test/Batch3a_en.txt.gz"
-  s_series_named_greedy_out="/path/to/your/output_file"
   preprocessors=[("source", "source_bpe", <bpe_preprocess>)]
 .. TUTCHECK exp-nm-mt/translation_run.ini
 
