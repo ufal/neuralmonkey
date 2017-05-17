@@ -1,3 +1,18 @@
+"""Attention combination state gores.
+
+This modules implements attention combination strategies for multi-encoder
+scenario when we may want to combine the hidden states of the encoders in
+more complicated fashion.
+
+Currently there are two attention combination strategies flat and hierarchical
+(see paper `Attention Combination Strategies for Multi-Source
+Sequence-to-Sequence Learning <https://arxiv.org/pdf/1704.06567.pdf>`_).
+
+The combination strategies may use the sentinel mechanism which allows the
+decoder not to attend to the, and extract information on its own hidden state
+(see paper `Knowing when to Look: Adaptive Attention via a Visual Sentinel for
+Image Captioning  <https://arxiv.org/pdf/1612.01887.pdf>`_).
+"""
 from abc import ABCMeta
 from typing import Any, List, Union, Type
 import tensorflow as tf
@@ -10,6 +25,12 @@ from neuralmonkey.nn.projection import linear
 
 
 class EncoderWrapper(ModelPart, Attentive):
+    """Wrapper doing attention combination behaving as a single encoder.
+
+    This class wraps encoders and performs the attention combination in such a
+    way that for the decoder, it looks like a single encoder capable to
+    generate a single context vector.
+    """
 
     def __init__(self,
                  name: str,
@@ -18,6 +39,21 @@ class EncoderWrapper(ModelPart, Attentive):
                  attention_state_size: int,
                  use_sentinels=False,
                  share_attn_projections=False) -> None:
+        """Initializes the encoder wrapper.
+
+        Args:
+            name: Name of the encoder / its scope.
+            encoders: List of encoders to be wrapped.
+            attention_type: Type of the attention combination.
+            attention_state_size: Dimension of the state projection of
+                attention energy computation.
+            use_sentinels: Flag whether the sentinel mechanism should be added
+                to the attention combination.
+            share_attn_projections: Flag whether the hidden state projection
+                should be shared for the both the energies computation and
+                context vector computation.
+        """
+
         ModelPart.__init__(self, name, None, None)
         Attentive.__init__(self, attention_type)
         self.encoders = encoders
@@ -51,6 +87,7 @@ class EncoderWrapper(ModelPart, Attentive):
 
 
 class MultiAttention(metaclass=ABCMeta):
+    """Base class for attention combination."""
 
     # pylint: disable=unused-argument
     def __init__(self,
@@ -73,6 +110,7 @@ class MultiAttention(metaclass=ABCMeta):
     # pylint: enable=unused-argument
 
     def attention(self, decoder_state, decoder_prev_state, decoder_input):
+        """Get context vector for given decoder state."""
         raise NotImplementedError("Abstract method")
 
     @property
@@ -112,6 +150,17 @@ class MultiAttention(metaclass=ABCMeta):
 
 
 class FlatMultiAttention(MultiAttention):
+    """Flat attention combination strategy.
+
+    Using this attention combination strategy, hidden states of the encoders
+    are first projected to the same space (different projection for different
+    encoders) and then we compute a joint distribution over all the hidden
+    states. The context vector is then a weighted sum of another / then
+    projection of the encoders hidden states. The sentinel vector can be added
+    as an additional hidden state.
+
+    See equations 8 to 10 in the Attention Combination Strategies paper.
+    """
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -240,6 +289,15 @@ def _sentinel(state, prev_state, input_):
 
 
 class HierarchicalMultiAttention(MultiAttention):
+    """Hierarchical attention combination.
+
+    Hierarchical attention combination strategy first computes the context
+    vector for each encoder separately using whatever attention type the
+    encoders have. After that it computes a second attention over the resulting
+    context vectors and optionally the sentinel vector.
+
+    See equations 6 and 7 in the Attention Combination Strategies paper.
+    """
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
