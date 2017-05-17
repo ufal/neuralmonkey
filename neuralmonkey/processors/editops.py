@@ -1,4 +1,4 @@
-from typing import Any, Dict, Iterable, List
+from typing import Any, Callable, Dict, Iterable, List
 
 import numpy as np
 
@@ -22,11 +22,16 @@ class Preprocess(object):
 
 class Postprocess(object):
     """Proprocessor applying edit operations on a series."""
-    def __init__(self, source_id: str, edits_id: str) -> None:
+    def __init__(
+            self, source_id: str, edits_id: str,
+            result_postprocess: Callable[
+                [Iterable[List[str]]], Iterable[List[str]]]=None) -> None:
+
         self._source_id = source_id
         self._edits_id = edits_id
+        self._result_postprocess = result_postprocess
 
-    def __call__(
+    def _do_postprocess(
             self, dataset: Dataset,
             generated_series: Dict[str, Iterable[Any]]) -> Iterable[List[str]]:
 
@@ -36,7 +41,19 @@ class Postprocess(object):
             self._edits_id, dataset.get_series(self._edits_id))
 
         for src_seq, edit_seq in zip(source_series, edits_series):
-            yield reconstruct(src_seq, edit_seq)
+            reconstructed = reconstruct(src_seq, edit_seq)
+            yield reconstructed
+
+    def __call__(
+            self, dataset: Dataset,
+            generated_series: Dict[str, Iterable[Any]]) -> Iterable[List[str]]:
+
+        reconstructed_seq = self._do_postprocess(dataset, generated_series)
+
+        if self._result_postprocess is not None:
+            return self._result_postprocess(reconstructed_seq)
+
+        return reconstructed_seq
 # pylint: enable=too-few-public-methods
 
 
