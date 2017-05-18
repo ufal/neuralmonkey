@@ -13,11 +13,11 @@ decoder not to attend to the, and extract information on its own hidden state
 (see paper `Knowing when to Look: Adaptive Attention via a Visual Sentinel for
 Image Captioning  <https://arxiv.org/pdf/1612.01887.pdf>`_).
 """
-from abc import ABCMeta
 from typing import Any, List, Union, Type
 import tensorflow as tf
 
 from neuralmonkey.dataset import Dataset
+from neuralmonkey.decoding_function import BaseAttention
 from neuralmonkey.model.model_part import ModelPart, FeedDict
 from neuralmonkey.encoders.attentive import Attentive
 from neuralmonkey.checking import assert_shape
@@ -86,26 +86,25 @@ class EncoderWrapper(ModelPart, Attentive):
                                   " attention mask")
 
 
-class MultiAttention(metaclass=ABCMeta):
+class MultiAttention(BaseAttention):
     """Base class for attention combination."""
 
     # pylint: disable=unused-argument
     def __init__(self,
                  encoders: List[Attentive],
-                 state_size: int,
+                 attention_state_size: int,
                  scope: Union[tf.VariableScope, str],
                  share_projections: bool = False,
                  use_sentinels: bool = False) -> None:
+        super().__init__(scope, None, attention_state_size)
         self._encoders = encoders
-        self._state_size = state_size
-        self._scope = scope
         self.attentions_in_time = []  # type: List[tf.Tensor]
         self._share_projections = share_projections
         self._use_sentinels = use_sentinels
 
-        with tf.variable_scope(self._scope):
+        with tf.variable_scope(self.scope):
             self.attn_v = tf.get_variable(
-                "attn_v", [1, 1, self._state_size],
+                "attn_v", [1, 1, self.attention_state_size],
                 initializer=tf.random_normal_initializer(stddev=.001))
     # pylint: enable=unused-argument
 
@@ -115,7 +114,7 @@ class MultiAttention(metaclass=ABCMeta):
 
     @property
     def attn_size(self):
-        return self._state_size
+        return self.attention_state_size
 
     def _vector_logit(self,
                       projected_decoder_state: tf.Tensor,
@@ -131,14 +130,14 @@ class MultiAttention(metaclass=ABCMeta):
                 initializer=tf.constant_initializer(0.0))
 
             proj_vector_for_logit = tf.expand_dims(
-                linear(vector_value, self._state_size,
+                linear(vector_value, self.attention_state_size,
                        scope="vector_projection"), 1)
 
             if self._share_projections:
                 proj_vector_for_ctx = proj_vector_for_logit
             else:
                 proj_vector_for_ctx = tf.expand_dims(
-                    linear(vector_value, self._state_size,
+                    linear(vector_value, self.attention_state_size,
                            scope="vector_ctx_proj"), 1)
 
             vector_logit = tf.reduce_sum(
@@ -175,7 +174,7 @@ class FlatMultiAttention(MultiAttention):
         for e_t in self._encoders_tensors:
             assert_shape(e_t, [-1, -1, -1])
 
-        with tf.variable_scope(self._scope):
+        with tf.variable_scope(self.scope):
             self.encoder_projections_for_logits = \
                 self.get_encoder_projections("logits_projections")
 
@@ -207,33 +206,35 @@ class FlatMultiAttention(MultiAttention):
 
                 proj_matrix = tf.get_variable(
                     "proj_matrix_{}".format(i),
-                    [encoder_state_size, self._state_size],
+                    [encoder_state_size, self.attention_state_size],
                     initializer=tf.random_normal_initializer(stddev=0.001))
 
                 proj_bias = tf.get_variable(
                     "proj_bias_{}".format(i),
-                    initializer=tf.zeros_initializer([self._state_size]))
+                    shape=[self.attention_state_size],
+                    initializer=tf.zeros_initializer())
 
                 encoder_tensor_2d = tf.reshape(
                     encoder_tensor, [-1, encoder_state_size])
 
                 projected_2d = tf.matmul(
                     encoder_tensor_2d, proj_matrix) + proj_bias
-                assert_shape(projected_2d, [-1, self._state_size])
+                assert_shape(projected_2d, [-1, self.attention_state_size])
 
-                projection = tf.reshape(projected_2d, [encoder_tensor_shape[0],
-                                                       encoder_tensor_shape[1],
-                                                       self._state_size])
+                projection = tf.reshape(
+                    projected_2d, [encoder_tensor_shape[0],
+                                   encoder_tensor_shape[1],
+                                   self.attention_state_size])
 
                 encoder_projections.append(projection)
             return encoder_projections
 
     def attention(self, decoder_state, decoder_prev_state, decoder_input):
-        with tf.variable_scope(self._scope):
-            projected_state = linear(decoder_state, self._state_size)
+        with tf.variable_scope(self.scope):
+            projected_state = linear(decoder_state, self.attention_state_size)
             projected_state = tf.expand_dims(projected_state, 1)
 
-            assert_shape(projected_state, [-1, 1, self._state_size])
+            assert_shape(projected_state, [-1, 1, self.attention_state_size])
 
             logits = []
 
@@ -251,13 +252,13 @@ class FlatMultiAttention(MultiAttention):
                     projected_state, sentinel_value, scope="sentinel")
                 logits.append(sentinel_logit)
 
-            attentions = self._renorm_softmax(tf.concat(1, logits))
+            attentions = self._renorm_softmax(tf.concat(logits, 1))
 
             self.attentions_in_time.append(attentions)
 
             projections_concat = tf.concat(
-                1, self.encoder_projections_for_ctx +
-                ([projected_sentinel] if self._use_sentinels else []))
+                self.encoder_projections_for_ctx +
+                ([projected_sentinel] if self._use_sentinels else []), 1)
 
             contexts = tf.reduce_sum(
                 tf.expand_dims(attentions, 2) * projections_concat, [1])
@@ -302,16 +303,16 @@ class HierarchicalMultiAttention(MultiAttention):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
-        with tf.variable_scope(self._scope):
+        with tf.variable_scope(self.scope):
             self._attn_objs = [
                 e.create_attention_object() for e in self._encoders]
 
     def attention(self, decoder_state, decoder_prev_state, decoder_input):
-        with tf.variable_scope(self._scope):
-            projected_state = linear(decoder_state, self._state_size)
+        with tf.variable_scope(self.scope):
+            projected_state = linear(decoder_state, self.attention_state_size)
             projected_state = tf.expand_dims(projected_state, 1)
 
-            assert_shape(projected_state, [-1, 1, self._state_size])
+            assert_shape(projected_state, [-1, 1, self.attention_state_size])
             attn_ctx_vectors = [
                 a.attention(decoder_state, decoder_prev_state, decoder_input)
                 for a in self._attn_objs]
@@ -337,12 +338,12 @@ class HierarchicalMultiAttention(MultiAttention):
             else:
                 output_cxts = [
                     tf.expand_dims(
-                        linear(ctx_vec, self._state_size,
+                        linear(ctx_vec, self.attention_state_size,
                                scope="proj_attn_{}".format(enc.name)), 1)
                     for ctx_vec, enc in zip(attn_ctx_vectors, self._encoders)]
                 if self._use_sentinels:
                     output_cxts.append(tf.expand_dims(
-                        linear(sentinel_value, self._state_size,
+                        linear(sentinel_value, self.attention_state_size,
                                scope="proj_sentinel"), 1))
 
             projections_concat = tf.concat(output_cxts, 1)

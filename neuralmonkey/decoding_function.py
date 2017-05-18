@@ -16,10 +16,12 @@ class BaseAttention(metaclass=ABCMeta):
     def __init__(self,
                  scope: str,
                  attention_states: tf.Tensor,
-                 attention_state_size: int) -> None:
+                 attention_state_size: int,
+                 input_weights: tf.Tensor=None) -> None:
         self.scope = scope
         self.attention_states = attention_states
         self.attention_state_size = attention_state_size
+        self.input_weights = input_weights
 
     def attention(self,
                   decoder_state: tf.Tensor,
@@ -56,10 +58,10 @@ class Attention(BaseAttention):
             attention_fertility: (Optional) For the Coverage attention
                 compatibilty, maximum fertility of one word.
         """
-        super().__init__(scope, attention_states, attention_state_size)
+        super().__init__(
+            scope, attention_states, attention_state_size, input_weights)
         self.logits_in_time = []  # type: List[tf.Tensor]
         self.attentions_in_time = []  # type: List[tf.Tensor]
-        self.input_weights = input_weights
 
         self.attn_size = attention_states.get_shape()[2].value
 
@@ -191,8 +193,8 @@ class RecurrentAttention(BaseAttention):
                  attention_states: tf.Tensor,
                  input_weights: tf.Tensor,
                  attention_state_size: int, **kwargs) -> None:
-        super().__init__(scope, attention_states, attention_state_size)
-        self._input_mask = input_weights
+        super().__init__(
+            scope, attention_states, attention_state_size, input_weights)
 
         self._state_size = attention_state_size
         self.attn_size = 2 * self._state_size
@@ -213,7 +215,8 @@ class RecurrentAttention(BaseAttention):
             # TODO dropout?
             # we'd need the train_mode and dropout_keep_prob parameters
 
-            sentence_lengths = tf.to_int32(tf.reduce_sum(self._input_mask, 1))
+            sentence_lengths = tf.to_int32(
+                tf.reduce_sum(self.input_weights, 1))
 
             _, encoded_tup = tf.nn.bidirectional_dynamic_rnn(
                 self.fw_cell, self.bw_cell, self.attention_states,

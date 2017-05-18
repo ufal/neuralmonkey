@@ -14,7 +14,7 @@ import tensorflow.contrib.slim.nets
 from neuralmonkey.logging import warn
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.encoders.attentive import Attentive
-from neuralmonkey.decoding_function import BaseAttention
+from neuralmonkey.decoding_function import Attention
 from neuralmonkey.model.model_part import ModelPart, FeedDict
 
 SUPPORTED_NETWORKS = {
@@ -54,7 +54,7 @@ class ImageNet(ModelPart, Attentive):
                  network_type: str,
                  attention_layer: Optional[str] = None,
                  attention_state_size: Optional[int] = None,
-                 attention_type: Type = BaseAttention,
+                 attention_type: Type = Attention,
                  fine_tune: bool = False,
                  encoded_layer: Optional[str] = None,
                  load_checkpoint: Optional[str] = None,
