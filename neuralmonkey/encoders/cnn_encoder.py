@@ -10,7 +10,7 @@ from tensorflow.contrib.layers import conv2d, max_pool2d, batch_norm
 from neuralmonkey.checking import assert_shape
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.encoders.attentive import Attentive
-from neuralmonkey.decoding_function import BaseAttention
+from neuralmonkey.decoding_function import Attention
 from neuralmonkey.model.model_part import ModelPart, FeedDict
 from neuralmonkey.nn.projection import multilayer_projection
 from neuralmonkey.nn.utils import dropout
@@ -47,7 +47,7 @@ class CNNEncoder(ModelPart, Attentive):
                  batch_normalization: bool = True,
                  local_response_normalization: bool = True,
                  dropout_keep_prob: float = 0.5,
-                 attention_type: Type = BaseAttention,
+                 attention_type: Type = Attention,
                  save_checkpoint: Optional[str] = None,
                  load_checkpoint: Optional[str] = None) -> None:
         """Initialize a convolutional network for image processing.
