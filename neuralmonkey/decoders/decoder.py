@@ -306,7 +306,7 @@ class Decoder(ModelPart):
             raise ValueError("Unknown RNN cell: {}".format(self._rnn_cell))
 
     def _get_conditional_gru_cell(self) -> tf.contrib.rnn.RNNCell:
-            return tf.contrib.rnn.GRUCell(self.rnn_size)
+        return tf.contrib.rnn.GRUCell(self.rnn_size)
 
     def get_attention_object(self, encoder, train_mode: bool):
         if train_mode:
