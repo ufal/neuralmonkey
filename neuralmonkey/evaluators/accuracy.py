@@ -10,7 +10,7 @@ class AccuracyEvaluator(object):
                  name: str = "Accuracy") -> None:
         self.seq_level = seq_level
         if seq_level:
-            self.name = "AccuracyTop1"
+            self.name = "AccuracySeqLevel"
         else:
             self.name = name
 
