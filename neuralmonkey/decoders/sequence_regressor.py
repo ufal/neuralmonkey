@@ -4,11 +4,10 @@ import tensorflow as tf
 
 from typeguard import check_argument_types
 from neuralmonkey.nn.projection import multilayer_projection, linear
-from neuralmonkey.nn.utils import dropout
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.model.model_part import ModelPart, FeedDict
-from neuralmonkey.checking import assert_shape
 from neuralmonkey.decorators import tensor
+
 
 class SequenceRegressor(ModelPart):
     """A simple MLP regression over encoders.
@@ -33,6 +32,7 @@ class SequenceRegressor(ModelPart):
         self.encoders = encoders
         self.data_id = data_id
         self.max_output_len = 1
+        self.dimension = dimension
 
         self._layers = layers
         self._activation_fn = activation_fn
@@ -46,6 +46,7 @@ class SequenceRegressor(ModelPart):
             self.cost, collections=["summary_train"])
     # pylint: enable=too-many-arguments
 
+    # pylint: disable=no-self-use
     @tensor
     def train_mode(self):
         return tf.placeholder(tf.bool, name="train_mode")
@@ -53,6 +54,7 @@ class SequenceRegressor(ModelPart):
     @tensor
     def train_inputs(self):
         return tf.placeholder(tf.float32, shape=[None], name="targets")
+    # pylint: enable=no-self-use
 
     @tensor
     def _mlp_input(self):
@@ -66,8 +68,8 @@ class SequenceRegressor(ModelPart):
 
     @tensor
     def predictions(self):
-        # TODO extend it to output into multidimensional space
-        return linear(self._mlp_output, 1, scope="output_projection")
+        return linear(self._mlp_output, self.dimension,
+                      scope="output_projection")
 
     @tensor
     def cost(self):
