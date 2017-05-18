@@ -33,7 +33,7 @@ class RegressionRunner(BaseRunner):
         else:
             fetches = {}
 
-        fetches["prediction"] = self._decoder.predicted
+        fetches["prediction"] = self._decoder.predictions
 
         return RegressionRunExecutable(self.all_coders, fetches,
                                        self._postprocess)

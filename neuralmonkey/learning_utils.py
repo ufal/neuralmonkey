@@ -526,6 +526,9 @@ def _data_item_to_str(item: Any) -> str:
         return item
 
     if isinstance(item, np.ndarray):
+        if len(item.shape) == 1:
+            return str(item)
+
         return "numpy tensor"
 
     return str(item)

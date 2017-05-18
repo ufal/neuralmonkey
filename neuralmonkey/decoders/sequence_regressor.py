@@ -1,17 +1,14 @@
-from typing import cast, Any, Callable, Iterable, Optional, List
+from typing import cast, Any, Callable, Iterable, List
 
 import tensorflow as tf
 
 from typeguard import check_argument_types
-from neuralmonkey.nn.projection import multilayer_projection
+from neuralmonkey.nn.projection import multilayer_projection, linear
+from neuralmonkey.nn.utils import dropout
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.model.model_part import ModelPart, FeedDict
 from neuralmonkey.checking import assert_shape
-
-# tests: lint, mypy
-
-# pylint: disable=too-many-instance-attributes
-
+from neuralmonkey.decorators import tensor
 
 class SequenceRegressor(ModelPart):
     """A simple MLP regression over encoders.
@@ -24,51 +21,58 @@ class SequenceRegressor(ModelPart):
                  name: str,
                  encoders: List[Any],
                  data_id: str,
-                 layers: Optional[List[int]] = None,
-                 activation_fn: Callable[[tf.Tensor], tf.Tensor]=tf.tanh,
-                 dropout_keep_prob: float = 0.5,
-                 save_checkpoint: Optional[str] = None,
-                 load_checkpoint: Optional[str] = None) -> None:
+                 layers: List[int] = None,
+                 activation_fn: Callable[[tf.Tensor], tf.Tensor]=tf.nn.relu,
+                 dropout_keep_prob: float = 1.0,
+                 dimension: int = 1,
+                 save_checkpoint: str = None,
+                 load_checkpoint: str = None) -> None:
         ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
         assert check_argument_types()
 
         self.encoders = encoders
         self.data_id = data_id
-        self.layers = layers
-        self.activation_fn = activation_fn
-        self.dropout_keep_prob = dropout_keep_prob
         self.max_output_len = 1
 
-        with tf.variable_scope(name):
-            self.learning_step = tf.get_variable(
-                "learning_step", [], trainable=False,
-                initializer=tf.constant_initializer(0))
+        self._layers = layers
+        self._activation_fn = activation_fn
+        self._dropout_keep_prob = dropout_keep_prob
 
-            self.dropout_placeholder = \
-                tf.placeholder(tf.float32, name="dropout_plc")
-            self.gt_inputs = tf.placeholder(tf.float32, shape=[None],
-                                            name="targets")
-
-            mlp_input = tf.concat([enc.encoded for enc in encoders], 1)
-            # TODO extend it to output into multidimensional space
-            layers.append(1)
-            mlp = multilayer_projection(
-                mlp_input, layers, activation=self.activation_fn,
-                dropout_plc=self.dropout_placeholder)
-
-            assert_shape(mlp, [-1, 1])
-
-            self.predicted = mlp
-            self.cost = tf.reduce_mean(
-                tf.square(mlp - tf.expand_dims(self.gt_inputs, 1)))
-
-            tf.summary.scalar(
-                'val_optimization_cost', self.cost,
-                collections=["summary_val"])
-            tf.summary.scalar(
-                'train_optimization_cost',
-                self.cost, collections=["summary_train"])
+        tf.summary.scalar(
+            'val_optimization_cost', self.cost,
+            collections=["summary_val"])
+        tf.summary.scalar(
+            'train_optimization_cost',
+            self.cost, collections=["summary_train"])
     # pylint: enable=too-many-arguments
+
+    @tensor
+    def train_mode(self):
+        return tf.placeholder(tf.bool, name="train_mode")
+
+    @tensor
+    def train_inputs(self):
+        return tf.placeholder(tf.float32, shape=[None], name="targets")
+
+    @tensor
+    def _mlp_input(self):
+        return tf.concat([enc.encoded for enc in self.encoders], 1)
+
+    @tensor
+    def _mlp_output(self):
+        return multilayer_projection(
+            self._mlp_input, self._layers, self.train_mode,
+            self._activation_fn, self._dropout_keep_prob)
+
+    @tensor
+    def predictions(self):
+        # TODO extend it to output into multidimensional space
+        return linear(self._mlp_output, 1, scope="output_projection")
+
+    @tensor
+    def cost(self):
+        return tf.reduce_mean(tf.square(
+            self.predictions - tf.expand_dims(self.train_inputs, 1)))
 
     @property
     def train_loss(self):
@@ -80,7 +84,7 @@ class SequenceRegressor(ModelPart):
 
     @property
     def decoded(self):
-        return self.predicted
+        return self.predictions
 
     def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
         sentences = cast(Iterable[List[str]],
@@ -90,11 +94,8 @@ class SequenceRegressor(ModelPart):
 
         fd = {}  # type: FeedDict
         if sentences_list is not None:
-            fd[self.gt_inputs] = list(zip(*sentences_list))[0]
+            fd[self.train_inputs] = list(zip(*sentences_list))[0]
 
-        if train:
-            fd[self.dropout_placeholder] = self.dropout_keep_prob
-        else:
-            fd[self.dropout_placeholder] = 1.0
+        fd[self.train_mode] = train
 
         return fd
