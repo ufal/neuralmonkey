@@ -112,5 +112,6 @@ class TestAccuracyEvaluator(unittest.TestCase):
         self.assertEqual(seq_acc, 0.5)
         self.assertEqual(max_seq_acc, 1.0)
 
+
 if __name__ == "__main__":
     unittest.main()

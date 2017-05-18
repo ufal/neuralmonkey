@@ -19,11 +19,11 @@ class AccuracyEvaluator(object):
                  references: List[List[Any]]) -> float:
         if self.seq_level:
             collected_info = [dec == ref
-                             for dec, ref in zip(decoded, references)]
+                              for dec, ref in zip(decoded, references)]
         else:
             collected_info = [d == r
-                             for dec, ref in zip(decoded, references)
-                             for d, r in zip(dec, ref)]
+                              for dec, ref in zip(decoded, references)
+                              for d, r in zip(dec, ref)]
         if collected_info == []:
             mean = 0
         else:
