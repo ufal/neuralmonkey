@@ -4,13 +4,33 @@ for RNN decoders.
 
 See http://arxiv.org/abs/1606.07481
 """
+from abc import ABCMeta
 
 import tensorflow as tf
 from neuralmonkey.nn.projection import linear
 from neuralmonkey.nn.ortho_gru_cell import OrthoGRUCell
 
 
-class Attention(object):
+# pylint: disable=too-few-public-methods
+class BaseAttention(metaclass=ABCMeta):
+    def __init__(self,
+                 scope: str,
+                 attention_states: tf.Tensor,
+                 attention_state_size: int) -> None:
+        self.scope = scope
+        self.attention_states = attention_states
+        self.attention_state_size = attention_state_size
+
+    def attention(self,
+                  decoder_state: tf.Tensor,
+                  decoder_prev_state: tf.Tensor,
+                  decoder_input: tf.Tensor) -> tf.Tensor:
+        """Get context vector for given decoder state."""
+        raise NotImplementedError("Abstract method")
+# pylint: enable=too-few-public-methods
+
+
+class Attention(BaseAttention):
     # pylint: disable=unused-argument,too-many-instance-attributes
     # pylint: disable=too-many-arguments
 
@@ -36,14 +56,12 @@ class Attention(object):
             attention_fertility: (Optional) For the Coverage attention
                 compatibilty, maximum fertility of one word.
         """
-        self.scope = scope
+        super().__init__(scope, attention_states, attention_state_size)
         self.logits_in_time = []  # type: List[tf.Tensor]
         self.attentions_in_time = []  # type: List[tf.Tensor]
-        self.attention_states = attention_states
         self.input_weights = input_weights
 
         self.attn_size = attention_states.get_shape()[2].value
-        self.attention_state_size = attention_state_size
 
         if self.attention_state_size is None:
             self.attention_state_size = self.attn_size
@@ -70,8 +88,9 @@ class Attention(object):
             self.v_bias = tf.get_variable(
                 "AttnV_b", [], initializer=tf.constant_initializer(0))
 
-    def attention(self, query_state, prev_state, _) -> tf.Tensor:
-        """Put attention masks on att_states_reshaped
+    def attention(self, decoder_state: tf.Tensor,
+                  decoder_prev_state: tf.Tensor, _) -> tf.Tensor:
+        """put attention masks on att_states_reshaped
            using hidden_features and query.
         """
 
@@ -81,7 +100,8 @@ class Attention(object):
             # as zeros
             varscope.set_initializer(
                 tf.random_normal_initializer(stddev=0.001))
-            y = linear(query_state, self.attention_state_size, scope=varscope)
+            y = linear(decoder_state, self.attention_state_size,
+                       scope=varscope)
             y = tf.reshape(y, [-1, 1, 1, self.attention_state_size])
 
             # pylint: disable=invalid-name
@@ -115,8 +135,11 @@ class CoverageAttention(Attention):
 
     # pylint: disable=too-many-arguments
     # Great objects require great number of parameters
-    def __init__(self, attention_states, scope,
-                 input_weights=None, attention_fertility=5):
+    def __init__(self,
+                 attention_states: tf.Tensor,
+                 scope: str,
+                 input_weights: tf.Tensor=None,
+                 attention_fertility: int = 5) -> None:
 
         super(CoverageAttention, self).__init__(
             attention_states, scope,
@@ -146,7 +169,7 @@ class CoverageAttention(Attention):
 
 
 # pylint: disable=too-few-public-methods
-class RecurrentAttention(object):
+class RecurrentAttention(BaseAttention):
     """From article `Recurrent Neural Machine Translation
     `<https://arxiv.org/pdf/1607.08725v1.pdf>`_
 
@@ -162,26 +185,29 @@ class RecurrentAttention(object):
     all the states. Last state was better in their experiments so that's what
     we're gonna use.
     """
-    def __init__(self, attention_tensor, scope, input_weights, **kwargs):
-        self._attention_tensor = attention_tensor
-        self._scope = scope
+    # pylint: disable=unused-argument
+    def __init__(self,
+                 scope: str,
+                 attention_states: tf.Tensor,
+                 input_weights: tf.Tensor,
+                 attention_state_size: int, **kwargs) -> None:
+        super().__init__(scope, attention_states, attention_state_size)
         self._input_mask = input_weights
 
-        if "attention_state_size" not in kwargs:
-            raise ValueError("RecurrentAttention need attention_state_size"
-                             " in kwargs")
-
-        self._state_size = kwargs["attention_state_size"]
+        self._state_size = attention_state_size
         self.attn_size = 2 * self._state_size
 
         self.fw_cell = OrthoGRUCell(self._state_size)
         self.bw_cell = OrthoGRUCell(self._state_size)
+    # pylint: enable=unused-argument
 
     # pylint: disable=unused-argument
-    def attention(self, query_state, prev_state, _):
+    def attention(self,
+                  decoder_state: tf.Tensor,
+                  decoder_prev_state: tf.Tensor, _) -> tf.Tensor:
 
-        with tf.variable_scope(self._scope + "/RecurrentAttn") as varscope:
-            initial_state = linear(query_state, self._state_size, varscope)
+        with tf.variable_scope(self.scope + "/RecurrentAttn") as varscope:
+            initial_state = linear(decoder_state, self._state_size, varscope)
             initial_state = tf.tanh(initial_state)
 
             # TODO dropout?
@@ -190,7 +216,7 @@ class RecurrentAttention(object):
             sentence_lengths = tf.to_int32(tf.reduce_sum(self._input_mask, 1))
 
             _, encoded_tup = tf.nn.bidirectional_dynamic_rnn(
-                self.fw_cell, self.bw_cell, self._attention_tensor,
+                self.fw_cell, self.bw_cell, self.attention_states,
                 sequence_length=sentence_lengths,
                 initial_state_fw=initial_state,
                 initial_state_bw=initial_state,

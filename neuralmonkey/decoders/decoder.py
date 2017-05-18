@@ -5,7 +5,7 @@ import numpy as np
 import tensorflow as tf
 from typeguard import check_argument_types
 
-from neuralmonkey.decoding_function import Attention
+from neuralmonkey.decoding_function import BaseAttention
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.vocabulary import Vocabulary, START_TOKEN, END_TOKEN_INDEX
 from neuralmonkey.model.model_part import ModelPart, FeedDict
@@ -312,7 +312,7 @@ class Decoder(ModelPart):
         return self._runtime_attention_objects.get(encoder)
 
     def step(self,
-             att_objects: List[Attention],
+             att_objects: List[BaseAttention],
              input_: tf.Tensor,
              prev_state: tf.Tensor,
              prev_attns: List[tf.Tensor]):

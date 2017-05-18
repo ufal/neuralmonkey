@@ -3,7 +3,7 @@ from typing import NamedTuple, Tuple, List
 import tensorflow as tf
 from typeguard import check_argument_types
 
-from neuralmonkey.decoding_function import Attention
+from neuralmonkey.decoding_function import BaseAttention
 from neuralmonkey.model.model_part import ModelPart, FeedDict
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.decoders.decoder import Decoder
@@ -85,7 +85,7 @@ class BeamSearchDecoder(ModelPart):
 
     # pylint: disable=too-many-locals
     def step(self,
-             att_objects: List[Attention],
+             att_objects: List[BaseAttention],
              bs_state: SearchState) -> Tuple[SearchState, SearchStepOutput]:
 
         # embed the previously decoded word
