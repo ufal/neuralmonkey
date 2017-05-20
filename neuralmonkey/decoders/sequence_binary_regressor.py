@@ -5,6 +5,7 @@ import tensorflow as tf
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.model.model_part import ModelPart, FeedDict
 from neuralmonkey.nn.mlp import MultilayerPerceptron
+from neuralmonkey.nn.projection import dropout
 from neuralmonkey.checking import assert_shape
 
 # tests: lint, mypy
@@ -44,21 +45,19 @@ class SequenceRegressor(ModelPart):
                 "learning_step", [], trainable=False,
                 initializer=tf.constant_initializer(0))
 
-            self.dropout_placeholder = \
-                tf.placeholder(tf.float32, name="dropout_plc")
-            self.dropout_input_placeholder = tf.placeholder(tf.float32, name="dropout_plc")
             self.gt_inputs = tf.placeholder(tf.float32, shape=[None],
                                             name="targets")
+            self.train_mode = tf.placeholder(tf.bool, shape=[],
+                                         name="mode_placeholder")
 
             mlp_input = tf.concat([enc.encoded for enc in encoders], 1)
 
             # todo pridano jako hack pro fleos
-            if self.dropout_input < 1.0:
-                mlp_input = tf.nn.dropout(mlp_input, self.dropout_input_placeholder)
+            mlp_input = dropout(mlp_input, self.dropout_input, self.train_mode)
 
             # mlp_input = tf.subtract(encoders[0].encoded, encoders[1].encoded)
             mlp = MultilayerPerceptron(
-                mlp_input, layers, self.dropout_placeholder, 1,
+                mlp_input, layers, dropout_keep_prob=self.dropout_keep_prob, train_mode=self.train_mode, output_size=1,
                 activation_fn=self.activation_fn)
 
             logits = tf.sigmoid(mlp.logits)
@@ -119,11 +118,6 @@ class SequenceRegressor(ModelPart):
         if sentences_list is not None:
             fd[self.gt_inputs] = list(zip(*sentences_list))[0]
 
-        if train:
-            fd[self.dropout_placeholder] = self.dropout_keep_prob
-            fd[self.dropout_input_placeholder] = self.dropout_input
-        else:
-            fd[self.dropout_placeholder] = 1.0
-            fd[self.dropout_input_placeholder] = 1.0
+        fd[self.train_mode] = train
 
         return fd

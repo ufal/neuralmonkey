@@ -43,24 +43,31 @@ class SequenceRegressor(ModelPart):
                 "learning_step", [], trainable=False,
                 initializer=tf.constant_initializer(0))
 
-            self.dropout_placeholder = \
-                tf.placeholder(tf.float32, name="dropout_plc")
             self.gt_inputs = tf.placeholder(tf.float32, shape=[None],
                                             name="targets")
+            self.train_mode = tf.placeholder(tf.bool, shape=[],
+                                         name="mode_placeholder")
 
             mlp_input = tf.concat([enc.encoded for enc in encoders], 1)
-            mlp = multilayer_projection(mlp_input, layers, activation=self.activation_fn, dropout_plc=self.dropout_placeholder)
+            mlp_input = tf.subtract(encoders[0].encoded, encoders[1].encoded)
+
+            mlp = multilayer_projection(mlp_input, layers,
+                                        activation=self.activation_fn,
+                                        train_mode=self.train_mode,
+                                        dropout_keep_prob=self.dropout_keep_prob)
             # TODO extend it to output into multidimensional space
             mlp_logits = linear(mlp, 1)
+
+            # mlp_logits = tf.contrib.layers.fully_connected(mlp_input, 1, biases_initializer=tf.zeros_initializer(), activation_fn=None)
 
             assert_shape(mlp_logits, [-1, 1])
 
             self.predicted = mlp_logits
 
-            self.cost = tf.Print(tf.reduce_mean(tf.square(mlp_logits - self.gt_inputs)), [mlp, mlp_logits], summarize=100000)
-
-            # import ipdb
-            # ipdb.set_trace()
+            self.cost = tf.reduce_sum(tf.square(mlp_logits - tf.expand_dims(self.gt_inputs, 1)))
+            # self.cost = tf.Print(tf.reduce_sum(tf.square(mlp_logits - tf.expand_dims(self.gt_inputs, 1))),
+            #                      [(tf.reduce_mean(encoders[0].encoded, axis=1)-tf.reduce_mean(encoders[1].encoded, axis=1))*(1-self.gt_inputs),self.gt_inputs], #tf.reduce_mean(mlp_input, axis=1)
+                                 # summarize=10000)
 
             tf.summary.scalar(
                 'val_optimization_cost', self.cost,
@@ -92,9 +99,6 @@ class SequenceRegressor(ModelPart):
         if sentences_list is not None:
             fd[self.gt_inputs] = list(zip(*sentences_list))[0]
 
-        if train:
-            fd[self.dropout_placeholder] = self.dropout_keep_prob
-        else:
-            fd[self.dropout_placeholder] = 1.0
+        fd[self.train_mode] = train
 
         return fd
