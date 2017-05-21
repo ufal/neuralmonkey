@@ -1,7 +1,8 @@
-from typing import Any, Optional, Tuple
+from typing import Any, Callable, List, Optional, Tuple, Union, NamedTuple
 
 import numpy as np
 import tensorflow as tf
+from tensorflow.contrib.rnn import RNNCell
 from typeguard import check_argument_types
 
 from neuralmonkey.encoders.attentive import Attentive
@@ -11,9 +12,34 @@ from neuralmonkey.nn.ortho_gru_cell import OrthoGRUCell
 from neuralmonkey.nn.utils import dropout
 from neuralmonkey.dataset import Dataset
 
+
 # pylint: disable=invalid-name
-RNNCellTuple = Tuple[tf.contrib.rnn.RNNCell, tf.contrib.rnn.RNNCell]
+RNNSpec = NamedTuple('RNNSpec', [('size', int),
+                                 ('direction', str),
+                                 ('cell_type', str)])
+
+RNNSpecTuple = Union[Tuple[int], Tuple[int, str], Tuple[int, str, str]]
 # pylint: enable=invalid-name
+
+
+def _make_rnn_spec(size: int,
+                   direction: str = 'both',
+                   cell_type: str = 'GRU') -> RNNSpec:
+    return RNNSpec(size, direction, cell_type)
+
+
+def _make_rnn_cell(spec: RNNSpec) -> Callable[[], RNNCell]:
+    """Return the graph template for creating RNN cells."""
+    if spec.cell_type == 'GRU':
+        def cell():
+            return OrthoGRUCell(spec.size)
+    elif spec.cell_type == 'LSTM':
+        def cell():
+            return tf.contrib.rnn.LSTMCell(spec.size)
+    else:
+        raise ValueError("Unknown RNN cell: {}".format(spec.cell_type))
+
+    return cell
 
 
 # pylint: disable=too-many-instance-attributes
@@ -24,8 +50,8 @@ class RawRNNEncoder(ModelPart, Attentive):
     def __init__(self,
                  name: str,
                  data_id: str,
-                 rnn_size: int,
-                 input_dimension: int,
+                 input_size: int,
+                 rnn_layers: List[RNNSpecTuple],
                  max_input_len: Optional[int] = None,
                  dropout_keep_prob: float = 1.0,
                  attention_type: Optional[Any] = None,
@@ -36,10 +62,9 @@ class RawRNNEncoder(ModelPart, Attentive):
         Arguments:
             data_id: Identifier of the data series fed to this encoder
             name: An unique identifier for this encoder
-            rnn_size: The size of the encoder's hidden state. Note
-                that the actual encoder output state size will be
-                twice as long because it is the result of
-                concatenation of forward and backward hidden states.
+            rnn_layers: A list of tuples specifying the size and, optionally,
+                the direction ('forward', 'backward' or 'both') and cell type
+                ('GRU' or 'LSTM') of each RNN layer.
 
         Keyword arguments:
             dropout_keep_prob: The dropout keep probability
@@ -54,9 +79,9 @@ class RawRNNEncoder(ModelPart, Attentive):
 
         self.data_id = data_id
 
-        self.rnn_size = rnn_size
+        self._rnn_layers = [_make_rnn_spec(*r) for r in rnn_layers]
         self.max_input_len = max_input_len
-        self.input_dimension = input_dimension
+        self.input_size = input_size
         self.dropout_keep_prob = dropout_keep_prob
 
         log("Initializing RNN encoder, name: '{}'"
@@ -68,19 +93,60 @@ class RawRNNEncoder(ModelPart, Attentive):
             self.states_mask = tf.sequence_mask(self._input_lengths,
                                                 dtype=tf.float32)
 
-            fw_cell, bw_cell = self.rnn_cells()  # type: RNNCellTuple
-            outputs_bidi_tup, encoded_tup = tf.nn.bidirectional_dynamic_rnn(
-                fw_cell, bw_cell, self.inputs, self._input_lengths,
-                dtype=tf.float32)
+            states = self.inputs
+            states_reversed = False
 
-            self.hidden_states = tf.concat(outputs_bidi_tup, 2)
+            def reverse_states():
+                nonlocal states, states_reversed
+                states = tf.reverse_sequence(
+                    states, self._input_lengths, batch_dim=0, seq_dim=1)
+                states_reversed = not states_reversed
+
+            for i, layer in enumerate(self._rnn_layers):
+                with tf.variable_scope('rnn_{}_{}'.format(i, layer.direction)):
+                    cell = _make_rnn_cell(layer)
+                    if layer.direction == 'both':
+                        outputs_tup, encoded_tup = (
+                            tf.nn.bidirectional_dynamic_rnn(
+                                cell(), cell(), states, self._input_lengths,
+                                dtype=tf.float32)
+                        )
+
+                        if states_reversed:
+                            # treat forward as backward and vice versa
+                            outputs_tup = tuple(reversed(outputs_tup))
+                            encoded_tup = tuple(reversed(encoded_tup))
+                            states_reversed = False
+
+                        states = tf.concat(outputs_tup, 2)
+                        encoded = tf.concat(encoded_tup, 1)
+                    elif layer.direction in ['forward', 'backward']:
+                        should_be_reversed = (layer.direction == 'backward')
+                        if states_reversed != should_be_reversed:
+                            reverse_states()
+
+                        states, encoded = tf.nn.dynamic_rnn(
+                            cell(), states,
+                            sequence_length=self._input_lengths,
+                            dtype=tf.float32)
+                    else:
+                        raise ValueError(
+                            "Unknown RNN direction {}".format(layer.direction))
+
+                if i < len(self._rnn_layers) - 1:
+                    states = dropout(states, self.dropout_keep_prob,
+                                     self.train_mode)
+
+            if states_reversed:
+                reverse_states()
+
+            self.hidden_states = states
+            self.encoded = encoded
 
             with tf.variable_scope('attention_tensor'):
                 self.__attention_tensor = dropout(
                     self.hidden_states, self.dropout_keep_prob,
                     self.train_mode)
-
-            self.encoded = tf.concat(encoded_tup, 1)
 
         log("RNN encoder initialized")
 
@@ -98,18 +164,12 @@ class RawRNNEncoder(ModelPart, Attentive):
 
         self.inputs = tf.placeholder(tf.float32,
                                      shape=[None, None,
-                                            self.input_dimension],
+                                            self.input_size],
                                      name="encoder_input")
 
         self._input_lengths = tf.placeholder(
             tf.int32, shape=[None],
             name="encoder_padding_lengths")
-
-    def rnn_cells(self) -> RNNCellTuple:
-        """Return the graph template to for creating RNN memory cells"""
-
-        return (OrthoGRUCell(self.rnn_size),
-                OrthoGRUCell(self.rnn_size))
 
     def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
         """Populate the feed dictionary with the encoder inputs.
