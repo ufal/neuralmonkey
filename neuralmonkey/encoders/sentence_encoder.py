@@ -11,6 +11,7 @@ from neuralmonkey.nn.ortho_gru_cell import OrthoGRUCell
 from neuralmonkey.nn.utils import dropout
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.vocabulary import Vocabulary
+from neuralmonkey.decorators import tensor, tensortuple, variable
 
 # pylint: disable=invalid-name
 RNNCellTuple = Tuple[tf.contrib.rnn.RNNCell, tf.contrib.rnn.RNNCell]
@@ -74,6 +75,7 @@ class SentenceEncoder(ModelPart, Attentive):
         check_argument_types()
 
         self.vocabulary = vocabulary
+        self.vocabulary_size = len(self.vocabulary)
         self.data_id = data_id
 
         self.max_input_len = max_input_len
@@ -94,91 +96,83 @@ class SentenceEncoder(ModelPart, Attentive):
 
         log("Initializing sentence encoder, name: '{}'"
             .format(self.name))
+        log("Sentence encoder will be initialized lazily")
 
-        with self.use_scope():
-            self._create_input_placeholders()
-            with tf.variable_scope('input_projection'):
-                self._create_embedding_matrix()
-                embedded_inputs = self._embed(self.inputs)  # type: tf.Tensor
-                self.embedded_inputs = embedded_inputs
+    @tensor
+    def inputs(self) -> tf.Tensor:
+        return tf.placeholder(tf.int32, [None, None], "encoder_input")
 
-            fw_cell, bw_cell = self.rnn_cells()  # type: RNNCellTuple
-            outputs_bidi_tup, encoded_tup = tf.nn.bidirectional_dynamic_rnn(
-                fw_cell, bw_cell, embedded_inputs,
-                sequence_length=self.sentence_lengths,
-                dtype=tf.float32)
+    @tensor
+    def input_mask(self) -> tf.Tensor:
+        return tf.placeholder(tf.float32, [None, None], "encoder_padding")
 
-            self.hidden_states = tf.concat(outputs_bidi_tup, 2)
+    @tensor
+    def train_mode(self) -> tf.Tensor:
+        return tf.placeholder(tf.bool, [], "train_mode")
 
-            with tf.variable_scope('attention_tensor'):
-                self.__attention_tensor = dropout(
-                    self.hidden_states, self.dropout_keep_prob,
-                    self.train_mode)
+    @tensor
+    def sequence_lengths(self) -> tf.Tensor:
+        return tf.to_int32(tf.reduce_sum(self.input_mask, 1))
 
-            self.encoded = tf.concat(encoded_tup, 1)
-
-        log("Sentence encoder initialized")
-
-    @property
-    def _attention_tensor(self):
-        return self.__attention_tensor
-
-    @property
-    def _attention_mask(self):
-        # TODO tohle je proti OOP prirode
-        return self.input_mask
-
-    @property
-    def states_mask(self):
-        return self.input_mask
-
-    @property
-    def vocabulary_size(self):
-        return len(self.vocabulary)
-
-    def _create_input_placeholders(self):
-        """Creates input placeholder nodes in the computation graph"""
-        self.train_mode = tf.placeholder(tf.bool, shape=[], name="train_mode")
-
-        self.inputs = tf.placeholder(tf.int32,
-                                     shape=[None, None],
-                                     name="encoder_input")
-
-        self.input_mask = tf.placeholder(
-            tf.float32, shape=[None, None],
-            name="encoder_padding")
-
-        self.sentence_lengths = tf.to_int32(
-            tf.reduce_sum(self.input_mask, 1))
-
-    def _create_embedding_matrix(self):
-        """Create variables and operations for embedding the input words.
-
+    @variable
+    def embedding_matrix(self) -> tf.Tensor:
+        """A variable for embedding the input words.
         If parent encoder is specified, we reuse its embedding matrix
         """
         # NOTE the note from the decoder's embedding matrix function applies
-        # here also
+        # here also:
+
         if self.parent_encoder is not None:
-            self.embedding_matrix = self.parent_encoder.embedding_matrix
+            return self.parent_encoder.embedding_matrix
         else:
-            self.embedding_matrix = tf.get_variable(
-                "word_embeddings", [self.vocabulary_size, self.embedding_size],
-                initializer=tf.random_normal_initializer(stddev=0.01))
+            with tf.variable_scope("input_projection"):
+                return tf.get_variable(
+                    "word_embeddings",
+                    [self.vocabulary_size, self.embedding_size],
+                    initializer=tf.random_normal_initializer(stddev=0.01))
 
-    def _embed(self, inputs: tf.Tensor) -> tf.Tensor:
-        """Embed the input using the embedding matrix and apply dropout
-
-        Arguments:
-            inputs: The Tensor to be embedded and dropped out.
-        """
-        embedded = tf.nn.embedding_lookup(self.embedding_matrix, inputs)
+    @tensor
+    def embedded_inputs(self) -> tf.Tensor:
+        """Embed encoder inputs and apply dropout"""
+        embedded = tf.nn.embedding_lookup(self.embedding_matrix, self.inputs)
         return dropout(embedded, self.dropout_keep_prob, self.train_mode)
 
-    def rnn_cells(self) -> RNNCellTuple:
+    @tensortuple
+    def bidirectional_rnn(self) -> Tuple[Tuple[tf.Tensor, tf.Tensor],
+                                         Tuple[tf.Tensor, tf.Tensor]]:
+        fw_cell, bw_cell = self._rnn_cells()  # type: RNNCellTuple
+        return tf.nn.bidirectional_dynamic_rnn(
+            fw_cell, bw_cell, self.embedded_inputs,
+            sequence_length=self.sequence_lengths,
+            dtype=tf.float32)
+
+    @tensor
+    def hidden_states(self) -> tf.Tensor:
+        return tf.concat(self.bidirectional_rnn[0], 2)
+
+    @tensor
+    def encoded(self) -> tf.Tensor:
+        return tf.concat(self.bidirectional_rnn[1], 1)
+
+    @tensor
+    def _attention_tensor(self) -> tf.Tensor:
+        return dropout(self.hidden_states, self.dropout_keep_prob,
+                       self.train_mode)
+
+    @tensor
+    def _attention_mask(self) -> tf.Tensor:
+        # TODO tohle je proti OOP prirode
+        return self.input_mask
+
+    @tensor
+    def states_mask(self) -> tf.Tensor:
+        return self.input_mask
+
+    def _rnn_cells(self) -> RNNCellTuple:
         """Return the graph template to for creating RNN memory cells"""
 
         if self.parent_encoder is not None:
-            return self.parent_encoder.rnn_cells()
+            return self.parent_encoder._rnn_cells()
 
         if self.use_noisy_activations:
             return(NoisyGRUCell(self.rnn_size, self.train_mode),
