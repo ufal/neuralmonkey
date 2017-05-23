@@ -211,23 +211,27 @@ def training_loop(tf_manager: TensorFlowManager,
                         valheader = ("Validation (epoch {}, batch number {}):"
                                      .format(epoch_n, batch_n))
                         log(valheader, color='blue')
-                        print_result_to_file = ""
+                        val_output_file = None
                         if val_separate_output:
-                            print_result_to_file = \
-                                "%s/validation.output.%s.%s" \
-                                % (log_directory, epoch_n, batch_n)
+                            val_output_file = ("{}/validation.output.{}.{}"
+                                               .format(log_directory,
+                                                       epoch_n, batch_n))
                         _print_examples(
                             valset, val_outputs, val_preview_input_series,
                             val_preview_output_series,
                             val_preview_num_examples,
-                            print_result_to_file=print_result_to_file)
+                            val_output_file=val_output_file)
                         log_print("")
                         log(valheader, color='blue')
                         if val_separate_output:
-                            with open("%s/validation.eval.%s.%s"
-                                      % (log_directory, epoch_n, batch_n),
+                            eval_string = "\n".join("{},{:.4g}"
+                                                    .format(name, value)
+                                                    for name, value
+                                                    in val_evaluation.items())
+                            with open("{}/validation.eval.{}.{}.csv"
+                                      .format(log_directory, epoch_n, batch_n),
                                       'w') as file_to_write:
-                                print(val_evaluation[main_metric],
+                                print(eval_string,
                                       file=file_to_write)
 
                         # The last validation set is selected to be the main
@@ -552,7 +556,7 @@ def _print_examples(dataset: Dataset,
                     val_preview_input_series: Optional[List[str]] = None,
                     val_preview_output_series: Optional[List[str]] = None,
                     num_examples=15,
-                    print_result_to_file="") -> None:
+                    val_output_file=None) -> None:
     """Print examples of the model output.
 
     Arguments:
@@ -608,8 +612,8 @@ def _print_examples(dataset: Dataset,
             formated = _data_item_to_str(content)
             log_print("  {}: {}".format(colored_prefix, formated))
 
-        def print_line_to_file(content, print_result_to_file):
-            with open(print_result_to_file, 'a') as file_to_write:
+        def print_line_to_file(content, val_output_file):
+            with open(val_output_file, 'a') as file_to_write:
                 print(_data_item_to_str(content), file=file_to_write)
 
         # Input source series = yellow
@@ -622,8 +626,8 @@ def _print_examples(dataset: Dataset,
             data = list(outputs[series_id])
             model_output = data[i]
             print_line(series_id, "magenta", model_output)
-            if print_result_to_file != "":
-                print_line_to_file(model_output, print_result_to_file)
+            if val_output_file is not None:
+                print_line_to_file(model_output, val_output_file)
 
         # Input target series (a.k.a. references) = red
         for series_id in sorted(target_series_names):
