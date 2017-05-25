@@ -1,4 +1,4 @@
-"""Attention combination state gores.
+"""Attention combination strategies.
 
 This modules implements attention combination strategies for multi-encoder
 scenario when we may want to combine the hidden states of the encoders in
