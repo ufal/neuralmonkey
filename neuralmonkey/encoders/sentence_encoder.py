@@ -85,18 +85,22 @@ class SentenceEncoder(ModelPart, Attentive):
         self.use_noisy_activations = use_noisy_activations
         self.parent_encoder = parent_encoder
 
-        if max_input_len is not None and max_input_len <= 0:
-            raise ValueError("Input length must be a positive integer.")
-
-        if embedding_size <= 0:
-            raise ValueError("Embedding size must be a positive integer.")
-
-        if rnn_size <= 0:
-            raise ValueError("RNN size must be a positive integer.")
+        self._check_argument_values()
 
         log("Initializing sentence encoder, name: '{}'"
             .format(self.name))
         log("Sentence encoder will be initialized lazily")
+
+    def _check_argument_values(self) -> None:
+        if self.max_input_len is not None and self.max_input_len <= 0:
+            raise ValueError("Input length must be a positive integer.")
+
+        if self.embedding_size <= 0:
+            raise ValueError("Embedding size must be a positive integer.")
+
+        if self.rnn_size <= 0:
+            raise ValueError("RNN size must be a positive integer.")
+
 
     @tensor
     def inputs(self) -> tf.Tensor:
@@ -109,10 +113,6 @@ class SentenceEncoder(ModelPart, Attentive):
     @tensor
     def train_mode(self) -> tf.Tensor:
         return tf.placeholder(tf.bool, [], "train_mode")
-
-    @tensor
-    def sequence_lengths(self) -> tf.Tensor:
-        return tf.to_int32(tf.reduce_sum(self.input_mask, 1))
 
     @tensor
     def embedding_matrix(self) -> tf.Tensor:
@@ -132,18 +132,16 @@ class SentenceEncoder(ModelPart, Attentive):
                     initializer=tf.random_normal_initializer(stddev=0.01))
 
     @tensor
-    def embedded_inputs(self) -> tf.Tensor:
-        """Embed encoder inputs and apply dropout"""
-        embedded = tf.nn.embedding_lookup(self.embedding_matrix, self.inputs)
-        return dropout(embedded, self.dropout_keep_prob, self.train_mode)
-
-    @tensor
     def bidirectional_rnn(self) -> Tuple[Tuple[tf.Tensor, tf.Tensor],
                                          Tuple[tf.Tensor, tf.Tensor]]:
+        embedded = tf.nn.embedding_lookup(self.embedding_matrix, self.inputs)
+        embedded = dropout(embedded, self.dropout_keep_prob, self.train_mode)
+
+        sequence_lengths = tf.to_int32(tf.reduce_sum(self.input_mask, 1))
+
         fw_cell, bw_cell = self._rnn_cells()  # type: RNNCellTuple
         return tf.nn.bidirectional_dynamic_rnn(
-            fw_cell, bw_cell, self.embedded_inputs,
-            sequence_length=self.sequence_lengths,
+            fw_cell, bw_cell, embedded, sequence_length=sequence_lengths,
             dtype=tf.float32)
 
     @tensor
