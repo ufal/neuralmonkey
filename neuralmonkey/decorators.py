@@ -1,5 +1,4 @@
 from functools import wraps
-import tensorflow as tf
 
 from neuralmonkey.model.model_part import ModelPart
 
