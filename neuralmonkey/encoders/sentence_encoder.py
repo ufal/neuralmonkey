@@ -11,7 +11,7 @@ from neuralmonkey.nn.ortho_gru_cell import OrthoGRUCell
 from neuralmonkey.nn.utils import dropout
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.vocabulary import Vocabulary
-from neuralmonkey.decorators import tensor, tensortuple, variable
+from neuralmonkey.decorators import tensor
 
 # pylint: disable=invalid-name
 RNNCellTuple = Tuple[tf.contrib.rnn.RNNCell, tf.contrib.rnn.RNNCell]
@@ -114,7 +114,7 @@ class SentenceEncoder(ModelPart, Attentive):
     def sequence_lengths(self) -> tf.Tensor:
         return tf.to_int32(tf.reduce_sum(self.input_mask, 1))
 
-    @variable
+    @tensor
     def embedding_matrix(self) -> tf.Tensor:
         """A variable for embedding the input words.
         If parent encoder is specified, we reuse its embedding matrix
@@ -137,7 +137,7 @@ class SentenceEncoder(ModelPart, Attentive):
         embedded = tf.nn.embedding_lookup(self.embedding_matrix, self.inputs)
         return dropout(embedded, self.dropout_keep_prob, self.train_mode)
 
-    @tensortuple
+    @tensor
     def bidirectional_rnn(self) -> Tuple[Tuple[tf.Tensor, tf.Tensor],
                                          Tuple[tf.Tensor, tf.Tensor]]:
         fw_cell, bw_cell = self._rnn_cells()  # type: RNNCellTuple
