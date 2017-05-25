@@ -86,8 +86,7 @@ def training_loop(tf_manager: TensorFlowManager,
         postprocess: A function which takes the dataset with its output series
             and generates additional series from them.
     """
-
-    assert check_argument_types()
+    check_argument_types()
 
     if isinstance(val_dataset, Dataset):
         val_datasets = [val_dataset]

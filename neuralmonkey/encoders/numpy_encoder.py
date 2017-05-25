@@ -21,7 +21,7 @@ class VectorEncoder(ModelPart):
                  save_checkpoint: str = None,
                  load_checkpoint: str = None) -> None:
         ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
-        assert check_argument_types()
+        check_argument_types()
 
         if dimension <= 0:
             raise ValueError("Input vector dimension must be postive.")
@@ -63,7 +63,7 @@ class PostCNNImageEncoder(ModelPart, Attentive):
                  load_checkpoint: Optional[str] = None) -> None:
         ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
         Attentive.__init__(self, attention_type)
-        assert check_argument_types()
+        check_argument_types()
 
         assert len(input_shape) == 3
         if output_shape <= 0:

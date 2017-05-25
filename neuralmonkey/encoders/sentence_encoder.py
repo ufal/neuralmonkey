@@ -66,8 +66,7 @@ class SentenceEncoder(ModelPart, Attentive):
         ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
         Attentive.__init__(
             self, attention_type, attention_fertility=attention_fertility)
-
-        assert check_argument_types()
+        check_argument_types()
 
         self.vocabulary = vocabulary
         self.data_id = data_id

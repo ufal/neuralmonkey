@@ -44,8 +44,7 @@ class FactoredEncoder(ModelPart, Attentive):
         """
         Attentive.__init__(self, attention_type)
         ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
-
-        assert check_argument_types()
+        check_argument_types()
 
         self.vocabularies = vocabularies
         self.data_ids = data_ids
