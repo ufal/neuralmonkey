@@ -95,6 +95,8 @@ def main() -> None:
                 "overwriting disabled."
                 .format(cfg.args.output), color='red')
             exit(1)
+    else:
+        log("Experiment output directory is '{}'".format(cfg.args.output))
 
     # pylint: disable=broad-except
     if not os.path.isdir(cfg.args.output):
