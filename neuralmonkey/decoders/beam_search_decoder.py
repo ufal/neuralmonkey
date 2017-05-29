@@ -42,7 +42,7 @@ class BeamSearchDecoder(ModelPart):
                  save_checkpoint: str = None,
                  load_checkpoint: str = None) -> None:
         ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
-        assert check_argument_types()
+        check_argument_types()
 
         self.parent_decoder = parent_decoder
         self._beam_size = beam_size

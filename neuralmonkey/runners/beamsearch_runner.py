@@ -76,7 +76,7 @@ class BeamSearchRunner(BaseRunner):
                  rank: int = 1,
                  postprocess: Callable[[List[str]], List[str]] = None) -> None:
         super(BeamSearchRunner, self).__init__(output_series, decoder)
-        assert check_argument_types()
+        check_argument_types()
 
         if rank < 1 or rank > decoder.beam_size:
             raise ValueError(
@@ -123,8 +123,7 @@ def beam_search_runner_range(output_series: str,
         List of beam search runners getting hypotheses with rank from 1 to
         max_rank.
     """
-
-    assert check_argument_types()
+    check_argument_types()
 
     if max_rank is None:
         max_rank = decoder.beam_size

@@ -62,7 +62,7 @@ class TensorFlowManager(object):
             report_gpu_memory_consumption: Report overall GPU memory at every
                 logging
         """
-        assert check_argument_types()
+        check_argument_types()
 
         session_cfg = tf.ConfigProto()
         session_cfg.inter_op_parallelism_threads = num_threads

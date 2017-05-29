@@ -348,8 +348,7 @@ def load_dataset_from_files(
     Raises:
         Exception when no input files are provided.
     """
-
-    assert check_argument_types()
+    check_argument_types()
 
     series_paths_and_readers = _get_series_paths_and_readers(kwargs)
     series_outputs = _get_series_outputs(kwargs)

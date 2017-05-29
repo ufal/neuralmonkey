@@ -25,8 +25,7 @@ class CrossEntropyTrainer(GenericTrainer):
                  decoder_weights: Optional[List[ObjectiveWeight]] = None,
                  l1_weight=0., l2_weight=0.,
                  clip_norm=False, optimizer=None, global_step=None) -> None:
-
-        assert check_argument_types()
+        check_argument_types()
 
         if decoder_weights is None:
             decoder_weights = [None for _ in decoders]

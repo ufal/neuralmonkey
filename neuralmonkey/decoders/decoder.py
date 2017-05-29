@@ -77,9 +77,9 @@ class Decoder(ModelPart):
                 step should be combined with the input in the next step.
         """
         ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
-        log("Initializing decoder, name: '{}'".format(name))
+        check_argument_types()
 
-        assert check_argument_types()
+        log("Initializing decoder, name: '{}'".format(name))
 
         self.encoders = encoders
         self.vocabulary = vocabulary

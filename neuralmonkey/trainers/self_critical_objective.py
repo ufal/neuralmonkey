@@ -66,8 +66,7 @@ def self_critical_objective(decoder: Decoder,
     Returns:
         Objective object to be used in generic trainer.
     """
-
-    assert check_argument_types()
+    check_argument_types()
 
     # logits, shape (time, batch, vocab)
     train_logits = tf.stack(decoder.train_logits)

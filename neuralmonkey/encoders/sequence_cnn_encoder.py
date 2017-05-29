@@ -41,8 +41,7 @@ class SequenceCNNEncoder(ModelPart):
                 (default 1.0)
         """
         ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
-
-        assert check_argument_types()
+        check_argument_types()
 
         self.vocabulary = vocabulary
         self.data_id = data_id
