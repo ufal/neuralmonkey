@@ -7,7 +7,8 @@ from neuralmonkey.evaluators.multeval import MultEvalWrapper
 from neuralmonkey.evaluators.beer import BeerWrapper
 from neuralmonkey.evaluators.gleu import GLEUEvaluator
 from neuralmonkey.evaluators.f1_bio import F1Evaluator
-from neuralmonkey.evaluators.accuracy import AccuracyEvaluator
+from neuralmonkey.evaluators.accuracy import (AccuracyEvaluator,
+                                              AccuracySeqLevelEvaluator)
 
 REF = ["I", "like", "tulips", "."]
 HYP = ["I", "hate", "flowers", "and", "stones", "."]
@@ -104,7 +105,7 @@ class TestAccuracyEvaluator(unittest.TestCase):
         self.assertEqual(max_word_acc, 1.0)
 
     def test_seq_level_acc(self):
-        seq_acc_evaluator = AccuracyEvaluator(seq_level=True)
+        seq_acc_evaluator = AccuracySeqLevelEvaluator()
         seq_acc = seq_acc_evaluator(self.hyps, self.refs)
         max_seq_acc = seq_acc_evaluator(self.refs, self.refs)
         min_seq_acc = seq_acc_evaluator([[], []], self.hyps)
