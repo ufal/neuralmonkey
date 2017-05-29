@@ -195,7 +195,6 @@ class SentenceEncoder(ModelPart, Attentive):
             dataset: The dataset to use
             train: Boolean flag telling whether it is training time
         """
-        # pylint: disable=invalid-name
         fd = {}  # type: FeedDict
         fd[self.train_mode] = train
         sentences = dataset.get_series(self.data_id)
