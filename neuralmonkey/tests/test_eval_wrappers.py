@@ -7,6 +7,7 @@ from neuralmonkey.evaluators.multeval import MultEvalWrapper
 from neuralmonkey.evaluators.beer import BeerWrapper
 from neuralmonkey.evaluators.gleu import GLEUEvaluator
 from neuralmonkey.evaluators.f1_bio import F1Evaluator
+from neuralmonkey.evaluators.accuracy import AccuracyEvaluator
 
 REF = ["I", "like", "tulips", "."]
 HYP = ["I", "hate", "flowers", "and", "stones", "."]
@@ -86,6 +87,30 @@ class TestExternalEvaluators(unittest.TestCase):
         f1val = f1_evaluator([BIO], [BIO_REF])
         self.assertAlmostEqual(f1val, 8.0 / 13.0)
 
+
+class TestAccuracyEvaluator(unittest.TestCase):
+
+    def setUp(self):
+        self.hyps = [["This", "is", "equal"], ["This", "is", "not"]]
+        self.refs = [["This", "is", "equal"], ["This", "isn't"]]
+
+    def test_word_level_acc(self):
+        word_acc_evaluator = AccuracyEvaluator()
+        word_acc = word_acc_evaluator(self.hyps, self.refs)
+        max_word_acc = word_acc_evaluator(self.refs, self.refs)
+        min_word_acc = word_acc_evaluator([[], []], self.hyps)
+        self.assertEqual(min_word_acc, 0.0)
+        self.assertEqual(word_acc, 0.8)
+        self.assertEqual(max_word_acc, 1.0)
+
+    def test_seq_level_acc(self):
+        seq_acc_evaluator = AccuracyEvaluator(seq_level=True)
+        seq_acc = seq_acc_evaluator(self.hyps, self.refs)
+        max_seq_acc = seq_acc_evaluator(self.refs, self.refs)
+        min_seq_acc = seq_acc_evaluator([[], []], self.hyps)
+        self.assertEqual(min_seq_acc, 0.0)
+        self.assertEqual(seq_acc, 0.5)
+        self.assertEqual(max_seq_acc, 1.0)
 
 if __name__ == "__main__":
     unittest.main()
