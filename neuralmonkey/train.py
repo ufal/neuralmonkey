@@ -183,7 +183,7 @@ def main() -> None:
         log(str(exc), color='red')
         exit(1)
 
-    Logging.print_header(cfg.model.name)
+    Logging.print_header(cfg.model.name, cfg.args.output)
 
     # runners_batch_size must be set to avoid problems on GPU
     if cfg.model.runners_batch_size is None:

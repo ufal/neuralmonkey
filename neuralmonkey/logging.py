@@ -64,7 +64,7 @@ class Logging(object):
                 "Encountered a warning in strict mode: " + message)
 
     @staticmethod
-    def print_header(title: str) -> None:
+    def print_header(title: str, path: str) -> None:
         """Prints the title of the experiment and
         the set of arguments it uses.
         """
@@ -72,6 +72,7 @@ class Logging(object):
         log_print(colored(title.upper(), 'green'))
         log_print(colored("".join("=" for _ in range(80)), 'green'))
         log_print("Launched at {}".format(Logging._get_time()))
+        log_print("Experiment directory: {}".format(path))
 
         log_print("")
 
