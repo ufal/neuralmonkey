@@ -1,12 +1,10 @@
-from typing import Optional, Tuple
+from typing import Tuple
 
 import tensorflow as tf
 from typeguard import check_argument_types
 
 from neuralmonkey.encoders.attentive import Attentive
 from neuralmonkey.model.model_part import ModelPart, FeedDict
-from neuralmonkey.logging import log
-from neuralmonkey.nn.noisy_gru_cell import NoisyGRUCell
 from neuralmonkey.nn.ortho_gru_cell import OrthoGRUCell
 from neuralmonkey.nn.utils import dropout
 from neuralmonkey.dataset import Dataset
@@ -26,7 +24,6 @@ class SentenceEncoder(ModelPart, Attentive):
     This version of the encoder does not support factors. Should you
     want to use them, use FactoredEncoder instead.
     """
-
     # pylint: disable=too-many-arguments,too-many-locals
     def __init__(self,
                  name: str,
@@ -34,15 +31,14 @@ class SentenceEncoder(ModelPart, Attentive):
                  data_id: str,
                  embedding_size: int,
                  rnn_size: int,
-                 attention_state_size: Optional[int] = None,
-                 max_input_len: Optional[int] = None,
+                 attention_state_size: int = None,
+                 max_input_len: int = None,
                  dropout_keep_prob: float = 1.0,
+                 rnn_cell: type = OrthoGRUCell,
                  attention_type: type = None,
                  attention_fertility: int = 3,
-                 use_noisy_activations: bool = False,
-                 parent_encoder: Optional["SentenceEncoder"] = None,
-                 save_checkpoint: Optional[str] = None,
-                 load_checkpoint: Optional[str] = None) -> None:
+                 save_checkpoint: str = None,
+                 load_checkpoint: str = None) -> None:
         """Create a new instance of the sentence encoder.
 
         Arguments:
@@ -68,30 +64,22 @@ class SentenceEncoder(ModelPart, Attentive):
                 CoverageAttention (default 3).
         """
         ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
-        Attentive.__init__(
-            self, attention_type, attention_fertility=attention_fertility,
-            attention_state_size=attention_state_size)
+        Attentive.__init__(self, attention_type,
+                           attention_state_size=attention_state_size,
+                           attention_fertility=attention_fertility)
 
         check_argument_types()
 
         self.vocabulary = vocabulary
         self.vocabulary_size = len(self.vocabulary)
         self.data_id = data_id
-
-        self.max_input_len = max_input_len
         self.embedding_size = embedding_size
         self.rnn_size = rnn_size
+
+        self.max_input_len = max_input_len
         self.dropout_keep_prob = dropout_keep_prob
-        self.use_noisy_activations = use_noisy_activations
-        self.parent_encoder = parent_encoder
+        self.rnn_cell = rnn_cell
 
-        self._check_argument_values()
-
-        log("Initializing sentence encoder, name: '{}'"
-            .format(self.name))
-        log("Sentence encoder will be initialized lazily")
-
-    def _check_argument_values(self) -> None:
         if self.max_input_len is not None and self.max_input_len <= 0:
             raise ValueError("Input length must be a positive integer.")
 
@@ -101,7 +89,12 @@ class SentenceEncoder(ModelPart, Attentive):
         if self.rnn_size <= 0:
             raise ValueError("RNN size must be a positive integer.")
 
+        if not issubclass(self.rnn_cell, tf.contrib.rnn.RNNCell):
+            raise TypeError("RNN cell must be a subclass of "
+                            "tf.contrib.rnn.RNNCell")
+    # pylint: enable=too-many-arguments,too-many-locals
 
+    # pylint: disable=no-self-use
     @tensor
     def inputs(self) -> tf.Tensor:
         return tf.placeholder(tf.int32, [None, None], "encoder_input")
@@ -113,6 +106,7 @@ class SentenceEncoder(ModelPart, Attentive):
     @tensor
     def train_mode(self) -> tf.Tensor:
         return tf.placeholder(tf.bool, [], "train_mode")
+    # pylint: enable=no-self-use
 
     @tensor
     def embedding_matrix(self) -> tf.Tensor:
@@ -122,14 +116,11 @@ class SentenceEncoder(ModelPart, Attentive):
         # NOTE the note from the decoder's embedding matrix function applies
         # here also:
 
-        if self.parent_encoder is not None:
-            return self.parent_encoder.embedding_matrix
-        else:
-            with tf.variable_scope("input_projection"):
-                return tf.get_variable(
-                    "word_embeddings",
-                    [self.vocabulary_size, self.embedding_size],
-                    initializer=tf.random_normal_initializer(stddev=0.01))
+        with tf.variable_scope("input_projection"):
+            return tf.get_variable(
+                "word_embeddings",
+                [self.vocabulary_size, self.embedding_size],
+                initializer=tf.random_normal_initializer(stddev=0.01))
 
     @tensor
     def bidirectional_rnn(self) -> Tuple[Tuple[tf.Tensor, tf.Tensor],
@@ -146,11 +137,15 @@ class SentenceEncoder(ModelPart, Attentive):
 
     @tensor
     def hidden_states(self) -> tf.Tensor:
+        # pylint: disable=unsubscriptable-object
         return tf.concat(self.bidirectional_rnn[0], 2)
+        # pylint: enable=unsubscriptable-object
 
     @tensor
     def encoded(self) -> tf.Tensor:
+        # pylint: disable=unsubscriptable-object
         return tf.concat(self.bidirectional_rnn[1], 1)
+        # pylint: enable=unsubscriptable-object
 
     @tensor
     def _attention_tensor(self) -> tf.Tensor:
@@ -168,14 +163,6 @@ class SentenceEncoder(ModelPart, Attentive):
 
     def _rnn_cells(self) -> RNNCellTuple:
         """Return the graph template to for creating RNN memory cells"""
-
-        if self.parent_encoder is not None:
-            return self.parent_encoder._rnn_cells()
-
-        if self.use_noisy_activations:
-            return(NoisyGRUCell(self.rnn_size, self.train_mode),
-                   NoisyGRUCell(self.rnn_size, self.train_mode))
-
         return (OrthoGRUCell(self.rnn_size),
                 OrthoGRUCell(self.rnn_size))
 
@@ -197,8 +184,8 @@ class SentenceEncoder(ModelPart, Attentive):
         """
         fd = {}  # type: FeedDict
         fd[self.train_mode] = train
-        sentences = dataset.get_series(self.data_id)
 
+        sentences = dataset.get_series(self.data_id)
         vectors, paddings = self.vocabulary.sentences_to_tensor(
             list(sentences), self.max_input_len, pad_to_max_len=False,
             train_mode=train)
