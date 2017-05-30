@@ -38,7 +38,7 @@ class BeamSearchExecutable(Executable):
 
         # pick the end of the hypothesis based on its rank
         hyp_index = np.argpartition(
-            evaluated_bs[-1].scores, self._rank - 1)[self._rank - 1]
+            -evaluated_bs[-1].scores, self._rank - 1)[self._rank - 1]
         bs_score = evaluated_bs[-1].scores[hyp_index]
 
         # now backtrack
