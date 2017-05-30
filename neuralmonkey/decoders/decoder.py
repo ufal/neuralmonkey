@@ -338,7 +338,7 @@ class Decoder(ModelPart):
 
             if self._conditional_gru and self._rnn_cell == "GRU":
                 cell_cond = self._get_conditional_gru_cell()
-                cond_input = tf.concat([cell_output] + attns, -1)
+                cond_input = tf.concat(attns, -1)
                 cell_output, state = cell_cond(cond_input, state,
                                                scope="cond_gru_2_cell")
 
