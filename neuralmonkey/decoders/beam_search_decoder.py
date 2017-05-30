@@ -3,7 +3,7 @@ from typing import NamedTuple, Tuple, List
 import tensorflow as tf
 from typeguard import check_argument_types
 
-from neuralmonkey.decoding_function import Attention
+from neuralmonkey.decoding_function import BaseAttention
 from neuralmonkey.model.model_part import ModelPart, FeedDict
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.decoders.decoder import Decoder
@@ -36,9 +36,9 @@ class BeamSearchDecoder(ModelPart):
     def __init__(self,
                  name: str,
                  parent_decoder: Decoder,
-                 max_steps: int,
                  beam_size: int,
                  length_normalization: float,
+                 max_steps: int = None,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None) -> None:
         ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
@@ -46,8 +46,11 @@ class BeamSearchDecoder(ModelPart):
 
         self.parent_decoder = parent_decoder
         self._beam_size = beam_size
-        self._max_steps = max_steps
         self._length_normalization = length_normalization
+
+        self._max_steps = max_steps
+        if self._max_steps is None:
+            self._max_steps = parent_decoder.max_output_len
 
         self.outputs = self._decoding_loop()
 
@@ -85,7 +88,7 @@ class BeamSearchDecoder(ModelPart):
 
     # pylint: disable=too-many-locals
     def step(self,
-             att_objects: List[Attention],
+             att_objects: List[BaseAttention],
              bs_state: SearchState) -> Tuple[SearchState, SearchStepOutput]:
 
         # embed the previously decoded word

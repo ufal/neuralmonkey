@@ -33,6 +33,7 @@ class SentenceEncoder(ModelPart, Attentive):
                  data_id: str,
                  embedding_size: int,
                  rnn_size: int,
+                 attention_state_size: Optional[int] = None,
                  max_input_len: Optional[int] = None,
                  dropout_keep_prob: float = 1.0,
                  attention_type: type = None,
@@ -60,12 +61,16 @@ class SentenceEncoder(ModelPart, Attentive):
                 (default 1.0)
             attention_type: The class that is used for creating
                 attention mechanism (default None)
+            attention_state_size: The size of the attention inner state. If
+                None, use the size of the encoder hidden state. (defalult None)
             attention_fertility: Fertility parameter used with
                 CoverageAttention (default 3).
         """
         ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
         Attentive.__init__(
-            self, attention_type, attention_fertility=attention_fertility)
+            self, attention_type, attention_fertility=attention_fertility,
+            attention_state_size=attention_state_size)
+
         check_argument_types()
 
         self.vocabulary = vocabulary

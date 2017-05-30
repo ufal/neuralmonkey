@@ -5,7 +5,7 @@ import numpy as np
 import tensorflow as tf
 from typeguard import check_argument_types
 
-from neuralmonkey.decoding_function import Attention
+from neuralmonkey.decoding_function import BaseAttention
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.vocabulary import Vocabulary, START_TOKEN, END_TOKEN_INDEX
 from neuralmonkey.model.model_part import ModelPart, FeedDict
@@ -312,7 +312,7 @@ class Decoder(ModelPart):
         return self._runtime_attention_objects.get(encoder)
 
     def step(self,
-             att_objects: List[Attention],
+             att_objects: List[BaseAttention],
              input_: tf.Tensor,
              prev_state: tf.Tensor,
              prev_attns: List[tf.Tensor]):
@@ -331,7 +331,14 @@ class Decoder(ModelPart):
             cell_output, state = cell(x, prev_state)
 
             # Run the attention mechanism.
-            attns = [a.attention(cell_output) for a in att_objects]
+            if self._rnn_cell == 'GRU':
+                attns = [a.attention(cell_output, prev_state, x)
+                         for a in att_objects]
+            elif self._rnn_cell == 'LSTM':
+                attns = [a.attention(cell_output, prev_state.c, x)
+                         for a in att_objects]
+            else:
+                raise ValueError("Unknown RNN cell.")
 
             if self._conditional_gru:
                 x_2 = linear(
@@ -426,6 +433,9 @@ class Decoder(ModelPart):
         att_objects = self._runtime_attention_objects.values()
 
         for i, a in enumerate(att_objects):
+            if not hasattr(a, "attentions_in_time"):
+                continue
+
             alignments = tf.expand_dims(tf.transpose(
                 tf.stack(a.attentions_in_time), perm=[1, 2, 0]), -1)
 
