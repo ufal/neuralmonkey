@@ -68,7 +68,7 @@ class CNNEncoder(ModelPart, Attentive):
         self.image_processing_layers = []  # type: List[tf.Tensor]
 
     @tensor
-    def image_input(self):
+    def image_input(self) -> tf.Tensor:
         return tf.placeholder(
             tf.float32,
             shape=(None, self._image_height, self._image_width,
@@ -76,7 +76,14 @@ class CNNEncoder(ModelPart, Attentive):
             name="input_images")
 
     @tensor
-    def states(self):
+    def states(self) -> tf.Tensor:
+        """Do all convolutions and return the last conditional map.
+
+        Applies convolutions on the input tensor with optional max pooling.
+        All the intermediate layers are stored in the `image_processing_layers`
+        attribute.  There is not dropout between the convolutional layers, by
+        default the activation function is ReLU.
+        """
         last_layer = self.image_input
 
         with tf.variable_scope("convolutions"):
@@ -94,7 +101,17 @@ class CNNEncoder(ModelPart, Attentive):
         return last_layer
 
     @tensor
-    def encoded(self):
+    def encoded(self) -> tf.Tensor:
+        """Output vector of the CNN.
+
+        If there are specified some fully connected layers, there are applied
+        on top of the last convolutional map. Dropout is applied between all
+        layers, default activation function is ReLU. There are only projection
+        layers, no softmax is applied.
+
+        If there is fully_connected layer specified, average-pooled last
+        convolutional map is used as a vector output.
+        """
         # pylint: disable=no-member
         last_height, last_width, last_n_channels = [
             s.value for s in self.states.get_shape()[1:]]
