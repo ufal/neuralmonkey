@@ -256,6 +256,9 @@ class FlatMultiAttention(MultiAttention):
 
             self.attentions_in_time.append(attentions)
 
+            # TODO this concat contains a bug
+            # when used in run mode with beam search and sentinel,
+            # this breaks down.
             projections_concat = tf.concat(
                 self.encoder_projections_for_ctx +
                 ([projected_sentinel] if self._use_sentinels else []), 1)
