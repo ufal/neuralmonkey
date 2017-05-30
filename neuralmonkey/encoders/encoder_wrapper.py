@@ -256,17 +256,35 @@ class FlatMultiAttention(MultiAttention):
 
             self.attentions_in_time.append(attentions)
 
-            # TODO this concat contains a bug
-            # when used in run mode with beam search and sentinel,
-            # this breaks down.
-            projections_concat = tf.concat(
-                self.encoder_projections_for_ctx +
-                ([projected_sentinel] if self._use_sentinels else []), 1)
+            if self._use_sentinels:
+                tiled_encoder_projections = self._tile_encoders_for_beamsearch(
+                    projected_sentinel)
+
+                projections_concat = tf.concat(
+                    tiled_encoder_projections + [projected_sentinel], 1)
+
+            else:
+                projections_concat = tf.concat(
+                    self.encoder_projections_for_ctx, 1)
 
             contexts = tf.reduce_sum(
                 tf.expand_dims(attentions, 2) * projections_concat, [1])
 
             return contexts
+
+    def _tile_encoders_for_beamsearch(self, projected_sentinel):
+        sentinel_batch_size = tf.shape(projected_sentinel)[0]
+        encoders_batch_size = tf.shape(
+            self.encoder_projections_for_ctx[0])[0]
+
+        modulo = tf.mod(sentinel_batch_size, encoders_batch_size)
+
+        with tf.control_dependencies([tf.assert_equal(modulo, 0)]):
+            beam_size = tf.div(sentinel_batch_size,
+                               encoders_batch_size)
+
+        return [tf.tile(proj, [beam_size, 1, 1])
+                for proj in self.encoder_projections_for_ctx]
 
     def _renorm_softmax(self, logits):
         """Renormalized softmax wrt. attention mask."""
