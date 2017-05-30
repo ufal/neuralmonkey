@@ -13,6 +13,7 @@ import tensorflow.contrib.slim.nets
 
 from neuralmonkey.logging import warn
 from neuralmonkey.dataset import Dataset
+from neuralmonkey.decorators import tensor
 from neuralmonkey.encoders.attentive import Attentive
 from neuralmonkey.decoding_function import Attention
 from neuralmonkey.model.model_part import ModelPart, FeedDict
@@ -47,7 +48,7 @@ class ImageNet(ModelPart, Attentive):
     WIDTH = 224
     HEIGHT = 224
 
-    # pylint: disable=too-many-arguments,too-many-locals
+    # pylint: disable=too-many-arguments
     def __init__(self,
                  name: str,
                  data_id: str,
@@ -97,56 +98,70 @@ class ImageNet(ModelPart, Attentive):
 
         self.data_id = data_id
         self._network_type = network_type
-        self.input_plc = tf.placeholder(
-            tf.float32, [None, self.HEIGHT, self.WIDTH, 3])
+        self._attention_layer = attention_layer
+        self._encoded_layer = encoded_layer
+        self._fine_tune = fine_tune
 
-        if network_type not in SUPPORTED_NETWORKS:
+        if self._network_type not in SUPPORTED_NETWORKS:
             raise ValueError(
                 "Network '{}' is not among the supoort ones ({})".format(
-                    network_type, ", ".join(SUPPORTED_NETWORKS.keys())))
+                    self._network_type, ", ".join(SUPPORTED_NETWORKS.keys())))
 
-        scope, net_function = SUPPORTED_NETWORKS[network_type]
+        scope, net_function = SUPPORTED_NETWORKS[self._network_type]
         with tf_slim.arg_scope(scope()):
-            _, end_points = net_function(self.input_plc)
+            _, self._end_points = net_function(self.input_image)
 
-        with tf.variable_scope(self.name):
-            if attention_layer is not None:
+    @tensor
+    def input_image(self) -> tf.Tensor:
+        return tf.placeholder(
+            tf.float32, [None, self.HEIGHT, self.WIDTH, 3])
 
-                if attention_layer not in end_points:
-                    raise ValueError(
-                        "Network '{}' does not contain endpoint '{}'".format(
-                            network_type, attention_layer))
+    @tensor
+    def cnn_states(self) -> tf.Tensor:
+        if self._attention_layer is None:
+            return None
 
-                net_output = end_points[attention_layer]
+        if self._attention_layer not in self._end_points:
+            raise ValueError(
+                "Network '{}' does not contain endpoint '{}'".format(
+                    self._network_type, self._attention_layer))
 
-                if len(net_output.get_shape()) != 4:
-                    raise ValueError(
-                        ("Endpoint '{}' for network '{}' cannot be "
-                         "a convolutional map, its dimensionality is: {}."
-                        ).format(attention_layer, network_type,
-                                 ", ".join([str(d.value) for d in
-                                            net_output.get_shape()])))
+        net_output = self._end_points[self._attention_layer]
 
-                if not fine_tune:
-                    net_output = tf.stop_gradient(net_output)
-                # pylint: disable=no-member
-                shape = [s.value for s in net_output.get_shape()[1:]]
-                # pylint: enable=no-member
-                self.__attention_tensor = tf.reshape(
-                    net_output, [-1, shape[0] * shape[1], shape[2]])
+        if len(net_output.get_shape()) != 4:
+            raise ValueError(
+                ("Endpoint '{}' for network '{}' cannot be "
+                 "a convolutional map, its dimensionality is: {}."
+                ).format(self._attention_layer, self._network_type,
+                         ", ".join([str(d.value) for d in
+                                    net_output.get_shape()])))
 
-            if encoded_layer is not None:
-                if encoded_layer not in end_points:
-                    raise ValueError(
-                        "Network '{}' does not contain endpoint '{}'.".format(
-                            network_type, encoded_layer))
+        if not self._fine_tune:
+            net_output = tf.stop_gradient(net_output)
+        return net_output
 
-                self.encoded = tf.squeeze(end_points[encoded_layer], [1, 2])
-                if not fine_tune:
-                    self.encoded = tf.stop_gradient(self.encoded)
-            else:
-                self.encoded = tf.reduce_mean(net_output, [1, 2])
-    # pylint: enable=too-many-arguments,too-many-locals
+    @tensor
+    def states(self) -> tf.Tensor:
+        # pylint: disable=no-member
+        shape = [s.value for s in self.cnn_states.get_shape()[1:]]
+        # pylint: enable=no-member
+        return tf.reshape(
+            self.cnn_states, [-1, shape[0] * shape[1], shape[2]])
+
+    @tensor
+    def encoded(self) -> tf.Tensor:
+        if self._encoded_layer is None:
+            return tf.reduce_mean(self.cnn_states, [1, 2])
+
+        if self._encoded_layer not in self._end_points:
+            raise ValueError(
+                "Network '{}' does not contain endpoint '{}'.".format(
+                    self._network_type, self._encoded_layer))
+
+        encoded = tf.squeeze(self._end_points[self._encoded_layer], [1, 2])
+        if not self._fine_tune:
+            encoded = tf.stop_gradient(self.encoded)
+        return encoded
 
     def _init_saver(self) -> None:
         if not self._saver:
@@ -160,10 +175,10 @@ class ImageNet(ModelPart, Attentive):
 
     @property
     def _attention_tensor(self) -> tf.Tensor:
-        return self.__attention_tensor
+        return self.states
 
     def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
         images = np.array(dataset.get_series(self.data_id))
         assert images.shape[1:] == (self.HEIGHT, self.WIDTH, 3)
 
-        return {self.input_plc: images}
+        return {self.input_image: images}
