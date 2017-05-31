@@ -305,6 +305,9 @@ class Decoder(ModelPart):
         else:
             raise ValueError("Unknown RNN cell: {}".format(self._rnn_cell))
 
+    def _get_conditional_gru_cell(self) -> tf.contrib.rnn.RNNCell:
+        return tf.contrib.rnn.GRUCell(self.rnn_size)
+
     def get_attention_object(self, encoder, train_mode: bool):
         if train_mode:
             return self._train_attention_objects.get(encoder)
@@ -340,12 +343,11 @@ class Decoder(ModelPart):
             else:
                 raise ValueError("Unknown RNN cell.")
 
-            if self._conditional_gru:
-                x_2 = linear(
-                    attns, self.embedding_size, scope="cond_gru_2_linproj")
-                # Run the RNN for the second time
-                cell_output, state = cell(
-                    x_2, state, scope="cond_gru_2_cell")
+            if self._conditional_gru and self._rnn_cell == "GRU":
+                cell_cond = self._get_conditional_gru_cell()
+                cond_input = tf.concat(attns, -1)
+                cell_output, state = cell_cond(cond_input, state,
+                                               scope="cond_gru_2_cell")
 
             with tf.name_scope("rnn_output_projection"):
                 if attns:
