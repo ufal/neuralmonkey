@@ -89,6 +89,11 @@ class SentenceCNNEncoder(ModelPart, Attentive):
         self.dropout_keep_prob = dropout_keep_prob
         self.use_noisy_activations = use_noisy_activations
 
+        if dropout_keep_prob <= 0. or dropout_keep_prob > 1.:
+            raise ValueError(
+                ("Dropout keep probability must be "
+                 "in (0; 1], was {}").format(dropout_keep_prob))
+
         if max_input_len is not None and max_input_len <= 0:
             raise ValueError("Input length must be a positive integer.")
 
@@ -103,6 +108,9 @@ class SentenceCNNEncoder(ModelPart, Attentive):
 
         if segment_size <= 0:
             raise ValueError("Segment size be a positive integer.")
+
+        if not filters:
+            raise ValueError("You must specify convolutional filters.")
 
         for filter_size, num_filters in self.filters:
             if filter_size <= 0:
@@ -191,12 +199,13 @@ class SentenceCNNEncoder(ModelPart, Attentive):
             highway_layer = highway(
                 highway_layer,
                 scope=("highway_layer_%s" % i))
-        highway_layer = tf.reshape(
+        return tf.reshape(
             highway_layer,
             [batch_size, -1, cnn_out_size])
 
     @tensor
-    def bidirectional_rnn(self) -> tf.Tensor:
+    def bidirectional_rnn(self) -> Tuple[Tuple[tf.Tensor, tf.Tensor],
+                                         Tuple[tf.Tensor, tf.Tensor]]:
         # BiRNN Network
         fw_cell, bw_cell = self.rnn_cells()  # type: RNNCellTuple
         seq_lens = tf.ceil(tf.divide(
@@ -221,12 +230,12 @@ class SentenceCNNEncoder(ModelPart, Attentive):
         # pylint: enable=unsubscriptable-object
 
     @tensor
-    def _attention_tensor(self):
+    def _attention_tensor(self) -> tf.Tensor:
         return dropout(self.states, self.dropout_keep_prob,
                        self.train_mode)
 
     @tensor
-    def _attention_mask(self):
+    def _attention_mask(self) -> tf.Tensor:
         expanded = tf.expand_dims(
             tf.expand_dims(self.input_mask, -1),
             -1)
@@ -238,7 +247,7 @@ class SentenceCNNEncoder(ModelPart, Attentive):
         return tf.squeeze(pooled, [2, 3])
 
     @property
-    def vocabulary_size(self):
+    def vocabulary_size(self) -> int:
         return len(self.vocabulary)
 
     def rnn_cells(self) -> RNNCellTuple:

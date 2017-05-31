@@ -49,9 +49,9 @@ class SequenceCNNEncoder(ModelPart):
         self.vocabulary = vocabulary
         self.data_id = data_id
         self.max_input_len = max_input_len
-        self._embedding_size = embedding_size
-        self._dropout_keep_prob = dropout_keep_prob
-        self._filters = filters
+        self.embedding_size = embedding_size
+        self.dropout_keep_prob = dropout_keep_prob
+        self.filters = filters
 
     # pylint: disable=no-self-use
     @tensor
@@ -66,31 +66,31 @@ class SequenceCNNEncoder(ModelPart):
                               name="encoder_input")
 
     @tensor
-    def _input_mask(self) -> tf.Tensor:
+    def input_mask(self) -> tf.Tensor:
         return tf.placeholder(tf.float32, shape=[None, None],
                               name="encoder_padding")
     # pylint: enable=no-self-use
 
     @tensor
-    def _embedded_inputs(self) -> tf.Tensor:
+    def embedded_inputs(self) -> tf.Tensor:
         with tf.variable_scope("input_projection"):
             embedding_matrix = tf.get_variable(
                 "word_embeddings",
-                [len(self.vocabulary), self._embedding_size],
+                [len(self.vocabulary), self.embedding_size],
                 initializer=tf.random_normal_initializer(stddev=0.01))
             return dropout(
                 tf.nn.embedding_lookup(embedding_matrix, self.inputs),
-                self._dropout_keep_prob,
+                self.dropout_keep_prob,
                 self.train_mode)
 
     @tensor
     def encoded(self) -> tf.Tensor:
 
         pooled_outputs = []
-        for filter_size, num_filters in self._filters:
+        for filter_size, num_filters in self.filters:
             with tf.variable_scope("conv-maxpool-%s" % filter_size):
                 # Convolution Layer
-                filter_shape = [filter_size, self._embedding_size, num_filters]
+                filter_shape = [filter_size, self.embedding_size, num_filters]
                 w_filter = tf.get_variable(
                     "conv_W", filter_shape,
                     initializer=tf.random_uniform_initializer(-0.5, 0.5))
@@ -98,7 +98,7 @@ class SequenceCNNEncoder(ModelPart):
                     "conv_bias", [num_filters],
                     initializer=tf.constant_initializer(0.0))
                 conv = tf.nn.conv1d(
-                    self._embedded_inputs,
+                    self.embedded_inputs,
                     w_filter,
                     stride=1,
                     padding="VALID",
@@ -142,6 +142,6 @@ class SequenceCNNEncoder(ModelPart):
         # as sentences_to_tensor returns lists of shape (time, batch),
         # we need to transpose
         fd[self.inputs] = list(zip(*vectors))
-        fd[self._input_mask] = list(zip(*paddings))
+        fd[self.input_mask] = list(zip(*paddings))
 
         return fd

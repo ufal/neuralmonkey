@@ -97,19 +97,41 @@ class ImageNet(ModelPart, Attentive):
                  "to save after the training is finished.")
 
         self.data_id = data_id
-        self._network_type = network_type
-        self._attention_layer = attention_layer
-        self._encoded_layer = encoded_layer
-        self._fine_tune = fine_tune
+        self.network_type = network_type
+        self.attention_layer = attention_layer
+        self.encoded_layer = encoded_layer
+        self.fine_tune = fine_tune
 
-        if self._network_type not in SUPPORTED_NETWORKS:
+        if self.network_type not in SUPPORTED_NETWORKS:
             raise ValueError(
                 "Network '{}' is not among the supoort ones ({})".format(
-                    self._network_type, ", ".join(SUPPORTED_NETWORKS.keys())))
+                    self.network_type, ", ".join(SUPPORTED_NETWORKS.keys())))
 
-        scope, net_function = SUPPORTED_NETWORKS[self._network_type]
+        scope, net_function = SUPPORTED_NETWORKS[self.network_type]
         with tf_slim.arg_scope(scope()):
-            _, self._end_points = net_function(self.input_image)
+            _, self.end_points = net_function(self.input_image)
+
+        if (self.attention_layer is not None and
+                self.attention_layer not in self.end_points):
+            raise ValueError(
+                "Network '{}' does not contain endpoint '{}'".format(
+                    self.network_type, self.attention_layer))
+
+        if attention_layer is not None:
+            net_output = self.end_points[self.attention_layer]
+            if len(net_output.get_shape()) != 4:
+                raise ValueError(
+                    ("Endpoint '{}' for network '{}' cannot be "
+                     "a convolutional map, its dimensionality is: {}."
+                    ).format(self.attention_layer, self.network_type,
+                             ", ".join([str(d.value) for d in
+                                        net_output.get_shape()])))
+
+        if (self.encoded_layer is not None
+                and self.encoded_layer not in self.end_points):
+            raise ValueError(
+                "Network '{}' does not contain endpoint '{}'.".format(
+                    self.network_type, self.encoded_layer))
 
     @tensor
     def input_image(self) -> tf.Tensor:
@@ -117,31 +139,21 @@ class ImageNet(ModelPart, Attentive):
             tf.float32, [None, self.HEIGHT, self.WIDTH, 3])
 
     @tensor
-    def cnn_states(self) -> tf.Tensor:
-        if self._attention_layer is None:
+    def cnn_states(self) -> Optional[tf.Tensor]:
+        if self.attention_layer is None:
             return None
 
-        if self._attention_layer not in self._end_points:
-            raise ValueError(
-                "Network '{}' does not contain endpoint '{}'".format(
-                    self._network_type, self._attention_layer))
+        net_output = self.end_points[self.attention_layer]
 
-        net_output = self._end_points[self._attention_layer]
-
-        if len(net_output.get_shape()) != 4:
-            raise ValueError(
-                ("Endpoint '{}' for network '{}' cannot be "
-                 "a convolutional map, its dimensionality is: {}."
-                ).format(self._attention_layer, self._network_type,
-                         ", ".join([str(d.value) for d in
-                                    net_output.get_shape()])))
-
-        if not self._fine_tune:
+        if not self.fine_tune:
             net_output = tf.stop_gradient(net_output)
         return net_output
 
     @tensor
-    def states(self) -> tf.Tensor:
+    def states(self) -> Optional[tf.Tensor]:
+        if self.cnn_states is None:
+            return None
+
         # pylint: disable=no-member
         shape = [s.value for s in self.cnn_states.get_shape()[1:]]
         # pylint: enable=no-member
@@ -150,26 +162,21 @@ class ImageNet(ModelPart, Attentive):
 
     @tensor
     def encoded(self) -> tf.Tensor:
-        if self._encoded_layer is None:
+        if self.encoded_layer is None:
             return tf.reduce_mean(self.cnn_states, [1, 2])
 
-        if self._encoded_layer not in self._end_points:
-            raise ValueError(
-                "Network '{}' does not contain endpoint '{}'.".format(
-                    self._network_type, self._encoded_layer))
-
-        encoded = tf.squeeze(self._end_points[self._encoded_layer], [1, 2])
-        if not self._fine_tune:
+        encoded = tf.squeeze(self.end_points[self.encoded_layer], [1, 2])
+        if not self.fine_tune:
             encoded = tf.stop_gradient(self.encoded)
         return encoded
 
     def _init_saver(self) -> None:
         if not self._saver:
-            with tf.variable_scope(self._name, reuse=True):
+            with tf.variable_scope(self.name, reuse=True):
                 local_variables = tf.get_collection(
-                    tf.GraphKeys.GLOBAL_VARIABLES, scope=self._name)
+                    tf.GraphKeys.GLOBAL_VARIABLES, scope=self.name)
                 slim_variables = tf.get_collection(
-                    tf.GraphKeys.GLOBAL_VARIABLES, scope=self._network_type)
+                    tf.GraphKeys.GLOBAL_VARIABLES, scope=self.network_type)
                 self._saver = tf.train.Saver(
                     var_list=local_variables + slim_variables)
 
