@@ -57,26 +57,28 @@ class CNNEncoder(ModelPart, Attentive):
         self.data_id = data_id
         self.dropout_keep_prob = dropout_keep_prob
 
-        self._image_height = image_height
-        self._image_width = image_width
-        self._pixel_dim = pixel_dim
-        self._convolutions = convolutions
-        self._fully_connected = fully_connected
+        self.image_height = image_height
+        self.image_width = image_width
+        self.pixel_dim = pixel_dim
+        self.convolutions = convolutions
+        self.fully_connected = fully_connected
 
-        self.train_mode = tf.placeholder(tf.bool, shape=[],
-                                         name="mode_placeholder")
-        self.image_processing_layers = []  # type: List[tf.Tensor]
+    # pylint: disable=no-self-use
+    @tensor
+    def train_mode(self) -> tf.Tensor:
+        return tf.placeholder(tf.bool, shape=[], name="mode_placeholder")
+    # pylint: enable=no-self-use
 
     @tensor
     def image_input(self) -> tf.Tensor:
         return tf.placeholder(
             tf.float32,
-            shape=(None, self._image_height, self._image_width,
-                   self._pixel_dim),
+            shape=(None, self.image_height, self.image_width,
+                   self.pixel_dim),
             name="input_images")
 
     @tensor
-    def states(self) -> tf.Tensor:
+    def image_processing_layers(self) -> List[tf.Tensor]:
         """Do all convolutions and return the last conditional map.
 
         Applies convolutions on the input tensor with optional max pooling.
@@ -85,20 +87,27 @@ class CNNEncoder(ModelPart, Attentive):
         default the activation function is ReLU.
         """
         last_layer = self.image_input
+        image_processing_layers = []  # type: List[tf.Tensor]
 
         with tf.variable_scope("convolutions"):
             for i, (filter_size,
                     n_filters,
-                    pool_size) in enumerate(self._convolutions):
+                    pool_size) in enumerate(self.convolutions):
                 with tf.variable_scope("cnn_layer_{}".format(i)):
                     last_layer = conv2d(last_layer, n_filters, filter_size)
-                    self.image_processing_layers.append(last_layer)
+                    image_processing_layers.append(last_layer)
 
                     if pool_size:
                         last_layer = max_pool2d(last_layer, pool_size)
-                        self.image_processing_layers.append(last_layer)
+                        image_processing_layers.append(last_layer)
 
-        return last_layer
+        return image_processing_layers
+
+    @tensor
+    def states(self):
+        # pylint: disable=unsubscriptable-object
+        return self.image_processing_layers[-1]
+        # pylint: enable=unsubscriptable-object
 
     @tensor
     def encoded(self) -> tf.Tensor:
@@ -117,18 +126,18 @@ class CNNEncoder(ModelPart, Attentive):
             s.value for s in self.states.get_shape()[1:]]
         # pylint: enable=no-member
 
-        if self._fully_connected is None:
+        if self.fully_connected is None:
             # we average out by the image size -> shape is number
             # channels from the last convolution
             encoded = tf.reduce_mean(self.states, [1, 2])
-            assert_shape(encoded, [None, self._convolutions[-1][1]])
+            assert_shape(encoded, [None, self.convolutions[-1][1]])
             return encoded
 
         states_flat = tf.reshape(
             self.states,
             [-1, last_width * last_height * last_n_channels])
         return multilayer_projection(
-            states_flat, self._fully_connected,
+            states_flat, self.fully_connected,
             activation=tf.nn.relu,
             dropout_keep_prob=self.dropout_keep_prob,
             train_mode=self.train_mode)
