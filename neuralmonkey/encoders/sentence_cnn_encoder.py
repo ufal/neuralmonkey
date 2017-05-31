@@ -1,3 +1,5 @@
+"""Encoder for sentences withou explicit segmentation."""
+
 from typing import Optional, Tuple, List, Any
 
 import tensorflow as tf
@@ -6,7 +8,6 @@ from typeguard import check_argument_types
 from neuralmonkey.encoders.attentive import Attentive
 from neuralmonkey.encoders.sentence_encoder import RNNCellTuple
 from neuralmonkey.model.model_part import ModelPart, FeedDict
-from neuralmonkey.logging import log
 from neuralmonkey.nn.noisy_gru_cell import NoisyGRUCell
 from neuralmonkey.nn.ortho_gru_cell import OrthoGRUCell
 from neuralmonkey.nn.utils import dropout
@@ -109,93 +110,123 @@ class SentenceCNNEncoder(ModelPart, Attentive):
             if num_filters <= 0:
                 raise ValueError("Number of filters must be a positive int.")
 
-        log("Initializing convolutional sentence encoder, name: '{}'"
-            .format(self.name))
+    # pylint: disable=no-self-use
+    @tensor
+    def train_mode(self) -> tf.Tensor:
+        return tf.placeholder(tf.bool, shape=[], name="train_mode")
 
-        with self.use_scope():
-            self._create_input_placeholders()
-            with tf.variable_scope('input_projection'):
-                self._create_embedding_matrix()
-                embedded_inputs = self._embed(self.inputs)  # type: tf.Tensor
-                self.embedded_inputs = embedded_inputs
+    @tensor
+    def inputs(self) -> tf.Tensor:
+        return tf.placeholder(tf.int32,
+                              shape=[None, None],
+                              name="encoder_input")
 
-            # CNN Network
-            pooled_outputs = []
-            for filter_size, num_filters in self.filters:
-                with tf.variable_scope("conv-maxpool-%s" % filter_size):
-                    filter_shape = [filter_size, embedding_size, num_filters]
-                    w_filter = tf.get_variable(
-                        "conv_W", filter_shape,
-                        initializer=tf.random_uniform_initializer(-0.5, 0.5))
-                    b_filter = tf.get_variable(
-                        "conv_bias", [num_filters],
-                        initializer=tf.constant_initializer(0.0))
-                    conv = tf.nn.conv1d(
-                        embedded_inputs,
-                        w_filter,
-                        stride=1,
-                        padding="SAME",
-                        name="conv")
+    @tensor
+    def input_mask(self) -> tf.Tensor:
+        return tf.placeholder(tf.float32, shape=[None, None],
+                              name="encoder_padding")
+    # pylint: enable=no-self-use
 
-                    # Apply nonlinearity
-                    conv_relu = tf.nn.relu(tf.nn.bias_add(conv, b_filter))
+    @tensor
+    def sentence_lengths(self) -> tf.Tensor:
+        return tf.to_int32(tf.reduce_sum(self.input_mask, 1))
 
-                    # Max-pooling over the output segments
-                    expanded_conv_relu = tf.expand_dims(conv_relu, -1)
-                    pooled = tf.nn.max_pool(
-                        expanded_conv_relu,
-                        ksize=[1, self.segment_size, 1, 1],
-                        strides=[1, self.segment_size, 1, 1],
-                        padding="SAME",
-                        name="maxpool")
-                    pooled_outputs.append(pooled)
+    @tensor
+    def embedded_inputs(self) -> tf.Tensor:
+        with tf.variable_scope('input_projection'):
+            embedding_matrix = tf.get_variable(
+                "word_embeddings", [self.vocabulary_size, self.embedding_size],
+                initializer=tf.random_normal_initializer(stddev=0.01))
+            embedded = tf.nn.embedding_lookup(embedding_matrix, self.inputs)
+            embedded_dropped = dropout(
+                embedded, self.dropout_keep_prob, self.train_mode)
 
-            # Combine all the pooled features
-            self.cnn_encoded = tf.concat(pooled_outputs, axis=2)
-            self.cnn_encoded = tf.squeeze(self.cnn_encoded, [3])
+        return embedded_dropped
 
-            # Highway Network
-            batch_size = tf.shape(self.cnn_encoded)[0]
-            # pylint: disable=no-member
-            cnn_out_size = self.cnn_encoded.get_shape().as_list()[-1]
-            highway_layer = tf.reshape(self.cnn_encoded, [-1, cnn_out_size])
-            for i in range(self.highway_depth):
-                highway_layer = highway(
-                    highway_layer,
-                    scope=("highway_layer_%s" % i))
-            highway_layer = tf.reshape(
+    @tensor
+    def cnn_encoded(self) -> tf.Tensor:
+        """1D convolution with max-pool that processing characters."""
+        pooled_outputs = []
+        for filter_size, num_filters in self.filters:
+            with tf.variable_scope("conv-maxpool-%s" % filter_size):
+                filter_shape = [filter_size, self.embedding_size, num_filters]
+                w_filter = tf.get_variable(
+                    "conv_W", filter_shape,
+                    initializer=tf.random_uniform_initializer(-0.5, 0.5))
+                b_filter = tf.get_variable(
+                    "conv_bias", [num_filters],
+                    initializer=tf.constant_initializer(0.0))
+                conv = tf.nn.conv1d(
+                    self.embedded_inputs,
+                    w_filter,
+                    stride=1,
+                    padding="SAME",
+                    name="conv")
+
+                # Apply nonlinearity
+                conv_relu = tf.nn.relu(tf.nn.bias_add(conv, b_filter))
+
+                # Max-pooling over the output segments
+                expanded_conv_relu = tf.expand_dims(conv_relu, -1)
+                pooled = tf.nn.max_pool(
+                    expanded_conv_relu,
+                    ksize=[1, self.segment_size, 1, 1],
+                    strides=[1, self.segment_size, 1, 1],
+                    padding="SAME",
+                    name="maxpool")
+                pooled_outputs.append(pooled)
+
+        # Combine all the pooled features
+        concat = tf.concat(pooled_outputs, axis=2)
+        return tf.squeeze(concat, [3])
+
+    @tensor
+    def highway_layer(self) -> tf.Tensor:
+        """Highway net projection following the CNN."""
+        batch_size = tf.shape(self.cnn_encoded)[0]
+        # pylint: disable=no-member
+        cnn_out_size = self.cnn_encoded.get_shape().as_list()[-1]
+        highway_layer = tf.reshape(self.cnn_encoded, [-1, cnn_out_size])
+        for i in range(self.highway_depth):
+            highway_layer = highway(
                 highway_layer,
-                [batch_size, -1, cnn_out_size])
+                scope=("highway_layer_%s" % i))
+        highway_layer = tf.reshape(
+            highway_layer,
+            [batch_size, -1, cnn_out_size])
 
-            # BiRNN Network
-            fw_cell, bw_cell = self.rnn_cells()  # type: RNNCellTuple
-            seq_lens = tf.ceil(tf.divide(
-                self.sentence_lengths,
-                self.segment_size))
-            seq_lens = tf.cast(seq_lens, tf.int32)
-            outputs_bidi_tup, encoded_tup = tf.nn.bidirectional_dynamic_rnn(
-                fw_cell, bw_cell, highway_layer,
-                sequence_length=seq_lens,
-                dtype=tf.float32)
+    @tensor
+    def bidirectional_rnn(self) -> tf.Tensor:
+        # BiRNN Network
+        fw_cell, bw_cell = self.rnn_cells()  # type: RNNCellTuple
+        seq_lens = tf.ceil(tf.divide(
+            self.sentence_lengths,
+            self.segment_size))
+        seq_lens = tf.cast(seq_lens, tf.int32)
+        return tf.nn.bidirectional_dynamic_rnn(
+            fw_cell, bw_cell, self.highway_layer,
+            sequence_length=seq_lens,
+            dtype=tf.float32)
 
-            self.hidden_states = tf.concat(outputs_bidi_tup, 2)
+    @tensor
+    def states(self) -> tf.Tensor:
+        # pylint: disable=unsubscriptable-object
+        return tf.concat(self.bidirectional_rnn[0], 2)
+        # pylint: enable=unsubscriptable-object
 
-            with tf.variable_scope('attention_tensor'):
-                self.__attention_tensor = dropout(
-                    self.hidden_states, self.dropout_keep_prob,
-                    self.train_mode)
+    @tensor
+    def encoded(self) -> tf.Tensor:
+        # pylint: disable=unsubscriptable-object
+        return tf.concat(self.bidirectional_rnn[1], 1)
+        # pylint: enable=unsubscriptable-object
 
-            self.encoded = tf.concat(encoded_tup, 1)
-
-        log("Convolutional sentence encoder initialized")
-
-    @property
+    @tensor
     def _attention_tensor(self):
-        return self.__attention_tensor
+        return dropout(self.states, self.dropout_keep_prob,
+                       self.train_mode)
 
     @tensor
     def _attention_mask(self):
-        # TODO tohle je proti OOP prirode
         expanded = tf.expand_dims(
             tf.expand_dims(self.input_mask, -1),
             -1)
@@ -209,41 +240,6 @@ class SentenceCNNEncoder(ModelPart, Attentive):
     @property
     def vocabulary_size(self):
         return len(self.vocabulary)
-
-    def _create_input_placeholders(self):
-        """Creates input placeholder nodes in the computation graph"""
-        self.train_mode = tf.placeholder(tf.bool, shape=[], name="train_mode")
-
-        self.inputs = tf.placeholder(tf.int32,
-                                     shape=[None, None],
-                                     name="encoder_input")
-
-        self.input_mask = tf.placeholder(
-            tf.float32, shape=[None, None],
-            name="encoder_padding")
-
-        self.sentence_lengths = tf.to_int32(
-            tf.reduce_sum(self.input_mask, 1))
-
-    def _create_embedding_matrix(self):
-        """Create variables and operations for embedding the input words.
-
-        If parent encoder is specified, we reuse its embedding matrix
-        """
-        # NOTE the note from the decoder's embedding matrix function applies
-        # here also
-        self.embedding_matrix = tf.get_variable(
-            "word_embeddings", [self.vocabulary_size, self.embedding_size],
-            initializer=tf.random_normal_initializer(stddev=0.01))
-
-    def _embed(self, inputs: tf.Tensor) -> tf.Tensor:
-        """Embed the input using the embedding matrix and apply dropout
-
-        Arguments:
-            inputs: The Tensor to be embedded and dropped out.
-        """
-        embedded = tf.nn.embedding_lookup(self.embedding_matrix, inputs)
-        return dropout(embedded, self.dropout_keep_prob, self.train_mode)
 
     def rnn_cells(self) -> RNNCellTuple:
         """Return the graph template to for creating RNN memory cells"""

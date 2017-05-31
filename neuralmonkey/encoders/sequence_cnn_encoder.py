@@ -1,3 +1,5 @@
+"""Encoder for sentence classification with 1D convolutions and max-pooling."""
+
 from typing import Optional, Tuple, List
 
 from typeguard import check_argument_types
