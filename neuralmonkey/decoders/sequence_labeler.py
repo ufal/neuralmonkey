@@ -30,13 +30,21 @@ class SequenceLabeler(ModelPart):
         self.rnn_size = self.encoder.rnn_size * 2
         self.max_output_len = self.encoder.max_input_len
 
-        self.train_targets = tf.placeholder(tf.int32, shape=[None, None],
-                                            name="labeler_targets")
+    # pylint: disable=no-self-use
+    @tensor
+    def train_targets(self) -> tf.Tensor:
+        return tf.placeholder(tf.int32, shape=[None, None],
+                              name="labeler_targets")
 
-        self.train_weights = tf.placeholder(tf.float32, shape=[None, None],
-                                            name="labeler_padding_weights")
+    @tensor
+    def train_weights(self) -> tf.Tensor:
+        return tf.placeholder(tf.float32, shape=[None, None],
+                              name="labeler_padding_weights")
 
-        self.train_mode = tf.placeholder(tf.bool, name="train_mode")
+    @tensor
+    def train_mode(self) -> tf.Tensor:
+        return tf.placeholder(tf.bool, name="train_mode")
+    # pylint: enable=no-self-use
 
     @property
     def train_loss(self) -> tf.Tensor:

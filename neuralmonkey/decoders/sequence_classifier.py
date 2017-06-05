@@ -6,9 +6,7 @@ from neuralmonkey.dataset import Dataset
 from neuralmonkey.vocabulary import Vocabulary
 from neuralmonkey.model.model_part import ModelPart, FeedDict
 from neuralmonkey.nn.mlp import MultilayerPerceptron
-
-
-# pylint: disable=too-many-instance-attributes
+from neuralmonkey.decorators import tensor
 
 
 class SequenceClassifier(ModelPart):
@@ -53,36 +51,62 @@ class SequenceClassifier(ModelPart):
         self.dropout_keep_prob = dropout_keep_prob
         self.max_output_len = 1
 
-        with self.use_scope():
-            self.train_mode = tf.placeholder(tf.bool, name="train_mode")
-            self.learning_step = tf.get_variable(
-                "learning_step", [], trainable=False,
-                initializer=tf.constant_initializer(0))
+        tf.summary.scalar(
+            'train_optimization_cost',
+            self.cost, collections=["summary_train"])
+# pylint: enable=too-many-arguments
 
-            self.gt_inputs = [tf.placeholder(
-                tf.int32, shape=[None], name="targets")]
-            mlp_input = tf.concat([enc.encoded for enc in encoders], 1)
-            mlp = MultilayerPerceptron(
-                mlp_input, layers, self.dropout_keep_prob, len(vocabulary),
-                activation_fn=self.activation_fn, train_mode=self.train_mode)
+    # pylint: disable=no-self-use
+    @tensor
+    def train_mode(self) -> tf.Tensor:
+        return tf.placeholder(tf.bool, name="train_mode")
 
-            self.loss_with_gt_ins = tf.reduce_mean(
-                tf.nn.sparse_softmax_cross_entropy_with_logits(
-                    logits=mlp.logits, labels=self.gt_inputs[0]))
-            self.loss_with_decoded_ins = self.loss_with_gt_ins
-            self.cost = self.loss_with_gt_ins
+    @tensor
+    def gt_inputs(self) -> List[tf.Tensor]:
+        return [tf.placeholder(tf.int32, shape=[None], name="targets")]
+    # pylint: enable=no-self-use
 
-            self.decoded_seq = [mlp.classification]
-            self.decoded_logits = [mlp.logits]
-            self.runtime_logprobs = [tf.nn.log_softmax(mlp.logits)]
+    @tensor
+    def _mlp(self) -> MultilayerPerceptron:
+        mlp_input = tf.concat([enc.encoded for enc in self.encoders], 1)
+        return MultilayerPerceptron(
+            mlp_input, self.layers,
+            self.dropout_keep_prob, len(self.vocabulary),
+            activation_fn=self.activation_fn, train_mode=self.train_mode)
 
-            tf.summary.scalar(
-                'val_optimization_cost', self.cost,
-                collections=["summary_val"])
-            tf.summary.scalar(
-                'train_optimization_cost',
-                self.cost, collections=["summary_train"])
-    # pylint: enable=too-many-arguments
+    @tensor
+    def loss_with_gt_ins(self) -> tf.Tensor:
+        # pylint: disable=no-member,unsubscriptable-object
+        return tf.reduce_mean(
+            tf.nn.sparse_softmax_cross_entropy_with_logits(
+                logits=self._mlp.logits, labels=self.gt_inputs[0]))
+        # pylint: enable=no-member,unsubscriptable-object
+
+    @property
+    def loss_with_decoded_ins(self) -> tf.Tensor:
+        return self.loss_with_gt_ins
+
+    @property
+    def cost(self) -> tf.Tensor:
+        return self.loss_with_gt_ins
+
+    @tensor
+    def decoded_seq(self) -> List[tf.Tensor]:
+        # pylint: disable=no-member
+        return [self._mlp.classification]
+        # pylint: enable=no-member
+
+    @tensor
+    def decoded_logits(self) -> List[tf.Tensor]:
+        # pylint: disable=no-member
+        return [self._mlp.logits]
+        # pylint: enable=no-member
+
+    @tensor
+    def runtime_logprobs(self) -> List[tf.Tensor]:
+        # pylint: disable=no-member
+        return [tf.nn.log_softmax(self._mlp.logits)]
+        # pylint: enable=no-member
 
     @property
     def train_loss(self):
@@ -108,7 +132,9 @@ class SequenceClassifier(ModelPart):
             label_tensors, _ = self.vocabulary.sentences_to_tensor(
                 sentences_list, self.max_output_len)
 
+            # pylint: disable=unsubscriptable-object
             fd[self.gt_inputs[0]] = label_tensors[0]
+            # pylint: enable=unsubscriptable-object
 
         fd[self.train_mode] = train
 

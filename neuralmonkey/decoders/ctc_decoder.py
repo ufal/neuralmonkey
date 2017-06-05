@@ -32,33 +32,41 @@ class CTCDecoder(ModelPart):
         self.vocabulary = vocabulary
         self.data_id = data_id
 
-        self._merge_repeated_targets = merge_repeated_targets
-        self._merge_repeated_outputs = merge_repeated_outputs
-        self._beam_width = beam_width
+        self.merge_repeated_targets = merge_repeated_targets
+        self.merge_repeated_outputs = merge_repeated_outputs
+        self.beam_width = beam_width
+    # pylint: enable=too-many-arguments
 
-        with self.use_scope():
-            self.train_targets = tf.sparse_placeholder(tf.int32,
-                                                       name="targets")
+    # pylint: disable=no-self-use
+    @tensor
+    def train_targets(self) -> tf.Tensor:
+        return tf.sparse_placeholder(tf.int32, name="targets")
 
-            self.train_mode = tf.placeholder(tf.bool, name="train_mode")
+    @tensor
+    def train_mode(self) -> tf.Tensor:
+        return tf.placeholder(tf.bool, name="train_mode")
+    # pylint: disable=no-self-use
 
-            # encoder.states_mask is batch-major
-            self._input_lengths = tf.reduce_sum(
-                tf.to_int32(self.encoder.states_mask), 1)
+    @tensor
+    def input_lengths(self) -> tf.Tensor:
+        # encoder.states_mask is batch-major
+        return tf.reduce_sum(tf.to_int32(self.encoder.states_mask), 1)
 
-            if beam_width == 1:
-                decoded, _ = tf.nn.ctc_greedy_decoder(
-                    inputs=self._logits, sequence_length=self._input_lengths,
-                    merge_repeated=self._merge_repeated_outputs)
-            else:
-                decoded, _ = tf.nn.ctc_beam_search_decoder(
-                    inputs=self._logits, sequence_length=self._input_lengths,
-                    beam_width=self._beam_width,
-                    merge_repeated=self._merge_repeated_outputs)
+    @tensor
+    def decoded(self) -> tf.Tensor:
+        if self.beam_width == 1:
+            decoded, _ = tf.nn.ctc_greedy_decoder(
+                inputs=self.logits, sequence_length=self.input_lengths,
+                merge_repeated=self.merge_repeated_outputs)
+        else:
+            decoded, _ = tf.nn.ctc_beam_search_decoder(
+                inputs=self.logits, sequence_length=self.input_lengths,
+                beam_width=self.beam_width,
+                merge_repeated=self.merge_repeated_outputs)
 
-            self.decoded = tf.sparse_tensor_to_dense(
-                tf.sparse_transpose(decoded[0]),
-                default_value=self.vocabulary.get_word_index(END_TOKEN))
+        return tf.sparse_tensor_to_dense(
+            tf.sparse_transpose(decoded[0]),
+            default_value=self.vocabulary.get_word_index(END_TOKEN))
 
     @property
     def train_loss(self) -> tf.Tensor:
@@ -71,15 +79,15 @@ class CTCDecoder(ModelPart):
     @tensor
     def cost(self) -> tf.Tensor:
         loss = tf.nn.ctc_loss(
-            labels=self.train_targets, inputs=self._logits,
-            sequence_length=self._input_lengths,
-            preprocess_collapse_repeated=self._merge_repeated_targets,
-            ctc_merge_repeated=self._merge_repeated_outputs)
+            labels=self.train_targets, inputs=self.logits,
+            sequence_length=self.input_lengths,
+            preprocess_collapse_repeated=self.merge_repeated_targets,
+            ctc_merge_repeated=self.merge_repeated_outputs)
 
         return tf.reduce_sum(loss)
 
     @tensor
-    def _logits(self) -> tf.Tensor:
+    def logits(self) -> tf.Tensor:
         vocabulary_size = len(self.vocabulary)
 
         encoder_states = self.encoder.hidden_states
