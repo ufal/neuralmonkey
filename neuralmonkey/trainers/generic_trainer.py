@@ -33,7 +33,7 @@ class GenericTrainer(object):
 
             with tf.name_scope('regularization'):
                 regularizable = [v for v in tf.trainable_variables()
-                                 if BIAS_REGEX.findall(v.name)
+                                 if not BIAS_REGEX.findall(v.name)
                                  and not v.name.startswith("vgg")
                                  and not v.name.startswith("Inception")
                                  and not v.name.startswith("resnet")]
