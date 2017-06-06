@@ -15,6 +15,11 @@ from neuralmonkey.decorators import tensor
 RNNCellTuple = Tuple[tf.contrib.rnn.RNNCell, tf.contrib.rnn.RNNCell]
 # pylint: enable=invalid-name
 
+RNN_CELL_TYPES = {
+    "GRU": OrthoGRUCell,
+    "LSTM": tf.contrib.rnn.LSTMCell
+}
+
 
 # pylint: disable=too-many-instance-attributes
 class SentenceEncoder(ModelPart, Attentive):
@@ -34,7 +39,7 @@ class SentenceEncoder(ModelPart, Attentive):
                  attention_state_size: int = None,
                  max_input_len: int = None,
                  dropout_keep_prob: float = 1.0,
-                 rnn_cell: type = OrthoGRUCell,
+                 rnn_cell: str = "GRU",
                  attention_type: type = None,
                  attention_fertility: int = 3,
                  save_checkpoint: str = None,
@@ -78,7 +83,7 @@ class SentenceEncoder(ModelPart, Attentive):
 
         self.max_input_len = max_input_len
         self.dropout_keep_prob = dropout_keep_prob
-        self.rnn_cell = rnn_cell
+        self.rnn_cell_str = rnn_cell
 
         if self.max_input_len is not None and self.max_input_len <= 0:
             raise ValueError("Input length must be a positive integer.")
@@ -89,9 +94,8 @@ class SentenceEncoder(ModelPart, Attentive):
         if self.rnn_size <= 0:
             raise ValueError("RNN size must be a positive integer.")
 
-        if not issubclass(self.rnn_cell, tf.contrib.rnn.RNNCell):
-            raise TypeError("RNN cell must be a subclass of "
-                            "tf.contrib.rnn.RNNCell")
+        if self.rnn_cell_str not in RNN_CELL_TYPES:
+            raise ValueError("RNN cell must be a either 'GRU' or 'LSTM'")
     # pylint: enable=too-many-arguments,too-many-locals
 
     # pylint: disable=no-self-use
@@ -163,8 +167,8 @@ class SentenceEncoder(ModelPart, Attentive):
 
     def _rnn_cells(self) -> RNNCellTuple:
         """Return the graph template to for creating RNN memory cells"""
-        return (OrthoGRUCell(self.rnn_size),
-                OrthoGRUCell(self.rnn_size))
+        return(RNN_CELL_TYPES[self.rnn_cell_str](self.rnn_size),
+               RNN_CELL_TYPES[self.rnn_cell_str](self.rnn_size))
 
     def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
         """Populate the feed dictionary with the encoder inputs.

@@ -10,12 +10,18 @@ from neuralmonkey.dataset import Dataset
 from neuralmonkey.vocabulary import Vocabulary, START_TOKEN, END_TOKEN_INDEX
 from neuralmonkey.model.model_part import ModelPart, FeedDict
 from neuralmonkey.logging import log, warn
+from neuralmonkey.nn.ortho_gru_cell import OrthoGRUCell
 from neuralmonkey.nn.utils import dropout
 from neuralmonkey.encoders.attentive import Attentive
 from neuralmonkey.nn.projection import linear
 from neuralmonkey.decoders.encoder_projection import (
     linear_encoder_projection, concat_encoder_projection, empty_initial_state)
 from neuralmonkey.decoders.output_projection import no_deep_output
+
+RNN_CELL_TYPES = {
+    "GRU": OrthoGRUCell,
+    "LSTM": tf.contrib.rnn.LSTMCell
+}
 
 
 # pylint: disable=too-many-instance-attributes,too-few-public-methods
@@ -94,7 +100,7 @@ class Decoder(ModelPart):
         self.embeddings_encoder = embeddings_encoder
         self._conditional_gru = conditional_gru
         self._attention_on_input = attention_on_input
-        self._rnn_cell = rnn_cell
+        self._rnn_cell_str = rnn_cell
 
         if self.embedding_size is None and self.embeddings_encoder is None:
             raise ValueError("You must specify either embedding size or the "
@@ -126,6 +132,9 @@ class Decoder(ModelPart):
                     self.dropout_keep_prob)
 
         assert self.rnn_size is not None
+
+        if self._rnn_cell_str not in RNN_CELL_TYPES:
+            raise ValueError("RNN cell must be a either 'GRU' or 'LSTM'")
 
         if self.output_projection is None:
             log("No output projection specified - using simple concatenation")
@@ -298,14 +307,9 @@ class Decoder(ModelPart):
         return tf.matmul(state, self.decoding_w) + self.decoding_b
 
     def _get_rnn_cell(self) -> tf.contrib.rnn.RNNCell:
-        if self._rnn_cell == 'GRU':
-            return tf.contrib.rnn.GRUCell(self.rnn_size)
-        elif self._rnn_cell == 'LSTM':
-            return tf.contrib.rnn.LSTMCell(self.rnn_size)
-        else:
-            raise ValueError("Unknown RNN cell: {}".format(self._rnn_cell))
+        return RNN_CELL_TYPES[self._rnn_cell_str](self.rnn_size)
 
-    def _get_conditional_gru_cell(self) -> tf.contrib.rnn.RNNCell:
+    def _get_conditional_gru_cell(self) -> tf.contrib.rnn.GRUCell:
         return tf.contrib.rnn.GRUCell(self.rnn_size)
 
     def get_attention_object(self, encoder, train_mode: bool):
@@ -334,16 +338,16 @@ class Decoder(ModelPart):
             cell_output, state = cell(x, prev_state)
 
             # Run the attention mechanism.
-            if self._rnn_cell == 'GRU':
+            if self._rnn_cell_str == 'GRU':
                 attns = [a.attention(cell_output, prev_state, x)
                          for a in att_objects]
-            elif self._rnn_cell == 'LSTM':
+            elif self._rnn_cell_str == 'LSTM':
                 attns = [a.attention(cell_output, prev_state.c, x)
                          for a in att_objects]
             else:
                 raise ValueError("Unknown RNN cell.")
 
-            if self._conditional_gru and self._rnn_cell == "GRU":
+            if self._conditional_gru and self._rnn_cell_str == "GRU":
                 cell_cond = self._get_conditional_gru_cell()
                 cond_input = tf.concat(attns, -1)
                 cell_output, state = cell_cond(cond_input, state,
@@ -383,9 +387,9 @@ class Decoder(ModelPart):
                        for e in self.encoders]
         att_objects = [a for a in att_objects if a is not None]
 
-        if self._rnn_cell == 'GRU':
+        if self._rnn_cell_str == 'GRU':
             state = self.initial_state
-        elif self._rnn_cell == 'LSTM':
+        elif self._rnn_cell_str == 'LSTM':
             state = tf.contrib.rnn.LSTMStateTuple(
                 self.initial_state, self.initial_state)
         else:
