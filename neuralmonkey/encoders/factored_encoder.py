@@ -88,6 +88,9 @@ class FactoredEncoder(ModelPart, Attentive):
         if rnn_size <= 0:
             raise ValueError("RNN size must be a positive integer.")
 
+        if self.dropout_keep_prob <= 0.0 or self.dropout_keep_prob > 1.0:
+            raise ValueError("Dropout keep prob must be inside (0,1].")
+
         if self.rnn_cell_str not in RNN_CELL_TYPES:
             raise ValueError("RNN cell must be a either 'GRU' or 'LSTM'")
     # pylint: enable=too-many-arguments,too-many-locals

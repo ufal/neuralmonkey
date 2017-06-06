@@ -23,9 +23,7 @@ SENTENCE_ENCODER_GOOD = {
     "max_input_len": [None, 15],
     "dropout_keep_prob": [0.5, 1.],
     "attention_type": [Attention, CoverageAttention, None],
-    "attention_fertility": [1],
-    "use_noisy_activations": [False],
-    "parent_encoder": [None]
+    "attention_fertility": [1]
 }
 
 SENTENCE_ENCODER_BAD = {
@@ -38,9 +36,7 @@ SENTENCE_ENCODER_BAD = {
     "max_input_len": [-1, 0, "ahoj", 3.14, VOCABULARY, SentenceEncoder],
     "dropout_keep_prob": [0.0, 0, -1.0, 2.0, "ahoj", VOCABULARY, None],
     "attention_type": [-1, "ahoj", VOCABULARY, SentenceEncoder],
-    "attention_fertility": [None, "ahoj", VOCABULARY, SentenceEncoder],
-    "use_noisy_activations": [None, SentenceEncoder],
-    "parent_encoder": [0, "ahoj", VOCABULARY, SentenceEncoder]
+    "attention_fertility": [None, "ahoj", VOCABULARY, SentenceEncoder]
 }
 
 SENTENCE_CNN_ENCODER_GOOD = {
