@@ -127,10 +127,14 @@ class SentenceEncoder(ModelPart, Attentive):
                 initializer=tf.random_normal_initializer(stddev=0.01))
 
     @tensor
+    def embedded_inputs(self) -> tf.Tensor:
+        return tf.nn.embedding_lookup(self.embedding_matrix, self.inputs)
+
+    @tensor
     def bidirectional_rnn(self) -> Tuple[Tuple[tf.Tensor, tf.Tensor],
                                          Tuple[tf.Tensor, tf.Tensor]]:
-        embedded = tf.nn.embedding_lookup(self.embedding_matrix, self.inputs)
-        embedded = dropout(embedded, self.dropout_keep_prob, self.train_mode)
+        embedded = dropout(self.embedded_inputs, self.dropout_keep_prob,
+                           self.train_mode)
 
         sequence_lengths = tf.to_int32(tf.reduce_sum(self.input_mask, 1))
 
