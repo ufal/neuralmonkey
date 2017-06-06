@@ -104,9 +104,11 @@ def glu(input_, gating_fn=tf.sigmoid):
     """Gated linear unit - Dauphin et al. (2016)
     http://arxiv.org/abs/1612.08083
     """
-    if input_.get_shape().as_list()[-1].value % 2 != 0:
+    dimensions = input_.get_shape().as_list()
+
+    if dimensions[-1] % 2 != 0:
         raise ValueError("Input size should be an even number")
 
-    lin, nonlin = tf.split(input_, 2, axis=-1)
+    lin, nonlin = tf.split(input_, 2, axis=len(dimensions)-1)
 
     return lin * gating_fn(nonlin)
