@@ -67,6 +67,9 @@ class ConvolutionalSentenceEncoder(ModelPart):#, Attentive):
                 convolutions = self.residual_conv(
                     convolutions, "encoder_conv_{}".format(layer))
 
+            self.encoded = convolutions + linear(self.ordered_embedded_inputs,
+                                                 self.conv_features)
+
     @property
     def vocabulary_size(self) -> int:
         return len(self.vocabulary)
