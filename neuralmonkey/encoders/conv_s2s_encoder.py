@@ -1,10 +1,10 @@
-
 """From a paper Convolutional Sequence to Sequence Learning
 
 http://arxiv.org/abs/1705.03122
 """
 
 import tensorflow as tf
+from typing import Any, List, Union, Type
 from typeguard import check_argument_types
 
 from neuralmonkey.encoders.attentive import Attentive
@@ -13,6 +13,9 @@ from neuralmonkey.logging import log
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.vocabulary import Vocabulary
 from neuralmonkey.decorators import tensor
+
+# todo remove ipdb
+import ipdb
 
 
 class ConvolutionalSentenceEncoder(ModelPart):#, Attentive):
@@ -41,6 +44,7 @@ class ConvolutionalSentenceEncoder(ModelPart):#, Attentive):
         self.data_id = data_id
         self.max_input_len = max_input_len
         self.encoder_stack_size = encoder_stack_size
+        self.embedding_size = embedding_size
 
         if max_input_len is not None and max_input_len <= 0:
             raise ValueError("Input length must be a positive integer.")
@@ -66,12 +70,25 @@ class ConvolutionalSentenceEncoder(ModelPart):#, Attentive):
                 "SAME")
 
 
-
-
     @property
     def vocabulary_size(self) -> int:
         return len(self.vocabulary)
 
+    @tensor
+    def word_embeddings(self) -> tf.Tensor:
+        # initialization in the same way as in original CS2S implementation
+        with tf.variable_scope("input_projection"):
+            return tf.get_variable(
+                "word_embeddings", [self.vocabulary_size, self.embedding_size],
+                initializer=tf.random_normal_initializer(stddev=0.1))
+
+    @tensor
+    def order_embeddings(self) -> tf.Tensor:
+        # initialization in the same way as in original CS2S implementation
+        with tf.variable_scope("input_projection"):
+            return tf.get_variable(
+                "order_embeddings", [self.max_input_len, self.embedding_size],
+                initializer=tf.random_normal_initializer(stddev=0.1))
 
     @tensor
     def ordered_embedded_inputs(self) -> tf.Tensor:
@@ -80,31 +97,20 @@ class ConvolutionalSentenceEncoder(ModelPart):#, Attentive):
         ordering_additive = tf.expand_dims(self.order_embeddings, 0)
         return emb_inp + ordering_additive
 
+
+
+
+
+
+
+
     @tensor
     def convolution_filters(self) -> tf.Tensor:
         # shape (encoder_stack_size, embedding_size, embedding_size)
         with tf.variable_scope("convolution"):
             log("TODO Better initialize convolution filters", color="red")
             return tf.get_variable(
-                "convolution_filters", [self.encoder_stack_size, self.embedding_size, self.embedding_size]
-
-
-
-    @tensor
-    def word_embeddings(self) -> tf.Tensor:
-        with tf.variable_scope("input_projection"):
-            log("TODO Better initialize word embeddings", color="red")
-            return tf.get_variable(
-                "word_embeddings", [self.vocabulary_size, self.embedding_size],
-                initializer=tf.random_normal_initializer(stddev=0.01))
-
-    @tensor
-    def order_embeddings(self) -> tf.Tensor:
-        with tf.variable_scope("input_projection"):
-            log("TODO Better initialize order embeddings", color="red")
-            return tf.get_variable(
-                "order_embeddings", [self.max_input_len, self.embedding_size],
-                initializer=tf.random_normal_initializer(stddev=0.01))
+                "convolution_filters", [self.encoder_stack_size, self.embedding_size, self.embedding_size])
 
     @tensor
     def inputs(self):
