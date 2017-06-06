@@ -28,6 +28,10 @@ class Test(unittest.TestCase):
             save_checkpoint=checkpoint_file.name,
             load_checkpoint=checkpoint_file.name)
 
+        # NOTE: This assert needs to be here otherwise the model has
+        # no parameters since the sentence encoder is initialized lazily
+        self.assertIsInstance(encoder.embedding_matrix, tf.Variable)
+
         encoders_variables = tf.get_collection(
             tf.GraphKeys.GLOBAL_VARIABLES, scope="enc")
 
