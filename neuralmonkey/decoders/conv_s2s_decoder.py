@@ -10,7 +10,7 @@ from typeguard import check_argument_types
 
 from neuralmonkey.vocabulary import Vocabulary, START_TOKEN, END_TOKEN_INDEX
 from neuralmonkey.encoders.attentive import Attentive
-from neuralmonkey.encoders.conv_s2s_encoder import ConvolutionalSentenceEncoder
+from neuralmonkey.encoders.facebook_conv import SentenceEncoder
 from neuralmonkey.model.model_part import ModelPart, FeedDict
 from neuralmonkey.logging import log
 from neuralmonkey.dataset import Dataset
@@ -18,15 +18,12 @@ from neuralmonkey.vocabulary import Vocabulary
 from neuralmonkey.decorators import tensor
 from neuralmonkey.nn.projection import glu, linear
 
-# todo remove ipdb
-import ipdb
-
 
 class ConvolutionalSentenceDecoder(ModelPart):
 
     def __init__(self,
                  name: str,
-                 encoder: ConvolutionalSentenceEncoder,
+                 encoder: SentenceEncoder,
                  vocabulary: Vocabulary,
                  data_id: str,
                  max_output_len: int,
@@ -51,10 +48,13 @@ class ConvolutionalSentenceDecoder(ModelPart):
 
         with self.use_scope():
             with tf.variable_scope("decoder") as self.step_scope:
-                decoded = self.decoding_loop(train_mode=True)
+                self.dec = self.decoding_loop(train_mode=True)
+
+                # doplnit loss
 
     def decoding_loop(self, train_mode):
         decoded_words = []
+        output_words = []
         prev_word = None
 
         for i in range(self.max_output_len):
@@ -77,9 +77,10 @@ class ConvolutionalSentenceDecoder(ModelPart):
                 convolutions = self.residual_conv(
                     convolutions, "decoder_conv_{}".format(layer))
 
+            output_words.append(linear(convolutions, self.vocabulary_size, "decoder_output"))
 
+        return output_words
 
-        ipdb.set_trace()
 
     def residual_conv(self, input, name):
         # TODO: tyto konvoluce jsou udelame spatne, musi se odstranovat v kazdem kroku prvky napravo, viz clanek
@@ -174,15 +175,15 @@ class ConvolutionalSentenceDecoder(ModelPart):
 
     @tensor
     def decoded(self) -> tf.Tensor:
-        return decoded
+        return self.dec
 
     @tensor
     def logprobs(self) -> tf.Tensor:
         return tf.nn.log_softmax(self.logits)
 
-    @tensor
-    def logits(self) -> tf.Tensor:
-        return logits
+    # @tensor
+    # def logits(self) -> tf.Tensor:
+    #     return logits
 
     def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
         fd = {}  # type: FeedDict
