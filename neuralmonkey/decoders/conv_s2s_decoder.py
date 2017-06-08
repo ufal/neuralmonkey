@@ -30,6 +30,9 @@ class ConvolutionalSentenceDecoder(ModelPart):
                  vocabulary: Vocabulary,
                  data_id: str,
                  max_output_len: int,
+                 conv_features: int,
+                 decoder_layers: int,
+                 kernel_width: int = 5,
                  save_checkpoint: Optional[str] = None,
                  load_checkpoint: Optional[str] = None) -> None:
         ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
@@ -39,6 +42,12 @@ class ConvolutionalSentenceDecoder(ModelPart):
         self.data_id = data_id
         self.max_output_len = max_output_len
         self.embedding_size = encoder.embedding_size
+        self.conv_features = conv_features
+        self.decoder_layers = decoder_layers
+        self.kernel_width = kernel_width
+
+        if conv_features <= 0:
+            raise ValueError("Number of features must be a positive integer.")
 
         with self.use_scope():
             with tf.variable_scope("decoder") as self.step_scope:
@@ -63,8 +72,33 @@ class ConvolutionalSentenceDecoder(ModelPart):
 
             embedded = self.embed(decoded_words)
 
+            convolutions = linear(embedded, self.conv_features)
+            for layer in range(self.decoder_layers):
+                convolutions = self.residual_conv(
+                    convolutions, "decoder_conv_{}".format(layer))
+
+
+
         ipdb.set_trace()
 
+    def residual_conv(self, input, name):
+        # TODO: tyto konvoluce jsou udelame spatne, musi se odstranovat v kazdem kroku prvky napravo, viz clanek
+        with tf.variable_scope(name):
+            # initialized as described in the paper
+            init_deviat = np.sqrt(4/self.conv_features)
+            convolution_filters = tf.get_variable(
+                "convolution_filters",
+                [self.kernel_width, self.conv_features, 2*self.conv_features],
+                initializer=tf.random_normal_initializer(stddev=init_deviat))
+
+            bias = tf.get_variable(
+                name="conv_bias",
+                shape=[2 * self.conv_features],
+                initializer=tf.zeros_initializer())
+
+            conv = tf.nn.conv1d(input, convolution_filters, 1, "SAME") + bias
+
+            return glu(conv) + input
 
 
 
