@@ -144,7 +144,7 @@ def from_dataset(datasets: List[Dataset], series_ids: List[str], max_size: int,
 
     if save_file is not None:
         directory = os.path.dirname(save_file)
-        if not os.path.exists(directory):
+        if directory and not os.path.exists(directory):
             os.makedirs(directory)
         vocabulary.save_to_file(save_file, overwrite)
 
