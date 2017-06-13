@@ -1,20 +1,24 @@
-from typing import Optional, Tuple
+from typing import Tuple
 
 import tensorflow as tf
 from typeguard import check_argument_types
 
 from neuralmonkey.encoders.attentive import Attentive
 from neuralmonkey.model.model_part import ModelPart, FeedDict
-from neuralmonkey.logging import log
-from neuralmonkey.nn.noisy_gru_cell import NoisyGRUCell
 from neuralmonkey.nn.ortho_gru_cell import OrthoGRUCell
 from neuralmonkey.nn.utils import dropout
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.vocabulary import Vocabulary
+from neuralmonkey.decorators import tensor
 
 # pylint: disable=invalid-name
 RNNCellTuple = Tuple[tf.contrib.rnn.RNNCell, tf.contrib.rnn.RNNCell]
 # pylint: enable=invalid-name
+
+RNN_CELL_TYPES = {
+    "GRU": OrthoGRUCell,
+    "LSTM": tf.contrib.rnn.LSTMCell
+}
 
 
 # pylint: disable=too-many-instance-attributes
@@ -25,7 +29,6 @@ class SentenceEncoder(ModelPart, Attentive):
     This version of the encoder does not support factors. Should you
     want to use them, use FactoredEncoder instead.
     """
-
     # pylint: disable=too-many-arguments,too-many-locals
     def __init__(self,
                  name: str,
@@ -33,15 +36,14 @@ class SentenceEncoder(ModelPart, Attentive):
                  data_id: str,
                  embedding_size: int,
                  rnn_size: int,
-                 attention_state_size: Optional[int] = None,
-                 max_input_len: Optional[int] = None,
+                 attention_state_size: int = None,
+                 max_input_len: int = None,
                  dropout_keep_prob: float = 1.0,
+                 rnn_cell: str = "GRU",
                  attention_type: type = None,
                  attention_fertility: int = 3,
-                 use_noisy_activations: bool = False,
-                 parent_encoder: Optional["SentenceEncoder"] = None,
-                 save_checkpoint: Optional[str] = None,
-                 load_checkpoint: Optional[str] = None) -> None:
+                 save_checkpoint: str = None,
+                 load_checkpoint: str = None) -> None:
         """Create a new instance of the sentence encoder.
 
         Arguments:
@@ -67,125 +69,113 @@ class SentenceEncoder(ModelPart, Attentive):
                 CoverageAttention (default 3).
         """
         ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
-        Attentive.__init__(
-            self, attention_type, attention_fertility=attention_fertility,
-            attention_state_size=attention_state_size)
+        Attentive.__init__(self, attention_type,
+                           attention_state_size=attention_state_size,
+                           attention_fertility=attention_fertility)
 
         check_argument_types()
 
         self.vocabulary = vocabulary
+        self.vocabulary_size = len(self.vocabulary)
         self.data_id = data_id
-
-        self.max_input_len = max_input_len
         self.embedding_size = embedding_size
         self.rnn_size = rnn_size
-        self.dropout_keep_prob = dropout_keep_prob
-        self.use_noisy_activations = use_noisy_activations
-        self.parent_encoder = parent_encoder
 
-        if max_input_len is not None and max_input_len <= 0:
+        self.max_input_len = max_input_len
+        self.dropout_keep_prob = dropout_keep_prob
+        self.rnn_cell_str = rnn_cell
+
+        if self.max_input_len is not None and self.max_input_len <= 0:
             raise ValueError("Input length must be a positive integer.")
 
-        if embedding_size <= 0:
+        if self.embedding_size <= 0:
             raise ValueError("Embedding size must be a positive integer.")
 
-        if rnn_size <= 0:
+        if self.rnn_size <= 0:
             raise ValueError("RNN size must be a positive integer.")
 
-        log("Initializing sentence encoder, name: '{}'"
-            .format(self.name))
+        if self.dropout_keep_prob <= 0.0 or self.dropout_keep_prob > 1.0:
+            raise ValueError("Dropout keep prob must be inside (0,1].")
 
-        with self.use_scope():
-            self._create_input_placeholders()
-            with tf.variable_scope('input_projection'):
-                self._create_embedding_matrix()
-                embedded_inputs = self._embed(self.inputs)  # type: tf.Tensor
-                self.embedded_inputs = embedded_inputs
+        if self.rnn_cell_str not in RNN_CELL_TYPES:
+            raise ValueError("RNN cell must be a either 'GRU' or 'LSTM'")
+    # pylint: enable=too-many-arguments,too-many-locals
 
-            fw_cell, bw_cell = self.rnn_cells()  # type: RNNCellTuple
-            outputs_bidi_tup, encoded_tup = tf.nn.bidirectional_dynamic_rnn(
-                fw_cell, bw_cell, embedded_inputs,
-                sequence_length=self.sentence_lengths,
-                dtype=tf.float32)
+    # pylint: disable=no-self-use
+    @tensor
+    def inputs(self) -> tf.Tensor:
+        return tf.placeholder(tf.int32, [None, None], "encoder_input")
 
-            self.hidden_states = tf.concat(outputs_bidi_tup, 2)
+    @tensor
+    def input_mask(self) -> tf.Tensor:
+        return tf.placeholder(tf.float32, [None, None], "encoder_padding")
 
-            with tf.variable_scope('attention_tensor'):
-                self.__attention_tensor = dropout(
-                    self.hidden_states, self.dropout_keep_prob,
-                    self.train_mode)
+    @tensor
+    def train_mode(self) -> tf.Tensor:
+        return tf.placeholder(tf.bool, [], "train_mode")
+    # pylint: enable=no-self-use
 
-            self.encoded = tf.concat(encoded_tup, 1)
-
-        log("Sentence encoder initialized")
-
-    @property
-    def _attention_tensor(self):
-        return self.__attention_tensor
-
-    @property
-    def _attention_mask(self):
-        # TODO tohle je proti OOP prirode
-        return self.input_mask
-
-    @property
-    def states_mask(self):
-        return self.input_mask
-
-    @property
-    def vocabulary_size(self):
-        return len(self.vocabulary)
-
-    def _create_input_placeholders(self):
-        """Creates input placeholder nodes in the computation graph"""
-        self.train_mode = tf.placeholder(tf.bool, shape=[], name="train_mode")
-
-        self.inputs = tf.placeholder(tf.int32,
-                                     shape=[None, None],
-                                     name="encoder_input")
-
-        self.input_mask = tf.placeholder(
-            tf.float32, shape=[None, None],
-            name="encoder_padding")
-
-        self.sentence_lengths = tf.to_int32(
-            tf.reduce_sum(self.input_mask, 1))
-
-    def _create_embedding_matrix(self):
-        """Create variables and operations for embedding the input words.
-
+    @tensor
+    def embedding_matrix(self) -> tf.Tensor:
+        """A variable for embedding the input words.
         If parent encoder is specified, we reuse its embedding matrix
         """
         # NOTE the note from the decoder's embedding matrix function applies
-        # here also
-        if self.parent_encoder is not None:
-            self.embedding_matrix = self.parent_encoder.embedding_matrix
-        else:
-            self.embedding_matrix = tf.get_variable(
-                "word_embeddings", [self.vocabulary_size, self.embedding_size],
+        # here also:
+
+        with tf.variable_scope("input_projection"):
+            return tf.get_variable(
+                "word_embeddings",
+                [self.vocabulary_size, self.embedding_size],
                 initializer=tf.random_normal_initializer(stddev=0.01))
 
-    def _embed(self, inputs: tf.Tensor) -> tf.Tensor:
-        """Embed the input using the embedding matrix and apply dropout
+    @tensor
+    def embedded_inputs(self) -> tf.Tensor:
+        return tf.nn.embedding_lookup(self.embedding_matrix, self.inputs)
 
-        Arguments:
-            inputs: The Tensor to be embedded and dropped out.
-        """
-        embedded = tf.nn.embedding_lookup(self.embedding_matrix, inputs)
-        return dropout(embedded, self.dropout_keep_prob, self.train_mode)
+    @tensor
+    def bidirectional_rnn(self) -> Tuple[Tuple[tf.Tensor, tf.Tensor],
+                                         Tuple[tf.Tensor, tf.Tensor]]:
+        embedded = dropout(self.embedded_inputs, self.dropout_keep_prob,
+                           self.train_mode)
 
-    def rnn_cells(self) -> RNNCellTuple:
+        sequence_lengths = tf.to_int32(tf.reduce_sum(self.input_mask, 1))
+
+        fw_cell, bw_cell = self._rnn_cells()  # type: RNNCellTuple
+        return tf.nn.bidirectional_dynamic_rnn(
+            fw_cell, bw_cell, embedded, sequence_length=sequence_lengths,
+            dtype=tf.float32)
+
+    @tensor
+    def hidden_states(self) -> tf.Tensor:
+        # pylint: disable=unsubscriptable-object
+        return tf.concat(self.bidirectional_rnn[0], 2)
+        # pylint: enable=unsubscriptable-object
+
+    @tensor
+    def encoded(self) -> tf.Tensor:
+        # pylint: disable=unsubscriptable-object
+        return tf.concat(self.bidirectional_rnn[1], 1)
+        # pylint: enable=unsubscriptable-object
+
+    @tensor
+    def _attention_tensor(self) -> tf.Tensor:
+        return dropout(self.hidden_states, self.dropout_keep_prob,
+                       self.train_mode)
+
+    @tensor
+    def _attention_mask(self) -> tf.Tensor:
+        # TODO tohle je proti OOP prirode
+        return self.input_mask
+
+    @tensor
+    def states_mask(self) -> tf.Tensor:
+        return self.input_mask
+
+    def _rnn_cells(self) -> RNNCellTuple:
         """Return the graph template to for creating RNN memory cells"""
-
-        if self.parent_encoder is not None:
-            return self.parent_encoder.rnn_cells()
-
-        if self.use_noisy_activations:
-            return(NoisyGRUCell(self.rnn_size, self.train_mode),
-                   NoisyGRUCell(self.rnn_size, self.train_mode))
-
-        return (OrthoGRUCell(self.rnn_size),
-                OrthoGRUCell(self.rnn_size))
+        return(RNN_CELL_TYPES[self.rnn_cell_str](self.rnn_size),
+               RNN_CELL_TYPES[self.rnn_cell_str](self.rnn_size))
 
     def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
         """Populate the feed dictionary with the encoder inputs.
@@ -203,11 +193,10 @@ class SentenceEncoder(ModelPart, Attentive):
             dataset: The dataset to use
             train: Boolean flag telling whether it is training time
         """
-        # pylint: disable=invalid-name
         fd = {}  # type: FeedDict
         fd[self.train_mode] = train
-        sentences = dataset.get_series(self.data_id)
 
+        sentences = dataset.get_series(self.data_id)
         vectors, paddings = self.vocabulary.sentences_to_tensor(
             list(sentences), self.max_input_len, pad_to_max_len=False,
             train_mode=train)

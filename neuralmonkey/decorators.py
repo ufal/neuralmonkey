@@ -15,6 +15,6 @@ def tensor(func):
             else:
                 value = func(self, *args, **kwargs)
             setattr(self, attribute_name, value)
-        return getattr(self, attribute_name)
 
+        return getattr(self, attribute_name)
     return property(decorate)
