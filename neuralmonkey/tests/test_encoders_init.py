@@ -9,7 +9,7 @@ from typing import Dict, List, Any, Iterable
 from neuralmonkey.decoding_function import Attention, CoverageAttention
 from neuralmonkey.encoders.numpy_encoder import (VectorEncoder,
                                                  PostCNNImageEncoder)
-from neuralmonkey.encoders.sentence_encoder import SentenceEncoder
+from neuralmonkey.encoders.recurrent import SentenceEncoder
 from neuralmonkey.encoders.sentence_cnn_encoder import SentenceCNNEncoder
 from neuralmonkey.tests.test_vocabulary import VOCABULARY
 

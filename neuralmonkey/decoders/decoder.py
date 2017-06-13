@@ -9,6 +9,7 @@ from neuralmonkey.decoding_function import BaseAttention
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.vocabulary import Vocabulary, START_TOKEN, END_TOKEN_INDEX
 from neuralmonkey.model.model_part import ModelPart, FeedDict
+from neuralmonkey.model.sequence import EmbeddedSequence
 from neuralmonkey.logging import log, warn
 from neuralmonkey.nn.ortho_gru_cell import OrthoGRUCell
 from neuralmonkey.nn.utils import dropout
@@ -49,7 +50,7 @@ class Decoder(ModelPart):
                      [tf.Tensor, Optional[int], Optional[List[Any]]],
                      tf.Tensor]]=None,
                  use_attention: bool = False,
-                 embeddings_encoder: Optional[Any] = None,
+                 embeddings_source: Optional[EmbeddedSequence] = None,
                  attention_on_input: bool = True,
                  rnn_cell: str = 'GRU',
                  conditional_gru: bool = False,
@@ -75,7 +76,7 @@ class Decoder(ModelPart):
             encoder_projection: How to construct initial state from encoders
             use_attention: Flag whether to look at attention vectors of the
                 encoders
-            embeddings_encoder: Encoder to take embeddings from
+            embeddings_source: Embedded sequence to take embeddings from
             rnn_cell: RNN Cell used by the decoder (GRU or LSTM)
             conditional_gru: Flag whether to use the Conditional GRU
                 architecture
@@ -97,24 +98,24 @@ class Decoder(ModelPart):
         self.output_projection = output_projection
         self.encoder_projection = encoder_projection
         self.use_attention = use_attention
-        self.embeddings_encoder = embeddings_encoder
+        self.embeddings_source = embeddings_source
         self._conditional_gru = conditional_gru
         self._attention_on_input = attention_on_input
         self._rnn_cell_str = rnn_cell
 
-        if self.embedding_size is None and self.embeddings_encoder is None:
+        if self.embedding_size is None and self.embeddings_source is None:
             raise ValueError("You must specify either embedding size or the "
-                             "encoder from which to reuse the embeddings ("
-                             "e.g. set either 'embedding_size' or "
-                             " 'embeddings_encoder' parameter)")
+                             "embedded sequence from which to reuse the "
+                             "embeddings (e.g. set either 'embedding_size' or "
+                             " 'embeddings_source' parameter)")
 
-        if self.embeddings_encoder is not None:
+        if self.embeddings_source is not None:
             if self.embedding_size is not None:
                 warn("Overriding the embedding_size parameter with the"
                      " size of the reused embeddings from the encoder.")
 
             self.embedding_size = (
-                self.embeddings_encoder.embedding_matrix.get_shape()[1].value)
+                self.embeddings_source.embedding_matrix.get_shape()[1].value)
 
         if self.encoder_projection is None:
             if not self.encoders:
@@ -281,13 +282,13 @@ class Decoder(ModelPart):
         If we are reusing word embeddings, this function takes the embedding
         matrix from the first encoder
         """
-        if self.embeddings_encoder is None:
+        if self.embeddings_source is None:
             # TODO better initialization
             self.embedding_matrix = tf.get_variable(
                 "word_embeddings", [len(self.vocabulary), self.embedding_size],
                 initializer=tf.random_uniform_initializer(-0.5, 0.5))
         else:
-            self.embedding_matrix = self.embeddings_encoder.embedding_matrix
+            self.embedding_matrix = self.embeddings_source.embedding_matrix
 
     def embed_and_dropout(self, inputs: tf.Tensor) -> tf.Tensor:
         """Embed the input using the embedding matrix and apply dropout

@@ -4,7 +4,7 @@ import tensorflow as tf
 
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.model.model_part import ModelPart, FeedDict
-from neuralmonkey.encoders.sentence_encoder import SentenceEncoder
+from neuralmonkey.encoders.recurrent import RecurrentEncoder
 from neuralmonkey.vocabulary import Vocabulary
 from neuralmonkey.decorators import tensor
 
@@ -14,7 +14,7 @@ class SequenceLabeler(ModelPart):
 
     def __init__(self,
                  name: str,
-                 encoder: SentenceEncoder,
+                 encoder: RecurrentEncoder,
                  vocabulary: Vocabulary,
                  data_id: str,
                  dropout_keep_prob: float = 1.0,
@@ -28,7 +28,7 @@ class SequenceLabeler(ModelPart):
         self.dropout_keep_prob = dropout_keep_prob
 
         self.rnn_size = self.encoder.rnn_size * 2
-        self.max_output_len = self.encoder.max_input_len
+        self.max_output_len = self.encoder.input_sequence.max_length
 
     # pylint: disable=no-self-use
     @tensor
@@ -98,14 +98,16 @@ class SequenceLabeler(ModelPart):
 
         weights_direct = tf.get_variable(
             name="emb_to_word_W",
-            shape=[self.encoder.embedding_size, vocabulary_size],
+            shape=[self.encoder.input_sequence.dimension, vocabulary_size],
             initializer=tf.random_uniform_initializer(-0.5, 0.5))
 
         # To multiply 3-D matrix (encoder hidden states) by a 2-D matrix
         # (weights), we use 1-by-1 convolution (similar trick can be found in
         # attention computation)
 
-        encoder_states = tf.expand_dims(self.encoder.hidden_states, 2)
+        # TODO dropout needs to be revisited
+
+        encoder_states = tf.expand_dims(self.encoder.states, 2)
         weights_4d = tf.expand_dims(tf.expand_dims(weights, 0), 0)
 
         multiplication = tf.nn.conv2d(
@@ -114,7 +116,7 @@ class SequenceLabeler(ModelPart):
 
         biases_3d = tf.expand_dims(tf.expand_dims(biases, 0), 0)
 
-        embedded_inputs = tf.expand_dims(self.encoder.embedded_inputs, 2)
+        embedded_inputs = tf.expand_dims(self.encoder.input_sequence.data, 2)
         dweights_4d = tf.expand_dims(tf.expand_dims(weights_direct, 0), 0)
 
         dmultiplication = tf.nn.conv2d(

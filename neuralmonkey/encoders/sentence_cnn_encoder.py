@@ -6,7 +6,7 @@ import tensorflow as tf
 from typeguard import check_argument_types
 
 from neuralmonkey.encoders.attentive import Attentive
-from neuralmonkey.encoders.sentence_encoder import RNNCellTuple
+from neuralmonkey.encoders.recurrent import RNNCellTuple
 from neuralmonkey.model.model_part import ModelPart, FeedDict
 from neuralmonkey.nn.noisy_gru_cell import NoisyGRUCell
 from neuralmonkey.nn.ortho_gru_cell import OrthoGRUCell

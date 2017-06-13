@@ -9,7 +9,7 @@ import numpy as np
 import tensorflow as tf
 
 from neuralmonkey.vocabulary import Vocabulary
-from neuralmonkey.encoders.sentence_encoder import SentenceEncoder
+from neuralmonkey.encoders.recurrent import SentenceEncoder
 
 
 class Test(unittest.TestCase):
@@ -30,7 +30,7 @@ class Test(unittest.TestCase):
 
         # NOTE: This assert needs to be here otherwise the model has
         # no parameters since the sentence encoder is initialized lazily
-        self.assertIsInstance(encoder.embedding_matrix, tf.Variable)
+        self.assertIsInstance(encoder.states, tf.Tensor)
 
         encoders_variables = tf.get_collection(
             tf.GraphKeys.GLOBAL_VARIABLES, scope="enc")

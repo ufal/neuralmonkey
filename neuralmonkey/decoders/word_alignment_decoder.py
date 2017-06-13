@@ -2,7 +2,7 @@ import numpy as np
 import tensorflow as tf
 
 from neuralmonkey.dataset import Dataset
-from neuralmonkey.encoders.sentence_encoder import SentenceEncoder
+from neuralmonkey.encoders.recurrent import RecurrentEncoder
 from neuralmonkey.decoders.decoder import Decoder
 from neuralmonkey.logging import warn
 from neuralmonkey.model.model_part import ModelPart, FeedDict
@@ -15,7 +15,7 @@ class WordAlignmentDecoder(ModelPart):
     """
 
     def __init__(self,
-                 encoder: SentenceEncoder,
+                 encoder: RecurrentEncoder,
                  decoder: Decoder,
                  data_id: str,
                  name: str) -> None:
@@ -26,8 +26,9 @@ class WordAlignmentDecoder(ModelPart):
         self.data_id = data_id
 
         self.ref_alignment = tf.placeholder(
-            tf.float32,
-            [None, self.decoder.max_output_len, self.encoder.max_input_len],
+            dtype=tf.float32,
+            shape=[None, self.decoder.max_output_len,
+                   self.encoder.input_sequence.max_length],
             name="ref_alignment")
 
         # shape will be [max_output_len, batch_size, max_input_len]
@@ -75,7 +76,8 @@ class WordAlignmentDecoder(ModelPart):
 
             alignment = np.zeros((len(dataset),
                                   self.decoder.max_output_len,
-                                  self.encoder.max_input_len), np.float32)
+                                  self.encoder.input_sequence.max_length),
+                                 np.float32)
 
         fd[self.ref_alignment] = alignment
 
