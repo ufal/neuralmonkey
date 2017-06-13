@@ -1,6 +1,6 @@
 """Encoder for sentences withou explicit segmentation."""
 
-from typing import Optional, Tuple, List, Any
+from typing import Optional, Tuple, List
 
 import tensorflow as tf
 from typeguard import check_argument_types
@@ -8,12 +8,12 @@ from typeguard import check_argument_types
 from neuralmonkey.encoders.attentive import Attentive
 from neuralmonkey.encoders.recurrent import RNNCellTuple
 from neuralmonkey.model.model_part import ModelPart, FeedDict
+from neuralmonkey.model.sequence import Sequence
 from neuralmonkey.nn.noisy_gru_cell import NoisyGRUCell
 from neuralmonkey.nn.ortho_gru_cell import OrthoGRUCell
 from neuralmonkey.nn.utils import dropout
 from neuralmonkey.nn.highway import highway
 from neuralmonkey.dataset import Dataset
-from neuralmonkey.vocabulary import Vocabulary
 from neuralmonkey.decorators import tensor
 
 
@@ -31,16 +31,13 @@ class SentenceCNNEncoder(ModelPart, Attentive):
     # pylint: disable=too-many-statements
     def __init__(self,
                  name: str,
-                 vocabulary: Vocabulary,
-                 data_id: str,
-                 embedding_size: int,
+                 input_sequence: Sequence,
                  segment_size: int,
                  highway_depth: int,
                  rnn_size: int,
                  filters: List[Tuple[int, int]],
-                 max_input_len: Optional[int] = None,
                  dropout_keep_prob: float = 1.0,
-                 attention_type: Optional[Any] = None,
+                 attention_type: type = None,
                  attention_fertility: int = 3,
                  use_noisy_activations: bool = False,
                  save_checkpoint: Optional[str] = None,
@@ -48,12 +45,7 @@ class SentenceCNNEncoder(ModelPart, Attentive):
         """Create a new instance of the sentence encoder.
 
         Arguments:
-            vocabulary: Input vocabulary
-            data_id: Identifier of the data series fed to this encoder
             name: An unique identifier for this encoder
-            max_input_len: Maximum length of an encoded sequence
-            embedding_size: The size of the embedding vector assigned
-                to each word
             segment_size: The size of the segments over which we apply
                 max-pooling.
             highway_depth: Depth of the highway layer.
@@ -77,11 +69,7 @@ class SentenceCNNEncoder(ModelPart, Attentive):
             self, attention_type, attention_fertility=attention_fertility)
         check_argument_types()
 
-        self.vocabulary = vocabulary
-        self.data_id = data_id
-
-        self.max_input_len = max_input_len
-        self.embedding_size = embedding_size
+        self.input_sequence = input_sequence
         self.segment_size = segment_size
         self.highway_depth = highway_depth
         self.rnn_size = rnn_size
@@ -93,12 +81,6 @@ class SentenceCNNEncoder(ModelPart, Attentive):
             raise ValueError(
                 ("Dropout keep probability must be "
                  "in (0; 1], was {}").format(dropout_keep_prob))
-
-        if max_input_len is not None and max_input_len <= 0:
-            raise ValueError("Input length must be a positive integer.")
-
-        if embedding_size <= 0:
-            raise ValueError("Embedding size must be a positive integer.")
 
         if rnn_size <= 0:
             raise ValueError("RNN size must be a positive integer.")
@@ -122,42 +104,19 @@ class SentenceCNNEncoder(ModelPart, Attentive):
     @tensor
     def train_mode(self) -> tf.Tensor:
         return tf.placeholder(tf.bool, shape=[], name="train_mode")
-
-    @tensor
-    def inputs(self) -> tf.Tensor:
-        return tf.placeholder(tf.int32,
-                              shape=[None, None],
-                              name="encoder_input")
-
-    @tensor
-    def input_mask(self) -> tf.Tensor:
-        return tf.placeholder(tf.float32, shape=[None, None],
-                              name="encoder_padding")
     # pylint: enable=no-self-use
-
-    @tensor
-    def sentence_lengths(self) -> tf.Tensor:
-        return tf.to_int32(tf.reduce_sum(self.input_mask, 1))
-
-    @tensor
-    def embedded_inputs(self) -> tf.Tensor:
-        with tf.variable_scope('input_projection'):
-            embedding_matrix = tf.get_variable(
-                "word_embeddings", [self.vocabulary_size, self.embedding_size],
-                initializer=tf.random_normal_initializer(stddev=0.01))
-            embedded = tf.nn.embedding_lookup(embedding_matrix, self.inputs)
-            embedded_dropped = dropout(
-                embedded, self.dropout_keep_prob, self.train_mode)
-
-        return embedded_dropped
 
     @tensor
     def cnn_encoded(self) -> tf.Tensor:
         """1D convolution with max-pool that processing characters."""
+        dropped_inputs = dropout(self.input_sequence.data,
+                                 self.dropout_keep_prob, self.train_mode)
+
         pooled_outputs = []
         for filter_size, num_filters in self.filters:
             with tf.variable_scope("conv-maxpool-%s" % filter_size):
-                filter_shape = [filter_size, self.embedding_size, num_filters]
+                filter_shape = [filter_size, self.input_sequence.dimension,
+                                num_filters]
                 w_filter = tf.get_variable(
                     "conv_W", filter_shape,
                     initializer=tf.random_uniform_initializer(-0.5, 0.5))
@@ -165,7 +124,7 @@ class SentenceCNNEncoder(ModelPart, Attentive):
                     "conv_bias", [num_filters],
                     initializer=tf.constant_initializer(0.0))
                 conv = tf.nn.conv1d(
-                    self.embedded_inputs,
+                    dropped_inputs,
                     w_filter,
                     stride=1,
                     padding="SAME",
@@ -209,7 +168,7 @@ class SentenceCNNEncoder(ModelPart, Attentive):
         # BiRNN Network
         fw_cell, bw_cell = self.rnn_cells()  # type: RNNCellTuple
         seq_lens = tf.ceil(tf.divide(
-            self.sentence_lengths,
+            self.input_sequence.lengths,
             self.segment_size))
         seq_lens = tf.cast(seq_lens, tf.int32)
         return tf.nn.bidirectional_dynamic_rnn(
@@ -237,7 +196,7 @@ class SentenceCNNEncoder(ModelPart, Attentive):
     @tensor
     def _attention_mask(self) -> tf.Tensor:
         expanded = tf.expand_dims(
-            tf.expand_dims(self.input_mask, -1),
+            tf.expand_dims(self.input_sequence.mask, -1),
             -1)
         pooled = tf.nn.max_pool(
             expanded,
@@ -245,10 +204,6 @@ class SentenceCNNEncoder(ModelPart, Attentive):
             strides=[1, self.segment_size, 1, 1],
             padding="SAME")
         return tf.squeeze(pooled, [2, 3])
-
-    @property
-    def vocabulary_size(self) -> int:
-        return len(self.vocabulary)
 
     def rnn_cells(self) -> RNNCellTuple:
         """Return the graph template to for creating RNN memory cells"""
@@ -263,31 +218,11 @@ class SentenceCNNEncoder(ModelPart, Attentive):
     def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
         """Populate the feed dictionary with the encoder inputs.
 
-        Encoder input placeholders:
-            ``encoder_input``: Stores indices to the vocabulary,
-                shape (batch, time)
-            ``encoder_padding``: Stores the padding (ones and zeros,
-                indicating valid words and positions after the end
-                of sentence, shape (batch, time)
-            ``train_mode``: Boolean scalar specifying the mode (train
-                vs runtime)
-
         Arguments:
             dataset: The dataset to use
             train: Boolean flag telling whether it is training time
         """
-        # pylint: disable=invalid-name
-        fd = {}  # type: FeedDict
+        fd = self.input_sequence.feed_dict(dataset, train)
         fd[self.train_mode] = train
-        sentences = dataset.get_series(self.data_id)
-
-        vectors, paddings = self.vocabulary.sentences_to_tensor(
-            list(sentences), self.max_input_len, pad_to_max_len=False,
-            train_mode=train)
-
-        # as sentences_to_tensor returns lists of shape (time, batch),
-        # we need to transpose
-        fd[self.inputs] = list(zip(*vectors))
-        fd[self.input_mask] = list(zip(*paddings))
 
         return fd

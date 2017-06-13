@@ -39,6 +39,10 @@ class Sequence(ModelPart):
     def max_length(self) -> int:
         return self._max_length
 
+    @tensor
+    def lengths(self) -> tf.Tensor:
+        return tf.to_int32(tf.reduce_sum(self.mask, 1))
+
 
 class EmbeddedFactorSequence(Sequence):
 

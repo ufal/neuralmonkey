@@ -71,12 +71,10 @@ class RecurrentEncoder(ModelPart, Attentive):
         embedded = dropout(self.input_sequence.data, self.dropout_keep_prob,
                            self.train_mode)
 
-        sequence_lengths = tf.to_int32(
-            tf.reduce_sum(self.input_sequence.mask, 1))
-
         fw_cell, bw_cell = self._rnn_cells()  # type: RNNCellTuple
         return tf.nn.bidirectional_dynamic_rnn(
-            fw_cell, bw_cell, embedded, sequence_length=sequence_lengths,
+            fw_cell, bw_cell, embedded,
+            sequence_length=self.input_sequence.lengths,
             dtype=tf.float32)
 
     @tensor
