@@ -1,3 +1,5 @@
+"""This module impements the sequence class and a few of its subclasses"""
+
 from typing import List
 
 import tensorflow as tf
@@ -10,12 +12,24 @@ from neuralmonkey.dataset import Dataset
 
 
 class Sequence(ModelPart):
+    """ Base class for a data sequence.
 
+    This class represents a batch of sequences of Tensors of possibly
+    different lengths.
+    """
     def __init__(self,
                  name: str,
                  max_length: int = None,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None) -> None:
+        """Construct a new `Sequence` object.
+
+        Arguments:
+            name: The name for the `ModelPart` object
+            max_length: Maximum length of sequences in the object (not checked)
+            save_checkpoint: The save_checkpoint parameter for `ModelPart`
+            load_checkpoint: The load_checkpoint parameter for `ModelPart`
+        """
         ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
         check_argument_types()
 
@@ -25,26 +39,41 @@ class Sequence(ModelPart):
 
     @property
     def data(self) -> tf.Tensor:
+        """A `Tensor` representing the data in the sequence. The first and
+        second dimension correspond to batch size and time respectively.
+        """
         raise NotImplementedError("Accessing abstract property")
 
     @property
     def mask(self) -> tf.Tensor:
+        """A 2D `Tensor` of type `float32` and shape (batch size, time) that
+        masks the sequences in the batch.
+        """
         raise NotImplementedError("Accessing abstract property")
 
     @property
     def dimension(self) -> int:
+        """The dimension of the sequence. For 3D sequences, this is the size
+        of the last dimension of the `data` tensor.
+        """
+        # TODO make this work for higher dimensional tensors
         raise NotImplementedError("Accessing abstract property")
 
     @property
     def max_length(self) -> int:
+        """The maximum length of sequences in the `data` tensor."""
         return self._max_length
 
     @tensor
     def lengths(self) -> tf.Tensor:
+        """A 1D `Tensor` of type `int32` that stores the lengths of the
+        sequences in the batch
+        """
         return tf.to_int32(tf.reduce_sum(self.mask, 1))
 
 
 class EmbeddedFactorSequence(Sequence):
+    """A `Sequence` that stores one or more embedded inputs (factors)."""
 
     def __init__(self,
                  name: str,
@@ -54,6 +83,24 @@ class EmbeddedFactorSequence(Sequence):
                  max_length: int = None,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None) -> None:
+        """Construct a new instance of `EmbeddedFactorSequence`
+
+        Takes three lists of vocabularies, data series IDs, and embedding
+        sizes and construct a `Sequence` object. The supplied lists must be
+        equal in length and the indices to these lists must correspond
+        to each other
+
+        Arguments:
+            name: The name for the `ModelPart` object
+            vocabularies: A list of `Vocabulary` objects used for each factor
+            data_ids: A list of strings identifying the data series used for
+                each factor
+            embedding_sizes: A list of integers specifying the size of the
+                embedding vector for each factor
+            max_length: The maximum length of the sequences
+            save_checkpoint: The save_checkpoint parameter for `ModelPart`
+            load_checkpoint: The load_checkpoint parameter for `ModelPart`
+        """
         Sequence.__init__(self, name, max_length,
                           save_checkpoint, load_checkpoint)
         check_argument_types()
@@ -74,6 +121,9 @@ class EmbeddedFactorSequence(Sequence):
 
     @tensor
     def input_factors(self) -> List[tf.Tensor]:
+        """A list of 2D placeholders for each factor. Each placeholder has
+        shape (batch size, time).
+        """
         plc_names = ["sequence_data_{}".format(data_id)
                      for data_id in self.data_ids]
 
@@ -83,11 +133,15 @@ class EmbeddedFactorSequence(Sequence):
     # pylint: disable=no-self-use
     @tensor
     def mask(self) -> tf.Tensor:
+        """A 2D placeholder for the sequence mask. This is shared across
+        factors and must be the same for each of them.
+        """
         return tf.placeholder(tf.float32, [None, None], "sequence_mask")
     # pylint: enable=no-self-use
 
     @tensor
     def embedding_matrices(self) -> List[tf.Tensor]:
+        """A list of embedding matrices for each factor"""
         # TODO better initialization
         # embedding matrices are numbered rather than named by the data id so
         # the data_id string does not need to be the same across experiments
@@ -101,6 +155,10 @@ class EmbeddedFactorSequence(Sequence):
 
     @tensor
     def data(self) -> tf.Tensor:
+        """The sequence data. A 3D Tensor of shape (batch, time, dimension),
+        where dimension is the sum of the embedding sizes supplied to the
+        constructor.
+        """
         embedded_factors = [
             tf.nn.embedding_lookup(embedding_matrix, factor)
             for factor, embedding_matrix in zip(
@@ -110,9 +168,22 @@ class EmbeddedFactorSequence(Sequence):
 
     @property
     def dimension(self) -> int:
+        """The sequence dimension. The sum of the embedding sizes supplied to
+        the constructor.
+        """
         return sum(self.embedding_sizes)
 
     def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
+        """Feed the placholders with the data.
+
+        Arguments:
+            dataset: The dataset.
+            train: A flag whether the train mode is enabled.
+
+        Returns:
+            The constructed feed dictionary that contains the factor data and
+            the mask.
+        """
         fd = {}  # type: FeedDict
 
         # for checking the lengths of individual factors
@@ -140,6 +211,8 @@ class EmbeddedFactorSequence(Sequence):
 
 
 class EmbeddedSequence(EmbeddedFactorSequence):
+    """A sequence of embedded inputs (for a single factor)"""
+
     def __init__(self,
                  name: str,
                  vocabulary: Vocabulary,
@@ -148,6 +221,19 @@ class EmbeddedSequence(EmbeddedFactorSequence):
                  max_length: int = None,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None) -> None:
+        """Construct a new instance of `EmbeddedSequence`
+
+        Arguments:
+            name: The name for the `ModelPart` object
+            vocabulary: A `Vocabulary` object used for the sequence data
+            data_id: A string that identifies the data series used for
+                the sequence data
+            embedding_sizes: An integer that specifies the size of the
+                embedding vector for the sequence data
+            max_length: The maximum length of the sequences
+            save_checkpoint: The save_checkpoint parameter for `ModelPart`
+            load_checkpoint: The load_checkpoint parameter for `ModelPart`
+        """
         EmbeddedFactorSequence.__init__(
             self,
             name=name,
@@ -161,32 +247,21 @@ class EmbeddedSequence(EmbeddedFactorSequence):
     # pylint: disable=unsubscriptable-object
     @property
     def inputs(self) -> tf.Tensor:
+        """A 2D placeholder for the sequence inputs."""
         return self.input_factors[0]
 
     @property
     def embedding_matrix(self) -> tf.Tensor:
+        """The embedding matrix for the sequence"""
         return self.embedding_matrices[0]
     # pylint: enable=unsubscriptable-object
 
     @property
     def vocabulary(self) -> Vocabulary:
+        """The input vocabulary"""
         return self.vocabularies[0]
 
     @property
     def data_id(self) -> str:
+        """The input data series indentifier"""
         return self.data_ids[0]
-
-    def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
-        fd = {}  # type: FeedDict
-
-        sentences = dataset.get_series(self.data_id)
-        vectors, paddings = self.vocabulary.sentences_to_tensor(
-            list(sentences), self.max_length, pad_to_max_len=False,
-            train_mode=train)
-
-        # as sentences_to_tensor returns lists of shape (time, batch),
-        # we need to transpose
-        fd[self.inputs] = list(zip(*vectors))
-        fd[self.mask] = list(zip(*paddings))
-
-        return fd
