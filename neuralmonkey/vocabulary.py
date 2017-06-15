@@ -527,7 +527,7 @@ class Vocabulary(collections.Sized):
                 # frequencies it MUST NOT contain the header. It is an
                 # exception from Tensorboard. More at
                 # https://www.tensorflow.org/get_started/embedding_viz
-                output_file.write("Word\tFrequency\n")
+                output_file.write("Word\tWord counts\n")
             elif save_frequencies and not self.correct_counts:
                 log("Storing vocabulary without frequencies.")
 
