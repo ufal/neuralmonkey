@@ -116,6 +116,7 @@ def from_dataset(datasets: List[Dataset], series_ids: List[str], max_size: int,
     check_argument_types()
 
     vocabulary = Vocabulary(unk_sample_prob=unk_sample_prob)
+    vocabulary.correct_counts = True
 
     for dataset in datasets:
         if isinstance(dataset, LazyDataset):
@@ -244,6 +245,9 @@ class Vocabulary(collections.Sized):
         self.index_to_word = []  # type: List[str]
         self.word_count = {}  # type: Dict[str, int]
 
+        # flag if the word count are in use
+        self.correct_counts = False
+
         self.unk_sample_prob = unk_sample_prob
 
         self.add_word(PAD_TOKEN)
@@ -327,6 +331,9 @@ class Vocabulary(collections.Sized):
         freq = self.word_count.get(word, 0)
 
         if freq <= 1 and random.random() < self.unk_sample_prob:
+            if not self.correct_counts:
+                raise ValueError("The vocabulary does not have correct "
+                                 "word_counts to use with unknown sampling")
             return self.get_word_index(UNK_TOKEN)
 
         return idx
@@ -338,6 +345,11 @@ class Vocabulary(collections.Sized):
         Arguments:
             size: The final size of the vocabulary
         """
+
+        if not self.correct_counts:
+            raise ValueError("The vocabulary does not have correct "
+                             "word_counts to use for vocabulary truncate")
+
         # sort by frequency
         words_by_freq = sorted(list(self.word_count.keys()),
                                key=lambda w: self.word_count[w])
@@ -507,7 +519,7 @@ class Vocabulary(collections.Sized):
                                   "overwrite is disabled. {}".format(path))
 
         with open(path, 'w') as output_file:
-            if save_frequencies:
+            if save_frequencies and self.correct_counts:
                 # this header is important for the TensorBoard to properly
                 # handle the frequencies.
                 #
@@ -516,12 +528,15 @@ class Vocabulary(collections.Sized):
                 # exception from Tensorboard. More at
                 # https://www.tensorflow.org/get_started/embedding_viz
                 output_file.write("Word\tFrequency\n")
+            elif save_frequencies and not self.correct_counts:
+                log("Storing vocabulary without frequencies.")
 
             for i in range(len(self.index_to_word)):
                 output_file.write(self.index_to_word[i])
-                if save_frequencies:
+                if save_frequencies and self.correct_counts:
                     output_file.write(
                         "\t" + str(self.word_count[self.index_to_word[i]]))
+
                 output_file.write("\n")
 
     def log_sample(self, size: int = 5):
