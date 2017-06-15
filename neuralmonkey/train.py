@@ -10,6 +10,7 @@ import shlex
 from shutil import copyfile
 import numpy as np
 import tensorflow as tf
+from tensorflow.contrib.tensorboard.plugins import projector
 
 from neuralmonkey.checking import CheckingException, check_dataset_and_coders
 from neuralmonkey.logging import Logging, log
@@ -186,10 +187,16 @@ def main() -> None:
         exit(1)
 
     if cfg.model.visualize_embeddings:
+
+        tb_projector = projector.ProjectorConfig()
+
         for sequence in cfg.model.visualize_embeddings:
             if not isinstance(sequence, EmbeddedFactorSequence):
                 raise ValueError("Visualization must be embedded sequence.")
-            sequence.save_visualization(cfg.model.output)
+            sequence.save_visualization(cfg.model.output, tb_projector)
+
+        summary_writer = tf.summary.FileWriter(cfg.model.output)
+        projector.visualize_embeddings(summary_writer, tb_projector)
 
     Logging.print_header(cfg.model.name, cfg.args.output)
 
