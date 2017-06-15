@@ -16,6 +16,7 @@ from neuralmonkey.logging import Logging, log
 from neuralmonkey.config.configuration import Configuration
 from neuralmonkey.learning_utils import training_loop
 from neuralmonkey.dataset import Dataset
+from neuralmonkey.model.sequence import EmbeddedFactorSequence
 
 
 def create_config() -> Configuration:
@@ -34,6 +35,7 @@ def create_config() -> Configuration:
     config.add_argument('test_datasets', required=False, default=[])
     config.add_argument('logging_period', required=False, default=20)
     config.add_argument('validation_period', required=False, default=500)
+    config.add_argument('visualize_embeddings', required=False, default=None)
     config.add_argument('val_preview_input_series',
                         required=False, default=None)
     config.add_argument('val_preview_output_series',
@@ -182,6 +184,12 @@ def main() -> None:
     except CheckingException as exc:
         log(str(exc), color='red')
         exit(1)
+
+    if cfg.model.visualize_embeddings:
+        for sequence in cfg.model.visualize_embeddings:
+            if not isinstance(sequence, EmbeddedFactorSequence):
+                raise ValueError("Visualization must be embedded sequence.")
+            sequence.save_visualization()
 
     Logging.print_header(cfg.model.name, cfg.args.output)
 
