@@ -18,6 +18,7 @@ from neuralmonkey.nn.projection import linear
 from neuralmonkey.decoders.encoder_projection import (
     linear_encoder_projection, concat_encoder_projection, empty_initial_state)
 from neuralmonkey.decoders.output_projection import no_deep_output
+from neuralmonkey.decorators import tensor
 
 RNN_CELL_TYPES = {
     "GRU": OrthoGRUCell,
@@ -145,30 +146,6 @@ class Decoder(ModelPart):
             with tf.variable_scope("attention_decoder") as self.step_scope:
                 pass
 
-            self._create_input_placeholders()
-            self._create_training_placeholders()
-            self._create_initial_state()
-            self._create_embedding_matrix()
-
-            with tf.name_scope("output_projection"):
-                self.decoding_w = tf.get_variable(
-                    "state_to_word_W", [self.rnn_size, len(self.vocabulary)],
-                    initializer=tf.random_uniform_initializer(-0.5, 0.5))
-
-                self.decoding_b = tf.get_variable(
-                    "state_to_word_b", [len(self.vocabulary)],
-                    initializer=tf.constant_initializer(
-                        - math.log(len(self.vocabulary))))
-
-            # POSLEDNI TRAIN INPUT SE V DEKODOVACI FUNKCI NEPOUZIJE
-            # (jen jako target)
-            embedded_train_inputs = self.embed_and_dropout(
-                self.train_inputs[:-1])
-
-            # POZOR TADY SE NEDELA DROPOUT
-            embedded_go_symbols = tf.nn.embedding_lookup(self.embedding_matrix,
-                                                         self.go_symbols)
-
             # fetch train attention objects
             self._train_attention_objects = {}
             # type: Dict[Attentive, tf.Tensor]
@@ -178,11 +155,6 @@ class Decoder(ModelPart):
                         e: e.create_attention_object()
                         for e in self.encoders
                         if isinstance(e, Attentive)}
-
-            self.train_logits, _, _ = self._decoding_loop(
-                embedded_go_symbols,
-                train_inputs=embedded_train_inputs,
-                train_mode=True)
 
             assert not tf.get_variable_scope().reuse
             tf.get_variable_scope().reuse_variables()
@@ -196,67 +168,43 @@ class Decoder(ModelPart):
                     for e in self.encoders
                     if isinstance(e, Attentive)}
 
-            (self.runtime_logits,
-             self.runtime_rnn_states,
-             self.runtime_mask) = self._decoding_loop(
-                 embedded_go_symbols,
-                 train_mode=False)
-
-            train_targets = tf.transpose(self.train_inputs)
-
-            self.train_xents = tf.contrib.seq2seq.sequence_loss(
-                tf.stack(self.train_logits, 1), train_targets,
-                tf.transpose(self.train_padding),
-                average_across_batch=False)
-            self.train_loss = tf.reduce_mean(self.train_xents)
-            self.cost = self.train_loss
-
-            self.train_logprobs = [tf.nn.log_softmax(l)
-                                   for l in self.train_logits]
-
-            self.decoded = [tf.argmax(logit[:, 1:], 1) + 1 for logit in
-                            self.runtime_logits]
-
-            self.runtime_loss = tf.contrib.seq2seq.sequence_loss(
-                tf.stack(self.runtime_logits, 1), train_targets,
-                tf.transpose(self.train_padding))
-
-            self.runtime_logprobs = [tf.nn.log_softmax(l)
-                                     for l in self.runtime_logits]
-
             self._visualize_attention()
 
             log("Decoder initalized.")
     # pylint: disable=too-many-arguments,too-many-locals,too-many-statements
 
-    def _create_input_placeholders(self) -> None:
-        """Creates input placeholder nodes in the computation graph"""
-        self.train_mode = tf.placeholder(tf.bool, name="train_mode")
+    @tensor
+    def train_mode(self) -> tf.Tensor:
+        return tf.placeholder(tf.bool, name="train_mode")
 
-        self.go_symbols = tf.placeholder(tf.int32, shape=[1, None],
-                                         name="decoder_go_symbols")
+    @tensor
+    def go_symbols(self) -> tf.Tensor:
+        return tf.placeholder(tf.int32, shape=[1, None], name="go_symbols")
 
-        self.batch_size = tf.shape(self.go_symbols)[1]
+    @tensor
+    def batch_size(self) -> tf.Tensor:
+        return tf.shape(self.go_symbols)[1]
 
-    def _create_training_placeholders(self) -> None:
-        """Creates training placeholder nodes in the computation graph
+    @tensor
+    def train_inputs(self) -> tf.Tensor:
+        # NOTE transposed shape (time, batch)
+        return tf.placeholder(tf.int32, [self.max_output_len, None],
+                              name="train_inputs")
 
-        The training placeholder nodes are NOT fed during runtime.
-        """
-        self.train_inputs = tf.placeholder(
-            tf.int32, [self.max_output_len, None],
-            name="decoder_input_placeholder")
+    @tensor
+    def train_padding(self) -> tf.Tensor:
+        # NOTE transposed shape (time, batch)
+        # rename padding to mask
+        return tf.placeholder(tf.float32, [self.max_output_len, None],
+                              name="train_mask")
 
-        self.train_padding = tf.placeholder(
-            tf.float32, [self.max_output_len, None],
-            name="decoder_padding_placeholder")
-
-    def _create_initial_state(self) -> None:
-        """Construct the part of the computation graph that computes
+    @tensor
+    def initial_state(self) -> tf.Tensor:
+        """The part of the computation graph that computes
         the initial state of the decoder.
         """
         with tf.variable_scope("initial_state"):
-            self.initial_state = dropout(
+            initial_state = dropout(
                 self.encoder_projection(self.train_mode,
                                         self.rnn_size,
                                         self.encoders),
@@ -266,18 +214,21 @@ class Decoder(ModelPart):
             # pylint: disable=no-member
             # Pylint keeps complaining about initial shape being a tuple,
             # but it is a tensor!!!
-            init_state_shape = self.initial_state.get_shape()
+            init_state_shape = initial_state.get_shape()
             # pylint: enable=no-member
 
             # Broadcast the initial state to the whole batch if needed
             if len(init_state_shape) == 1:
                 assert init_state_shape[0].value == self.rnn_size
-                tiles = tf.tile(self.initial_state,
+                tiles = tf.tile(initial_state,
                                 tf.expand_dims(self.batch_size, 0))
-                self.initial_state = tf.reshape(tiles, [-1, self.rnn_size])
+                initial_state = tf.reshape(tiles, [-1, self.rnn_size])
 
-    def _create_embedding_matrix(self) -> None:
-        """Create variables and operations for embedding of input words
+        return initial_state
+
+    @tensor
+    def embedding_matrix(self) -> tf.Variable:
+        """Variables and operations for embedding of input words
 
         If we are reusing word embeddings, this function takes the embedding
         matrix from the first encoder
@@ -289,6 +240,101 @@ class Decoder(ModelPart):
                 initializer=tf.random_uniform_initializer(-0.5, 0.5))
         else:
             self.embedding_matrix = self.embeddings_source.embedding_matrix
+
+    @tensor
+    def decoding_w(self) -> tf.Variable:
+        with tf.name_scope("output_projection"):
+            return tf.get_variable(
+                "state_to_word_W", [self.rnn_size, len(self.vocabulary)],
+                initializer=tf.random_uniform_initializer(-0.5, 0.5))
+
+    @tensor
+    def decoding_b(self) -> tf.Variable:
+        with tf.name_scope("output_projection"):
+            return tf.get_variable(
+                "state_to_word_b", [len(self.vocabulary)],
+                initializer=tf.constant_initializer(
+                    - math.log(len(self.vocabulary))))
+
+    @tensor
+    def embedded_go_symbols(self) -> tf.Tensor:
+        # POZOR TADY SE NEDELA DROPOUT
+        return tf.nn.embedding_lookup(self.embedding_matrix, self.go_symbols)
+
+    @tensor
+    def train_logits(self) -> List[tf.Tensor]:
+        # POSLEDNI TRAIN INPUT SE V DEKODOVACI FUNKCI NEPOUZIJE
+        # (jen jako target)
+        embedded_train_inputs = self.embed_and_dropout(
+            self.train_inputs[:-1])
+
+        logits, _, _ = self._decoding_loop(
+            self.embedded_go_symbols, train_inputs=embedded_train_inputs,
+            train_mode=True)
+
+        return logits
+
+    @tensor
+    def runtime_loop_result(self) -> Tuple[List[tf.Tensor], List[tf.Tensor],
+                                           List[tf.Tensor]]:
+        return self._decoding_loop(self.embedded_go_symbols, train_mode=False)
+
+    @tensor
+    def runtime_logits(self) -> tf.Tensor:
+        # pylint: disable=unsubscriptable-object
+        return self.runtime_loop_result[0]
+        # pylint: enable=unsubscriptable-object
+
+    @tensor
+    def runtime_rnn_states(self) -> tf.Tensor:
+        # pylint: disable=unsubscriptable-object
+        return self.runtime_loop_result[1]
+        # pylint: enable=unsubscriptable-object
+
+    @tensor
+    def runtime_mask(self) -> tf.Tensor:
+        # pylint: disable=unsubscriptable-object
+        return self.runtime_loop_result[2]
+        # pylint: enable=unsubscriptable-object
+
+    @tensor
+    def train_xents(self) -> tf.Tensor:
+        train_targets = tf.transpose(self.train_inputs)
+
+        return tf.contrib.seq2seq.sequence_loss(
+            tf.stack(self.train_logits, 1), train_targets,
+            tf.transpose(self.train_padding),
+            average_across_batch=False)
+
+    @tensor
+    def train_loss(self) -> tf.Tensor:
+        return tf.reduce_mean(self.train_xents)
+
+    @property
+    def cost(self) -> tf.Tensor:
+        return self.train_loss
+
+    @tensor
+    def train_logprobs(self) -> List[tf.Tensor]:
+        return [tf.nn.log_softmax(l) for l in self.train_logits]
+
+    @tensor
+    def decoded(self) -> List[tf.Tensor]:
+        return [tf.argmax(logit[:, 1:], 1) + 1 for logit in
+                self.runtime_logits]
+
+    @tensor
+    def runtime_loss(self) -> tf.Tensor:
+        train_targets = tf.transpose(self.train_inputs)
+
+        return  tf.contrib.seq2seq.sequence_loss(
+            tf.stack(self.runtime_logits, 1), train_targets,
+            tf.transpose(self.train_padding))
+
+    @tensor
+    def runtime_logprobs(self) -> List[tf.Tensor]:
+        return [tf.nn.log_softmax(l) for l in self.runtime_logits]
+
 
     def embed_and_dropout(self, inputs: tf.Tensor) -> tf.Tensor:
         """Embed the input using the embedding matrix and apply dropout
