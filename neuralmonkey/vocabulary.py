@@ -44,7 +44,9 @@ def _is_special_token(word: str) -> bool:
 
 
 def from_wordlist(path: str, encoding: str = "utf-8") -> 'Vocabulary':
-    """Loads vocabulary from a wordlist.
+    """Loads vocabulary from a wordlist. The file can contain either list of
+    words with no header. Or it can contain words and their counts separated
+    by tab and a header on the first line.
 
     Arguments:
         path: The path to the wordlist file
@@ -56,12 +58,25 @@ def from_wordlist(path: str, encoding: str = "utf-8") -> 'Vocabulary':
     vocabulary = Vocabulary()
 
     with open(path, encoding=encoding) as wordlist:
+        first_line = True
+        with_frequencies = False
         for line in wordlist:
+            if first_line and '\t' in line:
+                # skip header
+                with_frequencies = True
+                continue
+            first_line = False
+
             line = line.strip()
             # check if line is empty
             if not line:
                 continue
-            vocabulary.add_word(line)
+
+            if with_frequencies:
+                info = line.split('\t')
+                vocabulary.add_word(info[0], int(info[1]))
+            else:
+                vocabulary.add_word(line)
 
     log("Vocabulary from wordlist loaded, containing {} words"
         .format(len(vocabulary)))
@@ -256,17 +271,18 @@ class Vocabulary(collections.Sized):
         """
         return word in self.word_to_index
 
-    def add_word(self, word: str) -> None:
+    def add_word(self, word: str, occurences: int = 1) -> None:
         """Add a word to the vocablulary.
 
         Arguments:
             word: The word to add. If it's already there, increment the count.
+            occurences: increment the count of word by the number of occurences
         """
         if word not in self:
             self.word_to_index[word] = len(self.index_to_word)
             self.index_to_word.append(word)
             self.word_count[word] = 0
-        self.word_count[word] += 1
+        self.word_count[word] += occurences
 
     def add_tokenized_text(self, tokenized_text: List[str]) -> None:
         """Add words from a list to the vocabulary.
