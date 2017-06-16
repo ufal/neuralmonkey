@@ -27,7 +27,6 @@ def deprecated(func: Callable[..., T]) -> Callable[..., T]:
 # pylint: disable=invalid-name
 # for backwards compatibility
 dataset_from_files = deprecated(dataset.load_dataset_from_files)
-vocabulary_from_file = deprecated(vocabulary.from_file)
 vocabulary_from_bpe = deprecated(vocabulary.from_bpe)
 vocabulary_from_dataset = deprecated(vocabulary.from_dataset)
 initialize_vocabulary = vocabulary.initialize_vocabulary

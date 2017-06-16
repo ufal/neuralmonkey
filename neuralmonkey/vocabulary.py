@@ -5,7 +5,6 @@ can be used to obtain a Vocabulary instance.
 
 import collections
 import os
-import pickle as pickle
 import random
 
 from typing import List, Optional, Tuple
@@ -42,27 +41,6 @@ def _is_special_token(word: str) -> bool:
             or word == START_TOKEN
             or word == END_TOKEN
             or word == UNK_TOKEN)
-
-
-def from_file(path: str) -> 'Vocabulary':
-    """Loads vocabulary from a pickled file
-
-    Arguments:
-        path: The path to the pickle file
-
-    Returns:
-        The newly created vocabulary.
-    """
-    if not os.path.exists(path):
-        raise Exception("Vocabulary file does not exist: {}".format(path))
-
-    with open(path, 'rb') as f_pickle:
-        vocabulary = pickle.load(f_pickle)
-    assert isinstance(vocabulary, Vocabulary)
-
-    log("Pickled vocabulary loaded. Size: {} words".format(len(vocabulary)))
-    vocabulary.log_sample()
-    return vocabulary
 
 
 def from_wordlist(path: str, encoding: str = "utf-8") -> 'Vocabulary':
@@ -148,7 +126,7 @@ def from_dataset(datasets: List[Dataset], series_ids: List[str], max_size: int,
         directory = os.path.dirname(save_file)
         if directory and not os.path.exists(directory):
             os.makedirs(directory)
-        vocabulary.save_to_file(save_file, overwrite)
+        vocabulary.save_wordlist(save_file, overwrite, True)
 
     return vocabulary
 
@@ -223,7 +201,7 @@ def initialize_vocabulary(directory: str, name: str,
 
     file_name = os.path.join(directory, name + ".pickle")
     if os.path.exists(file_name):
-        return from_file(file_name)
+        return from_wordlist(file_name)
 
     if datasets is None or series_ids is None or max_size is None:
         raise Exception("Vocabulary does not exist in \"{}\"," +
@@ -482,24 +460,6 @@ class Vocabulary(collections.Sized):
                     sentence.append(self.index_to_word[word_i])
 
         return [s[:-1] if s[-1] == END_TOKEN else s for s in sentences]
-
-    def save_to_file(self, path: str, overwrite: bool = False) -> None:
-        """Save the vocabulary to a file.
-
-        Arguments:
-            path: The path to save the file to.
-            overwrite: Flag whether to overwrite existing file.
-                       Defaults to False.
-        Raises:
-            FileExistsError if the file exists and overwrite flag is
-            disabled.
-        """
-        if os.path.exists(path) and not overwrite:
-            raise FileExistsError("Cannot save vocabulary: File exists and "
-                                  "overwrite is disabled. {}".format(path))
-
-        with open(path, 'wb') as f_pickle:
-            pickle.dump(self, f_pickle)
 
     def save_wordlist(self, path: str, overwrite: bool = False,
                       save_frequencies: bool = False):
