@@ -49,6 +49,7 @@ class TestVocabulary(unittest.TestCase):
     def test_min_freq(self):
 
         vocabulary = Vocabulary()
+        vocabulary.correct_counts = True
 
         for sentence in TOKENIZED_CORPUS:
             vocabulary.add_tokenized_text(sentence)
