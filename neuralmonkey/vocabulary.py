@@ -488,6 +488,41 @@ class Vocabulary(collections.Sized):
         with open(path, 'wb') as f_pickle:
             pickle.dump(self, f_pickle)
 
+    def save_wordlist(self, path: str, overwrite: bool = False,
+                      save_frequencies: bool = False):
+        """Save the vocabulary as a wordlist. The file is ordered by the ids of
+        words. This function is used mainly for embedding visualization.
+
+        Arguments:
+            path: The path to save the file to.
+            overwrite: Flag whether to overwrite existing file.
+                       Defaults to False.
+            save_frequencies: store also frequencies?
+        Raises:
+            FileExistsError if the file exists and overwrite flag is
+            disabled.
+        """
+        if os.path.exists(path) and not overwrite:
+            raise FileExistsError("Cannot save vocabulary: File exists and "
+                                  "overwrite is disabled. {}".format(path))
+
+        with open(path, 'w') as output_file:
+            if save_frequencies:
+                # this header is important for the TensorBoard to properly
+                # handle the frequencies.
+                #
+                # IMPORTANT NOTICE: when saving only wordlist without
+                # frequencies it MUST NOT contain the header. It is an
+                # exception from Tensorboard. More in
+                # https://www.tensorflow.org/get_started/embedding_viz
+                output_file.write('Word\tFrequency\n')
+
+            for i in range(len(self.index_to_word)):
+                output_file.write(self.index_to_word[i])
+                if save_frequencies:
+                    output_file.write(self.word_count[self.index_to_word[i]])
+                output_file.write("\n")
+
     def log_sample(self, size: int = 5):
         """Logs a sample of the vocabulary
 
