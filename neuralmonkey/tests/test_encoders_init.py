@@ -11,8 +11,11 @@ from neuralmonkey.encoders.numpy_encoder import (VectorEncoder,
                                                  PostCNNImageEncoder)
 from neuralmonkey.encoders.recurrent import SentenceEncoder
 from neuralmonkey.encoders.sentence_cnn_encoder import SentenceCNNEncoder
+from neuralmonkey.model.sequence import EmbeddedSequence
 from neuralmonkey.tests.test_vocabulary import VOCABULARY
 
+
+INPUT_SEQUENCE = EmbeddedSequence("seq", VOCABULARY, "marmelade", 300)
 
 SENTENCE_ENCODER_GOOD = {
     "name": ["encoder"],
@@ -41,14 +44,11 @@ SENTENCE_ENCODER_BAD = {
 
 SENTENCE_CNN_ENCODER_GOOD = {
     "name": ["cnn_encoder"],
-    "vocabulary": [VOCABULARY],
-    "data_id": ["marmelade"],
-    "embedding_size": [20],
+    "input_sequence": [INPUT_SEQUENCE],
     "segment_size": [10],
     "highway_depth": [11],
     "rnn_size": [30],
     "filters": [[(2, 10)], [(3, 20), (4, 10)]],
-    "max_input_len": [None, 17],
     "dropout_keep_prob": [0.5, 1.],
     "attention_type": [Attention, CoverageAttention, None],
     "use_noisy_activations": [False]
@@ -57,15 +57,12 @@ SENTENCE_CNN_ENCODER_GOOD = {
 SENTENCE_CNN_ENCODER_BAD = {
     "nonexistent": ["ahoj"],
     "name": [None, 1],
-    "vocabulary": [0, None, "ahoj", dict()],
-    "data_id": [0, None, VOCABULARY],
-    "embedding_size": [-1, 0, "ahoj", 3.14, VOCABULARY, SentenceEncoder, None],
+    "input_sequence": [0, None, VOCABULARY],
     "segment_size": [-1, 0, "ahoj", 3.14, VOCABULARY, None],
     "highway_depth": [-1, "ahoj", 3.14, SentenceEncoder, None],
     "rnn_size": [-1, 0, "ahoj", 3.14, VOCABULARY, SentenceEncoder, None],
     "filters": ["ahoj", [], [(0, 0)], [(1, 2, 3)], [VOCABULARY, None],
                 [(None, None)]],
-    "max_input_len": [-1, 0, "ahoj", 3.14, VOCABULARY, SentenceEncoder],
     "dropout_keep_prob": [0.0, 0, -1.0, 2.0, "ahoj", VOCABULARY, None],
     "attention_type": [-1, "ahoj", VOCABULARY, SentenceEncoder],
     "attention_fertility": [None, "ahoj", VOCABULARY, SentenceEncoder],
