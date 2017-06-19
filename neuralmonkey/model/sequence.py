@@ -119,6 +119,13 @@ class EmbeddedFactorSequence(Sequence):
         if any([esize <= 0 for esize in self.embedding_sizes]):
             raise ValueError("Embedding size must be a positive integer.")
 
+    def save_visualization(self, logdir):
+        # the overriding is turned to true, because if the model would not be
+        # allowed to override the output folder it would failed earlier.
+        for i in range(len(self.vocabularies)):
+            self.vocabularies[i].save_wordlist(logdir, True, True)
+
+
     @tensor
     def input_factors(self) -> List[tf.Tensor]:
         """A list of 2D placeholders for each factor. Each placeholder has
