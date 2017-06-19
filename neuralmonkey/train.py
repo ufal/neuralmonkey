@@ -189,7 +189,7 @@ def main() -> None:
         for sequence in cfg.model.visualize_embeddings:
             if not isinstance(sequence, EmbeddedFactorSequence):
                 raise ValueError("Visualization must be embedded sequence.")
-            sequence.save_visualization()
+            sequence.save_visualization(cfg.model.output)
 
     Logging.print_header(cfg.model.name, cfg.args.output)
 
