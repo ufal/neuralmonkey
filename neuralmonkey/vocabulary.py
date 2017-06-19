@@ -513,14 +513,15 @@ class Vocabulary(collections.Sized):
                 #
                 # IMPORTANT NOTICE: when saving only wordlist without
                 # frequencies it MUST NOT contain the header. It is an
-                # exception from Tensorboard. More in
+                # exception from Tensorboard. More at
                 # https://www.tensorflow.org/get_started/embedding_viz
-                output_file.write('Word\tFrequency\n')
+                output_file.write("Word\tFrequency\n")
 
             for i in range(len(self.index_to_word)):
                 output_file.write(self.index_to_word[i])
                 if save_frequencies:
-                    output_file.write(self.word_count[self.index_to_word[i]])
+                    output_file.write(
+                        "\t" + str(self.word_count[self.index_to_word[i]]))
                 output_file.write("\n")
 
     def log_sample(self, size: int = 5):
