@@ -1,6 +1,7 @@
 """This module implements the Vocabulary class and the helper functions that
 can be used to obtain a Vocabulary instance.
 """
+# pylint: disable=too-many-lines
 
 import collections
 import os
@@ -508,8 +509,9 @@ class Vocabulary(collections.Sized):
         Arguments:
             path: The path to save the file to.
             overwrite: Flag whether to overwrite existing file.
-                       Defaults to False.
-            save_frequencies: store also frequencies?
+                Defaults to False.
+            save_frequencies: flag if frequencies should be stored. This
+                parameter adds header into the output file.
         Raises:
             FileExistsError if the file exists and overwrite flag is
             disabled.
