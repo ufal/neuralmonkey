@@ -191,9 +191,11 @@ def main() -> None:
         tb_projector = projector.ProjectorConfig()
 
         for sequence in cfg.model.visualize_embeddings:
+            # TODO this check should be done when abstract class of embedded
+            # sequences will be created, not only EmbeddedFactorSequence
             if not isinstance(sequence, EmbeddedFactorSequence):
                 raise ValueError("Visualization must be embedded sequence.")
-            sequence.save_visualization(cfg.model.output, tb_projector)
+            sequence.tensorboard_embedding_visualization(cfg.model.output, tb_projector)
 
         summary_writer = tf.summary.FileWriter(cfg.model.output)
         projector.visualize_embeddings(summary_writer, tb_projector)
