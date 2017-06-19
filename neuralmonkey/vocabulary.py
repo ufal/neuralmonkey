@@ -43,7 +43,14 @@ def _is_special_token(word: str) -> bool:
             or word == UNK_TOKEN)
 
 
-def from_wordlist(path: str, encoding: str = "utf-8") -> 'Vocabulary':
+def from_file(path: str) -> 'Vocabulary':
+    raise NotImplementedError("Use loading by from_wordlist")
+
+
+def from_wordlist(path: str,
+                  encoding: str = "utf-8",
+                  contains_header: bool = True,
+                  contains_frequencies: bool = True) -> 'Vocabulary':
     """Loads vocabulary from a wordlist. The file can contain either list of
     words with no header. Or it can contain words and their counts separated
     by tab and a header on the first line.
@@ -51,6 +58,8 @@ def from_wordlist(path: str, encoding: str = "utf-8") -> 'Vocabulary':
     Arguments:
         path: The path to the wordlist file
         encoding: The encoding of the merge file (defaults to UTF-8)
+        contains_header: if the file have a header on first line
+        contains_frequencies: if the file contains frequencies in second column
 
     Returns:
         The new Vocabulary instance.
@@ -58,24 +67,24 @@ def from_wordlist(path: str, encoding: str = "utf-8") -> 'Vocabulary':
     vocabulary = Vocabulary()
 
     with open(path, encoding=encoding) as wordlist:
-        first_line = True
-        with_frequencies = False
-        for line in wordlist:
-            if first_line and '\t' in line:
-                # skip header
-                with_frequencies = True
-                continue
-            first_line = False
+        if contains_header:
+            # skip the header
+            next(wordlist)
 
+        for line in wordlist:
             line = line.strip()
             # check if line is empty
             if not line:
                 continue
 
-            if with_frequencies:
+            if contains_frequencies:
                 info = line.split('\t')
+                if len(info) != 2:
+                    raise ValueError("Vocabulary file do not have two columns")
                 vocabulary.add_word(info[0], int(info[1]))
             else:
+                if '\t' in line:
+                    warn("The vocabulary contains a tabulator")
                 vocabulary.add_word(line)
 
     log("Vocabulary from wordlist loaded, containing {} words"
