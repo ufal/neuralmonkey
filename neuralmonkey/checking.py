@@ -28,8 +28,17 @@ def check_dataset_and_coders(dataset: Dataset,
                 data_list.append((c.data_id, c))
             elif hasattr(c, "data_ids"):
                 data_list.extend([(d, c) for d in c.data_ids])
+            elif hasattr(c, "input_sequence"):
+                inpseq = c.input_sequence
+                if hasattr(inpseq, "data_id"):
+                    data_list.append((inpseq.data_id, c))
+                elif hasattr(inpseq, "data_ids"):
+                    data_list.extend([(d, c) for d in inpseq.data_ids])
+                else:
+                    log("Input sequence: {} does not have a data attribute"
+                        .format(str(inpseq)))
             else:
-                log(("Coder: {} does not have "
+                log(("Coder: {} has neither an input sequence attribute nor a "
                      "a data attribute.").format(c))
 
     debug("Found series: {}".format(str(data_list)), "checking")
