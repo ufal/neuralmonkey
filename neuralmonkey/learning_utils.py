@@ -67,6 +67,7 @@ def training_loop(tf_manager: TensorFlowManager,
         train_dataset: Dataset used for training
         val_dataset: used for validation. Can be Dataset or a list of datasets.
             The last dataset is used as the main one for storing best results.
+            It is useful to name the dataset for better TB visualization.
         test_datasets: List of datasets used for testing
         logging_period: after how many batches should the logging happen. It
             can also be defined as a time period in format like: 3s; 4m; 6h;
@@ -247,7 +248,7 @@ def training_loop(tf_manager: TensorFlowManager,
                         _log_continuous_evaluation(
                             tb_writer, tf_manager, main_metric, val_evaluation,
                             seen_instances, epoch_n, epochs, val_results,
-                            train=False)
+                            train=False, dataset_name=valset.name)
 
                     # how long was the training between validations
                     training_duration = val_duration_start - last_val_time
@@ -459,10 +460,14 @@ def _log_continuous_evaluation(tb_writer: tf.summary.FileWriter,
                                epoch: int,
                                max_epochs: int,
                                execution_results: List[ExecutionResult],
-                               train: bool = False) -> None:
+                               train: bool = False,
+                               dataset_name: str = None) -> None:
     """Log the evaluation results and the TensorBoard summaries."""
 
     color, prefix = ("yellow", "train") if train else ("blue", "val")
+
+    if train and dataset_name:
+        prefix += "_" + dataset_name
 
     if tf_manager.report_gpu_memory_consumption:
         meminfostr = "  " + gpu_memusage()
