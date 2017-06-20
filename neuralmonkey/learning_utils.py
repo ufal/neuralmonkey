@@ -351,7 +351,8 @@ def run_on_dataset(tf_manager: TensorFlowManager,
                    dataset: Dataset,
                    postprocess: Postprocess,
                    write_out: bool = False,
-                   batch_size: Optional[int] = None) -> Tuple[
+                   batch_size: Optional[int] = None,
+                   log_progress: int = 0) -> Tuple[
                        List[ExecutionResult], Dict[str, List[Any]]]:
     """Apply the model on a dataset and optionally write outputs to files.
 
@@ -364,6 +365,8 @@ def run_on_dataset(tf_manager: TensorFlowManager,
         postprocess: an object to use as postprocessing of the
         write_out: Flag whether the outputs should be printed to a file defined
             in the dataset object.
+        batch_size: size of the minibatch
+        log_progress: log progress every X minutes
 
         extra_fetches: Extra tensors to evaluate for each batch.
 
@@ -378,7 +381,8 @@ def run_on_dataset(tf_manager: TensorFlowManager,
 
     all_results = tf_manager.execute(dataset, runners,
                                      compute_losses=contains_targets,
-                                     batch_size=batch_size)
+                                     batch_size=batch_size,
+                                     log_progress=log_progress)
 
     result_data = {runner.output_series: result.outputs
                    for runner, result in zip(runners, all_results)}
