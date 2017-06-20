@@ -10,12 +10,14 @@ import shlex
 from shutil import copyfile
 import numpy as np
 import tensorflow as tf
+from tensorflow.contrib.tensorboard.plugins import projector
 
 from neuralmonkey.checking import CheckingException, check_dataset_and_coders
 from neuralmonkey.logging import Logging, log
 from neuralmonkey.config.configuration import Configuration
 from neuralmonkey.learning_utils import training_loop
 from neuralmonkey.dataset import Dataset
+from neuralmonkey.model.sequence import EmbeddedFactorSequence
 
 
 def create_config() -> Configuration:
@@ -34,6 +36,7 @@ def create_config() -> Configuration:
     config.add_argument('test_datasets', required=False, default=[])
     config.add_argument('logging_period', required=False, default=20)
     config.add_argument('validation_period', required=False, default=500)
+    config.add_argument('visualize_embeddings', required=False, default=None)
     config.add_argument('val_preview_input_series',
                         required=False, default=None)
     config.add_argument('val_preview_output_series',
@@ -182,6 +185,20 @@ def main() -> None:
     except CheckingException as exc:
         log(str(exc), color='red')
         exit(1)
+
+    if cfg.model.visualize_embeddings:
+
+        tb_projector = projector.ProjectorConfig()
+
+        for sequence in cfg.model.visualize_embeddings:
+            # TODO this check should be done when abstract class of embedded
+            # sequences will be created, not only EmbeddedFactorSequence
+            if not isinstance(sequence, EmbeddedFactorSequence):
+                raise ValueError("Visualization must be embedded sequence.")
+            sequence.tb_embedding_visualization(cfg.model.output, tb_projector)
+
+        summary_writer = tf.summary.FileWriter(cfg.model.output)
+        projector.visualize_embeddings(summary_writer, tb_projector)
 
     Logging.print_header(cfg.model.name, cfg.args.output)
 
