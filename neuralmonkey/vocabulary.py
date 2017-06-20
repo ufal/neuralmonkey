@@ -46,6 +46,7 @@ def _is_special_token(word: str) -> bool:
 # pylint: disable=unused-argument
 def from_file(*args, **kwargs) -> 'Vocabulary':
     raise NotImplementedError("Use loading by from_wordlist")
+# pylint: enable=unused-argument
 
 
 def from_wordlist(path: str,

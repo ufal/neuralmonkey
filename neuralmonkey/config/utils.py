@@ -8,8 +8,6 @@ from typing import Callable, TypeVar
 import tensorflow as tf
 
 from neuralmonkey.logging import warn
-import neuralmonkey.vocabulary as vocabulary
-import neuralmonkey.dataset as dataset
 
 T = TypeVar('T')
 
