@@ -1,10 +1,10 @@
 """This module implements the Vocabulary class and the helper functions that
 can be used to obtain a Vocabulary instance.
 """
+# pylint: disable=too-many-lines
 
 import collections
 import os
-import pickle as pickle
 import random
 
 from typing import List, Optional, Tuple
@@ -43,33 +43,25 @@ def _is_special_token(word: str) -> bool:
             or word == UNK_TOKEN)
 
 
-def from_file(path: str) -> 'Vocabulary':
-    """Loads vocabulary from a pickled file
-
-    Arguments:
-        path: The path to the pickle file
-
-    Returns:
-        The newly created vocabulary.
-    """
-    if not os.path.exists(path):
-        raise Exception("Vocabulary file does not exist: {}".format(path))
-
-    with open(path, 'rb') as f_pickle:
-        vocabulary = pickle.load(f_pickle)
-    assert isinstance(vocabulary, Vocabulary)
-
-    log("Pickled vocabulary loaded. Size: {} words".format(len(vocabulary)))
-    vocabulary.log_sample()
-    return vocabulary
+# pylint: disable=unused-argument
+def from_file(*args, **kwargs) -> 'Vocabulary':
+    raise NotImplementedError("Use loading by from_wordlist")
+# pylint: enable=unused-argument
 
 
-def from_wordlist(path: str, encoding: str = "utf-8") -> 'Vocabulary':
-    """Loads vocabulary from a wordlist.
+def from_wordlist(path: str,
+                  encoding: str = "utf-8",
+                  contains_header: bool = True,
+                  contains_frequencies: bool = True) -> 'Vocabulary':
+    """Loads vocabulary from a wordlist. The file can contain either list of
+    words with no header. Or it can contain words and their counts separated
+    by tab and a header on the first line.
 
     Arguments:
         path: The path to the wordlist file
         encoding: The encoding of the merge file (defaults to UTF-8)
+        contains_header: if the file have a header on first line
+        contains_frequencies: if the file contains frequencies in second column
 
     Returns:
         The new Vocabulary instance.
@@ -77,12 +69,25 @@ def from_wordlist(path: str, encoding: str = "utf-8") -> 'Vocabulary':
     vocabulary = Vocabulary()
 
     with open(path, encoding=encoding) as wordlist:
+        if contains_header:
+            # skip the header
+            next(wordlist)
+
         for line in wordlist:
             line = line.strip()
             # check if line is empty
             if not line:
                 continue
-            vocabulary.add_word(line)
+
+            if contains_frequencies:
+                info = line.split('\t')
+                if len(info) != 2:
+                    raise ValueError("Vocabulary file do not have two columns")
+                vocabulary.add_word(info[0], int(info[1]))
+            else:
+                if '\t' in line:
+                    warn("The vocabulary contains a tabulator")
+                vocabulary.add_word(line)
 
     log("Vocabulary from wordlist loaded, containing {} words"
         .format(len(vocabulary)))
@@ -116,6 +121,7 @@ def from_dataset(datasets: List[Dataset], series_ids: List[str], max_size: int,
     check_argument_types()
 
     vocabulary = Vocabulary(unk_sample_prob=unk_sample_prob)
+    vocabulary.correct_counts = True
 
     for dataset in datasets:
         if isinstance(dataset, LazyDataset):
@@ -144,9 +150,9 @@ def from_dataset(datasets: List[Dataset], series_ids: List[str], max_size: int,
 
     if save_file is not None:
         directory = os.path.dirname(save_file)
-        if not os.path.exists(directory):
+        if directory and not os.path.exists(directory):
             os.makedirs(directory)
-        vocabulary.save_to_file(save_file, overwrite)
+        vocabulary.save_wordlist(save_file, overwrite, True)
 
     return vocabulary
 
@@ -221,7 +227,7 @@ def initialize_vocabulary(directory: str, name: str,
 
     file_name = os.path.join(directory, name + ".pickle")
     if os.path.exists(file_name):
-        return from_file(file_name)
+        return from_wordlist(file_name)
 
     if datasets is None or series_ids is None or max_size is None:
         raise Exception("Vocabulary does not exist in \"{}\"," +
@@ -243,6 +249,9 @@ class Vocabulary(collections.Sized):
         self.word_to_index = {}  # type: Dict[str, int]
         self.index_to_word = []  # type: List[str]
         self.word_count = {}  # type: Dict[str, int]
+
+        # flag if the word count are in use
+        self.correct_counts = False
 
         self.unk_sample_prob = unk_sample_prob
 
@@ -273,17 +282,18 @@ class Vocabulary(collections.Sized):
         """
         return word in self.word_to_index
 
-    def add_word(self, word: str) -> None:
+    def add_word(self, word: str, occurences: int = 1) -> None:
         """Add a word to the vocablulary.
 
         Arguments:
             word: The word to add. If it's already there, increment the count.
+            occurences: increment the count of word by the number of occurences
         """
         if word not in self:
             self.word_to_index[word] = len(self.index_to_word)
             self.index_to_word.append(word)
             self.word_count[word] = 0
-        self.word_count[word] += 1
+        self.word_count[word] += occurences
 
     def add_tokenized_text(self, tokenized_text: List[str]) -> None:
         """Add words from a list to the vocabulary.
@@ -327,6 +337,9 @@ class Vocabulary(collections.Sized):
         freq = self.word_count.get(word, 0)
 
         if freq <= 1 and random.random() < self.unk_sample_prob:
+            if not self.correct_counts:
+                raise ValueError("The vocabulary does not have correct "
+                                 "word_counts to use with unknown sampling")
             return self.get_word_index(UNK_TOKEN)
 
         return idx
@@ -338,6 +351,11 @@ class Vocabulary(collections.Sized):
         Arguments:
             size: The final size of the vocabulary
         """
+
+        if not self.correct_counts:
+            raise ValueError("The vocabulary does not have correct "
+                             "word_counts to use for vocabulary truncate")
+
         # sort by frequency
         words_by_freq = sorted(list(self.word_count.keys()),
                                key=lambda w: self.word_count[w])
@@ -470,13 +488,17 @@ class Vocabulary(collections.Sized):
 
         return [s[:-1] if s[-1] == END_TOKEN else s for s in sentences]
 
-    def save_to_file(self, path: str, overwrite: bool = False) -> None:
-        """Save the vocabulary to a file.
+    def save_wordlist(self, path: str, overwrite: bool = False,
+                      save_frequencies: bool = False):
+        """Save the vocabulary as a wordlist. The file is ordered by the ids of
+        words. This function is used mainly for embedding visualization.
 
         Arguments:
             path: The path to save the file to.
             overwrite: Flag whether to overwrite existing file.
-                       Defaults to False.
+                Defaults to False.
+            save_frequencies: flag if frequencies should be stored. This
+                parameter adds header into the output file.
         Raises:
             FileExistsError if the file exists and overwrite flag is
             disabled.
@@ -485,8 +507,26 @@ class Vocabulary(collections.Sized):
             raise FileExistsError("Cannot save vocabulary: File exists and "
                                   "overwrite is disabled. {}".format(path))
 
-        with open(path, 'wb') as f_pickle:
-            pickle.dump(self, f_pickle)
+        with open(path, 'w') as output_file:
+            if save_frequencies and self.correct_counts:
+                # this header is important for the TensorBoard to properly
+                # handle the frequencies.
+                #
+                # IMPORTANT NOTICE: when saving only wordlist without
+                # frequencies it MUST NOT contain the header. It is an
+                # exception from Tensorboard. More at
+                # https://www.tensorflow.org/get_started/embedding_viz
+                output_file.write("Word\tWord counts\n")
+            elif save_frequencies and not self.correct_counts:
+                log("Storing vocabulary without frequencies.")
+
+            for i in range(len(self.index_to_word)):
+                output_file.write(self.index_to_word[i])
+                if save_frequencies and self.correct_counts:
+                    output_file.write(
+                        "\t" + str(self.word_count[self.index_to_word[i]]))
+
+                output_file.write("\n")
 
     def log_sample(self, size: int = 5):
         """Logs a sample of the vocabulary
