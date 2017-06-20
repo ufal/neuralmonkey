@@ -35,10 +35,12 @@ class Postprocess(object):
             self, dataset: Dataset,
             generated_series: Dict[str, Iterable[Any]]) -> Iterable[List[str]]:
 
-        source_series = generated_series.get(
-            self._source_id, dataset.get_series(self._source_id))
-        edits_series = generated_series.get(
-            self._edits_id, dataset.get_series(self._edits_id))
+        source_series = generated_series.get(self._source_id)
+        if source_series is None:
+            source_series = dataset.get_series(self._source_id)
+        edits_series = generated_series.get(self._edits_id)
+        if edits_series is None:
+            edits_series = dataset.get_series(self._edits_id)
 
         for src_seq, edit_seq in zip(source_series, edits_series):
             reconstructed = reconstruct(src_seq, edit_seq)
