@@ -122,8 +122,8 @@ class EmbeddedFactorSequence(Sequence):
             raise ValueError("Embedding size must be a positive integer.")
 
     # TODO this should be placed into the abstract embedding class
-    def tensorboard_embedding_visualization(self, logdir: str,
-                                            projector: projector):
+    def tb_embedding_visualization(self, logdir: str,
+                                   prj: projector):
         """Links embeddings with vocabulary wordlist for tensorboard
         visualization
 
@@ -138,7 +138,7 @@ class EmbeddedFactorSequence(Sequence):
             wordlist = os.path.join(logdir, self.name + "_" + str(i) + ".tsv")
             self.vocabularies[i].save_wordlist(wordlist, True, True)
 
-            embedding = projector.embeddings.add()
+            embedding = prj.embeddings.add()
             # pylint: disable=unsubscriptable-object
             embedding.tensor_name = self.embedding_matrices[i].name
             embedding.metadata_path = wordlist
