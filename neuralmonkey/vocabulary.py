@@ -300,7 +300,6 @@ class Vocabulary(collections.Sized):
         Arguments:
             tokenized_text: The list of words to add.
         """
-        self.correct_counts = True
         for word in tokenized_text:
             self.add_word(word)
 

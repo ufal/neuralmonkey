@@ -59,6 +59,16 @@ class TestVocabulary(unittest.TestCase):
         self.assertTrue("walrus" in vocabulary)
         self.assertFalse("colorless" in vocabulary)
 
+    def test_count_fail(self):
+
+        vocabulary = Vocabulary()
+
+        for sentence in TOKENIZED_CORPUS:
+            vocabulary.add_tokenized_text(sentence)
+
+        with self.assertRaises(ValueError):
+            vocabulary.truncate_by_min_freq(2)
+
 
 if __name__ == "__main__":
     unittest.main()
