@@ -396,7 +396,7 @@ class Vocabulary(collections.Sized):
     def sentences_to_tensor(
             self,
             sentences: List[List[str]],
-            max_len: Optional[int] = None,
+            max_len: int = None,
             pad_to_max_len: bool = True,
             train_mode: bool = False,
             add_start_symbol: bool = False,

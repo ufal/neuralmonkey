@@ -21,7 +21,7 @@ class LabelRunner(BaseRunner):
             fetches = {"loss": self._decoder.cost}
 
         fetches["label_logprobs"] = self._decoder.logprobs
-        fetches["input_mask"] = self._decoder.encoder.input_mask
+        fetches["input_mask"] = self._decoder.encoder.input_sequence.mask
 
         return LabelRunExecutable(self.all_coders, fetches,
                                   self._decoder.vocabulary,
