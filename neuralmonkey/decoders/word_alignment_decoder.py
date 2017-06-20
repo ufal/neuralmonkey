@@ -41,6 +41,13 @@ class WordAlignmentDecoder(ModelPart):
         tf.summary.scalar("alignment_train_xent", self.train_loss,
                           collections=["summary_train"])
 
+        # TODO this is here to call the lazy properties which create
+        # the list of attention distribbutions
+        # pylint: disable=pointless-statement
+        self.decoder.runtime_logits
+        self.decoder.train_logits
+        # pylint: enable=pointless-statement
+
     def _make_decoder(self, runtime_mode=False):
         attn_obj = self.decoder.get_attention_object(self.encoder,
                                                      runtime_mode)
