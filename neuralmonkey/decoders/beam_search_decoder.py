@@ -103,7 +103,7 @@ class BeamSearchDecoder(ModelPart):
         # logits: beam x vocabulary
         # state: beam x rnn_size
         # attns: encoder x beam x context vector size
-        logits, state, attns = self.parent_decoder.step(
+        logits, state, attns = self.parent_decoder.old_step(
             att_objects, input_, bs_state.last_state, bs_state.last_attns)
 
         # mask the probabilities
