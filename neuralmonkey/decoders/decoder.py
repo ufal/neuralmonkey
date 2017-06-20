@@ -1,3 +1,4 @@
+# pylint: disable=too-many-lines
 import math
 from typing import cast, Iterable, List, Callable, Optional, Any, Tuple
 
@@ -26,7 +27,7 @@ RNN_CELL_TYPES = {
 }
 
 
-# pylint: disable=too-many-instance-attributes,too-few-public-methods
+# pylint: disable=too-many-public-methods,too-many-instance-attributes
 # Big decoder cannot be simpler. Not sure if refactoring
 # it into smaller units would be helpful
 class Decoder(ModelPart):
@@ -168,11 +169,10 @@ class Decoder(ModelPart):
                     for e in self.encoders
                     if isinstance(e, Attentive)}
 
-            self._visualize_attention()
-
             log("Decoder initalized.")
     # pylint: disable=too-many-arguments,too-many-locals,too-many-statements
 
+    # pylint: disable=no-self-use
     @tensor
     def train_mode(self) -> tf.Tensor:
         return tf.placeholder(tf.bool, name="train_mode")
@@ -180,6 +180,7 @@ class Decoder(ModelPart):
     @tensor
     def go_symbols(self) -> tf.Tensor:
         return tf.placeholder(tf.int32, shape=[1, None], name="go_symbols")
+    # pylint: enable=no-self-use
 
     @tensor
     def batch_size(self) -> tf.Tensor:
@@ -233,13 +234,13 @@ class Decoder(ModelPart):
         If we are reusing word embeddings, this function takes the embedding
         matrix from the first encoder
         """
-        if self.embeddings_source is None:
-            # TODO better initialization
-            self.embedding_matrix = tf.get_variable(
-                "word_embeddings", [len(self.vocabulary), self.embedding_size],
-                initializer=tf.random_uniform_initializer(-0.5, 0.5))
-        else:
-            self.embedding_matrix = self.embeddings_source.embedding_matrix
+        if self.embeddings_source is not None:
+            return self.embeddings_source.embedding_matrix
+
+        # TODO better initialization
+        return tf.get_variable(
+            "word_embeddings", [len(self.vocabulary), self.embedding_size],
+            initializer=tf.random_uniform_initializer(-0.5, 0.5))
 
     @tensor
     def decoding_w(self) -> tf.Variable:
@@ -265,8 +266,10 @@ class Decoder(ModelPart):
     def train_logits(self) -> List[tf.Tensor]:
         # POSLEDNI TRAIN INPUT SE V DEKODOVACI FUNKCI NEPOUZIJE
         # (jen jako target)
+        # pylint: disable=unsubscriptable-object
         embedded_train_inputs = self.embed_and_dropout(
             self.train_inputs[:-1])
+        # pylint: enable=unsubscriptable-object
 
         logits, _, _ = self._decoding_loop(
             self.embedded_go_symbols, train_inputs=embedded_train_inputs,
@@ -316,25 +319,30 @@ class Decoder(ModelPart):
 
     @tensor
     def train_logprobs(self) -> List[tf.Tensor]:
+        # pylint: disable=not-an-iterable
         return [tf.nn.log_softmax(l) for l in self.train_logits]
+        # pylint: enable=not-an-iterable
 
     @tensor
     def decoded(self) -> List[tf.Tensor]:
+        # pylint: disable=not-an-iterable
         return [tf.argmax(logit[:, 1:], 1) + 1 for logit in
                 self.runtime_logits]
+        # pylint: enable=not-an-iterable
 
     @tensor
     def runtime_loss(self) -> tf.Tensor:
         train_targets = tf.transpose(self.train_inputs)
 
-        return  tf.contrib.seq2seq.sequence_loss(
+        return tf.contrib.seq2seq.sequence_loss(
             tf.stack(self.runtime_logits, 1), train_targets,
             tf.transpose(self.train_padding))
 
     @tensor
     def runtime_logprobs(self) -> List[tf.Tensor]:
+        # pylint: disable=not-an-iterable
         return [tf.nn.log_softmax(l) for l in self.runtime_logits]
-
+        # pylint: enable=not-an-iterable
 
     def embed_and_dropout(self, inputs: tf.Tensor) -> tf.Tensor:
         """Embed the input using the embedding matrix and apply dropout
@@ -483,6 +491,9 @@ class Decoder(ModelPart):
 
     def _visualize_attention(self) -> None:
         """Create image summaries with attentions"""
+        # TODO! this method will become part of attention that is a separate
+        # ModelPart which will ensure that all lazily created tensors will be
+        # already there.
         att_objects = self._runtime_attention_objects.values()
 
         for i, a in enumerate(att_objects):
