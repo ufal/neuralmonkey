@@ -246,10 +246,14 @@ def training_loop(tf_manager: TensorFlowManager,
                                         tf_manager.best_score_batch),
                                 color='blue')
 
+                        if len(val_datasets) > 0:
+                            valset_name = valset.name
+                        else:
+                            valset_name = None
                         _log_continuous_evaluation(
                             tb_writer, tf_manager, main_metric, val_evaluation,
                             seen_instances, epoch_n, epochs, val_results,
-                            train=False, dataset_name=valset.name)
+                            train=False, dataset_name=valset_name)
 
                     # how long was the training between validations
                     training_duration = val_duration_start - last_val_time
@@ -471,7 +475,7 @@ def _log_continuous_evaluation(tb_writer: tf.summary.FileWriter,
 
     color, prefix = ("yellow", "train") if train else ("blue", "val")
 
-    if train and dataset_name:
+    if dataset_name is not None:
         prefix += "_" + dataset_name
 
     if tf_manager.report_gpu_memory_consumption:

@@ -186,8 +186,7 @@ class TensorFlowManager(object):
         for batch_id, batch in enumerate(batched_dataset):
             if (time.process_time() - last_log_time > log_progress
                     and log_progress > 0):
-                log("Evaluated {}/{} examples.".format(batch_id * batch_size,
-                                                       len(dataset)))
+                log("Processed {} examples.".format(batch_id * batch_size))
                 last_log_time = time.process_time()
             executables = [s.get_executable(compute_losses=compute_losses,
                                             summaries=summaries)
