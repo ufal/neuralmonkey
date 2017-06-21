@@ -246,7 +246,7 @@ def training_loop(tf_manager: TensorFlowManager,
                                         tf_manager.best_score_batch),
                                 color='blue')
 
-                        if len(val_datasets) > 0:
+                        if len(val_datasets) > 1:
                             valset_name = valset.name
                         else:
                             valset_name = None
