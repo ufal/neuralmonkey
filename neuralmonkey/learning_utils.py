@@ -67,7 +67,8 @@ def training_loop(tf_manager: TensorFlowManager,
         train_dataset: Dataset used for training
         val_dataset: used for validation. Can be Dataset or a list of datasets.
             The last dataset is used as the main one for storing best results.
-            It is useful to name the dataset for better TB visualization.
+            When using multiple datasets. It is recommended to name them for
+            better Tensorboard visualization.
         test_datasets: List of datasets used for testing
         logging_period: after how many batches should the logging happen. It
             can also be defined as a time period in format like: 3s; 4m; 6h;
@@ -366,7 +367,7 @@ def run_on_dataset(tf_manager: TensorFlowManager,
         write_out: Flag whether the outputs should be printed to a file defined
             in the dataset object.
         batch_size: size of the minibatch
-        log_progress: log progress every X minutes
+        log_progress: log progress every X seconds
 
         extra_fetches: Extra tensors to evaluate for each batch.
 
