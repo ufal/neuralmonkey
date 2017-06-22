@@ -5,10 +5,15 @@ for RNN decoders.
 See http://arxiv.org/abs/1606.07481
 """
 from abc import ABCMeta
+from typing import Any, Tuple, NamedTuple
 
 import tensorflow as tf
 from neuralmonkey.nn.projection import linear
 from neuralmonkey.nn.ortho_gru_cell import OrthoGRUCell
+
+AttentionLoopState = NamedTuple("AttentionLoopState",
+                                [("contexts"): tf.TensorArray,
+                                 ("weigths"): tf.TensorArray])
 
 
 # pylint: disable=too-few-public-methods
@@ -26,8 +31,13 @@ class BaseAttention(metaclass=ABCMeta):
     def attention(self,
                   decoder_state: tf.Tensor,
                   decoder_prev_state: tf.Tensor,
-                  decoder_input: tf.Tensor) -> tf.Tensor:
+                  decoder_input: tf.Tensor,
+                  loop_state: Any) -> Tuple[tf.Tensor, Any]:
         """Get context vector for given decoder state."""
+        raise NotImplementedError("Abstract method")
+
+    def initial_loop_state(self) -> Any:
+        """Get initial loop state for the attention object."""
         raise NotImplementedError("Abstract method")
 # pylint: enable=too-few-public-methods
 
@@ -60,8 +70,6 @@ class Attention(BaseAttention):
         """
         super().__init__(
             scope, attention_states, attention_state_size, input_weights)
-        self.logits_in_time = []  # type: List[tf.Tensor]
-        self.attentions_in_time = []  # type: List[tf.Tensor]
 
         self.attn_size = attention_states.get_shape()[2].value
 
@@ -91,7 +99,9 @@ class Attention(BaseAttention):
                 "AttnV_b", [], initializer=tf.constant_initializer(0))
 
     def attention(self, decoder_state: tf.Tensor,
-                  decoder_prev_state: tf.Tensor, _) -> tf.Tensor:
+                  decoder_prev_state: tf.Tensor, _,
+                  loop_state: AttentionLoopState) -> Tuple[
+                      tf.Tensor, AttentionLoopState]:
         """put attention masks on att_states_reshaped
            using hidden_features and query.
         """
@@ -109,25 +119,34 @@ class Attention(BaseAttention):
             # pylint: disable=invalid-name
             # code copied from tensorflow. Suggestion: rename the variables
             # according to the Bahdanau paper
-            s = self.get_logits(y)
+            s = self.get_logits(y, loop_state.weights)
 
             if self.input_weights is None:
-                a = tf.nn.softmax(s)
+                weights = tf.nn.softmax(s)
             else:
-                a_all = tf.nn.softmax(s) * self.input_weights
-                norm = tf.reduce_sum(a_all, 1, keep_dims=True) + 1e-8
-                a = a_all / norm
-
-            self.logits_in_time.append(s)
-            self.attentions_in_time.append(a)
+                weights_all = tf.nn.softmax(s) * self.input_weights
+                norm = tf.reduce_sum(weights_all, 1, keep_dims=True) + 1e-8
+                weights = weights_all / norm
+            # pylint: enable=invalid-name
 
             # Now calculate the attention-weighted vector d.
-            d = tf.reduce_sum(tf.expand_dims(tf.expand_dims(a, -1), -1)
-                              * self.att_states_reshaped, [1, 2])
+            context = tf.reduce_sum(
+                tf.expand_dims(tf.expand_dims(weights, -1), -1)
+                * self.att_states_reshaped, [1, 2])
+            context = tf.reshape(context, [-1, self.attn_size])
 
-            return tf.reshape(d, [-1, self.attn_size])
+            next_contexts = loop_state.contexts.write(
+                loop_state.contexts.size(), context)
+            next_weights = loop_state.weights.write(
+                loop_state.weights.size(), weights)
 
-    def get_logits(self, y):
+            next_loop_state = AttentionLoopState(
+                contexts=next_contexts,
+                weights=next_weights)
+
+            return context, next_loop_state
+
+    def get_logits(self, y, _):
         # Attention mask is a softmax of v^T * tanh(...).
         return tf.reduce_sum(
             self.v * tf.tanh(self.hidden_features + y), [2, 3]) + self.v_bias
@@ -157,9 +176,11 @@ class CoverageAttention(Attention):
         self.fertility = 1e-8 + self.attention_fertility * tf.sigmoid(
             tf.reduce_sum(self.fertility_weights * self.attention_states, [2]))
 
-    def get_logits(self, y):
-        coverage = sum(
-            self.attentions_in_time) / self.fertility * self.input_weights
+    def get_logits(self, y, weights_in_time):
+
+        weight_sum = tf.reduce_sum(weights_in_time.stack(), axis=0)
+
+        coverage = weights_sum / self.fertility * self.input_weights
 
         logits = tf.reduce_sum(
             self.v * tf.tanh(
@@ -206,7 +227,7 @@ class RecurrentAttention(BaseAttention):
     # pylint: disable=unused-argument
     def attention(self,
                   decoder_state: tf.Tensor,
-                  decoder_prev_state: tf.Tensor, _) -> tf.Tensor:
+                  decoder_prev_state: tf.Tensor, *_) -> Tuple[tf.Tensor, Any]:
 
         with tf.variable_scope(self.scope + "/RecurrentAttn") as varscope:
             initial_state = linear(decoder_state, self._state_size, varscope)
@@ -225,5 +246,5 @@ class RecurrentAttention(BaseAttention):
                 initial_state_bw=initial_state,
                 dtype=tf.float32)
 
-            return tf.concat(encoded_tup, 1)
+            return tf.concat(encoded_tup, 1), None
 # pylint: disable=unused-argument,too-few-public-methods

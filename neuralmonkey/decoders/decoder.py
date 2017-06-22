@@ -33,9 +33,10 @@ LoopState = NamedTuple("LoopState",
                         ("input_symbol", tf.Tensor),  # batch of ints
                         ("rnn_states", tf.TensorArray),
                         ("rnn_outputs", tf.TensorArray),
-                        ("attentions", List[tf.TensorArray]),
                         ("logits", tf.TensorArray),
-                        ("finished", tf.TensorArray)])
+                        ("attentions", List[tf.TensorArray]),
+                        ("finished", tf.TensorArray),
+                        ("attention_loop_states", List[Any])])
 
 
 # pylint: disable=too-many-public-methods,too-many-instance-attributes
@@ -440,8 +441,13 @@ class Decoder(ModelPart):
                     prev_state = prev_rnn_output
                     cell_output, state = cell(x, prev_state)
                     next_state = state
-                    attns = [a.attention(cell_output, prev_rnn_output, x)
-                             for a in att_objects]
+                    attns = [
+                        a.attention(cell_output, prev_rnn_output, x,
+                                    att_loop_state)
+                        for a, att_loop_state in zip(
+                                att_objects,
+                                loop_state.attention_loop_states)]
+
                     if self._conditional_gru:
                         cell_cond = self._get_conditional_gru_cell()
                         cond_input = tf.concat(attns, -1)
@@ -453,18 +459,25 @@ class Decoder(ModelPart):
                         prev_rnn_state, prev_rnn_output)
                     cell_output, state = cell(x, prev_state)
                     next_state = state.c
-                    attns = [a.attention(cell_output, prev_rnn_output, x)
-                             for a in att_objects]
+                    attns = [
+                        a.attention(cell_output, prev_rnn_output, x,
+                                    att_loop_state)
+                        for a, att_loop_state in zip(
+                                att_objects,
+                                loop_state.attention_loop_states)]
                 else:
                     raise ValueError("Unknown RNN cell.")
 
                 with tf.name_scope("rnn_output_projection"):
                     if attns:
-                        output = linear([cell_output] + attns,
+                        contexts, att_loop_states = zip(*attns)
+
+                        output = linear([cell_output] + contexts,
                                         cell.output_size,
                                         scope="AttnOutputProjection")
                     else:
                         output = cell_output
+                        att_loop_states = []
 
                 logits = self._logit_function(output)
 
@@ -472,7 +485,7 @@ class Decoder(ModelPart):
 
             next_attentions = [prev_attns.write(step + 1, a)
                                for prev_attns, a in
-                               zip(loop_state.attentions, attns)]
+                               zip(loop_state.attentions, contexts)]
             if train_mode:
                 # pylint: disable=unsubscriptable-object
                 next_symbols = self.train_inputs[step]
@@ -494,7 +507,8 @@ class Decoder(ModelPart):
                     step + 1, cell_output),
                 attentions=next_attentions,
                 logits=loop_state.logits.write(step, logits),
-                finished=loop_state.finished.write(step + 1, has_finished))
+                finished=loop_state.finished.write(step + 1, has_finished),
+                attention_loop_states=att_loop_states)
             return new_loop_state
         return body
 
