@@ -67,6 +67,8 @@ def training_loop(tf_manager: TensorFlowManager,
         train_dataset: Dataset used for training
         val_dataset: used for validation. Can be Dataset or a list of datasets.
             The last dataset is used as the main one for storing best results.
+            When using multiple datasets. It is recommended to name them for
+            better Tensorboard visualization.
         test_datasets: List of datasets used for testing
         logging_period: after how many batches should the logging happen. It
             can also be defined as a time period in format like: 3s; 4m; 6h;
@@ -244,10 +246,14 @@ def training_loop(tf_manager: TensorFlowManager,
                                         tf_manager.best_score_batch),
                                 color='blue')
 
+                        if len(val_datasets) > 1:
+                            valset_name = valset.name
+                        else:
+                            valset_name = None
                         _log_continuous_evaluation(
                             tb_writer, tf_manager, main_metric, val_evaluation,
                             seen_instances, epoch_n, epochs, val_results,
-                            train=False)
+                            train=False, dataset_name=valset_name)
 
                     # how long was the training between validations
                     training_duration = val_duration_start - last_val_time
@@ -350,7 +356,8 @@ def run_on_dataset(tf_manager: TensorFlowManager,
                    dataset: Dataset,
                    postprocess: Postprocess,
                    write_out: bool = False,
-                   batch_size: Optional[int] = None) -> Tuple[
+                   batch_size: Optional[int] = None,
+                   log_progress: int = 0) -> Tuple[
                        List[ExecutionResult], Dict[str, List[Any]]]:
     """Apply the model on a dataset and optionally write outputs to files.
 
@@ -363,6 +370,8 @@ def run_on_dataset(tf_manager: TensorFlowManager,
         postprocess: an object to use as postprocessing of the
         write_out: Flag whether the outputs should be printed to a file defined
             in the dataset object.
+        batch_size: size of the minibatch
+        log_progress: log progress every X seconds
 
         extra_fetches: Extra tensors to evaluate for each batch.
 
@@ -377,7 +386,8 @@ def run_on_dataset(tf_manager: TensorFlowManager,
 
     all_results = tf_manager.execute(dataset, runners,
                                      compute_losses=contains_targets,
-                                     batch_size=batch_size)
+                                     batch_size=batch_size,
+                                     log_progress=log_progress)
 
     result_data = {runner.output_series: result.outputs
                    for runner, result in zip(runners, all_results)}
@@ -459,10 +469,14 @@ def _log_continuous_evaluation(tb_writer: tf.summary.FileWriter,
                                epoch: int,
                                max_epochs: int,
                                execution_results: List[ExecutionResult],
-                               train: bool = False) -> None:
+                               train: bool = False,
+                               dataset_name: str = None) -> None:
     """Log the evaluation results and the TensorBoard summaries."""
 
     color, prefix = ("yellow", "train") if train else ("blue", "val")
+
+    if dataset_name is not None:
+        prefix += "_" + dataset_name
 
     if tf_manager.report_gpu_memory_consumption:
         meminfostr = "  " + gpu_memusage()

@@ -12,6 +12,7 @@ from typing import Any, List, Union, Optional
 # pylint: enable=unused-import
 
 import os
+import time
 
 import numpy as np
 import tensorflow as tf
@@ -173,14 +174,20 @@ class TensorFlowManager(object):
                 train=False,
                 compute_losses=True,
                 summaries=True,
-                batch_size=None) -> List[ExecutionResult]:
+                batch_size=None,
+                log_progress: int = 0) -> List[ExecutionResult]:
         if batch_size is None:
             batch_size = len(dataset)
         batched_dataset = dataset.batch_dataset(batch_size)
+        last_log_time = time.process_time()
 
         batch_results = [
             [] for _ in execution_scripts]  # type: List[List[ExecutionResult]]
-        for batch in batched_dataset:
+        for batch_id, batch in enumerate(batched_dataset):
+            if (time.process_time() - last_log_time > log_progress
+                    and log_progress > 0):
+                log("Processed {} examples.".format(batch_id * batch_size))
+                last_log_time = time.process_time()
             executables = [s.get_executable(compute_losses=compute_losses,
                                             summaries=summaries)
                            for s in execution_scripts]
