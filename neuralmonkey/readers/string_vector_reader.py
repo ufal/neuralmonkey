@@ -2,8 +2,6 @@ from typing import List, Iterable, Type
 import gzip
 import numpy as np
 
-from neuralmonkey.readers.utils import FILETYPER
-
 
 def get_string_vector_reader(dtype: Type = np.float32, columns: int = None):
     """Get a reader for vectors encoded as whitespace-separated numbers"""
@@ -19,9 +17,7 @@ def get_string_vector_reader(dtype: Type = np.float32, columns: int = None):
         for path in files:
             current_line = 0
 
-            mime_type = FILETYPER.from_file(path)
-
-            if mime_type == "application/gzip":
+            if path.endswith(".gz"):
                 with gzip.open(path, 'r') as f_data:
                     for line in f_data:
                         current_line += 1

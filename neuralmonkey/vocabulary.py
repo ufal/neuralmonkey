@@ -489,7 +489,8 @@ class Vocabulary(collections.Sized):
         return [s[:-1] if s[-1] == END_TOKEN else s for s in sentences]
 
     def save_wordlist(self, path: str, overwrite: bool = False,
-                      save_frequencies: bool = False):
+                      save_frequencies: bool = False,
+                      encoding: str = "utf-8") -> None:
         """Save the vocabulary as a wordlist. The file is ordered by the ids of
         words. This function is used mainly for embedding visualization.
 
@@ -507,7 +508,7 @@ class Vocabulary(collections.Sized):
             raise FileExistsError("Cannot save vocabulary: File exists and "
                                   "overwrite is disabled. {}".format(path))
 
-        with open(path, 'w') as output_file:
+        with open(path, 'w', encoding=encoding) as output_file:
             if save_frequencies and self.correct_counts:
                 # this header is important for the TensorBoard to properly
                 # handle the frequencies.

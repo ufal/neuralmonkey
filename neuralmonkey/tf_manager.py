@@ -108,7 +108,7 @@ class TensorFlowManager(object):
         self.best_score = init_score
 
         self.variables_files = []  # type: List[str]
-        self.link_best_vars = None  # type: str
+        self.best_vars_file = None  # type: str
 
     # pylint: enable=too-many-arguments
 
@@ -124,14 +124,11 @@ class TensorFlowManager(object):
 
         return np.argmin(scores)
 
-    def _update_best_symlink(self, var_index: int) -> None:
-        if os.path.islink(self.link_best_vars):
-            os.unlink(self.link_best_vars)
+    def _update_best_vars(self, var_index: int) -> None:
+        best_vars_prefix = os.path.basename(self.variables_files[var_index])
 
-        target_file = "{}.index".format(
-            os.path.basename(self.variables_files[var_index]))
-
-        os.symlink(target_file, self.link_best_vars)
+        with open(self.best_vars_file, "w") as var_file:
+            var_file.write(best_vars_prefix)
 
     def init_saving(self, vars_prefix: str) -> None:
         if self.saver_max_to_keep == 1:
@@ -140,8 +137,8 @@ class TensorFlowManager(object):
             self.variables_files = ["{}.{}".format(vars_prefix, i)
                                     for i in range(self.saver_max_to_keep)]
 
-        self.link_best_vars = "{}.best".format(vars_prefix)
-        self._update_best_symlink(var_index=0)
+        self.best_vars_file = "{}.best".format(vars_prefix)
+        self._update_best_vars(var_index=0)
 
     def validation_hook(self, score: float, epoch: int, batch: int) -> None:
         if self._is_better(score, self.best_score):
@@ -161,7 +158,7 @@ class TensorFlowManager(object):
 
             # update symlink and best score index
             if self.best_score == score:
-                self._update_best_symlink(worst_index)
+                self._update_best_vars(worst_index)
                 self.best_score_index = worst_index
 
             log("Best scores saved so far: {}".format(
@@ -263,8 +260,6 @@ class TensorFlowManager(object):
 
     def restore_best_vars(self) -> None:
         # TODO warn when link does not exist
-        # if os.path.islink(self.link_best_vars):
-        #     self.restore(self.link_best_vars)
         self.restore(self.variables_files[self.best_score_index])
 
     def initialize_model_parts(self, runners, save=False) -> None:
