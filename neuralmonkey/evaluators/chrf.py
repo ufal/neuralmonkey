@@ -47,8 +47,11 @@ class ChrFEvaluator(object):
         chr_p = chr_p_matched / chr_p_all
         chr_r = chr_r_matched / chr_r_all
 
-        return (1 + self.beta_2) *\
-            ((chr_p * chr_r) / (self.beta_2 * chr_p + chr_r))
+        if chr_p == 0 and chr_r == 0:
+            return 0
+
+        return ((1 + self.beta_2)
+            * ((chr_p * chr_r) / (self.beta_2 * chr_p + chr_r)))
 
 
 # pylint: disable=invalid-name
