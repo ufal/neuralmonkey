@@ -1,10 +1,10 @@
-import pyter
-from typing import List, Tuple, Optional
+from typing import List, Optional
 
+
+# pylint: disable=too-few-public-methods
 class ChrFEvaluator(object):
     """Compute ChrF introduced in
     http://www.statmt.org/wmt15/pdf/WMT49.pdf
-    
     """
 
     def __init__(self, n: int = 3, beta: float = 1,
@@ -18,6 +18,7 @@ class ChrFEvaluator(object):
         else:
             self.name = "ChrF-{}".format(n)
 
+    # pylint: disable=too-many-locals
     def __call__(self, hypotheses: List[List[str]],
                  references: List[List[str]]) -> float:
         chr_p_all = 0
@@ -34,13 +35,13 @@ class ChrFEvaluator(object):
             # ChrP
             for i in range(len(hyp_chars) - self.n + 1):
                 chr_p_all = chr_p_all + 1
-                if "".join(hyp_chars[i:i+self.n]) in ref_joined:
+                if "".join(hyp_chars[i:i + self.n]) in ref_joined:
                     chr_p_matched = chr_p_matched + 1
 
             # ChrR
             for i in range(len(ref_chars) - self.n + 1):
                 chr_r_all = chr_r_all + 1
-                if "".join(ref_chars[i:i+self.n]) in hyp_joined:
+                if "".join(ref_chars[i:i + self.n]) in hyp_joined:
                     chr_r_matched = chr_r_matched + 1
 
         chr_p = chr_p_matched / chr_p_all
@@ -49,4 +50,6 @@ class ChrFEvaluator(object):
         return (1 + self.beta_2) *\
             ((chr_p * chr_r) / (self.beta_2 * chr_p + chr_r))
 
+
+# pylint: disable=invalid-name
 ChrF3 = ChrFEvaluator(n=3)
