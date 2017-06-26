@@ -13,7 +13,7 @@ decoder not to attend to the, and extract information on its own hidden state
 (see paper `Knowing when to Look: Adaptive Attention via a Visual Sentinel for
 Image Captioning  <https://arxiv.org/pdf/1612.01887.pdf>`_).
 """
-from typing import Any, List, Union, Type
+from typing import Any, List, Union, Type, Tuple
 import tensorflow as tf
 
 from neuralmonkey.dataset import Dataset
@@ -108,7 +108,8 @@ class MultiAttention(BaseAttention):
                 initializer=tf.random_normal_initializer(stddev=.001))
     # pylint: enable=unused-argument
 
-    def attention(self, decoder_state, decoder_prev_state, decoder_input):
+    def attention(self, decoder_state, decoder_prev_state,
+                  decoder_input, _, step):
         """Get context vector for given decoder state."""
         raise NotImplementedError("Abstract method")
 
@@ -197,6 +198,9 @@ class FlatMultiAttention(MultiAttention):
 
             self.masks_concat = tf.concat(self._encoders_masks, 1)
 
+    def initial_loop_state(self) -> None:
+        return None
+
     def get_encoder_projections(self, scope):
         encoder_projections = []
         with tf.variable_scope(scope):
@@ -229,7 +233,14 @@ class FlatMultiAttention(MultiAttention):
                 encoder_projections.append(projection)
             return encoder_projections
 
-    def attention(self, decoder_state, decoder_prev_state, decoder_input):
+    # pylint: disable=too-many-locals
+    def attention(self, decoder_state, decoder_prev_state,
+                  decoder_input, _, step) -> Tuple[tf.Tensor, Any]:
+
+        # TODO here should be an attention_loop_state passed through this
+        # method, such that the history over particular encoders can be
+        # easily collected
+
         with tf.variable_scope(self.scope):
             projected_state = linear(decoder_state, self.attention_state_size)
             projected_state = tf.expand_dims(projected_state, 1)
@@ -270,7 +281,8 @@ class FlatMultiAttention(MultiAttention):
             contexts = tf.reduce_sum(
                 tf.expand_dims(attentions, 2) * projections_concat, [1])
 
-            return contexts
+            return contexts, None
+    # pylint: enable=too-many-locals
 
     def _tile_encoders_for_beamsearch(self, projected_sentinel):
         sentinel_batch_size = tf.shape(projected_sentinel)[0]
@@ -293,6 +305,9 @@ class FlatMultiAttention(MultiAttention):
         attentions = softmax_concat / norm
 
         return attentions
+
+    def finalize_loop(self, key: str, last_loop_state: Any) -> None:
+        pass
 
 
 def _sentinel(state, prev_state, input_):
@@ -328,7 +343,15 @@ class HierarchicalMultiAttention(MultiAttention):
             self._attn_objs = [
                 e.create_attention_object() for e in self._encoders]
 
-    def attention(self, decoder_state, decoder_prev_state, decoder_input):
+    def initial_loop_state(self) -> None:
+        return None
+
+    # pylint: disable=too-many-locals
+    def attention(self, decoder_state, decoder_prev_state,
+                  decoder_input, _, step) -> Tuple[tf.Tensor, Any]:
+        # TODO here should be an attention_loop_state passed through this
+        # method, such that the history over particular encoders can be
+        # easily collected
         with tf.variable_scope(self.scope):
             projected_state = linear(decoder_state, self.attention_state_size)
             projected_state = tf.expand_dims(projected_state, 1)
@@ -339,7 +362,8 @@ class HierarchicalMultiAttention(MultiAttention):
                 for a in self._attn_objs]
 
             proj_ctxs, attn_logits = [list(t) for t in zip(*[
-                self._vector_logit(projected_state, ctx_vec, scope=enc.name)
+                self._vector_logit(projected_state,
+                                   ctx_vec, scope=enc.name)  # type: ignore
                 for ctx_vec, enc in zip(attn_ctx_vectors, self._encoders)])]
 
             if self._use_sentinels:
@@ -360,7 +384,8 @@ class HierarchicalMultiAttention(MultiAttention):
                 output_cxts = [
                     tf.expand_dims(
                         linear(ctx_vec, self.attention_state_size,
-                               scope="proj_attn_{}".format(enc.name)), 1)
+                               scope="proj_attn_{}".format(
+                                   enc.name)), 1)  # type: ignore
                     for ctx_vec, enc in zip(attn_ctx_vectors, self._encoders)]
                 if self._use_sentinels:
                     output_cxts.append(tf.expand_dims(
@@ -371,4 +396,8 @@ class HierarchicalMultiAttention(MultiAttention):
             context = tf.reduce_sum(
                 tf.expand_dims(attention_distr, 2) * projections_concat, [1])
 
-            return context
+            return context, None
+    # pylint: enable=too-many-locals
+
+    def finalize_loop(self, key: str, last_loop_state: Any) -> None:
+        pass

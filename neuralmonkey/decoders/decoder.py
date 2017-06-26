@@ -31,11 +31,13 @@ RNN_CELL_TYPES = {
 LoopState = NamedTuple("LoopState",
                        [("step", tf.Tensor),  # 1D int
                         ("input_symbol", tf.Tensor),  # batch of ints
-                        ("rnn_states", tf.TensorArray),
+                        ("prev_rnn_state", tf.Tensor),
+                        ("prev_rnn_output", tf.Tensor),
                         ("rnn_outputs", tf.TensorArray),
                         ("logits", tf.TensorArray),
-                        ("attentions", List[tf.TensorArray]),
-                        ("finished", tf.TensorArray),
+                        ("prev_contexts", List[tf.Tensor]),
+                        ("mask", tf.TensorArray),
+                        ("finished", tf.Tensor),
                         ("attention_loop_states", List[Any])])
 
 
@@ -198,6 +200,7 @@ class Decoder(ModelPart):
     def batch_size(self) -> tf.Tensor:
         return tf.shape(self.go_symbols)[0]
 
+    # pylint: disable=no-self-use
     @tensor
     def train_inputs(self) -> tf.Tensor:
         # NOTE transposed shape (time, batch)
@@ -208,6 +211,7 @@ class Decoder(ModelPart):
         # NOTE transposed shape (time, batch)
         # rename padding to mask
         return tf.placeholder(tf.float32, [None, None], name="train_mask")
+    # pylint: enable=no-self-use
 
     @tensor
     def initial_state(self) -> tf.Tensor:
@@ -321,15 +325,24 @@ class Decoder(ModelPart):
 
     @tensor
     def decoded(self) -> tf.Tensor:
+        # pylint: disable=unsubscriptable-object
         return tf.argmax(self.runtime_logits[:, :, 1:], -1) + 1
+        # pylint: enable=unsubscriptable-object
 
     @tensor
     def runtime_loss(self) -> tf.Tensor:
         train_targets = tf.transpose(self.train_inputs)
+        batch_major_logits = tf.transpose(self.runtime_logits, [1, 0, 2])
+        min_time = tf.minimum(tf.shape(train_targets)[1],
+                              tf.shape(batch_major_logits)[1])
+
+        # TODO if done properly, there should be padding of the shorter
+        # sequence instead of cropping to the length of the shorter one
 
         return tf.contrib.seq2seq.sequence_loss(
-            self.runtime_logits[:tf.shape(train_targets)[1]], train_targets,
-            tf.transpose(self.train_padding))
+            logits=batch_major_logits[:, :min_time],
+            targets=train_targets[:, :min_time],
+            weights=tf.transpose(self.train_padding)[:, :min_time])
 
     @tensor
     def runtime_logprobs(self) -> tf.Tensor:
@@ -385,10 +398,12 @@ class Decoder(ModelPart):
 
             # Run the attention mechanism.
             if self._rnn_cell_str == 'GRU':
-                attns = [a.attention(cell_output, prev_state, x)
+                attns = [a.attention(cell_output, prev_state, x,
+                                     a.initial_loop_state(), 0)
                          for a in att_objects]
             elif self._rnn_cell_str == 'LSTM':
-                attns = [a.attention(cell_output, prev_state.c, x)
+                attns = [a.attention(cell_output, prev_state.c, x,
+                                     a.initial_loop_state(), 0)
                          for a in att_objects]
             else:
                 raise ValueError("Unknown RNN cell.")
@@ -412,7 +427,7 @@ class Decoder(ModelPart):
         return logits, state, attns
 
     def get_body(self, att_objects: List[BaseAttention],
-                 train_mode: bool) -> Callable:
+                 train_mode: bool) -> Callable[[LoopState], LoopState]:
 
         def body(*args) -> LoopState:
             loop_state = LoopState(*args)
@@ -425,54 +440,50 @@ class Decoder(ModelPart):
                 embedded_input = dropout(embedded_input,
                                          self.dropout_keep_prob,
                                          self.train_mode)
-                prev_attns = [a.read(step) for a in loop_state.attentions]
 
                 # Merge input and previous attentions into one vector of the
                 # right size.
                 if self._attention_on_input:
-                    x = linear([embedded_input] + prev_attns,
+                    x = linear([embedded_input] + loop_state.prev_contexts,
                                self.embedding_size)
                 else:
                     x = embedded_input
 
                 # Run the RNN.
-                prev_rnn_output = loop_state.rnn_outputs.read(step)
                 if self._rnn_cell_str == 'GRU':
-                    prev_state = prev_rnn_output
-                    cell_output, state = cell(x, prev_state)
+                    cell_output, state = cell(x, loop_state.prev_rnn_output)
                     next_state = state
                     attns = [
-                        a.attention(cell_output, prev_rnn_output, x,
-                                    att_loop_state)
+                        a.attention(cell_output, loop_state.prev_rnn_output, x,
+                                    att_loop_state, loop_state.step)
                         for a, att_loop_state in zip(
-                                att_objects,
-                                loop_state.attention_loop_states)]
+                            att_objects,
+                            loop_state.attention_loop_states)]
+                    contexts, att_loop_states = zip(*attns)
 
                     if self._conditional_gru:
                         cell_cond = self._get_conditional_gru_cell()
-                        cond_input = tf.concat(attns, -1)
+                        cond_input = tf.concat(contexts, -1)
                         cell_output, state = cell_cond(cond_input, state,
                                                        scope="cond_gru_2_cell")
                 elif self._rnn_cell_str == 'LSTM':
-                    prev_rnn_state = loop_state.rnn_states.read(step)
                     prev_state = tf.contrib.rnn.LSTMStateTuple(
-                        prev_rnn_state, prev_rnn_output)
+                        loop_state.prev_rnn_state, loop_state.prev_rnn_output)
                     cell_output, state = cell(x, prev_state)
                     next_state = state.c
                     attns = [
-                        a.attention(cell_output, prev_rnn_output, x,
-                                    att_loop_state)
+                        a.attention(cell_output, loop_state.prev_rnn_output, x,
+                                    att_loop_state, loop_state.step)
                         for a, att_loop_state in zip(
-                                att_objects,
-                                loop_state.attention_loop_states)]
+                            att_objects,
+                            loop_state.attention_loop_states)]
+                    contexts, att_loop_states = zip(*attns)
                 else:
                     raise ValueError("Unknown RNN cell.")
 
                 with tf.name_scope("rnn_output_projection"):
                     if attns:
-                        contexts, att_loop_states = zip(*attns)
-
-                        output = linear([cell_output] + contexts,
+                        output = linear([cell_output] + list(contexts),
                                         cell.output_size,
                                         scope="AttnOutputProjection")
                     else:
@@ -483,9 +494,6 @@ class Decoder(ModelPart):
 
             self.step_scope.reuse_variables()
 
-            next_attentions = [prev_attns.write(step + 1, a)
-                               for prev_attns, a in
-                               zip(loop_state.attentions, contexts)]
             if train_mode:
                 # pylint: disable=unsubscriptable-object
                 next_symbols = self.train_inputs[step]
@@ -493,7 +501,7 @@ class Decoder(ModelPart):
             else:
                 next_symbols = tf.to_int32(tf.argmax(logits, axis=1))
             has_just_finished = tf.equal(next_symbols, END_TOKEN_INDEX)
-            has_finished = tf.logical_or(loop_state.finished.read(step),
+            has_finished = tf.logical_or(loop_state.finished,
                                          has_just_finished)
 
             # TODO we can do padding after sentence end here
@@ -501,14 +509,16 @@ class Decoder(ModelPart):
             new_loop_state = LoopState(
                 input_symbol=next_symbols,
                 step=step + 1,
-                rnn_states=loop_state.rnn_states.write(
-                    step + 1, next_state),
+                prev_rnn_state=next_state,
+                prev_rnn_output=cell_output,
                 rnn_outputs=loop_state.rnn_outputs.write(
                     step + 1, cell_output),
-                attentions=next_attentions,
+                prev_contexts=list(contexts),
                 logits=loop_state.logits.write(step, logits),
-                finished=loop_state.finished.write(step + 1, has_finished),
-                attention_loop_states=att_loop_states)
+                finished=has_finished,
+                mask=loop_state.mask.write(step + 1,
+                                           tf.logical_not(has_finished)),
+                attention_loop_states=list(att_loop_states))
             return new_loop_state
         return body
 
@@ -516,7 +526,7 @@ class Decoder(ModelPart):
                                                        tf.Tensor, tf.Tensor]:
         def cond(*args) -> tf.Tensor:
             loop_state = LoopState(*args)
-            finished = loop_state.finished.read(loop_state.step)
+            finished = loop_state.finished
             not_all_done = tf.logical_not(tf.reduce_all(finished))
             before_max_len = tf.less(loop_state.step,
                                      self.max_output_len)
@@ -528,38 +538,48 @@ class Decoder(ModelPart):
 
         while_body = self.get_body(att_objects, train_mode)
         start_symbol = self.go_symbols
-        initial_rnn_state = tf.TensorArray(
-            dtype=tf.float32, size=0, dynamic_size=True, clear_after_read=False).write(
-                0, self.initial_state)
-        initial_attns = [tf.TensorArray(
-            dtype=tf.float32, size=0, dynamic_size=True, clear_after_read=False).write(
-                0, tf.zeros([self.batch_size, a.attn_size]))
-                         for a in att_objects]
-        initial_finished = tf.TensorArray(
-            dtype=tf.bool, size=0, dynamic_size=True, clear_after_read=False).write(
-                0, tf.zeros([self.batch_size], dtype=tf.bool))
+        initial_rnn_outputs = tf.TensorArray(
+            dtype=tf.float32, size=0, dynamic_size=True,
+            name="rnn_outputs").write(0, self.initial_state)
+        initial_contexts = [tf.zeros([self.batch_size, a.attn_size])
+                            for a in att_objects]
+        initial_mask = tf.TensorArray(
+            dtype=tf.bool, size=0, dynamic_size=True,
+            name="mask").write(
+                0, tf.ones([self.batch_size], dtype=tf.bool))
         initial_logits = tf.TensorArray(
-            dtype=tf.float32, size=0, dynamic_size=True, clear_after_read=False)
+            dtype=tf.float32, size=0, dynamic_size=True,
+            name="logits")
+        initial_attn_loop_states = [
+            a.initial_loop_state() for a in att_objects if a is not None]
 
         initial_loop_state = LoopState(
             input_symbol=start_symbol,
             step=0,
-            rnn_states=initial_rnn_state,
-            rnn_outputs=initial_rnn_state,
-            attentions=initial_attns,
+            prev_rnn_state=self.initial_state,
+            prev_rnn_output=self.initial_state,
+            rnn_outputs=initial_rnn_outputs,
+            prev_contexts=initial_contexts,
             logits=initial_logits,
-            finished=initial_finished)
+            finished=tf.zeros([self.batch_size], dtype=tf.bool),
+            mask=initial_mask,
+            attention_loop_states=initial_attn_loop_states)
 
         final_loop_state = tf.while_loop(cond, while_body, initial_loop_state)
 
+        for att_state, attn_obj in zip(final_loop_state.attention_loop_states,
+                                       att_objects):
+            attn_obj.finalize_loop(
+                "{}_{}".format(self.name, 'train' if train_mode else 'run'),
+                att_state)
+
         logits = final_loop_state.logits.stack()
-        rnn_states = final_loop_state.rnn_states.stack()
         rnn_outputs = final_loop_state.rnn_outputs.stack()
 
         # TODO mask should include also the end symbol
-        mask = tf.logical_not(final_loop_state.finished.stack())
+        mask = final_loop_state.mask.stack()
 
-        return logits, rnn_states, rnn_outputs, mask
+        return logits, rnn_outputs, rnn_outputs, mask
 
     def _visualize_attention(self) -> None:
         """Create image summaries with attentions"""
@@ -609,9 +629,6 @@ class Decoder(ModelPart):
                 sentences_list, self.max_output_len, train_mode=False,
                 add_start_symbol=False, add_end_symbol=True,
                 pad_to_max_len=False)
-
-            #assert inputs.shape == (self.max_output_len, len(sentences_list))
-            #assert weights.shape == (self.max_output_len, len(sentences_list))
 
             fd[self.train_inputs] = inputs
             fd[self.train_padding] = weights
