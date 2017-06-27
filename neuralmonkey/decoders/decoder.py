@@ -31,6 +31,7 @@ RNN_CELL_TYPES = {
 LoopState = NamedTuple("LoopState",
                        [("step", tf.Tensor),  # 1D int
                         ("input_symbol", tf.Tensor),  # batch of ints
+                        ("train_inputs", Optional[tf.Tensor]),
                         ("prev_rnn_state", tf.Tensor),
                         ("prev_rnn_output", tf.Tensor),
                         ("rnn_outputs", tf.TensorArray),
@@ -415,9 +416,14 @@ class Decoder(ModelPart):
                 cell_output, state = cell_cond(cond_input, state,
                                                scope="cond_gru_2_cell")
 
+            if attns:
+                contexts, _ = zip(*attns)
+            else:
+                contexts = []
+
             with tf.name_scope("rnn_output_projection"):
                 if attns:
-                    output = linear([cell_output] + attns,
+                    output = linear([cell_output] + list(contexts),
                                     cell.output_size,
                                     scope="AttnOutputProjection")
                 else:
@@ -425,11 +431,13 @@ class Decoder(ModelPart):
 
             logits = self._logit_function(output)
 
-        return logits, state, attns
+        return logits, state, contexts
 
     def get_body(self, att_objects: List[BaseAttention],
                  train_mode: bool) -> Callable[[LoopState], LoopState]:
 
+        # pylint: disable=too-many-branches
+        # TODO simplify
         def body(*args) -> LoopState:
             loop_state = LoopState(*args)
             with tf.variable_scope(self.step_scope):
@@ -502,9 +510,7 @@ class Decoder(ModelPart):
             self.step_scope.reuse_variables()
 
             if train_mode:
-                # pylint: disable=unsubscriptable-object
-                next_symbols = self.train_inputs[step]
-                # pylint: enable=unsubscriptable-object
+                next_symbols = loop_state.train_inputs[step]
             else:
                 next_symbols = tf.to_int32(tf.argmax(logits, axis=1))
             has_just_finished = tf.equal(next_symbols, END_TOKEN_INDEX)
@@ -514,8 +520,9 @@ class Decoder(ModelPart):
             # TODO we can do padding after sentence end here
 
             new_loop_state = LoopState(
-                input_symbol=next_symbols,
                 step=step + 1,
+                input_symbol=next_symbols,
+                train_inputs=loop_state.train_inputs,
                 prev_rnn_state=next_state,
                 prev_rnn_output=cell_output,
                 rnn_outputs=loop_state.rnn_outputs.write(
@@ -527,6 +534,8 @@ class Decoder(ModelPart):
                                            tf.logical_not(has_finished)),
                 attention_loop_states=list(att_loop_states))
             return new_loop_state
+        # pylint: enable=too-many-branches
+
         return body
 
     def _decoding_loop(self, train_mode: bool)-> Tuple[tf.Tensor, tf.Tensor,
@@ -558,8 +567,9 @@ class Decoder(ModelPart):
             a.initial_loop_state() for a in att_objects if a is not None]
 
         initial_loop_state = LoopState(
-            input_symbol=start_symbol,
             step=0,
+            input_symbol=start_symbol,
+            train_inputs=self.train_inputs,
             prev_rnn_state=self.initial_state,
             prev_rnn_output=self.initial_state,
             rnn_outputs=initial_rnn_outputs,

@@ -95,6 +95,10 @@ class BeamSearchDecoder(ModelPart):
         input_ = self.parent_decoder.embed_and_dropout(
             bs_state.last_word_ids)
 
+        # TODO remove this blessing
+        print(self.parent_decoder.runtime_logits,
+              self.parent_decoder.train_logits)
+
         # don't want to use this decoder with uninitialized parent
         assert self.parent_decoder.step_scope.reuse
 
