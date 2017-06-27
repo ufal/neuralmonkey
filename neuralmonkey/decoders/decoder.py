@@ -50,7 +50,8 @@ class Decoder(ModelPart):
     used for the decoding.
     """
 
-    # pylint: disable=too-many-arguments,too-many-locals,too-many-statements
+    # pylint: disable=too-many-locals
+    # pylint: disable=too-many-arguments,too-many-branches,too-many-statements
     def __init__(self,
                  encoders: List[Any],
                  vocabulary: Vocabulary,
@@ -158,6 +159,11 @@ class Decoder(ModelPart):
             log("No output projection specified - using simple concatenation")
             self.output_projection = no_deep_output
 
+        if self._attention_on_input:
+            self.input_projection = self.input_plus_attention
+        else:
+            self.input_projection = self.embed_input_symbol
+
         with self.use_scope():
             with tf.variable_scope("attention_decoder") as self.step_scope:
                 pass
@@ -185,7 +191,7 @@ class Decoder(ModelPart):
                     if isinstance(e, Attentive)}
 
             log("Decoder initalized.")
-    # pylint: disable=too-many-arguments,too-many-locals,too-many-statements
+    # pylint: enable=too-many-arguments,too-many-branches,too-many-statements
 
     # pylint: disable=no-self-use
     @tensor
@@ -276,13 +282,12 @@ class Decoder(ModelPart):
     def train_logits(self) -> tf.Tensor:
         # POSLEDNI TRAIN INPUT SE V DEKODOVACI FUNKCI NEPOUZIJE
         # (jen jako target)
-        logits, _, _, _ = self._decoding_loop(train_mode=True)
+        logits, _, _ = self._decoding_loop(train_mode=True)
 
         return logits
 
     @tensor
-    def runtime_loop_result(self) -> Tuple[tf.Tensor, tf.Tensor,
-                                           tf.Tensor, tf.Tensor]:
+    def runtime_loop_result(self) -> Tuple[tf.Tensor, tf.Tensor, tf.Tensor]:
         return self._decoding_loop(train_mode=False)
 
     @tensor
@@ -300,7 +305,7 @@ class Decoder(ModelPart):
     @tensor
     def runtime_mask(self) -> tf.Tensor:
         # pylint: disable=unsubscriptable-object
-        return self.runtime_loop_result[3]
+        return self.runtime_loop_result[2]
         # pylint: enable=unsubscriptable-object
 
     @tensor
@@ -349,19 +354,6 @@ class Decoder(ModelPart):
     @tensor
     def runtime_logprobs(self) -> tf.Tensor:
         return tf.nn.log_softmax(self.runtime_logits)
-
-    def embed_and_dropout(self, inputs: tf.Tensor) -> tf.Tensor:
-        """Embed the input using the embedding matrix and apply dropout
-
-        Arguments:
-            inputs: The Tensor to be embedded and dropped out.
-        """
-        with tf.variable_scope("embed_inputs"):
-            embedded = tf.nn.embedding_lookup(
-                self.embedding_matrix, inputs)
-            return dropout(embedded,
-                           self.dropout_keep_prob,
-                           self.train_mode)
 
     def _logit_function(self, state: tf.Tensor) -> tf.Tensor:
         state = dropout(state, self.dropout_keep_prob, self.train_mode)
@@ -433,38 +425,46 @@ class Decoder(ModelPart):
 
         return logits, state, contexts
 
+
+    def embed_input_symbol(self, *args) -> tf.Tensor:
+        loop_state = LoopState(*args)
+
+        embedded_input = tf.nn.embedding_lookup(
+            self.embedding_matrix, loop_state.input_symbol)
+
+        return dropout(embedded_input, self.dropout_keep_prob, self.train_mode)
+
+    def input_plus_attention(self, *args) -> tf.Tensor:
+        """Merge input and previous attentions into one vector of the
+         right size.
+        """
+        loop_state = LoopState(*args)
+
+        embedded_input = self.embed_input_symbol(*loop_state)
+
+        return linear([embedded_input] + loop_state.prev_contexts,
+                      self.embedding_size)
+
+
     def get_body(self, att_objects: List[BaseAttention],
                  train_mode: bool) -> Callable[[LoopState], LoopState]:
-
-        # pylint: disable=too-many-branches
-        # TODO simplify
         def body(*args) -> LoopState:
             loop_state = LoopState(*args)
+            step = loop_state.step
+
             with tf.variable_scope(self.step_scope):
-                cell = self._get_rnn_cell()
-
-                step = loop_state.step
-                embedded_input = tf.nn.embedding_lookup(
-                    self.embedding_matrix, loop_state.input_symbol)
-                embedded_input = dropout(embedded_input,
-                                         self.dropout_keep_prob,
-                                         self.train_mode)
-
-                # Merge input and previous attentions into one vector of the
-                # right size.
-                if self._attention_on_input:
-                    x = linear([embedded_input] + loop_state.prev_contexts,
-                               self.embedding_size)
-                else:
-                    x = embedded_input
+                # Compute the input to the RNN
+                rnn_input = self.input_projection(*loop_state)
 
                 # Run the RNN.
+                cell = self._get_rnn_cell()
                 if self._rnn_cell_str == 'GRU':
-                    cell_output, state = cell(x, loop_state.prev_rnn_output)
+                    cell_output, state = cell(rnn_input,
+                                              loop_state.prev_rnn_output)
                     next_state = state
                     attns = [
-                        a.attention(cell_output, loop_state.prev_rnn_output, x,
-                                    att_loop_state, loop_state.step)
+                        a.attention(cell_output, loop_state.prev_rnn_output,
+                                    rnn_input, att_loop_state, loop_state.step)
                         for a, att_loop_state in zip(
                             att_objects,
                             loop_state.attention_loop_states)]
@@ -481,11 +481,11 @@ class Decoder(ModelPart):
                 elif self._rnn_cell_str == 'LSTM':
                     prev_state = tf.contrib.rnn.LSTMStateTuple(
                         loop_state.prev_rnn_state, loop_state.prev_rnn_output)
-                    cell_output, state = cell(x, prev_state)
+                    cell_output, state = cell(rnn_input, prev_state)
                     next_state = state.c
                     attns = [
-                        a.attention(cell_output, loop_state.prev_rnn_output, x,
-                                    att_loop_state, loop_state.step)
+                        a.attention(cell_output, loop_state.prev_rnn_output,
+                                    rnn_input, att_loop_state, loop_state.step)
                         for a, att_loop_state in zip(
                             att_objects,
                             loop_state.attention_loop_states)]
@@ -534,58 +534,66 @@ class Decoder(ModelPart):
                                            tf.logical_not(has_finished)),
                 attention_loop_states=list(att_loop_states))
             return new_loop_state
-        # pylint: enable=too-many-branches
 
         return body
 
-    def _decoding_loop(self, train_mode: bool)-> Tuple[tf.Tensor, tf.Tensor,
-                                                       tf.Tensor, tf.Tensor]:
-        def cond(*args) -> tf.Tensor:
-            loop_state = LoopState(*args)
-            finished = loop_state.finished
-            not_all_done = tf.logical_not(tf.reduce_all(finished))
-            before_max_len = tf.less(loop_state.step,
-                                     self.max_output_len)
-            return tf.logical_and(not_all_done, before_max_len)
+    def get_initial_loop_state(self, att_objects: List) -> LoopState:
+        rnn_output_ta = tf.TensorArray(dtype=tf.float32, dynamic_size=True,
+                                       size=0, name="rnn_outputs")
+        rnn_output_ta = rnn_output_ta.write(0, self.initial_state)
+
+        logit_ta = tf.TensorArray(dtype=tf.float32, dynamic_size=True,
+                                  size=0, name="logits")
+
+        contexts = [tf.zeros([self.batch_size, a.attn_size])
+                    for a in att_objects]
+
+        mask_ta = tf.TensorArray(dtype=tf.bool, dynamic_size=True,
+                                 size=0, name="mask")
+
+        attn_loop_states = [a.initial_loop_state()
+                            for a in att_objects if a is not None]
+
+        return LoopState(
+            step=0,
+            input_symbol=self.go_symbols,
+            train_inputs=self.train_inputs,
+            prev_rnn_state=self.initial_state,
+            prev_rnn_output=self.initial_state,
+            rnn_outputs=rnn_output_ta,
+            logits=logit_ta,
+            prev_contexts=contexts,
+            mask=mask_ta,
+            finished=tf.zeros([self.batch_size], dtype=tf.bool),
+            attention_loop_states=attn_loop_states)
+
+    def loop_exit_criterion(self, *args) -> tf.Tensor:
+        loop_state = LoopState(*args)
+        finished = loop_state.finished
+        not_all_done = tf.logical_not(tf.reduce_all(finished))
+        before_max_len = tf.less(loop_state.step,
+                                 self.max_output_len)
+        return tf.logical_and(not_all_done, before_max_len)
+
+    def _decoding_loop(self, train_mode: bool)-> Tuple[
+            tf.Tensor, tf.Tensor, tf.Tensor]:
 
         att_objects = [self.get_attention_object(e, train_mode)
                        for e in self.encoders]
         att_objects = [a for a in att_objects if a is not None]
 
-        while_body = self.get_body(att_objects, train_mode)
-        start_symbol = self.go_symbols
-        initial_rnn_outputs = tf.TensorArray(
-            dtype=tf.float32, size=0, dynamic_size=True,
-            name="rnn_outputs").write(0, self.initial_state)
-        initial_contexts = [tf.zeros([self.batch_size, a.attn_size])
-                            for a in att_objects]
-        initial_mask = tf.TensorArray(
-            dtype=tf.bool, size=0, dynamic_size=True, name="mask")
-        initial_logits = tf.TensorArray(
-            dtype=tf.float32, size=0, dynamic_size=True, name="logits")
-        initial_attn_loop_states = [
-            a.initial_loop_state() for a in att_objects if a is not None]
+        final_loop_state = tf.while_loop(
+            self.loop_exit_criterion,
+            self.get_body(att_objects, train_mode),
+            self.get_initial_loop_state(att_objects))
 
-        initial_loop_state = LoopState(
-            step=0,
-            input_symbol=start_symbol,
-            train_inputs=self.train_inputs,
-            prev_rnn_state=self.initial_state,
-            prev_rnn_output=self.initial_state,
-            rnn_outputs=initial_rnn_outputs,
-            prev_contexts=initial_contexts,
-            logits=initial_logits,
-            finished=tf.zeros([self.batch_size], dtype=tf.bool),
-            mask=initial_mask,
-            attention_loop_states=initial_attn_loop_states)
+        for att_state, attn_obj in zip(
+                final_loop_state.attention_loop_states, att_objects):
 
-        final_loop_state = tf.while_loop(cond, while_body, initial_loop_state)
+            att_history_key = "{}_{}".format(
+                self.name, "train" if train_mode else "run")
 
-        for att_state, attn_obj in zip(final_loop_state.attention_loop_states,
-                                       att_objects):
-            attn_obj.finalize_loop(
-                "{}_{}".format(self.name, 'train' if train_mode else 'run'),
-                att_state)
+            attn_obj.finalize_loop(att_history_key, att_state)
 
         logits = final_loop_state.logits.stack()
         rnn_outputs = final_loop_state.rnn_outputs.stack()
@@ -593,7 +601,7 @@ class Decoder(ModelPart):
         # TODO mask should include also the end symbol
         mask = final_loop_state.mask.stack()
 
-        return logits, rnn_outputs, rnn_outputs, mask
+        return logits, rnn_outputs, mask
 
     def _visualize_attention(self) -> None:
         """Create image summaries with attentions"""

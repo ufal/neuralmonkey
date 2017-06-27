@@ -81,19 +81,19 @@ class BeamSearchDecoder(ModelPart):
 
         outputs = []
         for _ in range(self._max_steps):
-            state, output = self.step(att_objects, state)
+            state, output = self.old_step(att_objects, state)
             outputs.append(output)
 
         return outputs
 
     # pylint: disable=too-many-locals
-    def step(self,
+    def old_step(self,
              att_objects: List[BaseAttention],
              bs_state: SearchState) -> Tuple[SearchState, SearchStepOutput]:
 
         # embed the previously decoded word
-        input_ = self.parent_decoder.embed_and_dropout(
-            bs_state.last_word_ids)
+        input_ = tf.nn.embedding_lookup(self.parent_decoder.embedding_matrix,
+                                        bs_state.last_word_ids)
 
         # TODO remove this blessing
         print(self.parent_decoder.runtime_logits,
