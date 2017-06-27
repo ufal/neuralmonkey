@@ -277,7 +277,7 @@ class Decoder(ModelPart):
         # (jen jako target)
         logits, _, _, _ = self._decoding_loop(train_mode=True)
 
-        return tf.transpose(logits, perm=[1, 0, 2])
+        return logits
 
     @tensor
     def runtime_loop_result(self) -> Tuple[tf.Tensor, tf.Tensor,
@@ -299,7 +299,7 @@ class Decoder(ModelPart):
     @tensor
     def runtime_mask(self) -> tf.Tensor:
         # pylint: disable=unsubscriptable-object
-        return self.runtime_loop_result[2]
+        return self.runtime_loop_result[3]
         # pylint: enable=unsubscriptable-object
 
     @tensor
@@ -307,7 +307,8 @@ class Decoder(ModelPart):
         train_targets = tf.transpose(self.train_inputs)
 
         return tf.contrib.seq2seq.sequence_loss(
-            self.train_logits, train_targets,
+            tf.transpose(self.train_logits, perm=[1, 0, 2]),
+            train_targets,
             tf.transpose(self.train_padding),
             average_across_batch=False)
 
@@ -459,7 +460,10 @@ class Decoder(ModelPart):
                         for a, att_loop_state in zip(
                             att_objects,
                             loop_state.attention_loop_states)]
-                    contexts, att_loop_states = zip(*attns)
+                    if att_objects:
+                        contexts, att_loop_states = zip(*attns)
+                    else:
+                        contexts, att_loop_states = [], []
 
                     if self._conditional_gru:
                         cell_cond = self._get_conditional_gru_cell()
@@ -477,7 +481,10 @@ class Decoder(ModelPart):
                         for a, att_loop_state in zip(
                             att_objects,
                             loop_state.attention_loop_states)]
-                    contexts, att_loop_states = zip(*attns)
+                    if att_objects:
+                        contexts, att_loop_states = zip(*attns)
+                    else:
+                        contexts, att_loop_states = [], []
                 else:
                     raise ValueError("Unknown RNN cell.")
 
@@ -516,7 +523,7 @@ class Decoder(ModelPart):
                 prev_contexts=list(contexts),
                 logits=loop_state.logits.write(step, logits),
                 finished=has_finished,
-                mask=loop_state.mask.write(step + 1,
+                mask=loop_state.mask.write(step,
                                            tf.logical_not(has_finished)),
                 attention_loop_states=list(att_loop_states))
             return new_loop_state
@@ -544,12 +551,9 @@ class Decoder(ModelPart):
         initial_contexts = [tf.zeros([self.batch_size, a.attn_size])
                             for a in att_objects]
         initial_mask = tf.TensorArray(
-            dtype=tf.bool, size=0, dynamic_size=True,
-            name="mask").write(
-                0, tf.ones([self.batch_size], dtype=tf.bool))
+            dtype=tf.bool, size=0, dynamic_size=True, name="mask")
         initial_logits = tf.TensorArray(
-            dtype=tf.float32, size=0, dynamic_size=True,
-            name="logits")
+            dtype=tf.float32, size=0, dynamic_size=True, name="logits")
         initial_attn_loop_states = [
             a.initial_loop_state() for a in att_objects if a is not None]
 

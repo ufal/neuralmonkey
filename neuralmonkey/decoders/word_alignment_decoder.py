@@ -6,6 +6,7 @@ from neuralmonkey.encoders.recurrent import RecurrentEncoder
 from neuralmonkey.decoders.decoder import Decoder
 from neuralmonkey.logging import warn
 from neuralmonkey.model.model_part import ModelPart, FeedDict
+from neuralmonkey.decorators import tensor
 
 
 class WordAlignmentDecoder(ModelPart):
@@ -25,22 +26,6 @@ class WordAlignmentDecoder(ModelPart):
         self.decoder = decoder
         self.data_id = data_id
 
-        self.ref_alignment = tf.placeholder(
-            dtype=tf.float32,
-            shape=[None, self.decoder.max_output_len,
-                   self.encoder.input_sequence.max_length],
-            name="ref_alignment")
-
-        # shape will be [max_output_len, batch_size, max_input_len]
-        self.alignment_target = tf.transpose(self.ref_alignment,
-                                             perm=[1, 0, 2])
-
-        _, self.train_loss = self._make_decoder(runtime_mode=False)
-        self.decoded, self.runtime_loss = self._make_decoder(runtime_mode=True)
-
-        tf.summary.scalar("alignment_train_xent", self.train_loss,
-                          collections=["summary_train"])
-
         # TODO this is here to call the lazy properties which create
         # the list of attention distribbutions
         # pylint: disable=pointless-statement
@@ -48,19 +33,42 @@ class WordAlignmentDecoder(ModelPart):
         self.decoder.train_logits
         # pylint: enable=pointless-statement
 
+        _, self.train_loss = self._make_decoder(runtime_mode=False)
+        self.decoded, self.runtime_loss = self._make_decoder(runtime_mode=True)
+
+        tf.summary.scalar("alignment_train_xent", self.train_loss,
+                          collections=["summary_train"])
+
+    @tensor
+    def ref_alignment(self) -> tf.Tensor:
+        return tf.placeholder(
+            dtype=tf.float32,
+            shape=[None, self.decoder.max_output_len,
+                   self.encoder.input_sequence.max_length],
+            name="ref_alignment")
+
+    @tensor
+    def alignment_target(self) -> tf.Tensor:
+        # shape will be [max_output_len, batch_size, max_input_len]
+        return tf.transpose(self.ref_alignment, perm=[1, 0, 2])
+
     def _make_decoder(self, runtime_mode=False):
         attn_obj = self.decoder.get_attention_object(self.encoder,
-                                                     runtime_mode)
-
-        alignment_logits = tf.stack(attn_obj.logits_in_time,
-                                    name="alignment_logits")
-
+                                                     not runtime_mode)
         if runtime_mode:
+            alignment_logits = tf.stack(
+                attn_obj.histories["{}_run".format(
+                    self.decoder.name)],
+                name="alignment_logits")
             # make batch_size the first dimension
             alignment = tf.transpose(tf.nn.softmax(alignment_logits),
                                      perm=[1, 0, 2])
             loss = tf.constant(0)
         else:
+            alignment_logits = tf.stack(
+                attn_obj.histories["{}_train".format(
+                    self.decoder.name)],
+                name="alignment_logits")
             alignment = None
 
             xent = tf.nn.softmax_cross_entropy_with_logits(

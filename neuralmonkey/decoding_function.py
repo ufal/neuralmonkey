@@ -5,7 +5,7 @@ for RNN decoders.
 See http://arxiv.org/abs/1606.07481
 """
 from abc import ABCMeta
-from typing import Any, Dict, Tuple, NamedTuple
+from typing import Any, Dict, List, Tuple, NamedTuple
 
 import tensorflow as tf
 from neuralmonkey.nn.projection import linear
@@ -16,6 +16,16 @@ AttentionLoopState = NamedTuple("AttentionLoopState",
                                 [("contexts", tf.TensorArray),
                                  ("weights", tf.TensorArray)])
 # pylint: enable=invalid-name
+
+
+def empty_attention_loop_state() -> AttentionLoopState:
+    return AttentionLoopState(
+        contexts=tf.TensorArray(
+            dtype=tf.float32, size=0, dynamic_size=True,
+            name="contexts"),
+        weights=tf.TensorArray(
+            dtype=tf.float32, size=0, dynamic_size=True,
+            name="distributions"))
 
 
 class BaseAttention(metaclass=ABCMeta):
@@ -108,13 +118,7 @@ class Attention(BaseAttention):
                 "AttnV_b", [], initializer=tf.constant_initializer(0))
 
     def initial_loop_state(self) -> AttentionLoopState:
-        return AttentionLoopState(
-            contexts=tf.TensorArray(
-                dtype=tf.float32, size=0, dynamic_size=True,
-                name="attention_contexts"),
-            weights=tf.TensorArray(
-                dtype=tf.float32, size=0, dynamic_size=True,
-                name="attention_distributions"))
+        return empty_attention_loop_state()
 
     def attention(self, decoder_state: tf.Tensor,
                   decoder_prev_state: tf.Tensor, _,
@@ -169,7 +173,7 @@ class Attention(BaseAttention):
 
     def finalize_loop(self, key: str,
                       last_loop_state: AttentionLoopState) -> None:
-        self.histories[key] = last_loop_state.weights
+        self.histories[key] = last_loop_state.weights.stack()
 
 
 class CoverageAttention(Attention):
@@ -244,8 +248,8 @@ class RecurrentAttention(BaseAttention):
         self.bw_cell = OrthoGRUCell(self._state_size)
     # pylint: enable=unused-argument
 
-    def initial_loop_state(self) -> None:
-        return None
+    def initial_loop_state(self) -> List:
+        return []
 
     # pylint: disable=unused-argument
     def attention(self,
@@ -271,7 +275,7 @@ class RecurrentAttention(BaseAttention):
                 initial_state_bw=initial_state,
                 dtype=tf.float32)
 
-            return tf.concat(encoded_tup, 1), None
+            return tf.concat(encoded_tup, 1), []
 
     def finalize_loop(self, key: str, last_loop_state: Any) -> None:
         pass
