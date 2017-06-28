@@ -8,7 +8,9 @@ ImageFile.LOAD_TRUNCATED_IMAGES = True
 def image_reader(prefix="",
                  pad_w: Optional[int] = None,
                  pad_h: Optional[int] = None,
-                 rescale: bool = False,
+                 rescale_w: bool = False,
+                 rescale_h: bool = False,
+                 keep_aspect_ratio: bool = True,
                  mode: str = 'RGB') -> Callable:
     """Get a reader of images loading them from a list of pahts.
 
@@ -16,8 +18,12 @@ def image_reader(prefix="",
         prefix: Prefix of the paths that are listed in a image files.
         pad_w: Width to which the images will be padded/cropped/resized.
         pad_h: Height to with the images will be padded/corpped/resized.
-        rescale: If true, bigger images will be rescaled to the pad_w x pad_h
-            size. Otherwise, they will be cropped from the middle.
+        rescale_w: If true, image is rescaled to have given width. It is
+            cropped/padded otherwise.
+        rescale_h: If true, image is rescaled to have given height. It is
+            cropped/padded otherwise.
+        keep_aspect_ratio: Flag whether the aspect ration should be kept during
+            rescaling. Can only be used if both width and height are rescaled.
         mode: Scipy image loading mode, see scipy documentation for more
             details.
 
@@ -27,6 +33,13 @@ def image_reader(prefix="",
         pad_h x pad_w x number of channels.
     """
 
+    if (((rescale_w and not rescale_h) or (not rescale_w and rescale_h))
+            and not keep_aspect_ratio):
+        raise ValueError(
+            "While rescaling only one side, aspect ratio must be kept, "
+            "was set to false.")
+
+    # pylint: disable=too-many-branches
     def load(list_files: List[str]) -> Iterable[np.ndarray]:
         for list_file in list_files:
             with open(list_file) as f_list:
@@ -43,10 +56,9 @@ def image_reader(prefix="",
                     except IOError:
                         image = Image.new(mode, (pad_w, pad_h))
 
-                    if rescale:
-                        _rescale(image, pad_w, pad_h)
-                    else:
-                        image = _crop(image, pad_w, pad_h)
+                    image = _rescale_or_crop(image, pad_w, pad_h,
+                                             rescale_w, rescale_h,
+                                             keep_aspect_ratio)
                     image_np = np.array(image)
 
                     if len(image_np.shape) == 2:
@@ -61,6 +73,7 @@ def image_reader(prefix="",
                              "dimension.").format(len(image_np.shape)))
 
                     yield _pad(image_np, pad_w, pad_h, channels)
+    # pylint: enable=too-many-branches
 
     return load
 
@@ -84,15 +97,18 @@ def imagenet_reader(prefix: str,
 
                     width, height = image.size
                     if width == height:
-                        _rescale(image, target_width, target_height)
+                        _rescale_or_crop(image, target_width, target_height,
+                                         True, True, False)
                     elif height < width:
-                        _rescale(image,
-                                 int(width * float(target_height) / height),
-                                 target_height)
+                        _rescale_or_crop(
+                            image,
+                            int(width * float(target_height) / height),
+                            target_height, True, True, False)
                     else:
-                        _rescale(image,
-                                 target_width,
-                                 int(height * float(target_width) / width))
+                        _rescale_or_crop(
+                            image, target_width,
+                            int(height * float(target_width) / width),
+                            True, True, False)
                     cropped_image = _crop(image, target_width, target_height)
 
                     res = _pad(np.array(cropped_image),
@@ -102,10 +118,37 @@ def imagenet_reader(prefix: str,
     return load
 
 
-def _rescale(image: Image.Image, pad_w: int, pad_h: int) -> None:
+# pylint: disable=too-many-return-statements
+def _rescale_or_crop(image: Image.Image, pad_w: int, pad_h: int,
+                     rescale_w: bool, rescale_h: bool,
+                     keep_aspect_ratio: bool) -> Image.Image:
+    """Rescale and/or crop the image based on the rescale configuration."""
     orig_w, orig_h = image.size
-    if orig_w != pad_w or orig_h != pad_h:
+    if orig_w == pad_w and orig_h == pad_h:
+        return image
+
+    if rescale_w and rescale_h and not keep_aspect_ratio:
         image.thumbnail((pad_w, pad_h))
+        return _crop(image, pad_w, pad_h)
+    elif rescale_w and rescale_h and keep_aspect_ratio:
+        ratio = min(pad_h / orig_h, pad_w / orig_h)
+        image.thumbnail((int(orig_w * ratio), int(orig_h * ratio)))
+        return _crop(image, pad_w, pad_h)
+    elif rescale_w and not rescale_h:
+        orig_w, orig_h = image.size
+        if orig_w != pad_w:
+            ratio = pad_w / orig_w
+            image.thumbnail((pad_w, int(orig_h * ratio)))
+        return _crop(image, pad_w, pad_h)
+    elif rescale_h and not rescale_w:
+        orig_w, orig_h = image.size
+        if orig_h != pad_h:
+            ratio = pad_h / orig_h
+            image.thumbnail((int(orig_w * ratio), pad_h))
+        return _crop(image, pad_w, pad_h)
+    else:
+        return _crop(image, pad_w, pad_h)
+# pylint: enable=too-many-return-statements
 
 
 def _crop(image: Image.Image, pad_w: int, pad_h: int) -> Image.Image:
