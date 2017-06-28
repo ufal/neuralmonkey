@@ -35,6 +35,7 @@ LoopState = NamedTuple("LoopState",
                         ("prev_rnn_state", tf.Tensor),
                         ("prev_rnn_output", tf.Tensor),
                         ("rnn_outputs", tf.TensorArray),
+                        ("prev_logits", tf.Tensor),
                         ("logits", tf.TensorArray),
                         ("prev_contexts", List[tf.Tensor]),
                         ("mask", tf.TensorArray),
@@ -528,6 +529,7 @@ class Decoder(ModelPart):
                 rnn_outputs=loop_state.rnn_outputs.write(
                     step + 1, cell_output),
                 prev_contexts=list(contexts),
+                prev_logits=logits,
                 logits=loop_state.logits.write(step, logits),
                 finished=has_finished,
                 mask=loop_state.mask.write(step,
@@ -561,12 +563,14 @@ class Decoder(ModelPart):
             prev_rnn_state=self.initial_state,
             prev_rnn_output=self.initial_state,
             rnn_outputs=rnn_output_ta,
+            prev_logits=tf.zeros([self.batch_size, len(self.vocabulary)]),
             logits=logit_ta,
             prev_contexts=contexts,
             mask=mask_ta,
             finished=tf.zeros([self.batch_size], dtype=tf.bool),
             attention_loop_states=attn_loop_states)
 
+    # TODO this is not exit criterions but its negation
     def loop_exit_criterion(self, *args) -> tf.Tensor:
         loop_state = LoopState(*args)
         finished = loop_state.finished
