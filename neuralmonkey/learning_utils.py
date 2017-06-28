@@ -2,6 +2,7 @@
 # pylint: disable=too-many-lines
 # There are too many lines because of these pylint directives.
 
+import codecs
 from typing import Any, Callable, Dict, List, Tuple, Optional, Union, Iterable
 import os
 import numpy as np
@@ -342,7 +343,7 @@ def run_on_dataset(tf_manager: TensorFlowManager,
                     np.save(path, data)
                     log('Result saved as numpy array to "{}"'.format(path))
                 else:
-                    with open(path, 'w') as f_out:
+                    with codecs.open(path, 'w', 'utf-8') as f_out:
                         f_out.writelines(
                             [" ".join(sent) + "\n" for sent in data])
                     log("Result saved as plain text \"{}\"".format(path))
