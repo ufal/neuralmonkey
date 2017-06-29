@@ -1,4 +1,4 @@
-from typing import NamedTuple, Tuple, List, Callable
+from typing import NamedTuple, List, Callable
 
 import tensorflow as tf
 from typeguard import check_argument_types
@@ -61,10 +61,6 @@ class BeamSearchDecoder(ModelPart):
         self._max_steps = max_steps
         if self._max_steps is None:
             self._max_steps = parent_decoder.max_output_len
-
-        # TODO do something with this blessing
-        # print(self.parent_decoder.runtime_logits,
-        #  self.parent_decoder.train_logits)
 
         self.outputs = self._decoding_loop()
 
@@ -260,109 +256,6 @@ class BeamSearchDecoder(ModelPart):
         # pylint: enable=too-many-locals
 
         return body
-
-    # pylint: disable=too-many-locals
-    def old_step(self,
-                 att_objects: List[BaseAttention],
-                 bs_state: SearchState) -> Tuple[
-                     SearchState, SearchStepOutput]:
-
-        # embed the previously decoded word
-        input_ = tf.nn.embedding_lookup(self.parent_decoder.embedding_matrix,
-                                        bs_state.last_word_ids)
-
-        # TODO remove this blessing
-        print(self.parent_decoder.runtime_logits,
-              self.parent_decoder.train_logits)
-
-        # don't want to use this decoder with uninitialized parent
-        assert self.parent_decoder.step_scope.reuse
-
-        # run the parent decoder decoding step
-        # shapes:
-        # logits: beam x vocabulary
-        # state: beam x rnn_size
-        # attns: encoder x beam x context vector size
-        logits, state, attns = self.parent_decoder.old_step(
-            att_objects, input_, bs_state.last_state, bs_state.last_attns)
-
-        # mask the probabilities
-        # shape(logprobs) = beam x vocabulary
-        logprobs = tf.nn.log_softmax(logits)
-
-        finished_mask = tf.expand_dims(tf.to_float(bs_state.finished), 1)
-        unfinished_logprobs = (1. - finished_mask) * logprobs
-
-        finished_row = tf.one_hot(
-            PAD_TOKEN_INDEX,
-            len(self.parent_decoder.vocabulary),
-            dtype=tf.float32,
-            on_value=0.,
-            off_value=tf.float32.min)
-
-        finished_logprobs = finished_mask * finished_row
-        logprobs = unfinished_logprobs + finished_logprobs
-
-        # update hypothesis scores
-        # shape(hyp_probs) = beam x vocabulary
-        hyp_probs = tf.expand_dims(bs_state.logprob_sum, 1) + logprobs
-
-        # update hypothesis lengths
-        hyp_lengths = bs_state.lengths + 1 - tf.to_int32(bs_state.finished)
-
-        # shape(scores) = beam x vocabulary
-        scores = hyp_probs / tf.expand_dims(
-            self._length_penalty(hyp_lengths), 1)
-
-        # flatten so we can use top_k
-        scores_flat = tf.reshape(scores, [-1])
-
-        # shape(both) = beam
-        topk_scores, topk_indices = tf.nn.top_k(scores_flat, self._beam_size)
-
-        topk_scores.set_shape([self._beam_size])
-        topk_indices.set_shape([self._beam_size])
-
-        # flatten the hypothesis probabilities
-        hyp_probs_flat = tf.reshape(hyp_probs, [-1])
-
-        # select logprobs of the best hyps (disregard lenghts)
-        next_logprob_sum = tf.gather(hyp_probs_flat, topk_indices)
-        # pylint: disable=no-member
-        next_logprob_sum.set_shape([self._beam_size])
-        # pylint: enable=no-member
-
-        next_word_ids = tf.mod(topk_indices,
-                               len(self.parent_decoder.vocabulary))
-
-        next_beam_ids = tf.div(topk_indices,
-                               len(self.parent_decoder.vocabulary))
-
-        next_beam_prev_state = tf.gather(state, next_beam_ids)
-        next_beam_prev_attns = [tf.gather(a, next_beam_ids) for a in attns]
-        next_lengths = tf.gather(hyp_lengths, next_beam_ids)
-
-        # update finished flags
-        has_just_finished = tf.equal(next_word_ids, END_TOKEN_INDEX)
-        next_finished = tf.logical_or(
-            tf.gather(bs_state.finished, next_beam_ids),
-            has_just_finished)
-
-        output = SearchStepOutput(
-            scores=topk_scores,
-            parent_ids=next_beam_ids,
-            token_ids=next_word_ids)
-
-        search_state = SearchState(
-            logprob_sum=next_logprob_sum,
-            lengths=next_lengths,
-            finished=next_finished,
-            last_word_ids=next_word_ids,
-            last_state=next_beam_prev_state,
-            last_attns=next_beam_prev_attns)
-
-        return search_state, output
-    # pylint: enable=too-many-locals
 
     def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
         """Populate the feed dictionary for the decoder object

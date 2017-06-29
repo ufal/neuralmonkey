@@ -373,60 +373,6 @@ class Decoder(ModelPart):
 
         return self._runtime_attention_objects.get(encoder)
 
-    def old_step(self,
-                 att_objects: List[BaseAttention],
-                 input_: tf.Tensor,
-                 prev_state: tf.Tensor,
-                 prev_attns: List[tf.Tensor]):
-
-        with tf.variable_scope(self.step_scope):
-            cell = self._get_rnn_cell()
-
-            # Merge input and previous attentions into one vector of the
-            # right size.
-            if self._attention_on_input:
-                x = linear([input_] + prev_attns, self.embedding_size)
-            else:
-                x = input_
-
-            # Run the RNN.
-            cell_output, state = cell(x, prev_state)
-
-            # Run the attention mechanism.
-            if self._rnn_cell_str == 'GRU':
-                attns = [a.attention(cell_output, prev_state, x,
-                                     a.initial_loop_state(), 0)
-                         for a in att_objects]
-            elif self._rnn_cell_str == 'LSTM':
-                attns = [a.attention(cell_output, prev_state.c, x,
-                                     a.initial_loop_state(), 0)
-                         for a in att_objects]
-            else:
-                raise ValueError("Unknown RNN cell.")
-
-            if self._conditional_gru and self._rnn_cell_str == "GRU":
-                cell_cond = self._get_conditional_gru_cell()
-                cond_input = tf.concat(attns, -1)
-                cell_output, state = cell_cond(cond_input, state,
-                                               scope="cond_gru_2_cell")
-
-            if attns:
-                contexts, _ = zip(*attns)
-            else:
-                contexts = []
-
-            with tf.name_scope("rnn_output_projection"):
-                if attns:
-                    output = linear([cell_output] + list(contexts),
-                                    cell.output_size,
-                                    scope="AttnOutputProjection")
-                else:
-                    output = cell_output
-
-            logits = self._logit_function(output)
-
-        return logits, state, contexts
-
     def embed_input_symbol(self, *args) -> tf.Tensor:
         loop_state = LoopState(*args)
 
