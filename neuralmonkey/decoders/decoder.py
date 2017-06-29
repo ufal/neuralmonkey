@@ -9,7 +9,8 @@ from typeguard import check_argument_types
 
 from neuralmonkey.decoding_function import BaseAttention
 from neuralmonkey.dataset import Dataset
-from neuralmonkey.vocabulary import Vocabulary, START_TOKEN, END_TOKEN_INDEX
+from neuralmonkey.vocabulary import (Vocabulary, START_TOKEN, END_TOKEN_INDEX,
+                                     PAD_TOKEN_INDEX)
 from neuralmonkey.model.model_part import ModelPart, FeedDict
 from neuralmonkey.model.sequence import EmbeddedSequence
 from neuralmonkey.logging import log, warn
@@ -459,11 +460,17 @@ class Decoder(ModelPart):
                 next_symbols = loop_state.train_inputs[step]
             else:
                 next_symbols = tf.to_int32(tf.argmax(logits, axis=1))
+                float_unfinished_mask = tf.to_int32(
+                    tf.logical_not(loop_state.finished))
+
+                # Note this works only when PAD_TOKEN_INDEX is 0. Otherwise
+                # this have to be rewritten
+                assert PAD_TOKEN_INDEX == 0
+                next_symbols = next_symbols * float_unfinished_mask
+
             has_just_finished = tf.equal(next_symbols, END_TOKEN_INDEX)
             has_finished = tf.logical_or(loop_state.finished,
                                          has_just_finished)
-
-            # TODO we can do padding after sentence end here
 
             new_loop_state = LoopState(
                 step=step + 1,
