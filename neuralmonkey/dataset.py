@@ -11,8 +11,11 @@ import numpy as np
 from typeguard import check_argument_types
 
 from neuralmonkey.logging import log
-from neuralmonkey.readers.utils import Reader
 from neuralmonkey.readers.plain_text_reader import UtfPlainTextReader
+
+# pylint: disable=invalid-name
+Reader = Callable[[List[str]], Any]
+# pylint: enable=invalid-name
 
 
 class Dataset(collections.Sized):
