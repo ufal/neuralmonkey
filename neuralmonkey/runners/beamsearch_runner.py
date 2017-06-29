@@ -15,7 +15,7 @@ class BeamSearchExecutable(Executable):
     def __init__(self,
                  rank: int,
                  all_encoders: List[ModelPart],
-                 bs_outputs: List[SearchStepOutput],
+                 bs_outputs: SearchStepOutput,
                  vocabulary: Vocabulary,
                  postprocess: Optional[Callable]) -> None:
 
@@ -35,19 +35,21 @@ class BeamSearchExecutable(Executable):
             raise ValueError("Beam search runner does not support ensembling.")
 
         evaluated_bs = results[0]['bs_outputs']
+        max_time = evaluated_bs.scores.shape[0]
 
         # pick the end of the hypothesis based on its rank
         hyp_index = np.argpartition(
-            -evaluated_bs[-1].scores, self._rank - 1)[self._rank - 1]
-        bs_score = evaluated_bs[-1].scores[hyp_index]
+            -evaluated_bs.scores[-1], self._rank - 1)[self._rank - 1]
+        bs_score = evaluated_bs.scores[-1][hyp_index]
 
         # now backtrack
         output_tokens = []  # type: List[str]
-        for output in reversed(evaluated_bs):
-            token_id = output.token_ids[hyp_index]
+        for time in reversed(range(max_time)):
+            token_id = evaluated_bs.token_ids[time][hyp_index]
             token = self._vocabulary.index_to_word[token_id]
             output_tokens.append(token)
-            hyp_index = output.parent_ids[hyp_index]
+            hyp_index = evaluated_bs.parent_ids[time][hyp_index]
+
         output_tokens.reverse()
 
         before_eos_tokens = []  # type: List[str]

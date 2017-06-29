@@ -39,6 +39,8 @@ class BaseAttention(metaclass=ABCMeta):
         self.attention_state_size = attention_state_size
         self.input_weights = input_weights
 
+        # TODO create context vector size property
+
         self._histories = {}  # type: Dict[str, tf.Tensor]
 
     def attention(self,

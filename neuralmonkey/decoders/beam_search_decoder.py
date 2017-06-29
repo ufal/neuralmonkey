@@ -25,9 +25,9 @@ SearchStepOutput = NamedTuple("SearchStepOutput",
                                ("token_ids", tf.Tensor)])
 
 SearchStepOutputTA = NamedTuple("SearchStepOutputTA",
-                              [("scores", tf.TensorArray),
-                               ("parent_ids", tf.TensorArray),
-                               ("token_ids", tf.TensorArray)])
+                                [("scores", tf.TensorArray),
+                                 ("parent_ids", tf.TensorArray),
+                                 ("token_ids", tf.TensorArray)])
 
 BeamSearchLoopState = NamedTuple("BeamSearchLoopState",
                                  [("bs_state", SearchState),
@@ -62,6 +62,10 @@ class BeamSearchDecoder(ModelPart):
         if self._max_steps is None:
             self._max_steps = parent_decoder.max_output_len
 
+        # TODO do something with this blessing
+        # print(self.parent_decoder.runtime_logits,
+        #  self.parent_decoder.train_logits)
+
         self.outputs = self._decoding_loop()
 
     @property
@@ -73,13 +77,18 @@ class BeamSearchDecoder(ModelPart):
         return self.parent_decoder.vocabulary
 
     def get_initial_loop_state(self, att_objects: List) -> BeamSearchLoopState:
+
         state = SearchState(
-            logprob_sum=tf.zeros([1]),
-            lengths=tf.ones([1], dtype=tf.int32),
-            finished=tf.zeros([1], dtype=tf.bool),
-            last_word_ids=tf.expand_dims(tf.constant(START_TOKEN_INDEX), 0),
-            last_state=self.parent_decoder.initial_state,
-            last_attns=[tf.zeros([1, a.attn_size]) for a in att_objects])
+            logprob_sum=tf.zeros([self._beam_size]),
+            lengths=tf.ones([self._beam_size], dtype=tf.int32),
+            finished=tf.zeros([self._beam_size], dtype=tf.bool),
+            last_word_ids=tf.fill([self._beam_size], START_TOKEN_INDEX),
+            last_state=tf.reshape(
+                tf.tile(self.parent_decoder.initial_state,
+                        [self._beam_size, 1]),
+                [self._beam_size, self.parent_decoder.rnn_size]),
+            last_attns=[tf.zeros([self._beam_size, a.attn_size])
+                        for a in att_objects])
 
         output_ta = SearchStepOutputTA(
             scores=tf.TensorArray(dtype=tf.float32, dynamic_size=True,
@@ -97,12 +106,11 @@ class BeamSearchDecoder(ModelPart):
             bs_output=output_ta,
             decoder_loop_state=dec_loop_state)
 
-    def _decoding_loop(self):
+    def _decoding_loop(self) -> SearchStepOutput:
         # collect attention objects
         att_objects = [self.parent_decoder.get_attention_object(e, False)
                        for e in self.parent_decoder.encoders]
         att_objects = [a for a in att_objects if a is not None]
-
 
         def cond(*args) -> tf.Tensor:
             bsls = BeamSearchLoopState(*args)
@@ -114,15 +122,12 @@ class BeamSearchDecoder(ModelPart):
             self.get_initial_loop_state(att_objects))
 
         scores = final_state.bs_output.scores.stack()
-        parent_ids = final_state.bs_output.scores.stack()
-        token_ids = final_state.bs_output.scores.stack()
+        parent_ids = final_state.bs_output.parent_ids.stack()
+        token_ids = final_state.bs_output.token_ids.stack()
 
-        outputs = [SearchStepOutput(s, p, t) for s, p, t in zip(
-            tf.unstack(scores),
-            tf.unstack(parent_ids),
-            tf.unstack(token_ids))]
-
-        return outputs
+        return SearchStepOutput(scores=scores,
+                                parent_ids=parent_ids,
+                                token_ids=token_ids)
 
     def get_body(self, att_objects: List[BaseAttention]) -> Callable[
             [BeamSearchLoopState], BeamSearchLoopState]:
@@ -136,18 +141,13 @@ class BeamSearchDecoder(ModelPart):
             bs_state = loop_state.bs_state
             dec_loop_state = loop_state.decoder_loop_state
 
-            # embed the previously decoded word
-            input_ = tf.nn.embedding_lookup(
-                self.parent_decoder.embedding_matrix,
-                bs_state.last_word_ids)
-
             # recreate loop state for the decoder body function
             input_dec_loop_state = LoopState(
                 step=dec_loop_state.step,
                 input_symbol=bs_state.last_word_ids,
-                train_inputs=None,
+                train_inputs=self.parent_decoder.train_inputs,
                 prev_rnn_state=bs_state.last_state,
-                # TODO put something else here:
+                # TODO put something else here to work with LSTM:
                 prev_rnn_output=bs_state.last_state,
                 # TODO put something else here:
                 rnn_outputs=dec_loop_state.rnn_outputs,
@@ -164,12 +164,12 @@ class BeamSearchDecoder(ModelPart):
                 attention_loop_states=dec_loop_state.attention_loop_states)
 
             # don't want to use this decoder with uninitialized parent
-            # TODO do something with this blessing
-            print(self.parent_decoder.runtime_logits,
-                  self.parent_decoder.train_logits)
             assert self.parent_decoder.step_scope.reuse
 
-            next_loop_state = decoder_body(*input_dec_loop_state)
+            # TODO figure out why mypy throws too-many-arguments on this
+            next_loop_state = \
+                decoder_body(*input_dec_loop_state)  # type: ignore
+
             logits = next_loop_state.prev_logits
             state = next_loop_state.prev_rnn_state
             attns = next_loop_state.prev_contexts
@@ -263,8 +263,9 @@ class BeamSearchDecoder(ModelPart):
 
     # pylint: disable=too-many-locals
     def old_step(self,
-             att_objects: List[BaseAttention],
-             bs_state: SearchState) -> Tuple[SearchState, SearchStepOutput]:
+                 att_objects: List[BaseAttention],
+                 bs_state: SearchState) -> Tuple[
+                     SearchState, SearchStepOutput]:
 
         # embed the previously decoded word
         input_ = tf.nn.embedding_lookup(self.parent_decoder.embedding_matrix,

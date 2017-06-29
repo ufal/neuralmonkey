@@ -191,7 +191,8 @@ class Decoder(ModelPart):
                     for e in self.encoders
                     if isinstance(e, Attentive)}
 
-            log("Decoder initalized.")
+            # TODO when it is possible, remove the printing of the cost var
+            log("Decoder initalized. Cost var: {}".format(str(self.cost)))
     # pylint: enable=too-many-arguments,too-many-branches,too-many-statements
 
     # pylint: disable=no-self-use
@@ -426,7 +427,6 @@ class Decoder(ModelPart):
 
         return logits, state, contexts
 
-
     def embed_input_symbol(self, *args) -> tf.Tensor:
         loop_state = LoopState(*args)
 
@@ -445,7 +445,6 @@ class Decoder(ModelPart):
 
         return linear([embedded_input] + loop_state.prev_contexts,
                       self.embedding_size)
-
 
     def get_body(self, att_objects: List[BaseAttention],
                  train_mode: bool) -> Callable[[LoopState], LoopState]:
