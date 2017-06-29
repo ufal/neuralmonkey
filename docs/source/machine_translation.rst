@@ -277,6 +277,10 @@ As for the evaluation, you need to create ``translation_run.ini``:
 
   [main]
   test_datasets=[<eval_data>]
+  ; We saved 3 models (save_n_best=3), so there are
+  ; multiple models we could to translate with.
+  ; We can go with the best model, or select one manually:
+  ;variables=["exp-nm-mt/out-example-translation/variables.data.0"]
 
   [bpe_preprocess]
   class=processors.bpe.BPEPreprocessor
