@@ -10,7 +10,7 @@ def image_reader(prefix="",
                  pad_h: Optional[int] = None,
                  rescale_w: bool = False,
                  rescale_h: bool = False,
-                 keep_aspect_ratio: bool = True,
+                 keep_aspect_ratio: bool = False,
                  mode: str = 'RGB') -> Callable:
     """Get a reader of images loading them from a list of pahts.
 
@@ -33,8 +33,11 @@ def image_reader(prefix="",
         pad_h x pad_w x number of channels.
     """
 
-    if (((rescale_w and not rescale_h) or (not rescale_w and rescale_h))
-            and not keep_aspect_ratio):
+    if not rescale_w and not rescale_h and keep_aspect_ratio:
+        raise ValueError(
+            "It does not make sense to keep the aspect ratio while not "
+            "rescaling the image.")
+    if rescale_w != rescale_h and not keep_aspect_ratio:
         raise ValueError(
             "While rescaling only one side, aspect ratio must be kept, "
             "was set to false.")
@@ -118,7 +121,6 @@ def imagenet_reader(prefix: str,
     return load
 
 
-# pylint: disable=too-many-return-statements
 def _rescale_or_crop(image: Image.Image, pad_w: int, pad_h: int,
                      rescale_w: bool, rescale_h: bool,
                      keep_aspect_ratio: bool) -> Image.Image:
@@ -129,26 +131,20 @@ def _rescale_or_crop(image: Image.Image, pad_w: int, pad_h: int,
 
     if rescale_w and rescale_h and not keep_aspect_ratio:
         image.thumbnail((pad_w, pad_h))
-        return _crop(image, pad_w, pad_h)
     elif rescale_w and rescale_h and keep_aspect_ratio:
         ratio = min(pad_h / orig_h, pad_w / orig_h)
         image.thumbnail((int(orig_w * ratio), int(orig_h * ratio)))
-        return _crop(image, pad_w, pad_h)
     elif rescale_w and not rescale_h:
         orig_w, orig_h = image.size
         if orig_w != pad_w:
             ratio = pad_w / orig_w
             image.thumbnail((pad_w, int(orig_h * ratio)))
-        return _crop(image, pad_w, pad_h)
     elif rescale_h and not rescale_w:
         orig_w, orig_h = image.size
         if orig_h != pad_h:
             ratio = pad_h / orig_h
             image.thumbnail((int(orig_w * ratio), pad_h))
-        return _crop(image, pad_w, pad_h)
-    else:
-        return _crop(image, pad_w, pad_h)
-# pylint: enable=too-many-return-statements
+    return _crop(image, pad_w, pad_h)
 
 
 def _crop(image: Image.Image, pad_w: int, pad_h: int) -> Image.Image:
