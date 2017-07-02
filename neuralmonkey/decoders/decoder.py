@@ -393,8 +393,11 @@ class Decoder(ModelPart):
         return linear([embedded_input] + loop_state.prev_contexts,
                       self.embedding_size)
 
-    def get_body(self, att_objects: List[BaseAttention],
-                 train_mode: bool) -> Callable[[LoopState], LoopState]:
+    def get_body(self,
+                 att_objects: List[BaseAttention],
+                 train_mode: bool,
+                 sample: bool = False) -> Callable[[LoopState], LoopState]:
+        # pylint: disable=too-many-branches
         def body(*args) -> LoopState:
             loop_state = LoopState(*args)
             step = loop_state.step
@@ -456,7 +459,9 @@ class Decoder(ModelPart):
 
             self.step_scope.reuse_variables()
 
-            if train_mode:
+            if sample:
+                next_symbols = tf.multinomial(logits, num_samples=1)
+            elif train_mode:
                 next_symbols = loop_state.train_inputs[step]
             else:
                 next_symbols = tf.to_int32(tf.argmax(logits, axis=1))
@@ -488,6 +493,7 @@ class Decoder(ModelPart):
                                            tf.logical_not(has_finished)),
                 attention_loop_states=list(att_loop_states))
             return new_loop_state
+        # pylint: enable=too-many-branches
 
         return body
 
@@ -531,7 +537,7 @@ class Decoder(ModelPart):
                                  self.max_output_len)
         return tf.logical_and(not_all_done, before_max_len)
 
-    def _decoding_loop(self, train_mode: bool)-> Tuple[
+    def _decoding_loop(self, train_mode: bool, sample: bool = False)-> Tuple[
             tf.Tensor, tf.Tensor, tf.Tensor]:
 
         att_objects = [self.get_attention_object(e, train_mode)
@@ -540,7 +546,7 @@ class Decoder(ModelPart):
 
         final_loop_state = tf.while_loop(
             self.loop_exit_criterion,
-            self.get_body(att_objects, train_mode),
+            self.get_body(att_objects, train_mode, sample),
             self.get_initial_loop_state(att_objects))
 
         for att_state, attn_obj in zip(
