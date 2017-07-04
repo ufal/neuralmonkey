@@ -123,7 +123,7 @@ class SequenceLabeler(ModelPart):
             embedded_inputs, dweights_4d, [1, 1, 1, 1], "SAME")
         dmultiplication_3d = tf.squeeze(dmultiplication, squeeze_dims=[2])
 
-        logits = tf.tanh(multiplication_3d + dmultiplication_3d + biases_3d)
+        logits = multiplication_3d + dmultiplication_3d + biases_3d
         return logits
 
     def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
