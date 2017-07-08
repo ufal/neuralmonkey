@@ -20,7 +20,7 @@ from neuralmonkey.nn.projection import glu, linear
 import ipdb
 
 
-class ConvolutionalSentenceEncoder(ModelPart):#, Attentive):
+class ConvolutionalSentenceEncoder(ModelPart, Attentive):
 
     def __init__(self,
                  name: str,
@@ -28,6 +28,7 @@ class ConvolutionalSentenceEncoder(ModelPart):#, Attentive):
                  conv_features: int,
                  encoder_layers: int,
                  kernel_width: int = 5,
+                 dropout_keep_prob: float = 1.0,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None) -> None:
 
@@ -40,6 +41,7 @@ class ConvolutionalSentenceEncoder(ModelPart):#, Attentive):
         self.encoder_layers = encoder_layers
         self.conv_features = conv_features
         self.kernel_width = kernel_width
+        self.dropout_keep_prob = dropout_keep_prob
 
         if conv_features <= 0:
             raise ValueError("Number of features must be a positive integer.")
@@ -51,8 +53,6 @@ class ConvolutionalSentenceEncoder(ModelPart):#, Attentive):
             raise ValueError(
                 "Embedded sequence must have only one sequence.")
 
-
-
         log("Initializing convolutional seq2seq encoder, name {}"
             .format(self.name))
 
@@ -63,8 +63,23 @@ class ConvolutionalSentenceEncoder(ModelPart):#, Attentive):
                 convolutions = self.residual_conv(
                     convolutions, "encoder_conv_{}".format(layer))
 
-            self.encoded = convolutions + linear(self.ordered_embedded_inputs,
-                                                 self.conv_features)
+            self.states = convolutions + linear(self.ordered_embedded_inputs,
+                                                self.conv_features)
+            #todo this is not based on any article
+            self.encoded = tf.reduce_max(self.states, axis=1)
+
+    @tensor
+    def _attention_tensor(self) -> tf.Tensor:
+        return dropout(self.states, self.dropout_keep_prob, self.train_mode)
+
+    @tensor
+    def _attention_mask(self) -> tf.Tensor:
+        # TODO tohle je proti OOP prirode
+        return self.input_sequence.mask
+
+    @tensor
+    def states_mask(self) -> tf.Tensor:
+        return self.input_sequence.mask
 
     @tensor
     def inputs(self):
@@ -120,3 +135,9 @@ class ConvolutionalSentenceEncoder(ModelPart):#, Attentive):
     def sentence_lengths(self) -> tf.Tensor:
         # shape (batch)
         return tf.to_int32(tf.reduce_sum(self.input_mask, 0))
+
+    def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
+        fd = self.input_sequence.feed_dict(dataset, train)
+        fd[self.train_mode] = train
+
+        return fd
