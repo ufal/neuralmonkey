@@ -15,6 +15,7 @@ from neuralmonkey.logging import log
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.decorators import tensor
 from neuralmonkey.nn.projection import glu, linear
+from neuralmonkey.nn.utils import dropout
 
 # todo remove ipdb
 import ipdb
@@ -29,12 +30,17 @@ class ConvolutionalSentenceEncoder(ModelPart, Attentive):
                  encoder_layers: int,
                  kernel_width: int = 5,
                  dropout_keep_prob: float = 1.0,
+                 attention_type: type = None,
+                 attention_state_size: int = None,
+                 attention_fertility: int = 3,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None) -> None:
 
         ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
-        #Attentive.__init__(self, None) # TODO attention
-
+        Attentive.__init__(self, attention_type,
+                           attention_state_size=attention_state_size,
+                           attention_fertility=attention_fertility)
+        
         assert check_argument_types()
 
         self.input_sequence = input_sequence
@@ -124,17 +130,6 @@ class ConvolutionalSentenceEncoder(ModelPart, Attentive):
     def train_mode(self):
         # scalar tensor
         return tf.placeholder(tf.bool, shape=[], name="mode_placeholder")
-
-    @tensor
-    def input_mask(self):
-        # shape (batch, time)
-        return tf.placeholder(tf.float32, shape=[None, None],
-            name="conv_s2s_encoder_input_mask")
-
-    @tensor
-    def sentence_lengths(self) -> tf.Tensor:
-        # shape (batch)
-        return tf.to_int32(tf.reduce_sum(self.input_mask, 0))
 
     def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
         fd = self.input_sequence.feed_dict(dataset, train)
