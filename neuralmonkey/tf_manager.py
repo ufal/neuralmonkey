@@ -44,7 +44,8 @@ class TensorFlowManager(object):
                  gpu_allow_growth: bool = True,
                  per_process_gpu_memory_fraction: float = 1.0,
                  report_gpu_memory_consumption: bool = False,
-                 enable_tf_debug: bool = False) -> None:
+                 enable_tf_debug: bool = False,
+                 enable_xla: bool = False) -> None:
         """Initialize a TensorflowManager.
 
         At this moment the graph must already exist. This method initializes
@@ -74,6 +75,10 @@ class TensorFlowManager(object):
         session_cfg.gpu_options.per_process_gpu_memory_fraction = \
             per_process_gpu_memory_fraction
         self.report_gpu_memory_consumption = report_gpu_memory_consumption
+
+        if enable_xla:
+            session_cfg.graph_options.optimizer_options.global_jit_level = \
+                tf.OptimizerOptions.ON_1
 
         if save_n_best < 1:
             raise Exception("save_n_best parameter must be greater than zero")
