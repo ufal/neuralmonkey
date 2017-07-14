@@ -42,7 +42,6 @@ def image_reader(prefix="",
             "While rescaling only one side, aspect ratio must be kept, "
             "was set to false.")
 
-    # pylint: disable=too-many-branches
     def load(list_files: List[str]) -> Iterable[np.ndarray]:
         for list_file in list_files:
             with open(list_file) as f_list:
@@ -76,7 +75,6 @@ def image_reader(prefix="",
                              "dimension.").format(len(image_np.shape)))
 
                     yield _pad(image_np, pad_w, pad_h, channels)
-    # pylint: enable=too-many-branches
 
     return load
 
