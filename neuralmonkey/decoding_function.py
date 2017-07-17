@@ -233,7 +233,6 @@ class CoverageAttention(Attention):
             tf.reduce_sum(self.fertility_weights * self.attention_states, [2]))
 
     def get_logits(self, y, weights_in_time):
-
         weight_sum = tf.reduce_sum(weights_in_time.stack(), axis=0)
 
         coverage = weight_sum / self.fertility * self.input_weights

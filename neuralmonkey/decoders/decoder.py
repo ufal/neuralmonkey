@@ -29,9 +29,12 @@ RNN_CELL_TYPES = {
 }
 
 
+# The LoopState is a structure that works with the tf.while_loop function
+# the decoder loop state stores all the information that is not invariant
+# for the decoder run.
 LoopState = NamedTuple("LoopState",
-                       [("step", tf.Tensor),  # 1D int
-                        ("input_symbol", tf.Tensor),  # batch of ints
+                       [("step", tf.Tensor),  # 1D int, number of the step
+                        ("input_symbol", tf.Tensor),  # batch of ints to vocab
                         ("train_inputs", Optional[tf.Tensor]),
                         ("prev_rnn_state", tf.Tensor),
                         ("prev_rnn_output", tf.Tensor),
@@ -39,9 +42,9 @@ LoopState = NamedTuple("LoopState",
                         ("prev_logits", tf.Tensor),
                         ("logits", tf.TensorArray),
                         ("prev_contexts", List[tf.Tensor]),
-                        ("mask", tf.TensorArray),
-                        ("finished", tf.Tensor),
-                        ("attention_loop_states", List[Any])])
+                        ("mask", tf.TensorArray),  # float matrix, 0s and 1s
+                        ("finished", tf.Tensor),  # batch-sized, bool
+                        ("attention_loop_states", List[Any])])  # see att docs
 
 
 # pylint: disable=too-many-public-methods,too-many-instance-attributes
