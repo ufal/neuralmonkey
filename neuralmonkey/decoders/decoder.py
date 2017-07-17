@@ -468,13 +468,13 @@ class Decoder(ModelPart):
                 next_symbols = loop_state.train_inputs[step]
             else:
                 next_symbols = tf.to_int32(tf.argmax(logits, axis=1))
-                float_unfinished_mask = tf.to_int32(
+                int_unfinished_mask = tf.to_int32(
                     tf.logical_not(loop_state.finished))
 
                 # Note this works only when PAD_TOKEN_INDEX is 0. Otherwise
                 # this have to be rewritten
                 assert PAD_TOKEN_INDEX == 0
-                next_symbols = next_symbols * float_unfinished_mask
+                next_symbols = next_symbols * int_unfinished_mask
 
             has_just_finished = tf.equal(next_symbols, END_TOKEN_INDEX)
             has_finished = tf.logical_or(loop_state.finished,
@@ -531,8 +531,7 @@ class Decoder(ModelPart):
             finished=tf.zeros([self.batch_size], dtype=tf.bool),
             attention_loop_states=attn_loop_states)
 
-    # TODO this is not exit criterions but its negation
-    def loop_exit_criterion(self, *args) -> tf.Tensor:
+    def loop_continue_criterion(self, *args) -> tf.Tensor:
         loop_state = LoopState(*args)
         finished = loop_state.finished
         not_all_done = tf.logical_not(tf.reduce_all(finished))
@@ -548,7 +547,7 @@ class Decoder(ModelPart):
         att_objects = [a for a in att_objects if a is not None]
 
         final_loop_state = tf.while_loop(
-            self.loop_exit_criterion,
+            self.loop_continue_criterion,
             self.get_body(att_objects, train_mode, sample),
             self.get_initial_loop_state(att_objects))
 
