@@ -39,7 +39,7 @@ class ConvolutionalSentenceEncoder(ModelPart, Attentive):
         Attentive.__init__(self, attention_type,
                            attention_state_size=attention_state_size,
                            attention_fertility=attention_fertility)
-        
+
         assert check_argument_types()
 
         self.input_sequence = input_sequence
@@ -57,7 +57,7 @@ class ConvolutionalSentenceEncoder(ModelPart, Attentive):
             raise ValueError(
                 "Number of encoder layers must be a positive integer.")
         # TODO make this better
-        if len(self.input_sequence.embedding_sizes) != 1:            
+        if len(self.input_sequence.embedding_sizes) != 1:
             raise ValueError(
                 "Embedded sequence must have only one sequence.")
 
@@ -106,13 +106,13 @@ class ConvolutionalSentenceEncoder(ModelPart, Attentive):
         ordering_additive = tf.expand_dims(self.order_embeddings, 0)
         return self.input_sequence.data + ordering_additive
 
-    def residual_conv(self, input, name):
+    def residual_conv(self, input_signals, name):
         with tf.variable_scope(name):
             # initialized as described in the paper
-            init_deviat = np.sqrt(4/self.conv_features)
+            init_deviat = np.sqrt(4 / self.conv_features)
             convolution_filters = tf.get_variable(
                 "convolution_filters",
-                [self.kernel_width, self.conv_features, 2*self.conv_features],
+                [self.kernel_width, self.conv_features, 2 * self.conv_features],
                 initializer=tf.random_normal_initializer(stddev=init_deviat))
 
             bias = tf.get_variable(
@@ -120,9 +120,10 @@ class ConvolutionalSentenceEncoder(ModelPart, Attentive):
                 shape=[2 * self.conv_features],
                 initializer=tf.zeros_initializer())
 
-            conv = tf.nn.conv1d(input, convolution_filters, 1, "SAME") + bias
+            conv = (tf.nn.conv1d(input_signals, convolution_filters, 1, "SAME")
+                    + bias)
 
-            return glu(conv) + input
+            return glu(conv) + input_signals
 
     # pylint: disable=no-self-use
     @tensor

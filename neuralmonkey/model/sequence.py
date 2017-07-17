@@ -235,7 +235,6 @@ class EmbeddedFactorSequence(Sequence):
         fd[self.mask] = list(zip(*last_paddings))
 
         return fd
-# pylint: enable=too-many-arguments
 
 
 class EmbeddedSequence(EmbeddedFactorSequence):
@@ -295,3 +294,4 @@ class EmbeddedSequence(EmbeddedFactorSequence):
     def data_id(self) -> str:
         """The input data series indentifier"""
         return self.data_ids[0]
+# pylint: enable=too-many-arguments

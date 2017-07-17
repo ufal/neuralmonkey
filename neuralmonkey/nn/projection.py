@@ -109,6 +109,6 @@ def glu(input_, gating_fn=tf.sigmoid):
     if dimensions[-1] % 2 != 0:
         raise ValueError("Input size should be an even number")
 
-    lin, nonlin = tf.split(input_, 2, axis=len(dimensions)-1)
+    lin, nonlin = tf.split(input_, 2, axis=len(dimensions) - 1)
 
     return lin * gating_fn(nonlin)
