@@ -73,6 +73,7 @@ class Sequence(ModelPart):
         """
         return tf.to_int32(tf.reduce_sum(self.mask, 1))
 
+
 # pylint: disable=too-many-arguments
 class EmbeddedFactorSequence(Sequence):
     """A `Sequence` that stores one or more embedded inputs (factors)."""
@@ -246,6 +247,7 @@ class EmbeddedSequence(EmbeddedFactorSequence):
                  data_id: str,
                  embedding_size: int,
                  max_length: int = None,
+                 pad_to_max_len: bool = False,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None) -> None:
         """Construct a new instance of `EmbeddedSequence`
@@ -268,6 +270,7 @@ class EmbeddedSequence(EmbeddedFactorSequence):
             data_ids=[data_id],
             embedding_sizes=[embedding_size],
             max_length=max_length,
+            pad_to_max_len=pad_to_max_len,
             save_checkpoint=save_checkpoint,
             load_checkpoint=load_checkpoint)
 
