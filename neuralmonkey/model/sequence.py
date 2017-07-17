@@ -73,7 +73,7 @@ class Sequence(ModelPart):
         """
         return tf.to_int32(tf.reduce_sum(self.mask, 1))
 
-
+# pylint: disable=too-many-arguments
 class EmbeddedFactorSequence(Sequence):
     """A `Sequence` that stores one or more embedded inputs (factors)."""
 
@@ -220,8 +220,8 @@ class EmbeddedFactorSequence(Sequence):
                 self.input_factors, self.data_ids, self.vocabularies):
             factors = dataset.get_series(name)
             vectors, paddings = vocabulary.sentences_to_tensor(
-                list(factors), self.max_length, pad_to_max_len=self.pad_to_max_len,
-                train_mode=train)
+                list(factors), self.max_length,
+                pad_to_max_len=self.pad_to_max_len, train_mode=train)
 
             fd[factor_plc] = list(zip(*vectors))
 
@@ -234,6 +234,7 @@ class EmbeddedFactorSequence(Sequence):
         fd[self.mask] = list(zip(*last_paddings))
 
         return fd
+# pylint: enable=too-many-arguments
 
 
 class EmbeddedSequence(EmbeddedFactorSequence):

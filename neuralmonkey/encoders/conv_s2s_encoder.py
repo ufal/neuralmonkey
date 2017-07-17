@@ -5,7 +5,6 @@ http://arxiv.org/abs/1705.03122
 
 import tensorflow as tf
 import numpy as np
-from typing import Any, List, Union, Type
 from typeguard import check_argument_types
 
 from neuralmonkey.encoders.attentive import Attentive
@@ -17,12 +16,10 @@ from neuralmonkey.decorators import tensor
 from neuralmonkey.nn.projection import glu, linear
 from neuralmonkey.nn.utils import dropout
 
-# todo remove ipdb
-import ipdb
-
 
 class ConvolutionalSentenceEncoder(ModelPart, Attentive):
 
+    # pylint: disable=too-many-arguments
     def __init__(self,
                  name: str,
                  input_sequence: EmbeddedFactorSequence,
@@ -74,8 +71,10 @@ class ConvolutionalSentenceEncoder(ModelPart, Attentive):
 
             self.states = convolutions + linear(self.ordered_embedded_inputs,
                                                 self.conv_features)
-            #todo this is not based on any article
+            # This state concatenation is not based on any paper, but was
+            # tested empirically
             self.encoded = tf.reduce_max(self.states, axis=1)
+    # pylint: enable=too-many-arguments
 
     @tensor
     def _attention_tensor(self) -> tf.Tensor:
@@ -89,12 +88,6 @@ class ConvolutionalSentenceEncoder(ModelPart, Attentive):
     @tensor
     def states_mask(self) -> tf.Tensor:
         return self.input_sequence.mask
-
-    @tensor
-    def inputs(self):
-        # shape (batch, time)
-        return tf.placeholder(tf.int32, shape=[None, None],
-                              name="conv_s2s_encoder_inputs")
 
     @tensor
     def order_embeddings(self) -> tf.Tensor:
@@ -129,10 +122,12 @@ class ConvolutionalSentenceEncoder(ModelPart, Attentive):
 
             return glu(conv) + input
 
+    # pylint: disable=no-self-use
     @tensor
     def train_mode(self):
         # scalar tensor
         return tf.placeholder(tf.bool, shape=[], name="mode_placeholder")
+    # pylint: enable=no-self-use
 
     def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
         fd = self.input_sequence.feed_dict(dataset, train)
