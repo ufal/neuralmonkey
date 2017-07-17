@@ -286,8 +286,8 @@ class Decoder(ModelPart):
 
     @tensor
     def train_logits(self) -> tf.Tensor:
-        # POSLEDNI TRAIN INPUT SE V DEKODOVACI FUNKCI NEPOUZIJE
-        # (jen jako target)
+        # THE LAST TRAIN INPUT IS NOT USED IN DECODING FUNCTION
+        # (just as a target)
         logits, _, _ = self._decoding_loop(train_mode=True)
 
         return logits
