@@ -1,8 +1,28 @@
-"""
-Module which implements decoding functions using multiple attentions
+"""Module which implements decoding functions using multiple attentions
 for RNN decoders.
 
 See http://arxiv.org/abs/1606.07481
+
+The attention mechanisms used in Neural Monkey are inherited from the
+``BaseAttention`` class defined in this module.
+
+Each attention object has the ``attention`` function which operates on the
+``attention_states`` tensor.  The attention function receives the query tensor,
+the decoder previous state and input, and its inner state, which could bear an
+arbitrary structure of information. The default structure for this is the
+``AttentionLoopState``, which contains a growing array of attention
+distributions and context vectors in time. That's why there is the
+``initial_loop_state`` function in the ``BaseAttention`` class.
+
+Mainly for illustration purposes, the attention objects can keep their
+*histories*, which is a dictionary populated with attention distributions in
+time for every decoder, that used this attention object. This is because for
+example the recurrent decoder is can be run twice for each sentence - once in
+the *training* mode, in which the decoder gets the reference tokens on the
+input, and once in the *running* mode, in which it gets its own outputs. The
+histories object is constructed *after* the decoding and its construction
+should be triggered manually from the decoder by calling the ``finalize_loop``
+method.
 """
 from abc import ABCMeta
 from typing import Any, Dict, List, Tuple, NamedTuple
@@ -19,6 +39,16 @@ AttentionLoopState = NamedTuple("AttentionLoopState",
 
 
 def empty_attention_loop_state() -> AttentionLoopState:
+    """Create an empty attention loop state.
+
+    The attention loop state is a technical object for storing the attention
+    distributions and the context vectors in time. It is used with the
+    ``tf.while_loop`` dynamic implementation of the decoder.
+
+    This function returns an empty attention loop state which means there are
+    two empty arrays, one for attention distributions in time, and one for
+    the attention context vectors in time.
+    """
     return AttentionLoopState(
         contexts=tf.TensorArray(
             dtype=tf.float32, size=0, dynamic_size=True,

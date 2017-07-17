@@ -1,3 +1,30 @@
+"""Beam search decoder.
+
+This module implements the beam search algorithm for the recurrent decoder.
+
+As well as the recurrent decoder, this decoder works dynamically, which means
+it uses the ``tf.while_loop`` function conditioned on both maximum output
+length and list of finished hypotheses.
+
+The beam search decoder works by appending data from ``SearchStepOutput``
+objects to a ``SearchStepOutputTA`` object. The ``SearchStepOutput`` object
+stores information about the hypotheses in the beam. Each hypothesis keeps its
+score, its final token, and a pointer to a "parent" hypothesis, which is a
+one-token-shorter hypothesis which shares the tokens with the child hypothesis.
+
+For the beam search decoder to work, it must keep an inner state which stores
+information about hypotheses in the beam. It is an object of type
+``SearchState`` which stores, *for each hypothesis*, its sum of log
+probabilities of the tokens, its length, finished flag, ID of the last token,
+and the last decoder and attention states.
+
+There is another inner state object here, the ``BeamSearchLoopState``. It is a
+technical structure used with the ``tf.while_loop`` function. It stores all the
+previously mentioned information, plus the decoder ``LoopState``, which is used
+in the decoder when its own ``tf.while_loop`` function is used - this is not
+the case when using beam searchk because we want to run the decoder's steps
+manually.
+"""
 from typing import NamedTuple, List, Callable
 
 import tensorflow as tf
