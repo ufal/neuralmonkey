@@ -74,7 +74,6 @@ class Sequence(ModelPart):
         return tf.to_int32(tf.reduce_sum(self.mask, 1))
 
 
-# pylint: disable=too-many-arguments
 class EmbeddedFactorSequence(Sequence):
     """A `Sequence` that stores one or more embedded inputs (factors)."""
 
@@ -290,4 +289,3 @@ class EmbeddedSequence(EmbeddedFactorSequence):
     def data_id(self) -> str:
         """The input data series indentifier"""
         return self.data_ids[0]
-# pylint: enable=too-many-arguments

@@ -34,12 +34,12 @@ class ConvolutionalSentenceEncoder(ModelPart, Attentive):
                  save_checkpoint: str = None,
                  load_checkpoint: str = None) -> None:
 
+        assert check_argument_types()
+
         ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
         Attentive.__init__(self, attention_type,
                            attention_state_size=attention_state_size,
                            attention_fertility=attention_fertility)
-
-        assert check_argument_types()
 
         self.input_sequence = input_sequence
         self.encoder_layers = encoder_layers
@@ -55,20 +55,24 @@ class ConvolutionalSentenceEncoder(ModelPart, Attentive):
 
         log("Initializing convolutional seq2seq encoder, name {}"
             .format(self.name))
-
-        with self.use_scope():
-            convolutions = linear(self.ordered_embedded_inputs,
-                                  self.conv_features)
-            for layer in range(self.encoder_layers):
-                convolutions = self.residual_conv(
-                    convolutions, "encoder_conv_{}".format(layer))
-
-            self.states = convolutions + linear(self.ordered_embedded_inputs,
-                                                self.conv_features)
-            # This state concatenation is not based on any paper, but was
-            # tested empirically
-            self.encoded = tf.reduce_max(self.states, axis=1)
     # pylint: enable=too-many-arguments
+
+    @tensor
+    def states(self) -> tf.Tensor:
+        convolutions = linear(self.ordered_embedded_inputs,
+                              self.conv_features)
+        for layer in range(self.encoder_layers):
+            convolutions = self._residual_conv(
+                convolutions, "encoder_conv_{}".format(layer))
+
+        return convolutions + linear(self.ordered_embedded_inputs,
+                                     self.conv_features)
+
+    @tensor
+    def encoded(self) -> tf.Tensor:
+        # This state concatenation is not based on any paper, but was
+        # tested empirically
+        return tf.reduce_max(self.states, axis=1)
 
     @tensor
     def _attention_tensor(self) -> tf.Tensor:
@@ -101,7 +105,7 @@ class ConvolutionalSentenceEncoder(ModelPart, Attentive):
 
         return self.input_sequence.data + clipped_ordering_embed
 
-    def residual_conv(self, input_signals, name):
+    def _residual_conv(self, input_signals: tf.Tensor, name: str):
         with tf.variable_scope(name):
             # initialized as described in the paper
             init_deviat = np.sqrt(4 / self.conv_features)
