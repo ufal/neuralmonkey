@@ -84,7 +84,6 @@ class EmbeddedFactorSequence(Sequence):
                  data_ids: List[str],
                  embedding_sizes: List[int],
                  max_length: int = None,
-                 pad_to_max_len: bool = False,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None) -> None:
         """Construct a new instance of `EmbeddedFactorSequence`
@@ -113,7 +112,6 @@ class EmbeddedFactorSequence(Sequence):
         self.vocabulary_sizes = [len(vocab) for vocab in self.vocabularies]
         self.data_ids = data_ids
         self.embedding_sizes = embedding_sizes
-        self.pad_to_max_len = pad_to_max_len
 
         if not (len(self.data_ids)
                 == len(self.vocabularies)
@@ -221,8 +219,8 @@ class EmbeddedFactorSequence(Sequence):
                 self.input_factors, self.data_ids, self.vocabularies):
             factors = dataset.get_series(name)
             vectors, paddings = vocabulary.sentences_to_tensor(
-                list(factors), self.max_length,
-                pad_to_max_len=self.pad_to_max_len, train_mode=train)
+                list(factors), self.max_length, pad_to_max_len=False,
+                train_mode=train)
 
             fd[factor_plc] = list(zip(*vectors))
 
@@ -246,7 +244,6 @@ class EmbeddedSequence(EmbeddedFactorSequence):
                  data_id: str,
                  embedding_size: int,
                  max_length: int = None,
-                 pad_to_max_len: bool = False,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None) -> None:
         """Construct a new instance of `EmbeddedSequence`
@@ -269,7 +266,6 @@ class EmbeddedSequence(EmbeddedFactorSequence):
             data_ids=[data_id],
             embedding_sizes=[embedding_size],
             max_length=max_length,
-            pad_to_max_len=pad_to_max_len,
             save_checkpoint=save_checkpoint,
             load_checkpoint=load_checkpoint)
 

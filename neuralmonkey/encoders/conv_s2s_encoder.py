@@ -48,9 +48,6 @@ class ConvolutionalSentenceEncoder(ModelPart, Attentive):
         self.kernel_width = kernel_width
         self.dropout_keep_prob = dropout_keep_prob
 
-        # because of the convolutions must be fixed
-        self.input_sequence.pad_to_max_len = True
-
         if conv_features <= 0:
             raise ValueError("Number of features must be a positive integer.")
         if encoder_layers <= 0:
