@@ -51,7 +51,6 @@ class Word2Vec(object):
                     questions.append(np.array(ids))
                     self.question_types.append(quest_name)
 
-        log("Eval analogy file: ", eval_filename)
         log("Questions in total: {}, question skipped {}".format(
             len(questions), questions_skipped))
         self._analogy_questions = np.array(questions, dtype=np.int32)

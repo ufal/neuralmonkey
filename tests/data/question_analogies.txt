@@ -1,0 +1,10 @@
+:analogy_questions
+a b c d
+a b e f
+t h m n
+j i m n
+e h o l
+l a q e
+x w f g
+skip this question correctly
+b d e r
