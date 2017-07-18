@@ -1,4 +1,4 @@
-"""From a paper Convolutional Sequence to Sequence Learning
+"""From the paper Convolutional Sequence to Sequence Learning
 
 http://arxiv.org/abs/1705.03122
 """
@@ -15,8 +15,7 @@ from neuralmonkey.decorators import tensor
 from neuralmonkey.nn.projection import glu, linear
 from neuralmonkey.nn.utils import dropout
 from neuralmonkey.vocabulary import Vocabulary
-from neuralmonkey.model.sequence import (EmbeddedFactorSequence,
-                                         EmbeddedSequence)
+from neuralmonkey.model.sequence import (EmbeddedSequence)
 
 
 class ConvolutionalSentenceEncoder(ModelPart, Attentive):
@@ -24,7 +23,7 @@ class ConvolutionalSentenceEncoder(ModelPart, Attentive):
     # pylint: disable=too-many-arguments
     def __init__(self,
                  name: str,
-                 input_sequence: EmbeddedFactorSequence,
+                 input_sequence: EmbeddedSequence,
                  conv_features: int,
                  encoder_layers: int,
                  kernel_width: int = 5,
@@ -53,10 +52,6 @@ class ConvolutionalSentenceEncoder(ModelPart, Attentive):
         if encoder_layers <= 0:
             raise ValueError(
                 "Number of encoder layers must be a positive integer.")
-        # TODO make this better
-        if len(self.input_sequence.embedding_sizes) != 1:
-            raise ValueError(
-                "Embedded sequence must have only one sequence.")
 
         log("Initializing convolutional seq2seq encoder, name {}"
             .format(self.name))
@@ -101,7 +96,10 @@ class ConvolutionalSentenceEncoder(ModelPart, Attentive):
     def ordered_embedded_inputs(self) -> tf.Tensor:
         # shape (batch, time, embedding size)
         ordering_additive = tf.expand_dims(self.order_embeddings, 0)
-        return self.input_sequence.data + ordering_additive
+        batch_max_len = tf.shape(self.input_sequence.data)[1]
+        clipped_ordering_embed = ordering_additive[:, :batch_max_len, :]
+
+        return self.input_sequence.data + clipped_ordering_embed
 
     def residual_conv(self, input_signals, name):
         with tf.variable_scope(name):

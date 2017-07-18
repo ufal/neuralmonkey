@@ -1,10 +1,11 @@
-from typing import cast, Iterable, List, Optional
+from typing import cast, Iterable, List, Optional, Union
 
 import tensorflow as tf
 
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.model.model_part import ModelPart, FeedDict
 from neuralmonkey.encoders.recurrent import RecurrentEncoder
+from neuralmonkey.encoders.conv_s2s_encoder import ConvolutionalSentenceEncoder
 from neuralmonkey.vocabulary import Vocabulary
 from neuralmonkey.decorators import tensor
 
@@ -14,7 +15,8 @@ class SequenceLabeler(ModelPart):
 
     def __init__(self,
                  name: str,
-                 encoder: RecurrentEncoder,
+                 encoder: Union[RecurrentEncoder,
+                                ConvolutionalSentenceEncoder],
                  vocabulary: Vocabulary,
                  data_id: str,
                  dropout_keep_prob: float = 1.0,
@@ -27,7 +29,7 @@ class SequenceLabeler(ModelPart):
         self.data_id = data_id
         self.dropout_keep_prob = dropout_keep_prob
 
-        self.rnn_size = self.encoder.rnn_size * 2
+        self.rnn_size = int(encoder.states.get_shape()[-1])
         self.max_output_len = self.encoder.input_sequence.max_length
 
     # pylint: disable=no-self-use
