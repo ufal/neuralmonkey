@@ -11,10 +11,12 @@ from termcolor import colored
 
 from neuralmonkey.logging import log, log_print, warn, notice
 from neuralmonkey.dataset import Dataset, LazyDataset
+from neuralmonkey.model.sequence import EmbeddedSequence
 from neuralmonkey.tf_manager import TensorFlowManager
 from neuralmonkey.runners.base_runner import BaseRunner, ExecutionResult
 from neuralmonkey.trainers.generic_trainer import GenericTrainer
 from neuralmonkey.tf_utils import gpu_memusage
+from neuralmonkey.word2vec_eval import Word2Vec
 from typeguard import check_argument_types
 
 # pylint: disable=invalid-name
@@ -45,6 +47,7 @@ def training_loop(tf_manager: TensorFlowManager,
                   val_preview_num_examples: int = 15,
                   train_start_offset: int = 0,
                   runners_batch_size: Optional[int] = None,
+                  val_word2vec: List[Tuple[EmbeddedSequence, str]] = None,
                   initial_variables: Optional[Union[str, List[str]]] = None,
                   postprocess: Postprocess = None) -> None:
     """
@@ -83,6 +86,12 @@ def training_loop(tf_manager: TensorFlowManager,
             skipped. The training starts from the next batch.
         runners_batch_size: batch size of runners. It is the same as batch_size
             if not specified
+        val_word2vec: List of tuples [EmbeddedSequence, filename].
+                Evaluate the embedding performance over the questions as
+                defined in the paper "Distributed Representations of Words and
+                Phrases and their Compositionality". The question file must
+                have 4 words per row. The naming of sections is allowed by
+                header starting with ":".
         initial_variables: variables used for initialization, for example for
             continuation of training
         postprocess: A function which takes the dataset with its output series
@@ -122,6 +131,12 @@ def training_loop(tf_manager: TensorFlowManager,
             raise ValueError("minimize_metric must be set to True in "
                              "TensorFlowManager when using loss as "
                              "the main metric")
+
+    word2vec_evaluation = []
+    if val_word2vec is not None:
+        for embed in val_word2vec:
+            w2v_model = Word2Vec(embed[0], embed[1])
+            word2vec_evaluation.append(w2v_model)
 
     step = 0
     seen_instances = 0
@@ -190,6 +205,10 @@ def training_loop(tf_manager: TensorFlowManager,
                 if _is_logging_time(step, val_period_batch,
                                     last_val_time, val_period_time):
                     log_print("")
+                    # evaluate question analogies on embeddings
+                    for w2v_eval in word2vec_evaluation:
+                        w2v_eval.eval(tf_manager.sessions[0])
+
                     val_duration_start = time.process_time()
                     val_examples = 0
                     for val_id, valset in enumerate(val_datasets):

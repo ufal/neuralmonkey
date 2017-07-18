@@ -33,6 +33,7 @@ CONFIG.ignore_argument('minimize')
 CONFIG.ignore_argument('random_seed')
 CONFIG.ignore_argument('save_n_best')
 CONFIG.ignore_argument('overwrite_output_dir')
+CONFIG.ignore_argument('val_word2vec')
 
 
 def default_variable_file(output_dir):
