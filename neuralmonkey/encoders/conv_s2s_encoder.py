@@ -112,7 +112,8 @@ class ConvolutionalSentenceEncoder(ModelPart, Attentive):
             init_deviat = np.sqrt(4 / self.conv_features)
             convolution_filters = tf.get_variable(
                 "convolution_filters",
-                [self.kernel_width, self.conv_features, 2 * self.conv_features],
+                [self.kernel_width, self.conv_features,
+                 2 * self.conv_features],
                 initializer=tf.random_normal_initializer(stddev=init_deviat))
 
             bias = tf.get_variable(
