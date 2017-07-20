@@ -14,11 +14,10 @@ from neuralmonkey.dataset import Dataset
 from neuralmonkey.decorators import tensor
 from neuralmonkey.nn.projection import glu, linear
 from neuralmonkey.nn.utils import dropout
-from neuralmonkey.vocabulary import Vocabulary
-from neuralmonkey.model.sequence import (EmbeddedSequence)
+from neuralmonkey.model.sequence import EmbeddedSequence
 
 
-class ConvolutionalSentenceEncoder(ModelPart, Attentive):
+class SentenceEncoder(ModelPart, Attentive):
 
     # pylint: disable=too-many-arguments
     def __init__(self,
@@ -137,57 +136,3 @@ class ConvolutionalSentenceEncoder(ModelPart, Attentive):
         fd[self.train_mode] = train
 
         return fd
-
-
-class SentenceEncoder(ConvolutionalSentenceEncoder):
-    # pylint: disable=too-many-arguments,too-many-locals
-    def __init__(self,
-                 name: str,
-                 vocabulary: Vocabulary,
-                 data_id: str,
-                 embedding_size: int,
-                 conv_features: int,
-                 encoder_layers: int,
-                 kernel_width: int = 5,
-                 max_input_len: int = None,
-                 dropout_keep_prob: float = 1.0,
-                 attention_type: type = None,
-                 attention_fertility: int = 3,
-                 attention_state_size: int = None,
-                 save_checkpoint: str = None,
-                 load_checkpoint: str = None) -> None:
-        """Create a new instance of the sentence encoder. """
-
-        # TODO Think this through.
-        s_ckp = "input_{}".format(save_checkpoint) if save_checkpoint else None
-        l_ckp = "input_{}".format(load_checkpoint) if load_checkpoint else None
-
-        # TODO! Representation runner needs this. It is not simple to do it in
-        # recurrent encoder since there may be more source data series. The
-        # best way could be to enter the data_id parameter manually to the
-        # representation runner
-        self.data_id = data_id
-
-        input_sequence = EmbeddedSequence(
-            name="{}_input".format(name),
-            vocabulary=vocabulary,
-            data_id=data_id,
-            embedding_size=embedding_size,
-            max_length=max_input_len,
-            save_checkpoint=s_ckp,
-            load_checkpoint=l_ckp)
-
-        ConvolutionalSentenceEncoder.__init__(
-            self,
-            name=name,
-            input_sequence=input_sequence,
-            conv_features=conv_features,
-            encoder_layers=encoder_layers,
-            kernel_width=kernel_width,
-            dropout_keep_prob=dropout_keep_prob,
-            attention_type=attention_type,
-            attention_fertility=attention_fertility,
-            attention_state_size=attention_state_size,
-            save_checkpoint=save_checkpoint,
-            load_checkpoint=load_checkpoint)
-    # pylint: enable=too-many-arguments,too-many-locals

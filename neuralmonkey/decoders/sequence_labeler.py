@@ -5,7 +5,7 @@ import tensorflow as tf
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.model.model_part import ModelPart, FeedDict
 from neuralmonkey.encoders.recurrent import RecurrentEncoder
-from neuralmonkey.encoders.conv_s2s_encoder import ConvolutionalSentenceEncoder
+from neuralmonkey.encoders.facebook_conv import SentenceEncoder
 from neuralmonkey.vocabulary import Vocabulary
 from neuralmonkey.decorators import tensor
 
@@ -15,8 +15,7 @@ class SequenceLabeler(ModelPart):
 
     def __init__(self,
                  name: str,
-                 encoder: Union[RecurrentEncoder,
-                                ConvolutionalSentenceEncoder],
+                 encoder: Union[RecurrentEncoder, SentenceEncoder],
                  vocabulary: Vocabulary,
                  data_id: str,
                  dropout_keep_prob: float = 1.0,
