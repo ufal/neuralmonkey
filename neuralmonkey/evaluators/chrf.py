@@ -44,6 +44,12 @@ class ChrFEvaluator(object):
                 if "".join(ref_chars[i:i + self.n]) in hyp_joined:
                     chr_r_matched = chr_r_matched + 1
 
+        # If hyp/ref is too short we need to avoid division by zero
+        if len(hyp_chars) < self.n or len(ref_chars) < self.n:
+            if hyp_joined == ref_joined:
+                return 1
+            return 0
+
         chr_p = chr_p_matched / chr_p_all
         chr_r = chr_r_matched / chr_r_all
 
