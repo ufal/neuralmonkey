@@ -307,7 +307,7 @@ the source sentences:
 .. code-block:: ini
 
   [src_encoder]
-  class=encoders.sentence_encoder.SentenceEncoder
+  class=encoders.recurrent.SentenceEncoder
   rnn_size=300
   max_input_len=50
   embedding_size=300
@@ -333,7 +333,7 @@ The configuration of the second encoder follows:
 .. code-block:: ini
 
   [trans_encoder]
-  class=encoders.sentence_encoder.SentenceEncoder
+  class=encoders.recurrent.SentenceEncoder
   rnn_size=300
   max_input_len=50
   embedding_size=300
