@@ -37,7 +37,7 @@ def column_separated_reader(column: int, delimiter: str = "\t",
             parsed_csv = list(csv.reader(f, delimiter=delimiter,
                                          quotechar=quotechar,
                                          skipinitialspace=True))
-            if len(parsed_csv) != 1:
+            if len(parsed_csv[0]) < column:
                 warn("There is a missing column number {} in the dataset."
                      .format(column))
                 yield []
