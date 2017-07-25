@@ -1,5 +1,9 @@
 from typing import List, Iterable
 import gzip
+import csv
+import io
+
+from neuralmonkey.logging import warn
 
 
 def get_plain_text_reader(encoding: str = "utf-8"):
@@ -18,6 +22,38 @@ def get_plain_text_reader(encoding: str = "utf-8"):
 
     return reader
 
+
+def column_separated_reader(column: int, delimiter: str = "\t",
+                            quotechar: str = None, encoding: str = "utf-8"):
+    """Get reader for delimiter-separated tokenized text.
+    
+    Args:
+        column: number of column to be returned. It starts with 1 for the first
+    """
+    def reader(files: List[str]) -> Iterable[List[str]]:
+        text_reader = get_plain_text_reader(encoding)
+        for line in text_reader(files):
+            f = io.StringIO(' '.join(line))
+            parsed_csv = list(csv.reader(f, delimiter=delimiter,
+                                         quotechar=quotechar,
+                                         skipinitialspace=True))
+            if len(parsed_csv) != 1:
+                warn("There is a missing column number {} in the dataset."
+                     .format(column))
+                yield []
+
+            yield parsed_csv[0][column-1].split(' ')
+
+    return reader
+
+
+def CSVReader(column: int):
+    return column_separated_reader(column=column, delimiter=',', quotechar='"')
+
+
+def TSVReader(column: int):
+    return column_separated_reader(column=column, delimiter='\t',
+                                   quotechar=None)
 
 # pylint: disable=invalid-name
 UtfPlainTextReader = get_plain_text_reader()
