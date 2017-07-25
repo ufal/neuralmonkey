@@ -185,7 +185,7 @@ The encoder and decored are similar to those from
 .. code-block:: ini
 
   [encoder]
-  class=encoders.sentence_encoder.SentenceEncoder
+  class=encoders.recurrent.SentenceEncoder
   name="sentence_encoder"
   rnn_size=300
   max_input_len=50
