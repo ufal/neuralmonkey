@@ -305,9 +305,6 @@ class BeamSearchDecoder(ModelPart):
                 prev_contexts=next_prev_contexts,
                 finished=next_finished)
 
-            # TODO figure out what to supply for attention_loop_states
-            # they are tensorarrays so its not so easy as a simple gather.
-
             return BeamSearchLoopState(
                 bs_state=search_state,
                 bs_output=output,
