@@ -485,7 +485,7 @@ class Decoder(ModelPart):
                 input_symbol=next_symbols,
                 train_inputs=loop_state.train_inputs,
                 prev_rnn_state=next_state,
-                prev_rnn_output=next_state,#cell_output,
+                prev_rnn_output=cell_output,
                 rnn_outputs=loop_state.rnn_outputs.write(
                     step + 1, cell_output),
                 prev_contexts=list(contexts),
@@ -500,26 +500,15 @@ class Decoder(ModelPart):
 
         return body
 
-    def get_initial_loop_state(self, att_objects: List,
-                               beam_size: int = 1) -> LoopState:
-        # TODO add tf.Assert when beam_size > 1 that batch_size is 1.
-        tiled_initial_state = tf.reshape(
-            tf.tile(self.initial_state, [1, beam_size]),
-            [self.batch_size * beam_size, self.rnn_size])
-
-        tiled_go_symbols = tf.reshape(
-            tf.tile(self.go_symbols, [beam_size]),
-            [self.batch_size * beam_size])
-
+    def get_initial_loop_state(self, att_objects: List) -> LoopState:
         rnn_output_ta = tf.TensorArray(dtype=tf.float32, dynamic_size=True,
                                        size=0, name="rnn_outputs")
-        rnn_output_ta = rnn_output_ta.write(0, tiled_initial_state)
+        rnn_output_ta = rnn_output_ta.write(0, self.initial_state)
 
         logit_ta = tf.TensorArray(dtype=tf.float32, dynamic_size=True,
                                   size=0, name="logits")
 
-        logits = tf.zeros([self.batch_size * beam_size, len(self.vocabulary)])
-        contexts = [tf.zeros([self.batch_size * beam_size, a.attn_size])
+        contexts = [tf.zeros([self.batch_size, a.attn_size])
                     for a in att_objects]
 
         mask_ta = tf.TensorArray(dtype=tf.bool, dynamic_size=True,
@@ -530,16 +519,16 @@ class Decoder(ModelPart):
 
         return LoopState(
             step=0,
-            input_symbol=tiled_go_symbols,
+            input_symbol=self.go_symbols,
             train_inputs=self.train_inputs,
-            prev_rnn_state=tiled_initial_state,
-            prev_rnn_output=tiled_initial_state,
+            prev_rnn_state=self.initial_state,
+            prev_rnn_output=self.initial_state,
             rnn_outputs=rnn_output_ta,
-            prev_logits=logits,
+            prev_logits=tf.zeros([self.batch_size, len(self.vocabulary)]),
             logits=logit_ta,
             prev_contexts=contexts,
             mask=mask_ta,
-            finished=tf.zeros([self.batch_size * beam_size], dtype=tf.bool),
+            finished=tf.zeros([self.batch_size], dtype=tf.bool),
             attention_loop_states=attn_loop_states)
 
     def loop_continue_criterion(self, *args) -> tf.Tensor:
