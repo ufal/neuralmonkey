@@ -46,8 +46,8 @@ def column_separated_reader(column: int, delimiter: str = "\t",
                 warn("There is a missing column number {} in the dataset."
                      .format(column))
                 yield []
-
-            yield parsed_csv[0][column - 1].split(' ')
+            else:
+                yield parsed_csv[0][column - 1].split(' ')
 
     return reader
 
