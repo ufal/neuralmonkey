@@ -146,3 +146,6 @@ def main() -> None:
                                  execution_results, output_data)
         if eval_result:
             print_final_evaluation(dataset.name, eval_result)
+
+    for sess in CONFIG.model.tf_manager.sessions:
+        del sess

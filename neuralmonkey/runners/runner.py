@@ -67,7 +67,8 @@ class GreedyRunExecutable(Executable):
     def collect_results(self, results: List[Dict]) -> None:
         train_loss = 0.
         runtime_loss = 0.
-        summed_logprobs = [-np.inf for _ in self._fetches["decoded_logprobs"]]
+        summed_logprobs = [-np.inf for _ in range(
+            results[0]["decoded_logprobs"].shape[0])]
 
         for sess_result in results:
             train_loss += sess_result["train_xent"]

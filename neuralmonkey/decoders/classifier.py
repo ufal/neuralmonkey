@@ -9,7 +9,7 @@ from neuralmonkey.nn.mlp import MultilayerPerceptron
 from neuralmonkey.decorators import tensor
 
 
-class SequenceClassifier(ModelPart):
+class Classifier(ModelPart):
     """A simple MLP classifier over encoders.
 
     The API pretends it is an RNN decoder which always generates a sequence of
@@ -91,21 +91,21 @@ class SequenceClassifier(ModelPart):
         return self.loss_with_gt_ins
 
     @tensor
-    def decoded_seq(self) -> List[tf.Tensor]:
+    def decoded_seq(self) -> tf.Tensor:
         # pylint: disable=no-member
-        return [self._mlp.classification]
+        return tf.expand_dims(self._mlp.classification, 0)
         # pylint: enable=no-member
 
     @tensor
-    def decoded_logits(self) -> List[tf.Tensor]:
+    def decoded_logits(self) -> tf.Tensor:
         # pylint: disable=no-member
-        return [self._mlp.logits]
+        return tf.expand_dims(self._mlp.logits, 0)
         # pylint: enable=no-member
 
     @tensor
-    def runtime_logprobs(self) -> List[tf.Tensor]:
+    def runtime_logprobs(self) -> tf.Tensor:
         # pylint: disable=no-member
-        return [tf.nn.log_softmax(self._mlp.logits)]
+        return tf.expand_dims(tf.nn.log_softmax(self._mlp.logits), 0)
         # pylint: enable=no-member
 
     @property

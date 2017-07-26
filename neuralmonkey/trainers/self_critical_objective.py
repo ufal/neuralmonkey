@@ -68,14 +68,9 @@ def self_critical_objective(decoder: Decoder,
     """
     check_argument_types()
 
-    # logits, shape (time, batch, vocab)
-    train_logits = tf.stack(decoder.train_logits)
-    runtime_logits = tf.stack(decoder.runtime_logits)
-    runtime_mask = tf.stack(decoder.runtime_mask)
-
     # decoded, shape (time, batch)
-    train_decoded = tf.argmax(train_logits, axis=2)
-    runtime_decoded = tf.argmax(runtime_logits, axis=2)
+    train_decoded = tf.argmax(decoder.train_logits, axis=2)
+    runtime_decoded = tf.argmax(decoder.runtime_logits, axis=2)
     reference = decoder.train_inputs
 
     # rewards, shape (batch)
@@ -91,9 +86,9 @@ def self_critical_objective(decoder: Decoder,
 
     # REINFORCE score: shape (time, batch, vocab)
     score_by_word = reinforce_score(
-        runtime_reward, train_reward, runtime_decoded, runtime_logits)
+        runtime_reward, train_reward, runtime_decoded, decoder.runtime_logits)
 
-    float_mask = tf.to_float(runtime_mask)
+    float_mask = tf.to_float(decoder.runtime_mask)
     masked_score_by_word = score_by_word * float_mask
 
     # sum the matrix up (dot product of rows, sum over time, and over batch)

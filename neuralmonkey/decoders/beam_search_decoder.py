@@ -1,4 +1,31 @@
-from typing import NamedTuple, Tuple, List
+"""Beam search decoder.
+
+This module implements the beam search algorithm for the recurrent decoder.
+
+As well as the recurrent decoder, this decoder works dynamically, which means
+it uses the ``tf.while_loop`` function conditioned on both maximum output
+length and list of finished hypotheses.
+
+The beam search decoder works by appending data from ``SearchStepOutput``
+objects to a ``SearchStepOutputTA`` object. The ``SearchStepOutput`` object
+stores information about the hypotheses in the beam. Each hypothesis keeps its
+score, its final token, and a pointer to a "parent" hypothesis, which is a
+one-token-shorter hypothesis which shares the tokens with the child hypothesis.
+
+For the beam search decoder to work, it must keep an inner state which stores
+information about hypotheses in the beam. It is an object of type
+``SearchState`` which stores, *for each hypothesis*, its sum of log
+probabilities of the tokens, its length, finished flag, ID of the last token,
+and the last decoder and attention states.
+
+There is another inner state object here, the ``BeamSearchLoopState``. It is a
+technical structure used with the ``tf.while_loop`` function. It stores all the
+previously mentioned information, plus the decoder ``LoopState``, which is used
+in the decoder when its own ``tf.while_loop`` function is used - this is not
+the case when using beam search because we want to run the decoder's steps
+manually.
+"""
+from typing import NamedTuple, List, Callable
 
 import tensorflow as tf
 from typeguard import check_argument_types
@@ -6,7 +33,7 @@ from typeguard import check_argument_types
 from neuralmonkey.decoding_function import BaseAttention
 from neuralmonkey.model.model_part import ModelPart, FeedDict
 from neuralmonkey.dataset import Dataset
-from neuralmonkey.decoders.decoder import Decoder
+from neuralmonkey.decoders.decoder import Decoder, LoopState
 from neuralmonkey.vocabulary import (START_TOKEN_INDEX, END_TOKEN_INDEX,
                                      PAD_TOKEN_INDEX)
 
@@ -23,6 +50,16 @@ SearchStepOutput = NamedTuple("SearchStepOutput",
                               [("scores", tf.Tensor),
                                ("parent_ids", tf.Tensor),
                                ("token_ids", tf.Tensor)])
+
+SearchStepOutputTA = NamedTuple("SearchStepOutputTA",
+                                [("scores", tf.TensorArray),
+                                 ("parent_ids", tf.TensorArray),
+                                 ("token_ids", tf.TensorArray)])
+
+BeamSearchLoopState = NamedTuple("BeamSearchLoopState",
+                                 [("bs_state", SearchState),
+                                  ("bs_output", SearchStepOutputTA),
+                                  ("decoder_loop_state", LoopState)])
 # pylint: enable=invalid-name
 
 
@@ -62,127 +99,219 @@ class BeamSearchDecoder(ModelPart):
     def vocabulary(self):
         return self.parent_decoder.vocabulary
 
-    def _decoding_loop(self):
+    def _get_initial_search_state(self, att_objects: List) -> SearchState:
+        return SearchState(
+            logprob_sum=tf.constant([0.0]),
+            lengths=tf.constant([1], dtype=tf.int32),
+            finished=tf.constant([False]),
+            last_word_ids=tf.constant([START_TOKEN_INDEX]),
+            last_state=self.parent_decoder.initial_state,
+            last_attns=[tf.zeros([1, a.attn_size]) for a in att_objects])
+
+    def get_initial_loop_state(self, att_objects: List) -> BeamSearchLoopState:
+        state = self._get_initial_search_state(att_objects)
+        output_ta = SearchStepOutputTA(
+            scores=tf.TensorArray(dtype=tf.float32, dynamic_size=True,
+                                  size=0, name="beam_scores"),
+            parent_ids=tf.TensorArray(dtype=tf.int32, dynamic_size=True,
+                                      size=0, name="beam_parents"),
+            token_ids=tf.TensorArray(dtype=tf.int32, dynamic_size=True,
+                                     size=0, name="beam_tokens"))
+
+        dec_loop_state = self.parent_decoder.get_initial_loop_state(
+            att_objects)
+
+        return BeamSearchLoopState(
+            bs_state=state,
+            bs_output=output_ta,
+            decoder_loop_state=dec_loop_state)
+
+    def _decoding_loop(self) -> SearchStepOutput:
         # collect attention objects
         att_objects = [self.parent_decoder.get_attention_object(e, False)
                        for e in self.parent_decoder.encoders]
         att_objects = [a for a in att_objects if a is not None]
 
-        state = SearchState(
-            logprob_sum=tf.zeros([1]),
-            lengths=tf.ones([1], dtype=tf.int32),
-            finished=tf.zeros([1], dtype=tf.bool),
-            last_word_ids=tf.expand_dims(tf.constant(START_TOKEN_INDEX), 0),
-            last_state=self.parent_decoder.initial_state,
-            last_attns=[tf.zeros([1, a.attn_size]) for a in att_objects]
-        )
+        beam_body = self.get_body(att_objects)
 
-        # TODO rewrite using tf.while_loop
+        # first step has to be run manually because while_loop needs the same
+        # shapes between steps and the first beam state is not beam-sized, but
+        # just a single state.
+        initial_loop_state = self.get_initial_loop_state(att_objects)
+        next_bs_loop_state = beam_body(*initial_loop_state)
 
-        outputs = []
-        for _ in range(self._max_steps):
-            state, output = self.step(att_objects, state)
-            outputs.append(output)
+        def cond(*args) -> tf.Tensor:
+            bsls = BeamSearchLoopState(*args)
+            return tf.less(bsls.decoder_loop_state.step, self._max_steps)
 
-        return outputs
+        final_state = tf.while_loop(cond, beam_body, next_bs_loop_state)
 
-    # pylint: disable=too-many-locals
-    def step(self,
-             att_objects: List[BaseAttention],
-             bs_state: SearchState) -> Tuple[SearchState, SearchStepOutput]:
+        scores = final_state.bs_output.scores.stack()
+        parent_ids = final_state.bs_output.parent_ids.stack()
+        token_ids = final_state.bs_output.token_ids.stack()
 
-        # embed the previously decoded word
-        input_ = self.parent_decoder.embed_and_dropout(
-            bs_state.last_word_ids)
+        return SearchStepOutput(scores=scores,
+                                parent_ids=parent_ids,
+                                token_ids=token_ids)
 
-        # don't want to use this decoder with uninitialized parent
-        assert self.parent_decoder.step_scope.reuse
+    def get_body(self, att_objects: List[BaseAttention]) -> Callable:
+        """Return a function that will act as the body for the
+        ``tf.while_loop`` call.
+        """
+        decoder_body = self.parent_decoder.get_body(att_objects, False)
 
-        # run the parent decoder decoding step
-        # shapes:
-        # logits: beam x vocabulary
-        # state: beam x rnn_size
-        # attns: encoder x beam x context vector size
-        logits, state, attns = self.parent_decoder.step(
-            att_objects, input_, bs_state.last_state, bs_state.last_attns)
+        # pylint: disable=too-many-locals
+        def body(*args) -> BeamSearchLoopState:
+            """The beam search body function. This is where the beam search
+            algorithm is implemented.
 
-        # mask the probabilities
-        # shape(logprobs) = beam x vocabulary
-        logprobs = tf.nn.log_softmax(logits)
+            Arguments:
+                loop_state: ``BeamSearchLoopState`` instance (see the docs for
+                    this module)
+            """
+            loop_state = BeamSearchLoopState(*args)
+            bs_state = loop_state.bs_state
+            dec_loop_state = loop_state.decoder_loop_state
 
-        finished_mask = tf.expand_dims(tf.to_float(bs_state.finished), 1)
-        unfinished_logprobs = (1. - finished_mask) * logprobs
+            # don't want to use this decoder with uninitialized parent
+            assert self.parent_decoder.step_scope.reuse
 
-        finished_row = tf.one_hot(
-            PAD_TOKEN_INDEX,
-            len(self.parent_decoder.vocabulary),
-            dtype=tf.float32,
-            on_value=0.,
-            off_value=tf.float32.min)
+            # CALL THE DECODER BODY FUNCTION
+            # TODO figure out why mypy throws too-many-arguments on this
+            next_loop_state = decoder_body(*dec_loop_state)  # type: ignore
 
-        finished_logprobs = finished_mask * finished_row
-        logprobs = unfinished_logprobs + finished_logprobs
+            logits = next_loop_state.prev_logits
+            rnn_state = next_loop_state.prev_rnn_state
+            rnn_output = next_loop_state.prev_rnn_output
+            attns = next_loop_state.prev_contexts
 
-        # update hypothesis scores
-        # shape(hyp_probs) = beam x vocabulary
-        hyp_probs = tf.expand_dims(bs_state.logprob_sum, 1) + logprobs
+            # mask the probabilities
+            # shape(logprobs) = beam x vocabulary
+            logprobs = tf.nn.log_softmax(logits)
 
-        # update hypothesis lengths
-        hyp_lengths = bs_state.lengths + 1 - tf.to_int32(bs_state.finished)
+            finished_mask = tf.expand_dims(tf.to_float(bs_state.finished), 1)
+            unfinished_logprobs = (1. - finished_mask) * logprobs
 
-        # shape(scores) = beam x vocabulary
-        scores = hyp_probs / tf.expand_dims(
-            self._length_penalty(hyp_lengths), 1)
+            finished_row = tf.one_hot(
+                PAD_TOKEN_INDEX,
+                len(self.parent_decoder.vocabulary),
+                dtype=tf.float32,
+                on_value=0.,
+                off_value=tf.float32.min)
 
-        # flatten so we can use top_k
-        scores_flat = tf.reshape(scores, [-1])
+            finished_logprobs = finished_mask * finished_row
+            logprobs = unfinished_logprobs + finished_logprobs
 
-        # shape(both) = beam
-        topk_scores, topk_indices = tf.nn.top_k(scores_flat, self._beam_size)
+            # update hypothesis scores
+            # shape(hyp_probs) = beam x vocabulary
+            hyp_probs = tf.expand_dims(bs_state.logprob_sum, 1) + logprobs
 
-        topk_scores.set_shape([self._beam_size])
-        topk_indices.set_shape([self._beam_size])
+            # update hypothesis lengths
+            hyp_lengths = bs_state.lengths + 1 - tf.to_int32(bs_state.finished)
 
-        # flatten the hypothesis probabilities
-        hyp_probs_flat = tf.reshape(hyp_probs, [-1])
+            # shape(scores) = beam x vocabulary
+            scores = hyp_probs / tf.expand_dims(
+                self._length_penalty(hyp_lengths), 1)
 
-        # select logprobs of the best hyps (disregard lenghts)
-        next_logprob_sum = tf.gather(hyp_probs_flat, topk_indices)
-        # pylint: disable=no-member
-        next_logprob_sum.set_shape([self._beam_size])
-        # pylint: enable=no-member
+            # flatten so we can use top_k
+            scores_flat = tf.reshape(scores, [-1])
 
-        next_word_ids = tf.mod(topk_indices,
-                               len(self.parent_decoder.vocabulary))
+            # shape(both) = beam
+            topk_scores, topk_indices = tf.nn.top_k(
+                scores_flat, self._beam_size)
 
-        next_beam_ids = tf.div(topk_indices,
-                               len(self.parent_decoder.vocabulary))
+            topk_scores.set_shape([self._beam_size])
+            topk_indices.set_shape([self._beam_size])
 
-        next_beam_prev_state = tf.gather(state, next_beam_ids)
-        next_beam_prev_attns = [tf.gather(a, next_beam_ids) for a in attns]
-        next_lengths = tf.gather(hyp_lengths, next_beam_ids)
+            # flatten the hypothesis probabilities
+            hyp_probs_flat = tf.reshape(hyp_probs, [-1])
 
-        # update finished flags
-        has_just_finished = tf.equal(next_word_ids, END_TOKEN_INDEX)
-        next_finished = tf.logical_or(
-            tf.gather(bs_state.finished, next_beam_ids),
-            has_just_finished)
+            # select logprobs of the best hyps (disregard lenghts)
+            next_logprob_sum = tf.gather(hyp_probs_flat, topk_indices)
+            # pylint: disable=no-member
+            next_logprob_sum.set_shape([self._beam_size])
+            # pylint: enable=no-member
 
-        output = SearchStepOutput(
-            scores=topk_scores,
-            parent_ids=next_beam_ids,
-            token_ids=next_word_ids)
+            next_word_ids = tf.mod(topk_indices,
+                                   len(self.parent_decoder.vocabulary))
 
-        search_state = SearchState(
-            logprob_sum=next_logprob_sum,
-            lengths=next_lengths,
-            finished=next_finished,
-            last_word_ids=next_word_ids,
-            last_state=next_beam_prev_state,
-            last_attns=next_beam_prev_attns)
+            next_beam_ids = tf.div(topk_indices,
+                                   len(self.parent_decoder.vocabulary))
 
-        return search_state, output
-    # pylint: enable=too-many-locals
+            next_beam_prev_rnn_state = tf.gather(rnn_state, next_beam_ids)
+            next_beam_prev_rnn_output = tf.gather(rnn_output, next_beam_ids)
+            next_beam_prev_attns = [tf.gather(a, next_beam_ids) for a in attns]
+            next_lengths = tf.gather(hyp_lengths, next_beam_ids)
+
+            # update finished flags
+            has_just_finished = tf.equal(next_word_ids, END_TOKEN_INDEX)
+            next_finished = tf.logical_or(
+                tf.gather(bs_state.finished, next_beam_ids),
+                has_just_finished)
+
+            prev_output = loop_state.bs_output
+
+            step = dec_loop_state.step
+            output = SearchStepOutputTA(
+                scores=prev_output.scores.write(step, topk_scores),
+                parent_ids=prev_output.parent_ids.write(step, next_beam_ids),
+                token_ids=prev_output.token_ids.write(step, next_word_ids))
+
+            search_state = SearchState(
+                logprob_sum=next_logprob_sum,
+                lengths=next_lengths,
+                finished=next_finished,
+                last_word_ids=next_word_ids,
+                last_state=next_beam_prev_rnn_state,
+                last_attns=next_beam_prev_attns)
+
+            # For run-time computation, the decoder needs:
+            # - step
+            # - input_symbol
+            # - prev_rnn_state
+            # - prev_rnn_output
+            # - prev_contexts
+            # - attention_loop_states
+            # - finished
+
+            # For train-mode computation, it also needs
+            # - train_inputs
+
+            # For recording the computation in time, it needs
+            # - rnn_outputs (TA)
+            # - logits (TA)
+            # - mask (TA)
+
+            # Because of the beam search algorithm, it outputs
+            # (but does not not need)
+            # - prev_logits
+
+            # During beam search decoding, we are not interested in recording
+            # of the computation as done by the decoder. The record is stored
+            # in search states and step outputs of this decoder.
+
+            next_prev_logits = tf.gather(next_loop_state.prev_logits,
+                                         next_beam_ids)
+
+            next_prev_contexts = [tf.gather(ctx, next_beam_ids) for ctx in
+                                  next_loop_state.prev_contexts]
+
+            # Update the decoder next_loop_state
+            next_loop_state = next_loop_state._replace(
+                input_symbol=next_word_ids,
+                prev_rnn_state=next_beam_prev_rnn_state,
+                prev_rnn_output=next_beam_prev_rnn_output,
+                prev_logits=next_prev_logits,
+                prev_contexts=next_prev_contexts,
+                finished=next_finished)
+
+            return BeamSearchLoopState(
+                bs_state=search_state,
+                bs_output=output,
+                decoder_loop_state=next_loop_state)
+        # pylint: enable=too-many-locals
+
+        return body
 
     def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
         """Populate the feed dictionary for the decoder object

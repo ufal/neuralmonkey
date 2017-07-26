@@ -1,17 +1,63 @@
-"""
-Module which implements decoding functions using multiple attentions
+"""Module which implements decoding functions using multiple attentions
 for RNN decoders.
 
 See http://arxiv.org/abs/1606.07481
+
+The attention mechanisms used in Neural Monkey are inherited from the
+``BaseAttention`` class defined in this module.
+
+Each attention object has the ``attention`` function which operates on the
+``attention_states`` tensor.  The attention function receives the query tensor,
+the decoder previous state and input, and its inner state, which could bear an
+arbitrary structure of information. The default structure for this is the
+``AttentionLoopState``, which contains a growing array of attention
+distributions and context vectors in time. That's why there is the
+``initial_loop_state`` function in the ``BaseAttention`` class.
+
+Mainly for illustration purposes, the attention objects can keep their
+*histories*, which is a dictionary populated with attention distributions in
+time for every decoder, that used this attention object. This is because for
+example the recurrent decoder is can be run twice for each sentence - once in
+the *training* mode, in which the decoder gets the reference tokens on the
+input, and once in the *running* mode, in which it gets its own outputs. The
+histories object is constructed *after* the decoding and its construction
+should be triggered manually from the decoder by calling the ``finalize_loop``
+method.
 """
 from abc import ABCMeta
+from typing import Any, Dict, List, Tuple, NamedTuple
 
 import tensorflow as tf
 from neuralmonkey.nn.projection import linear
 from neuralmonkey.nn.ortho_gru_cell import OrthoGRUCell
 
+# pylint: disable=invalid-name
+AttentionLoopState = NamedTuple("AttentionLoopState",
+                                [("contexts", tf.TensorArray),
+                                 ("weights", tf.TensorArray)])
+# pylint: enable=invalid-name
 
-# pylint: disable=too-few-public-methods
+
+def empty_attention_loop_state() -> AttentionLoopState:
+    """Create an empty attention loop state.
+
+    The attention loop state is a technical object for storing the attention
+    distributions and the context vectors in time. It is used with the
+    ``tf.while_loop`` dynamic implementation of the decoder.
+
+    This function returns an empty attention loop state which means there are
+    two empty arrays, one for attention distributions in time, and one for
+    the attention context vectors in time.
+    """
+    return AttentionLoopState(
+        contexts=tf.TensorArray(
+            dtype=tf.float32, size=0, dynamic_size=True,
+            name="contexts"),
+        weights=tf.TensorArray(
+            dtype=tf.float32, size=0, dynamic_size=True,
+            name="distributions"))
+
+
 class BaseAttention(metaclass=ABCMeta):
     def __init__(self,
                  scope: str,
@@ -23,13 +69,28 @@ class BaseAttention(metaclass=ABCMeta):
         self.attention_state_size = attention_state_size
         self.input_weights = input_weights
 
+        # TODO create context vector size property
+
+        self._histories = {}  # type: Dict[str, tf.Tensor]
+
     def attention(self,
                   decoder_state: tf.Tensor,
                   decoder_prev_state: tf.Tensor,
-                  decoder_input: tf.Tensor) -> tf.Tensor:
+                  decoder_input: tf.Tensor,
+                  loop_state: Any, step: tf.Tensor) -> Tuple[tf.Tensor, Any]:
         """Get context vector for given decoder state."""
         raise NotImplementedError("Abstract method")
-# pylint: enable=too-few-public-methods
+
+    def initial_loop_state(self) -> Any:
+        """Get initial loop state for the attention object."""
+        raise NotImplementedError("Abstract method")
+
+    @property
+    def histories(self) -> Dict[str, tf.Tensor]:
+        return self._histories
+
+    def finalize_loop(self, key: str, last_loop_state: Any) -> None:
+        raise NotImplementedError("Abstract method")
 
 
 class Attention(BaseAttention):
@@ -60,8 +121,6 @@ class Attention(BaseAttention):
         """
         super().__init__(
             scope, attention_states, attention_state_size, input_weights)
-        self.logits_in_time = []  # type: List[tf.Tensor]
-        self.attentions_in_time = []  # type: List[tf.Tensor]
 
         self.attn_size = attention_states.get_shape()[2].value
 
@@ -90,8 +149,13 @@ class Attention(BaseAttention):
             self.v_bias = tf.get_variable(
                 "AttnV_b", [], initializer=tf.constant_initializer(0))
 
+    def initial_loop_state(self) -> AttentionLoopState:
+        return empty_attention_loop_state()
+
     def attention(self, decoder_state: tf.Tensor,
-                  decoder_prev_state: tf.Tensor, _) -> tf.Tensor:
+                  decoder_prev_state: tf.Tensor, _,
+                  loop_state: AttentionLoopState, step: tf.Tensor) -> Tuple[
+                      tf.Tensor, AttentionLoopState]:
         """put attention masks on att_states_reshaped
            using hidden_features and query.
         """
@@ -109,28 +173,39 @@ class Attention(BaseAttention):
             # pylint: disable=invalid-name
             # code copied from tensorflow. Suggestion: rename the variables
             # according to the Bahdanau paper
-            s = self.get_logits(y)
+            s = self.get_logits(y, loop_state.weights)
 
             if self.input_weights is None:
-                a = tf.nn.softmax(s)
+                weights = tf.nn.softmax(s)
             else:
-                a_all = tf.nn.softmax(s) * self.input_weights
-                norm = tf.reduce_sum(a_all, 1, keep_dims=True) + 1e-8
-                a = a_all / norm
-
-            self.logits_in_time.append(s)
-            self.attentions_in_time.append(a)
+                weights_all = tf.nn.softmax(s) * self.input_weights
+                norm = tf.reduce_sum(weights_all, 1, keep_dims=True) + 1e-8
+                weights = weights_all / norm
+            # pylint: enable=invalid-name
 
             # Now calculate the attention-weighted vector d.
-            d = tf.reduce_sum(tf.expand_dims(tf.expand_dims(a, -1), -1)
-                              * self.att_states_reshaped, [1, 2])
+            context = tf.reduce_sum(
+                tf.expand_dims(tf.expand_dims(weights, -1), -1)
+                * self.att_states_reshaped, [1, 2])
+            context = tf.reshape(context, [-1, self.attn_size])
 
-            return tf.reshape(d, [-1, self.attn_size])
+            next_contexts = loop_state.contexts.write(step, context)
+            next_weights = loop_state.weights.write(step, weights)
 
-    def get_logits(self, y):
+            next_loop_state = AttentionLoopState(
+                contexts=next_contexts,
+                weights=next_weights)
+
+            return context, next_loop_state
+
+    def get_logits(self, y, _):
         # Attention mask is a softmax of v^T * tanh(...).
         return tf.reduce_sum(
             self.v * tf.tanh(self.hidden_features + y), [2, 3]) + self.v_bias
+
+    def finalize_loop(self, key: str,
+                      last_loop_state: AttentionLoopState) -> None:
+        self.histories[key] = last_loop_state.weights.stack()
 
 
 class CoverageAttention(Attention):
@@ -157,9 +232,10 @@ class CoverageAttention(Attention):
         self.fertility = 1e-8 + self.attention_fertility * tf.sigmoid(
             tf.reduce_sum(self.fertility_weights * self.attention_states, [2]))
 
-    def get_logits(self, y):
-        coverage = sum(
-            self.attentions_in_time) / self.fertility * self.input_weights
+    def get_logits(self, y, weights_in_time):
+        weight_sum = tf.reduce_sum(weights_in_time.stack(), axis=0)
+
+        coverage = weight_sum / self.fertility * self.input_weights
 
         logits = tf.reduce_sum(
             self.v * tf.tanh(
@@ -203,10 +279,15 @@ class RecurrentAttention(BaseAttention):
         self.bw_cell = OrthoGRUCell(self._state_size)
     # pylint: enable=unused-argument
 
+    def initial_loop_state(self) -> List:
+        return []
+
     # pylint: disable=unused-argument
     def attention(self,
                   decoder_state: tf.Tensor,
-                  decoder_prev_state: tf.Tensor, _) -> tf.Tensor:
+                  decoder_prev_state: tf.Tensor,
+                  _, loop_state: Any,
+                  step: tf.Tensor) -> Tuple[tf.Tensor, Any]:
 
         with tf.variable_scope(self.scope + "/RecurrentAttn") as varscope:
             initial_state = linear(decoder_state, self._state_size, varscope)
@@ -225,5 +306,8 @@ class RecurrentAttention(BaseAttention):
                 initial_state_bw=initial_state,
                 dtype=tf.float32)
 
-            return tf.concat(encoded_tup, 1)
+            return tf.concat(encoded_tup, 1), []
+
+    def finalize_loop(self, key: str, last_loop_state: Any) -> None:
+        pass
 # pylint: disable=unused-argument,too-few-public-methods
