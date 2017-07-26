@@ -99,21 +99,17 @@ class BeamSearchDecoder(ModelPart):
     def vocabulary(self):
         return self.parent_decoder.vocabulary
 
-    def get_initial_loop_state(self, att_objects: List) -> BeamSearchLoopState:
+    def _get_initial_search_state(self, att_objects: List) -> SearchState:
+        return SearchState(
+            logprob_sum=tf.constant([0.0]),
+            lengths=tf.constant([1], dtype=tf.int32),
+            finished=tf.constant([False]),
+            last_word_ids=tf.constant([START_TOKEN_INDEX]),
+            last_state=self.parent_decoder.initial_state,
+            last_attns=[tf.zeros([1, a.attn_size]) for a in att_objects])
 
-        state = SearchState(
-            logprob_sum=tf.zeros([self._beam_size]),
-            lengths=tf.ones([self._beam_size], dtype=tf.int32),
-            finished=tf.zeros([self._beam_size], dtype=tf.bool),
-            last_word_ids=tf.fill([self._beam_size], START_TOKEN_INDEX),
-            last_state=tf.reshape(
-                tf.tile(self.parent_decoder.initial_state,
-                        [self._beam_size, 1]),
-                [self._beam_size, self.parent_decoder.rnn_size]),
-            last_attns=[tf.zeros([self._beam_size, a.attn_size])
-                        for a in att_objects])
-
-        output_ta = SearchStepOutputTA(
+    def _get_initial_step_output_ta(self) -> SearchStepOutputTA:
+        return SearchStepOutputTA(
             scores=tf.TensorArray(dtype=tf.float32, dynamic_size=True,
                                   size=0, name="beam_scores"),
             parent_ids=tf.TensorArray(dtype=tf.int32, dynamic_size=True,
@@ -121,8 +117,11 @@ class BeamSearchDecoder(ModelPart):
             token_ids=tf.TensorArray(dtype=tf.int32, dynamic_size=True,
                                      size=0, name="beam_tokens"))
 
+    def get_initial_loop_state(self, att_objects: List) -> BeamSearchLoopState:
+        state = self._get_initial_search_state(att_objects)
+        output_ta = self._get_initial_step_output_ta()
         dec_loop_state = self.parent_decoder.get_initial_loop_state(
-            att_objects, beam_size=self._beam_size)
+            att_objects)
 
         return BeamSearchLoopState(
             bs_state=state,
@@ -135,14 +134,19 @@ class BeamSearchDecoder(ModelPart):
                        for e in self.parent_decoder.encoders]
         att_objects = [a for a in att_objects if a is not None]
 
+        beam_body = self.get_body(att_objects)
+
+        # first step has to be run manually because while_loop needs the same
+        # shapes between steps and the first beam state is not beam-sized, but
+        # just a single state.
+        initial_loop_state = self.get_initial_loop_state(att_objects)
+        next_bs_loop_state = beam_body(*initial_loop_state)
+
         def cond(*args) -> tf.Tensor:
             bsls = BeamSearchLoopState(*args)
             return tf.less(bsls.decoder_loop_state.step, self._max_steps)
 
-        final_state = tf.while_loop(
-            cond,
-            self.get_body(att_objects),
-            self.get_initial_loop_state(att_objects))
+        final_state = tf.while_loop(cond, beam_body, next_bs_loop_state)
 
         scores = final_state.bs_output.scores.stack()
         parent_ids = final_state.bs_output.parent_ids.stack()
@@ -212,9 +216,7 @@ class BeamSearchDecoder(ModelPart):
                 self._length_penalty(hyp_lengths), 1)
 
             # flatten so we can use top_k
-            scores_flat = tf.reshape(
-                scores,
-                [self._beam_size * len(self.parent_decoder.vocabulary)])
+            scores_flat = tf.reshape(scores, [-1])
 
             # shape(both) = beam
             topk_scores, topk_indices = tf.nn.top_k(
