@@ -59,13 +59,15 @@ class SentenceEncoder(ModelPart, Attentive):
     @tensor
     def states(self) -> tf.Tensor:
         convolutions = linear(self.ordered_embedded_inputs,
-                              self.conv_features)
+                              self.conv_features,
+                              scope="order_and_embed")
         for layer in range(self.encoder_layers):
             convolutions = self._residual_conv(
                 convolutions, "encoder_conv_{}".format(layer))
 
         return convolutions + linear(self.ordered_embedded_inputs,
-                                     self.conv_features)
+                                     self.conv_features,
+                                     scope="input_to_final_state")
 
     @tensor
     def encoded(self) -> tf.Tensor:
