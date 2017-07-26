@@ -108,8 +108,9 @@ class BeamSearchDecoder(ModelPart):
             last_state=self.parent_decoder.initial_state,
             last_attns=[tf.zeros([1, a.attn_size]) for a in att_objects])
 
-    def _get_initial_step_output_ta(self) -> SearchStepOutputTA:
-        return SearchStepOutputTA(
+    def get_initial_loop_state(self, att_objects: List) -> BeamSearchLoopState:
+        state = self._get_initial_search_state(att_objects)
+        output_ta = SearchStepOutputTA(
             scores=tf.TensorArray(dtype=tf.float32, dynamic_size=True,
                                   size=0, name="beam_scores"),
             parent_ids=tf.TensorArray(dtype=tf.int32, dynamic_size=True,
@@ -117,9 +118,6 @@ class BeamSearchDecoder(ModelPart):
             token_ids=tf.TensorArray(dtype=tf.int32, dynamic_size=True,
                                      size=0, name="beam_tokens"))
 
-    def get_initial_loop_state(self, att_objects: List) -> BeamSearchLoopState:
-        state = self._get_initial_search_state(att_objects)
-        output_ta = self._get_initial_step_output_ta()
         dec_loop_state = self.parent_decoder.get_initial_loop_state(
             att_objects)
 
@@ -156,10 +154,10 @@ class BeamSearchDecoder(ModelPart):
                                 parent_ids=parent_ids,
                                 token_ids=token_ids)
 
-    def get_body(self, att_objects: List[BaseAttention]) -> Callable[
-            [BeamSearchLoopState], BeamSearchLoopState]:
-        """Return a function that will act as the body for the ``tf.while_loop``
-        call."""
+    def get_body(self, att_objects: List[BaseAttention]) -> Callable:
+        """Return a function that will act as the body for the
+        ``tf.while_loop`` call.
+        """
         decoder_body = self.parent_decoder.get_body(att_objects, False)
 
         # pylint: disable=too-many-locals
@@ -267,7 +265,7 @@ class BeamSearchDecoder(ModelPart):
                 last_state=next_beam_prev_rnn_state,
                 last_attns=next_beam_prev_attns)
 
-            ## For run-time computation, the decoder needs:
+            # For run-time computation, the decoder needs:
             # - step
             # - input_symbol
             # - prev_rnn_state
@@ -276,21 +274,21 @@ class BeamSearchDecoder(ModelPart):
             # - attention_loop_states
             # - finished
 
-            ## For train-mode computation, it also needs
+            # For train-mode computation, it also needs
             # - train_inputs
 
-            ## For recording the computation in time, it needs
+            # For recording the computation in time, it needs
             # - rnn_outputs (TA)
             # - logits (TA)
             # - mask (TA)
 
-            ## Because of the beam search algorithm, it outputs
-            ## (but does not not need)
+            # Because of the beam search algorithm, it outputs
+            # (but does not not need)
             # - prev_logits
 
-            ## During beam search decoding, we are not interested in recording
-            ## of the computation as done by the decoder. The record is stored
-            ## in search states and step outputs of this decoder.
+            # During beam search decoding, we are not interested in recording
+            # of the computation as done by the decoder. The record is stored
+            # in search states and step outputs of this decoder.
 
             next_prev_logits = tf.gather(next_loop_state.prev_logits,
                                          next_beam_ids)
@@ -307,8 +305,8 @@ class BeamSearchDecoder(ModelPart):
                 prev_contexts=next_prev_contexts,
                 finished=next_finished)
 
-            ## TODO figure out what to supply for attention_loop_states
-            ## they are tensorarrays so its not so easy as a simple gather.
+            # TODO figure out what to supply for attention_loop_states
+            # they are tensorarrays so its not so easy as a simple gather.
 
             return BeamSearchLoopState(
                 bs_state=search_state,

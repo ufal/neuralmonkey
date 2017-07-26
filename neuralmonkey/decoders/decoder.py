@@ -399,7 +399,7 @@ class Decoder(ModelPart):
     def get_body(self,
                  att_objects: List[BaseAttention],
                  train_mode: bool,
-                 sample: bool = False) -> Callable[[LoopState], LoopState]:
+                 sample: bool = False) -> Callable:
         # pylint: disable=too-many-branches
         def body(*args) -> LoopState:
             loop_state = LoopState(*args)
