@@ -1,4 +1,4 @@
-from typing import List, Iterable
+from typing import List, Iterable, Callable
 import gzip
 import csv
 import io
@@ -6,7 +6,9 @@ import io
 from neuralmonkey.logging import warn
 
 
-def get_plain_text_reader(encoding: str = "utf-8"):
+def get_plain_text_reader(encoding: str = "utf-8") -> Callable[[List[str]],
+                                                               Iterable
+                                                               [List[str]]]:
     """Get reader for space-separated tokenized text."""
     def reader(files: List[str]) -> Iterable[List[str]]:
         for path in files:
@@ -24,7 +26,10 @@ def get_plain_text_reader(encoding: str = "utf-8"):
 
 
 def column_separated_reader(column: int, delimiter: str = "\t",
-                            quotechar: str = None, encoding: str = "utf-8"):
+                            quotechar: str = None,
+                            encoding: str = "utf-8") -> Callable[[List[str]],
+                                                                 Iterable
+                                                                 [List[str]]]:
     """Get reader for delimiter-separated tokenized text.
 
     Args:
@@ -42,7 +47,7 @@ def column_separated_reader(column: int, delimiter: str = "\t",
                      .format(column))
                 yield []
 
-            yield parsed_csv[0][column-1].split(' ')
+            yield parsed_csv[0][column - 1].split(' ')
 
     return reader
 
@@ -54,6 +59,7 @@ def csv_reader(column: int):
 def tsv_reader(column: int):
     return column_separated_reader(column=column, delimiter='\t',
                                    quotechar=None)
+
 
 # pylint: disable=invalid-name
 UtfPlainTextReader = get_plain_text_reader()
