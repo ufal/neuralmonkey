@@ -42,13 +42,20 @@ def column_separated_reader(
         column: number of column to be returned. It starts with 1 for the first
     """
     def reader(files: List[str]) -> Iterable[List[str]]:
+        column_count = None
         text_reader = string_reader(encoding)
         for line in text_reader(files):
             io_line = io.StringIO(line.rstrip('\r\n'))
             parsed_csv = list(csv.reader(io_line, delimiter=delimiter,
                                          quotechar=quotechar,
                                          skipinitialspace=True))
-            if len(parsed_csv[0]) < column:
+            columns = len(parsed_csv[0])
+            if column_count is None:
+                column_count = columns
+            elif column_count != columns:
+                warn("A mismatch in number of columns. Expected {} got {}"
+                     .format(column_count, columns))
+            if columns < column:
                 warn("There is a missing column number {} in the dataset."
                      .format(column))
                 yield []
