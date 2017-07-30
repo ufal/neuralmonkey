@@ -6,8 +6,8 @@ import io
 from neuralmonkey.logging import warn
 
 
-def lines_reader(encoding: str = "utf-8") -> Callable[[List[str]],
-                                                      Iterable[str]]:
+def lines_reader(
+        encoding: str = "utf-8") -> Callable[[List[str]], Iterable[str]]:
     def reader(files: List[str]) -> Iterable[str]:
         for path in files:
             if path.endswith(".gz"):
@@ -22,9 +22,8 @@ def lines_reader(encoding: str = "utf-8") -> Callable[[List[str]],
     return reader
 
 
-def get_plain_text_reader(encoding: str = "utf-8") -> Callable[[List[str]],
-                                                               Iterable
-                                                               [List[str]]]:
+def get_plain_text_reader(
+        encoding: str = "utf-8") -> Callable[[List[str]], Iterable[List[str]]]:
     """Get reader for space-separated tokenized text."""
     def reader(files: List[str]) -> Iterable[List[str]]:
         lines = lines_reader(encoding)
@@ -34,11 +33,9 @@ def get_plain_text_reader(encoding: str = "utf-8") -> Callable[[List[str]],
     return reader
 
 
-def column_separated_reader(column: int, delimiter: str = "\t",
-                            quotechar: str = None,
-                            encoding: str = "utf-8") -> Callable[[List[str]],
-                                                                 Iterable
-                                                                 [List[str]]]:
+def column_separated_reader(
+        column: int, delimiter: str = "\t", quotechar: str = None,
+        encoding: str = "utf-8") -> Callable[[List[str]], Iterable[List[str]]]:
     """Get reader for delimiter-separated tokenized text.
 
     Args:
