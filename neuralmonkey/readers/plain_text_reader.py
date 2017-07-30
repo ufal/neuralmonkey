@@ -6,7 +6,7 @@ import io
 from neuralmonkey.logging import warn
 
 
-def lines_reader(
+def string_reader(
         encoding: str = "utf-8") -> Callable[[List[str]], Iterable[str]]:
     def reader(files: List[str]) -> Iterable[str]:
         for path in files:
@@ -22,11 +22,11 @@ def lines_reader(
     return reader
 
 
-def get_plain_text_reader(
+def tokenized_text_reader(
         encoding: str = "utf-8") -> Callable[[List[str]], Iterable[List[str]]]:
     """Get reader for space-separated tokenized text."""
     def reader(files: List[str]) -> Iterable[List[str]]:
-        lines = lines_reader(encoding)
+        lines = string_reader(encoding)
         for line in lines(files):
             yield line.strip().split(' ')
 
@@ -42,7 +42,7 @@ def column_separated_reader(
         column: number of column to be returned. It starts with 1 for the first
     """
     def reader(files: List[str]) -> Iterable[List[str]]:
-        text_reader = lines_reader(encoding)
+        text_reader = string_reader(encoding)
         for line in text_reader(files):
             io_line = io.StringIO(line.rstrip('\r\n'))
             parsed_csv = list(csv.reader(io_line, delimiter=delimiter,
@@ -68,5 +68,5 @@ def tsv_reader(column: int):
 
 
 # pylint: disable=invalid-name
-UtfPlainTextReader = get_plain_text_reader()
+UtfPlainTextReader = tokenized_text_reader()
 # pylint: enable=invalid-name
