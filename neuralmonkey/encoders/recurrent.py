@@ -4,6 +4,7 @@ import tensorflow as tf
 from typeguard import check_argument_types
 
 from neuralmonkey.model.model_part import ModelPart, FeedDict
+from neuralmonkey.model.stateful import TemporalStateful
 from neuralmonkey.encoders.attentive import Attentive
 from neuralmonkey.nn.ortho_gru_cell import OrthoGRUCell
 from neuralmonkey.nn.utils import dropout
@@ -23,7 +24,7 @@ RNN_CELL_TYPES = {
 }
 
 
-class RecurrentEncoder(ModelPart, Attentive):
+class RecurrentEncoder(ModelPart, Stateful, TemporalStateful, Attentive):
 
     # pylint: disable=too-many-arguments
     def __init__(self,
@@ -42,6 +43,8 @@ class RecurrentEncoder(ModelPart, Attentive):
         Attentive.__init__(self, attention_type,
                            attention_state_size=attention_state_size,
                            attention_fertility=attention_fertility)
+        Stateful.__init__(self)
+        TemporalStateful.__init__(self)
         check_argument_types()
 
         self.input_sequence = input_sequence
@@ -84,6 +87,10 @@ class RecurrentEncoder(ModelPart, Attentive):
         # pylint: enable=unsubscriptable-object
 
     @tensor
+    def temporal_states(self) -> tf.Tensor:
+        return self.states
+
+    @tensor
     def encoded(self) -> tf.Tensor:
         # pylint: disable=unsubscriptable-object
         if self.rnn_cell_str == "GRU":
@@ -93,6 +100,10 @@ class RecurrentEncoder(ModelPart, Attentive):
             final_states = [state.h for state in self.bidirectional_rnn[1]]
             return tf.concat(final_states, 1)
         # pylint: enable=unsubscriptable-object
+
+    @tensor
+    def output(self) -> tf.Tensor:
+        return self.encoded
 
     @tensor
     def _attention_tensor(self) -> tf.Tensor:
