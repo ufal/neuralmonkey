@@ -6,8 +6,11 @@ import io
 from neuralmonkey.logging import warn
 
 
-def string_reader(
-        encoding: str = "utf-8") -> Callable[[List[str]], Iterable[str]]:
+# pylint: disable=invalid-name
+PlainTextFileReader = Callable[[List[str]], Iterable[List[str]]]
+# pylint: enable=invalid-name
+
+def string_reader(encoding: str = "utf-8") -> PlainTextFileReader:
     def reader(files: List[str]) -> Iterable[str]:
         for path in files:
             if path.endswith(".gz"):
@@ -22,8 +25,7 @@ def string_reader(
     return reader
 
 
-def tokenized_text_reader(
-        encoding: str = "utf-8") -> Callable[[List[str]], Iterable[List[str]]]:
+def tokenized_text_reader(encoding: str = "utf-8") -> PlainTextFileReader:
     """Get reader for space-separated tokenized text."""
     def reader(files: List[str]) -> Iterable[List[str]]:
         lines = string_reader(encoding)
@@ -35,7 +37,7 @@ def tokenized_text_reader(
 
 def column_separated_reader(
         column: int, delimiter: str = "\t", quotechar: str = None,
-        encoding: str = "utf-8") -> Callable[[List[str]], Iterable[List[str]]]:
+        encoding: str = "utf-8") -> PlainTextFileReader:
     """Get reader for delimiter-separated tokenized text.
 
     Args:
