@@ -50,9 +50,14 @@ def column_separated_reader(
         text_reader = string_reader(encoding)
         for line in text_reader(files):
             io_line = io.StringIO(line.rstrip('\r\n'))
-            parsed_csv = list(csv.reader(io_line, delimiter=delimiter,
-                                         quotechar=quotechar,
-                                         skipinitialspace=True))
+            if quotechar is None:
+                parsed_csv = list(csv.reader(io_line, delimiter=delimiter,
+                                             quotechar=quotechar,
+                                             skipinitialspace=True))
+            else:
+                parsed_csv = list(csv.reader(io_line, delimiter=delimiter,
+                                             quoting=csv.QUOTE_NONE,
+                                             skipinitialspace=True))
             columns = len(parsed_csv[0])
             if column_count is None:
                 column_count = columns
