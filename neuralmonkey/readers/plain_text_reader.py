@@ -10,7 +10,9 @@ from neuralmonkey.logging import warn
 PlainTextFileReader = Callable[[List[str]], Iterable[List[str]]]
 # pylint: enable=invalid-name
 
-def string_reader(encoding: str = "utf-8") -> PlainTextFileReader:
+
+def string_reader(
+        encoding: str = "utf-8") -> Callable[[List[str]], Iterable[str]]:
     def reader(files: List[str]) -> Iterable[str]:
         for path in files:
             if path.endswith(".gz"):
