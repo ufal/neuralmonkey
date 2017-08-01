@@ -14,7 +14,7 @@ class Attentive(metaclass=ABCMeta):
     convolutional maps in case of image captioning).
     """
 
-    def __init__(self, attention_type, **kwargs):
+    def __init__(self, attention_type: type, **kwargs) -> None:
         self._attention_type = attention_type
         self._attention_kwargs = kwargs
 
@@ -23,7 +23,7 @@ class Attentive(metaclass=ABCMeta):
             raise ValueError("Attention type is not subclass of the "
                              "BaseAttention class")
 
-    def create_attention_object(self):
+    def create_attention_object(self) -> BaseAttention:
         """Attention object that can be used in decoder."""
         # pylint: disable=no-member
         if hasattr(self, "name") and self.name:  # type: ignore
@@ -38,12 +38,12 @@ class Attentive(metaclass=ABCMeta):
             **self._attention_kwargs) if self._attention_type else None
 
     @abstractproperty
-    def _attention_tensor(self):
+    def _attention_tensor(self) -> tf.Tensor:
         """Tensor over which the attention is done."""
         raise NotImplementedError(
             "Attentive object is missing attention_tensor.")
 
     @property
-    def _attention_mask(self):
+    def _attention_mask(self) -> tf.Tensor:
         """Zero/one masking the attention logits."""
         return tf.ones(tf.shape(self._attention_tensor)[:-1])

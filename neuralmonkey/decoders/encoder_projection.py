@@ -8,6 +8,7 @@ from typing import List, Optional, Callable, Any
 
 import tensorflow as tf
 
+from neuralmonkey.model.stateful import Stateful
 from neuralmonkey.nn.utils import dropout
 from neuralmonkey.nn.projection import linear
 from neuralmonkey.logging import log
@@ -17,7 +18,7 @@ from neuralmonkey.logging import log
 # The function must conform the API
 def empty_initial_state(train_mode: tf.Tensor,
                         rnn_size: Optional[int],
-                        encoders: Optional[List[Any]] = None) -> tf.Tensor:
+                        encoders: List[Stateful] = None) -> tf.Tensor:
     """Return an empty vector
 
     Arguments:
@@ -33,7 +34,7 @@ def empty_initial_state(train_mode: tf.Tensor,
 
 def linear_encoder_projection(
         dropout_keep_prob: float) -> Callable[
-            [tf.Tensor, Optional[int], Optional[List[Any]]],
+            [tf.Tensor, Optional[int], Optional[List[Stateful]]],
             tf.Tensor]:
     """Return a projection function which applies dropout on concatenated
     encoder final states and returns a linear projection to a rnn_size-sized
@@ -44,7 +45,7 @@ def linear_encoder_projection(
     """
     def func(train_mode: tf.Tensor,
              rnn_size: Optional[int] = None,
-             encoders: Optional[List[Any]] = None) -> tf.Tensor:
+             encoders: Optional[List[Stateful]] = None) -> tf.Tensor:
         """Linearly project the encoders' encoded value to rnn_size
         and apply dropout
 
@@ -62,7 +63,7 @@ def linear_encoder_projection(
                              " of encoder projection")
 
         with tf.variable_scope("encoders_projection") as scope:
-            encoded_concat = tf.concat([e.encoded for e in encoders], 1)
+            encoded_concat = tf.concat([e.output for e in encoders], 1)
             encoded_concat = dropout(
                 encoded_concat, dropout_keep_prob, train_mode)
 
@@ -74,7 +75,7 @@ def linear_encoder_projection(
 def concat_encoder_projection(
         train_mode: tf.Tensor,
         rnn_size: Optional[int] = None,
-        encoders: Optional[List[Any]] = None) -> tf.Tensor:
+        encoders: Optional[List[Stateful]] = None) -> tf.Tensor:
     """Create the initial state by concatenating the encoders' encoded values
 
     Arguments:
@@ -87,10 +88,10 @@ def concat_encoder_projection(
                          "of encoder projection")
 
     if rnn_size is not None:
-        assert rnn_size == sum(e.encoded.get_shape()[1].value
+        assert rnn_size == sum(e.output.get_shape()[1].value
                                for e in encoders)
 
-    encoded_concat = tf.concat([e.encoded for e in encoders], 1)
+    encoded_concat = tf.concat([e.output for e in encoders], 1)
 
     # pylint: disable=no-member
     log("The inferred rnn_size of this encoder projection will be {}"

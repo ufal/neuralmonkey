@@ -4,8 +4,7 @@ import tensorflow as tf
 from typeguard import check_argument_types
 
 from neuralmonkey.model.model_part import ModelPart, FeedDict
-from neuralmonkey.model.stateful import TemporalStateful
-from neuralmonkey.encoders.attentive import Attentive
+from neuralmonkey.model.stateful import TemporalStatefulWithOutput, Stateful
 from neuralmonkey.nn.ortho_gru_cell import OrthoGRUCell
 from neuralmonkey.nn.utils import dropout
 from neuralmonkey.vocabulary import Vocabulary
@@ -24,7 +23,7 @@ RNN_CELL_TYPES = {
 }
 
 
-class RecurrentEncoder(ModelPart, Stateful, TemporalStateful, Attentive):
+class RecurrentEncoder(ModelPart, TemporalStatefulWithOutput):
 
     # pylint: disable=too-many-arguments
     def __init__(self,
@@ -40,11 +39,11 @@ class RecurrentEncoder(ModelPart, Stateful, TemporalStateful, Attentive):
                  load_checkpoint: str = None) -> None:
         """Create a new instance of a recurrent encoder."""
         ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
-        Attentive.__init__(self, attention_type,
-                           attention_state_size=attention_state_size,
-                           attention_fertility=attention_fertility)
         Stateful.__init__(self)
-        TemporalStateful.__init__(self)
+        TemporalStatefulWithOutput.__init__(
+            self, attention_type,
+            attention_state_size=attention_state_size,
+            attention_fertility=attention_fertility)
         check_argument_types()
 
         self.input_sequence = input_sequence
