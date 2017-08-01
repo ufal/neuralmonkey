@@ -114,6 +114,10 @@ class RecurrentEncoder(ModelPart, TemporalStatefulWithOutput):
         return self.input_sequence.mask
 
     @tensor
+    def temporal_mask(self) -> tf.Tensor:
+        return self.input_sequence.mask
+
+    @tensor
     def states_mask(self) -> tf.Tensor:
         return self.input_sequence.mask
 
