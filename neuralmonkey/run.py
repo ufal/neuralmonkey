@@ -147,5 +147,5 @@ def main() -> None:
         if eval_result:
             print_final_evaluation(dataset.name, eval_result)
 
-    for sess in CONFIG.model.tf_manager.sessions:
-        del sess
+    while len(CONFIG.model.tf_manager.sessions):
+        del CONFIG.model.tf_manager.sessions[0]
