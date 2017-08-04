@@ -239,7 +239,7 @@ class TensorFlowManager(object):
 
         if len(variable_files) != len(self.sessions):
             raise Exception(
-                "Provided {} files for restoring {} sessions.".format(
+                "Provided {} files for saving {} sessions.".format(
                     len(variable_files), len(self.sessions)))
 
         for sess, file_name in zip(self.sessions, variable_files):
