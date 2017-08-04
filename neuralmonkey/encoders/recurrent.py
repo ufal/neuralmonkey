@@ -32,18 +32,11 @@ class RecurrentEncoder(ModelPart, TemporalStatefulWithOutput):
                  rnn_size: int,
                  dropout_keep_prob: float = 1.0,
                  rnn_cell: str = "GRU",
-                 attention_type: type = None,
-                 attention_state_size: int = None,
-                 attention_fertility: int = 3,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None) -> None:
         """Create a new instance of a recurrent encoder."""
         ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
-        Stateful.__init__(self)
-        TemporalStatefulWithOutput.__init__(
-            self, attention_type,
-            attention_state_size=attention_state_size,
-            attention_fertility=attention_fertility)
+        TemporalStatefulWithOutput.__init__(self)
         check_argument_types()
 
         self.input_sequence = input_sequence
@@ -105,15 +98,6 @@ class RecurrentEncoder(ModelPart, TemporalStatefulWithOutput):
         return self.encoded
 
     @tensor
-    def _attention_tensor(self) -> tf.Tensor:
-        return dropout(self.states, self.dropout_keep_prob, self.train_mode)
-
-    @tensor
-    def _attention_mask(self) -> tf.Tensor:
-        # TODO tohle je proti OOP prirode
-        return self.input_sequence.mask
-
-    @tensor
     def temporal_mask(self) -> tf.Tensor:
         return self.input_sequence.mask
 
@@ -144,9 +128,6 @@ class SentenceEncoder(RecurrentEncoder):
                  max_input_len: int = None,
                  dropout_keep_prob: float = 1.0,
                  rnn_cell: str = "GRU",
-                 attention_type: type = None,
-                 attention_fertility: int = 3,
-                 attention_state_size: int = None,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None) -> None:
         """Create a new instance of the sentence encoder. """
@@ -177,9 +158,6 @@ class SentenceEncoder(RecurrentEncoder):
             rnn_size=rnn_size,
             dropout_keep_prob=dropout_keep_prob,
             rnn_cell=rnn_cell,
-            attention_type=attention_type,
-            attention_fertility=attention_fertility,
-            attention_state_size=attention_state_size,
             save_checkpoint=save_checkpoint,
             load_checkpoint=load_checkpoint)
     # pylint: enable=too-many-arguments,too-many-locals
@@ -196,9 +174,6 @@ class FactoredEncoder(RecurrentEncoder):
                  max_input_len: int = None,
                  dropout_keep_prob: float = 1.0,
                  rnn_cell: str = "GRU",
-                 attention_type: type = None,
-                 attention_fertility: int = 3,
-                 attention_state_size: int = None,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None) -> None:
         """Create a new instance of the sentence encoder. """
@@ -221,9 +196,6 @@ class FactoredEncoder(RecurrentEncoder):
             rnn_size=rnn_size,
             dropout_keep_prob=dropout_keep_prob,
             rnn_cell=rnn_cell,
-            attention_type=attention_type,
-            attention_fertility=attention_fertility,
-            attention_state_size=attention_state_size,
             save_checkpoint=save_checkpoint,
             load_checkpoint=load_checkpoint)
     # pylint: enable=too-many-arguments,too-many-locals

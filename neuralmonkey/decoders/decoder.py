@@ -7,7 +7,7 @@ import numpy as np
 import tensorflow as tf
 from typeguard import check_argument_types
 
-from neuralmonkey.decoding_function import BaseAttention
+from neuralmonkey.attention.base_attention import Attention
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.vocabulary import (Vocabulary, START_TOKEN, END_TOKEN_INDEX,
                                      PAD_TOKEN_INDEX)
@@ -18,7 +18,6 @@ from neuralmonkey.model.stateful import (TemporalStatefulWithOutput,
 from neuralmonkey.logging import log, warn
 from neuralmonkey.nn.ortho_gru_cell import OrthoGRUCell
 from neuralmonkey.nn.utils import dropout
-from neuralmonkey.encoders.attentive import Attentive
 from neuralmonkey.nn.projection import linear
 from neuralmonkey.decoders.encoder_projection import (
     linear_encoder_projection, concat_encoder_projection, empty_initial_state)
@@ -70,19 +69,19 @@ class Decoder(ModelPart):
                  name: str,
                  max_output_len: int,
                  dropout_keep_prob: float = 1.0,
-                 rnn_size: Optional[int] = None,
-                 embedding_size: Optional[int] = None,
+                 rnn_size: int = None,
+                 embedding_size: int = None,
                  output_projection: OutputProjectionSpec = None,
                  encoder_projection: Callable[
                      [tf.Tensor, Optional[int], Optional[List[Any]]],
                      tf.Tensor]=None,
-                 use_attention: bool = False,
-                 embeddings_source: Optional[EmbeddedSequence] = None,
+                 attentions: List[Attention] = None,
+                 embeddings_source: EmbeddedSequence = None,
                  attention_on_input: bool = True,
                  rnn_cell: str = 'GRU',
                  conditional_gru: bool = False,
-                 save_checkpoint: Optional[str] = None,
-                 load_checkpoint: Optional[str] = None) -> None:
+                 save_checkpoint: str= None,
+                 load_checkpoint: str = None) -> None:
         """Create a refactored version of monster decoder.
 
         Arguments:
@@ -101,8 +100,7 @@ class Decoder(ModelPart):
             output_projection: How to generate distribution over vocabulary
                 from decoder rnn_outputs
             encoder_projection: How to construct initial state from encoders
-            use_attention: Flag whether to look at attention vectors of the
-                encoders
+            attention: The attention object to use. Optional.
             embeddings_source: Embedded sequence to take embeddings from
             rnn_cell: RNN Cell used by the decoder (GRU or LSTM)
             conditional_gru: Flag whether to use the Conditional GRU
@@ -124,7 +122,7 @@ class Decoder(ModelPart):
         self.rnn_size = rnn_size
         self.output_projection_spec = output_projection
         self.encoder_projection = encoder_projection
-        self.use_attention = use_attention
+        self.attentions = attentions
         self.embeddings_source = embeddings_source
         self._conditional_gru = conditional_gru
         self._attention_on_input = attention_on_input
@@ -185,34 +183,14 @@ class Decoder(ModelPart):
             with tf.variable_scope("attention_decoder") as self.step_scope:
                 pass
 
-            # fetch train attention objects
-            self._train_attention_objects = {}
-            if self.use_attention:
-                with tf.name_scope("attention_object"):
-                    self._train_attention_objects = {
-                        e: e.create_attention_object()
-                        for e in self.encoders
-                        if isinstance(e, Attentive)}
-
-            assert not tf.get_variable_scope().reuse
-            tf.get_variable_scope().reuse_variables()
-
-            # fetch runtime attention objects
-            self._runtime_attention_objects = {}
-            if self.use_attention:
-                self._runtime_attention_objects = {
-                    e: e.create_attention_object()
-                    for e in self.encoders
-                    if isinstance(e, Attentive)}
-
-            # TODO when it is possible, remove the printing of the cost var
-            log("Decoder initalized. Cost var: {}".format(str(self.cost)))
+        # TODO when it is possible, remove the printing of the cost var
+        log("Decoder initalized. Cost var: {}".format(str(self.cost)))
     # pylint: enable=too-many-arguments,too-many-branches,too-many-statements
 
     # pylint: disable=no-self-use
     @tensor
     def train_mode(self) -> tf.Tensor:
-        return tf.placeholder(tf.bool, name="train_mode")
+        return tf.placeholder(tf.bool, shape=[], name="train_mode")
 
     @tensor
     def go_symbols(self) -> tf.Tensor:
@@ -382,13 +360,6 @@ class Decoder(ModelPart):
     def _get_conditional_gru_cell(self) -> tf.contrib.rnn.GRUCell:
         return tf.contrib.rnn.GRUCell(self.rnn_size)
 
-    def get_attention_object(self, encoder: Attentive,
-                             train_mode: bool) -> BaseAttention:
-        if train_mode:
-            return self._train_attention_objects.get(encoder)
-
-        return self._runtime_attention_objects.get(encoder)
-
     def embed_input_symbol(self, *args) -> tf.Tensor:
         loop_state = LoopState(*args)
 
@@ -409,7 +380,6 @@ class Decoder(ModelPart):
                       self.embedding_size)
 
     def get_body(self,
-                 att_objects: List[BaseAttention],
                  train_mode: bool,
                  sample: bool = False) -> Callable:
         # pylint: disable=too-many-branches
@@ -431,9 +401,9 @@ class Decoder(ModelPart):
                         a.attention(cell_output, loop_state.prev_rnn_output,
                                     rnn_input, att_loop_state, loop_state.step)
                         for a, att_loop_state in zip(
-                            att_objects,
+                            self.attentions,
                             loop_state.attention_loop_states)]
-                    if att_objects:
+                    if self.attentions:
                         contexts, att_loop_states = zip(*attns)
                     else:
                         contexts, att_loop_states = [], []
@@ -452,9 +422,9 @@ class Decoder(ModelPart):
                         a.attention(cell_output, loop_state.prev_rnn_output,
                                     rnn_input, att_loop_state, loop_state.step)
                         for a, att_loop_state in zip(
-                            att_objects,
+                            self.attentions,
                             loop_state.attention_loop_states)]
-                    if att_objects:
+                    if self.attentions:
                         contexts, att_loop_states = zip(*attns)
                     else:
                         contexts, att_loop_states = [], []
@@ -511,7 +481,7 @@ class Decoder(ModelPart):
 
         return body
 
-    def get_initial_loop_state(self, att_objects: List) -> LoopState:
+    def get_initial_loop_state(self) -> LoopState:
         rnn_output_ta = tf.TensorArray(dtype=tf.float32, dynamic_size=True,
                                        size=0, name="rnn_outputs")
         rnn_output_ta = rnn_output_ta.write(0, self.initial_state)
@@ -519,14 +489,14 @@ class Decoder(ModelPart):
         logit_ta = tf.TensorArray(dtype=tf.float32, dynamic_size=True,
                                   size=0, name="logits")
 
-        contexts = [tf.zeros([self.batch_size, a.attn_size])
-                    for a in att_objects]
+        contexts = [tf.zeros([self.batch_size, a.input_state_size])
+                    for a in self.attentions]
 
         mask_ta = tf.TensorArray(dtype=tf.bool, dynamic_size=True,
                                  size=0, name="mask")
 
         attn_loop_states = [a.initial_loop_state()
-                            for a in att_objects if a is not None]
+                            for a in self.attentions if a is not None]
 
         return LoopState(
             step=0,
@@ -553,17 +523,13 @@ class Decoder(ModelPart):
     def _decoding_loop(self, train_mode: bool, sample: bool = False)-> Tuple[
             tf.Tensor, tf.Tensor, tf.Tensor]:
 
-        att_objects = [self.get_attention_object(e, train_mode)
-                       for e in self.encoders]
-        att_objects = [a for a in att_objects if a is not None]
-
         final_loop_state = tf.while_loop(
             self.loop_continue_criterion,
-            self.get_body(att_objects, train_mode, sample),
-            self.get_initial_loop_state(att_objects))
+            self.get_body(train_mode, sample),
+            self.get_initial_loop_state())
 
         for att_state, attn_obj in zip(
-                final_loop_state.attention_loop_states, att_objects):
+                final_loop_state.attention_loop_states, self.attentions):
 
             att_history_key = "{}_{}".format(
                 self.name, "train" if train_mode else "run")
@@ -583,9 +549,7 @@ class Decoder(ModelPart):
         # TODO! this method will become part of attention that is a separate
         # ModelPart which will ensure that all lazily created tensors will be
         # already there.
-        att_objects = self._runtime_attention_objects.values()
-
-        for i, a in enumerate(att_objects):
+        for i, a in enumerate(self.attentions):
             if not hasattr(a, "attentions_in_time"):
                 continue
 

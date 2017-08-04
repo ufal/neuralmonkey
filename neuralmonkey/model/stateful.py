@@ -14,11 +14,7 @@ class Stateful(metaclass=ABCMeta):
         raise NotImplementedError("Abstract property")
 
 
-class TemporalStateful(Attentive):
-
-    # TODO remove when attentions become parts of ini
-    def __init__(self, *args, **kwargs) -> None:
-        Attentive.__init__(self, *args, **kwargs)
+class TemporalStateful(metaclass=ABCMeta):
 
     @abstractproperty
     def temporal_states(self) -> tf.Tensor:
@@ -37,7 +33,7 @@ class TemporalStateful(Attentive):
         raise NotImplementedError("Abstract property")
 
 
-class SpatialStateful(Attentive):
+class SpatialStateful(metaclass=ABCMeta):
 
     # TODO remove when attentions become parts of ini
     def __init__(self, *args, **kwargs) -> None:
