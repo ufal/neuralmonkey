@@ -18,14 +18,17 @@ class WordAlignmentRunner(BaseRunner):
 
         self._encoder = encoder
 
-    def get_executable(self, compute_losses=False, summaries=True):
+    def get_executable(self, compute_losses=False, summaries=True,
+                       num_sessions=1):
         att_object = self._decoder.get_attention_object(self._encoder,
                                                         train_mode=False)
         alignment = tf.transpose(
             tf.stack(att_object.attentions_in_time), perm=[1, 2, 0])
         fetches = {"alignment": alignment}
 
-        return WordAlignmentRunnerExecutable(self.all_coders, fetches)
+        return WordAlignmentRunnerExecutable(self.all_coders,
+                                             fetches,
+                                             num_sessions)
 
     @property
     def loss_names(self) -> List[str]:
@@ -34,15 +37,16 @@ class WordAlignmentRunner(BaseRunner):
 
 class WordAlignmentRunnerExecutable(Executable):
 
-    def __init__(self, all_coders, fetches):
+    def __init__(self, all_coders, fetches, num_sessions):
         self.all_coders = all_coders
         self._fetches = fetches
+        self._num_sessions = num_sessions
 
         self.result = None  # type: Optional[ExecutionResult]
 
     def next_to_execute(self) -> NextExecute:
         """Get the feedables and tensors to run."""
-        return self.all_coders, self._fetches, {}
+        return self.all_coders, self._fetches, [{} for _ in range(self._num_sessions)]
 
     def collect_results(self, results: List[Dict]) -> None:
         self.result = ExecutionResult(

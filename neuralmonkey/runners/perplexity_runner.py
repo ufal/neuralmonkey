@@ -12,14 +12,16 @@ from neuralmonkey.runners.base_runner import (BaseRunner, Executable,
 
 class PerplexityExecutable(Executable):
     def __init__(self, all_coders: Set[ModelPart],
-                 xent_op: tf.Tensor) -> None:
+                 xent_op: tf.Tensor,
+                 num_sessions: int) -> None:
         self._all_coders = all_coders
         self._xent_op = xent_op
+        self._num_sessions = num_sessions
         self.result = None  # type: ExecutionResult
 
     def next_to_execute(self) -> NextExecute:
         """Get the feedables and tensors to run."""
-        return self._all_coders, {"xents": self._xent_op}, {}
+        return self._all_coders, {'xents': self._xent_op}, [{} for _ in range(self._num_sessions)]
 
     def collect_results(self, results: List[Dict]) -> None:
         perplexities = np.mean([2 ** res["xents"] for res in results], axis=0)
@@ -42,9 +44,11 @@ class PerplexityRunner(BaseRunner):
         self._decoder_xent = cast(Decoder, self._decoder).train_xents
 
     def get_executable(self, compute_losses=False,
-                       summaries=True) -> PerplexityExecutable:
+                       summaries=True,
+                       num_sessions=1) -> PerplexityExecutable:
         return PerplexityExecutable(self.all_coders,
-                                    self._decoder_xent)
+                                    self._decoder_xent,
+                                    num_sessions)
 
     @property
     def loss_names(self) -> List[str]:

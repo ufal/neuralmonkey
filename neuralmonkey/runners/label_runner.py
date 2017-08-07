@@ -20,7 +20,10 @@ class LabelRunner(BaseRunner):
         # make sure the lazy decoder creates its output tensor
         log("Decoder output tensor: {}".format(decoder.decoded))
 
-    def get_executable(self, compute_losses=False, summaries=True):
+    def get_executable(self,
+                       compute_losses=False,
+                       summaries=True,
+                       num_sessions=1):
         if compute_losses:
             fetches = {"loss": self._decoder.cost}
         else:
@@ -30,6 +33,7 @@ class LabelRunner(BaseRunner):
         fetches["input_mask"] = self._decoder.encoder.input_sequence.mask
 
         return LabelRunExecutable(self.all_coders, fetches,
+                                  num_sessions,
                                   self._decoder.vocabulary,
                                   self._postprocess)
 
@@ -40,9 +44,10 @@ class LabelRunner(BaseRunner):
 
 class LabelRunExecutable(Executable):
 
-    def __init__(self, all_coders, fetches, vocabulary, postprocess):
+    def __init__(self, all_coders, fetches, num_sessions, vocabulary, postprocess):
         self.all_coders = all_coders
         self._fetches = fetches
+        self._num_sessions = num_sessions
         self._vocabulary = vocabulary
         self._postprocess = postprocess
 
@@ -51,7 +56,7 @@ class LabelRunExecutable(Executable):
 
     def next_to_execute(self) -> NextExecute:
         """Get the feedables and tensors to run."""
-        return self.all_coders, self._fetches, {}
+        return self.all_coders, self._fetches, [{} for _ in range(self._num_sessions)]
 
     def collect_results(self, results: List[Dict]) -> None:
         loss = results[0].get("loss", 0.)

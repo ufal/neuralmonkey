@@ -22,7 +22,8 @@ class PlainRunner(BaseRunner):
         super(PlainRunner, self).__init__(output_series, decoder)
         self._postprocess = postprocess
 
-    def get_executable(self, compute_losses=False, summaries=True):
+    def get_executable(self, compute_losses=False, summaries=True,
+                       num_sessions=1):
         if compute_losses:
             fetches = {"train_loss": self._decoder.train_loss,
                        "runtime_loss": self._decoder.runtime_loss}
@@ -33,6 +34,7 @@ class PlainRunner(BaseRunner):
         fetches["decoded"] = self._decoder.decoded
 
         return PlainExecutable(self.all_coders, fetches,
+                               num_sessions,
                                self._decoder.vocabulary,
                                self._postprocess)
 
@@ -43,9 +45,11 @@ class PlainRunner(BaseRunner):
 
 class PlainExecutable(Executable):
 
-    def __init__(self, all_coders, fetches, vocabulary, postprocess) -> None:
+    def __init__(self, all_coders, fetches,
+                 num_sessions, vocabulary, postprocess) -> None:
         self.all_coders = all_coders
         self._fetches = fetches
+        self._num_sessions = num_sessions
         self._vocabulary = vocabulary
         self._postprocess = postprocess
 
@@ -54,7 +58,7 @@ class PlainExecutable(Executable):
 
     def next_to_execute(self) -> NextExecute:
         """Get the feedables and tensors to run."""
-        return self.all_coders, self._fetches, {}
+        return self.all_coders, self._fetches, [{} for _ in range(self._num_sessions)]
 
     def collect_results(self, results: List[Dict]) -> None:
         if len(results) != 1:

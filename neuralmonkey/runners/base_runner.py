@@ -31,7 +31,8 @@ class BaseRunner(object):
 
     def get_executable(self,
                        compute_losses: bool = False,
-                       summaries: bool = True) -> Executable:
+                       summaries: bool = True,
+                       num_sessions: int = 1) -> Executable:
         raise NotImplementedError()
 
     @property

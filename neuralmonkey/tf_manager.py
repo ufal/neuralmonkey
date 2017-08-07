@@ -186,33 +186,39 @@ class TensorFlowManager(object):
                 log("Processed {} examples.".format(batch_id * batch_size))
                 last_log_time = time.process_time()
             executables = [s.get_executable(compute_losses=compute_losses,
-                                            summaries=summaries)
+                                            summaries=summaries,
+                                            num_sessions=len(self.sessions))
                            for s in execution_scripts]
             while not all(ex.result is not None for ex in executables):
                 all_feedables = set()  # type: Set[Any]
                 all_tensors_to_execute = {}
-                additional_feed_dicts = []
+
+                # We might want to feed different values to each session
+                # E.g. when executing only step at a time during ensembling
+                feed_dicts = [{} for _ in range(len(self.sessions))]
                 tensor_list_lengths = []  # type: List[int]
 
                 for executable in executables:
                     if executable.result is None:
                         (feedables,
                          tensors_to_execute,
-                         add_feed_dict) = executable.next_to_execute()
+                         add_feed_dicts) = executable.next_to_execute()
                         all_feedables = all_feedables.union(feedables)
                         all_tensors_to_execute[executable] = tensors_to_execute
-                        additional_feed_dicts.append(add_feed_dict)
+                        for fdict, add_fdict in zip(feed_dicts, add_feed_dicts):
+                            fdict.update(add_fdict)
                         tensor_list_lengths.append(len(tensors_to_execute))
                     else:
                         tensor_list_lengths.append(0)
 
                 feed_dict = _feed_dicts(batch, all_feedables, train=train)
-                for fdict in additional_feed_dicts:
-                    feed_dict.update(fdict)
+                
+                for fdict in feed_dicts:
+                    fdict.update(feed_dict)
 
                 session_results = [sess.run(all_tensors_to_execute,
-                                            feed_dict=feed_dict)
-                                   for sess in self.sessions]
+                                            feed_dict=fd)
+                                   for sess, fd in zip(self.sessions, feed_dicts)]
 
                 for executable in executables:
                     if executable.result is None:

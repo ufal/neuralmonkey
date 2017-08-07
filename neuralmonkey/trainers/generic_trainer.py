@@ -115,10 +115,12 @@ class GenericTrainer(object):
         return gradient_list
 
     def get_executable(
-            self, compute_losses=True, summaries=True) -> Executable:
+            self, compute_losses=True, summaries=True,
+            num_sessions=1) -> Executable:
         assert compute_losses
 
         return TrainExecutable(self.all_coders,
+                               num_sessions,
                                self.train_op,
                                self.losses,
                                self.scalar_summaries if summaries else None,
@@ -152,9 +154,11 @@ def _scale_gradients(gradients: Gradients,
 
 class TrainExecutable(Executable):
 
-    def __init__(self, all_coders, train_op, losses, scalar_summaries,
+    def __init__(self, all_coders, num_sessions,
+                 train_op, losses, scalar_summaries,
                  histogram_summaries):
         self.all_coders = all_coders
+        self.num_sessions = num_sessions
         self.train_op = train_op
         self.losses = losses
         self.scalar_summaries = scalar_summaries
@@ -169,7 +173,7 @@ class TrainExecutable(Executable):
             fetches["histogram_summaries"] = self.histogram_summaries
         fetches["losses"] = self.losses
 
-        return self.all_coders, fetches, {}
+        return self.all_coders, fetches, [{} for _ in range(self.num_sessions)]
 
     def collect_results(self, results: List[Dict]) -> None:
         if self.scalar_summaries is None:
