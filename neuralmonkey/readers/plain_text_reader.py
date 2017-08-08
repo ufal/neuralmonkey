@@ -2,6 +2,7 @@ from typing import List, Iterable, Callable
 import gzip
 import csv
 import io
+import sys
 
 from neuralmonkey.logging import warn
 
@@ -9,6 +10,8 @@ from neuralmonkey.logging import warn
 # pylint: disable=invalid-name
 PlainTextFileReader = Callable[[List[str]], Iterable[List[str]]]
 # pylint: enable=invalid-name
+
+csv.field_size_limit(sys.maxsize)
 
 
 def string_reader(
