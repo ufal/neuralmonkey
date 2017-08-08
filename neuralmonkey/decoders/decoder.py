@@ -140,6 +140,10 @@ class Decoder(ModelPart):
             self.embedding_size = (
                 self.embeddings_source.embedding_matrix.get_shape()[1].value)
 
+            self.data_id = self.embeddings_source.data_id
+            log("Ignoring decoders data_id field and using the sequence"
+                "embedding data_id.")
+
         if self.encoder_projection is None:
             if not self.encoders:
                 log("No encoder - language model only.")
