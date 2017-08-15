@@ -165,6 +165,7 @@ class TensorFlowManager(object):
                 self.saved_scores))
 
     # pylint: disable=too-many-locals
+    # pylint: disable=too-many-branches
     def execute(self,
                 dataset: Dataset,
                 execution_scripts,
@@ -205,20 +206,21 @@ class TensorFlowManager(object):
                          add_feed_dicts) = executable.next_to_execute()
                         all_feedables = all_feedables.union(feedables)
                         all_tensors_to_execute[executable] = tensors_to_execute
-                        for fdict, add_fdict in zip(feed_dicts, add_feed_dicts):
-                            fdict.update(add_fdict)
+                        for fdict, add_fd in zip(feed_dicts, add_feed_dicts):
+                            fdict.update(add_fd)
                         tensor_list_lengths.append(len(tensors_to_execute))
                     else:
                         tensor_list_lengths.append(0)
 
                 feed_dict = _feed_dicts(batch, all_feedables, train=train)
-                
+
                 for fdict in feed_dicts:
                     fdict.update(feed_dict)
 
-                session_results = [sess.run(all_tensors_to_execute,
-                                            feed_dict=fd)
-                                   for sess, fd in zip(self.sessions, feed_dicts)]
+                session_results = [
+                    sess.run(all_tensors_to_execute,
+                             feed_dict=fd)
+                    for sess, fd in zip(self.sessions, feed_dicts)]
 
                 for executable in executables:
                     if executable.result is None:

@@ -58,7 +58,9 @@ class PlainExecutable(Executable):
 
     def next_to_execute(self) -> NextExecute:
         """Get the feedables and tensors to run."""
-        return self.all_coders, self._fetches, [{} for _ in range(self._num_sessions)]
+        return (self.all_coders,
+                self._fetches,
+                [{} for _ in range(self._num_sessions)])
 
     def collect_results(self, results: List[Dict]) -> None:
         if len(results) != 1:

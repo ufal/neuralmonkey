@@ -23,7 +23,9 @@ class RepresentationExecutable(Executable):
         self.result = None  # type: ExecutionResult
 
     def next_to_execute(self) -> NextExecute:
-        return self._prev_coders, {"encoded": self._encoded}, [{} for _ in range(self._num_sessions)]
+        return (self._prev_coders,
+                {"encoded": self._encoded},
+                [{} for _ in range(self._num_sessions)])
 
     def collect_results(self, results: List[Dict]) -> None:
         if self._used_session > len(results):

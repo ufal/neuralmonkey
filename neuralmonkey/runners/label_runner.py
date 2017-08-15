@@ -44,7 +44,12 @@ class LabelRunner(BaseRunner):
 
 class LabelRunExecutable(Executable):
 
-    def __init__(self, all_coders, fetches, num_sessions, vocabulary, postprocess):
+    def __init__(self,
+                 all_coders,
+                 fetches,
+                 num_sessions,
+                 vocabulary,
+                 postprocess):
         self.all_coders = all_coders
         self._fetches = fetches
         self._num_sessions = num_sessions
@@ -56,7 +61,9 @@ class LabelRunExecutable(Executable):
 
     def next_to_execute(self) -> NextExecute:
         """Get the feedables and tensors to run."""
-        return self.all_coders, self._fetches, [{} for _ in range(self._num_sessions)]
+        return (self.all_coders,
+                self._fetches,
+                [{} for _ in range(self._num_sessions)])
 
     def collect_results(self, results: List[Dict]) -> None:
         loss = results[0].get("loss", 0.)

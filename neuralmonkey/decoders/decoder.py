@@ -543,11 +543,11 @@ class Decoder(ModelPart):
     def _decoding_loop(self, train_mode: bool, sample: bool = False)-> Tuple[
             tf.Tensor, tf.Tensor, tf.Tensor, tf.Tensor]:
 
-        self.initial_loop_state = self.get_initial_loop_state()
+        initial_loop_state = self.get_initial_loop_state()
         final_loop_state = tf.while_loop(
             self.loop_continue_criterion,
             self.get_body(train_mode, sample),
-            self.initial_loop_state)
+            initial_loop_state)
 
         for att_state, attn_obj in zip(
                 final_loop_state.attention_loop_states, self.attentions):
