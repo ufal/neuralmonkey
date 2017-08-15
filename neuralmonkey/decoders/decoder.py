@@ -17,7 +17,7 @@ from neuralmonkey.logging import log, warn
 from neuralmonkey.nn.ortho_gru_cell import OrthoGRUCell
 from neuralmonkey.nn.utils import dropout
 from neuralmonkey.encoders.attentive import Attentive
-from neuralmonkey.nn.projection import linear
+from neuralmonkey.nn.projection import linear, nonlinear
 from neuralmonkey.decoders.encoder_projection import (
     linear_encoder_projection, concat_encoder_projection, empty_initial_state)
 from neuralmonkey.decoders.output_projection import no_deep_output
@@ -451,9 +451,10 @@ class Decoder(ModelPart):
 
                 with tf.name_scope("rnn_output_projection"):
                     if attns:
-                        output = linear([cell_output] + list(contexts),
-                                        cell.output_size,
-                                        scope="AttnOutputProjection")
+                        output = nonlinear([cell_output] + list(contexts),
+                                           cell.output_size,
+                                           activation=tf.nn.relu,
+                                           scope="AttnOutputProjection")
                     else:
                         output = cell_output
                         att_loop_states = []
