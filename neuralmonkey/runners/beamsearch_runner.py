@@ -89,20 +89,26 @@ class BeamSearchExecutable(Executable):
         self._next_feed = []
         for sess_idx, _ in enumerate(results):
             bs_outputs = results[sess_idx]['bs_outputs']
-            dec_ls = bs_outputs.last_dec_loop_state
             search_state = bs_outputs.last_search_state
-            fd = {
-                # In ensembles, we execute only one step at a time
+            dec_ls = bs_outputs.last_dec_loop_state
+            fd = {}
+            # Due to the arrays in DecoderState (prev_contexts),
+            # we have to create feed for each value separately.
+            for field in self._decoder._decoder_state._fields:
+                # We do not feed the step
+                if field == 'step':
+                    continue
+                tensor = getattr(self._decoder._decoder_state, field)
+                value = getattr(dec_ls, field)
+                if isinstance(tensor, list):
+                    for t, val in zip(tensor, value):
+                        fd.update({t : val})
+                else:
+                    fd.update({tensor : value})
+
+            fd.update({
                 self._decoder._max_steps : 1,
-                self._decoder._dec_input_symbol : dec_ls.input_symbol,
-                self._decoder._dec_prev_rnn_state : dec_ls.prev_rnn_state,
-                self._decoder._dec_prev_rnn_output : dec_ls.prev_rnn_output,
-                self._decoder._dec_prev_logits : prev_logits,
-                self._decoder._dec_finished : dec_ls.finished,
-                self._decoder._search_state : search_state}
-            for fetch, value in zip(self._decoder._dec_prev_contexts,
-                                    dec_ls.prev_contexts):
-                fd.update({fetch : value})
+                self._decoder._search_state : search_state})
             self._next_feed.append(fd)
         return
 
@@ -130,6 +136,8 @@ class BeamSearchExecutable(Executable):
         else:
             decoded_tokens = [before_eos_tokens]
 
+        # TODO: provide better summaries in case
+        # we want to use the runner during training.
         self.result = ExecutionResult(
             outputs=decoded_tokens,
             losses=[bs_output.scores[-1][self._rank - 1]],

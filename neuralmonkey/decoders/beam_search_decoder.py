@@ -73,9 +73,6 @@ BeamSearchOutput = NamedTuple("SearchStepOutput",
                                ("last_search_state", SearchState)])
 
 # pylint: enable=invalid-name
-
-
-# pylint: disable=too-many-instance-attributes
 class BeamSearchDecoder(ModelPart):
     """In-graph beam search for batch size 1.
 
@@ -107,19 +104,12 @@ class BeamSearchDecoder(ModelPart):
             self._max_steps = tf.constant(parent_decoder.max_output_len)
         self._loop_state = None
 
-        self.outputs = self._decoding_loop()
-
-        # (Optional) Feedables
-        # TODO: avoid using too many attributes
+        # Feedables
         self._search_state = None
-        self._dec_step = None
-        self._dec_input_symbol = None
-        self._dec_train_inputs = None
-        self._dec_prev_rnn_state = None
-        self._dec_prev_rnn_output = None
-        self._dec_prev_logits = None
-        self._dec_prev_contexts = None
-        self._dec_finished = None
+        self._decoder_state = None
+
+        # Output
+        self.outputs = self._decoding_loop()
 
     @property
     def beam_size(self):
@@ -129,16 +119,12 @@ class BeamSearchDecoder(ModelPart):
     def vocabulary(self):
         return self.parent_decoder.vocabulary
 
-    # pylint: disable=no-self-use
-    def _get_initial_search_state(self) -> SearchState:
+    def get_initial_loop_state(self, att_objects: List) -> BeamSearchLoopState:
         # We want to feed these values in ensembles
-        return SearchState(
+        self._search_state = SearchState(
             logprob_sum=tf.placeholder_with_default([0.0], [None]),
             lengths=tf.placeholder_with_default([1], [None]),
             finished=tf.placeholder_with_default([False], [None]))
-
-    def get_initial_loop_state(self) -> BeamSearchLoopState:
-        self._search_state = self._get_initial_search_state()
 
         # TODO: make these feedable
         output_ta = SearchStepOutputTA(
@@ -158,26 +144,19 @@ class BeamSearchDecoder(ModelPart):
         # that can be directly fed from outside
         # the Session.run() due to the logit recombination
         # in ensembles.
-        # TODO: use NamedTuple instead?
         indices = tf.tile([0], [self._beam_size])
-        self._dec_step = dec_ls.step
-        self._dec_input_symbol = tf.gather(dec_ls.input_symbol, indices)
-        self._dec_train_inputs = tf.gather(dec_ls.train_inputs, indices)
-        self._dec_prev_rnn_state = tf.gather(dec_ls.prev_rnn_state, indices)
-        self._dec_prev_rnn_output = tf.gather(dec_ls.prev_rnn_output, indices)
-        self._dec_prev_logits = dec_ls.prev_logits
-        self._dec_prev_contexts = (
-            [tf.gather(ctx, indices) for ctx in dec_ls.prev_contexts])
-        self._dec_finished = tf.gather(dec_ls.finished, indices)
-        dec_ls = dec_ls._replace(
-            step=self._dec_step,
-            input_symbol=self._dec_input_symbol,
-            train_inputs=self._dec_train_inputs,
-            prev_rnn_state=self._dec_prev_rnn_state,
-            prev_rnn_output=self._dec_prev_rnn_output,
-            prev_logits=self._dec_prev_logits,
-            prev_contexts=self._dec_prev_contexts,
-            finished=self._dec_finished)
+        self._decoder_state = DecoderState(
+            step=dec_ls.step,
+            input_symbol=tf.gather(dec_ls.input_symbol, indices),
+            train_inputs=tf.gather(dec_ls.train_inputs, indices),
+            prev_rnn_state=tf.gather(dec_ls.prev_rnn_state, indices),
+            prev_rnn_output=tf.gather(dec_ls.prev_rnn_output, indices),
+            prev_logits=dec_ls.prev_logits,
+            prev_contexts=(
+                [tf.gather(ctx, indices) for ctx in dec_ls.prev_contexts]),
+            finished=tf.gather(dec_ls.finished, indices),
+            attention_loop_states=[])
+        dec_ls = dec_ls._replace(**self._decoder_state._asdict())
 
         # TODO:
         # Make TensorArrays also feedable
