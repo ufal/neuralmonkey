@@ -7,11 +7,17 @@ class ChrFEvaluator(object):
     http://www.statmt.org/wmt15/pdf/WMT49.pdf
     """
 
-    def __init__(self, n: int = 3, beta: float = 1,
+    def __init__(self, n: int = 6, beta: float = 1,
+                 ignored_symbols: Optional[List[str]] = None,
                  name: Optional[str] = None) -> None:
         self.n = n
         # We store the squared value of Beta
         self.beta_2 = beta**2
+
+        if ignored_symbols is not None:
+            self.ignored = ignored_symbols
+        else:
+            self.ignored = [" "]
 
         if name is not None:
             self.name = name
@@ -29,8 +35,11 @@ class ChrFEvaluator(object):
         for hyp, ref in zip(hypotheses, references):
             hyp_joined = " ".join(hyp)
             hyp_chars = list(hyp_joined)
+            hyp_chars = [x for x in hyp_chars if x not in self.ignored]
+
             ref_joined = " ".join(ref)
             ref_chars = list(ref_joined)
+            ref_chars = [x for x in ref_chars if x not in self.ignored]
 
             # ChrP
             for i in range(len(hyp_chars) - self.n + 1):
@@ -61,4 +70,4 @@ class ChrFEvaluator(object):
 
 
 # pylint: disable=invalid-name
-ChrF3 = ChrFEvaluator(n=3)
+ChrF3 = ChrFEvaluator(beta=3)
