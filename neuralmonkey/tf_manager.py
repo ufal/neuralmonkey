@@ -21,6 +21,9 @@ from typeguard import check_argument_types
 
 from neuralmonkey.logging import log
 from neuralmonkey.dataset import Dataset
+# pylint: disable=unused-import
+from neuralmonkey.runners.base_runner import FeedDict
+# pylint: enable=unused-import
 from neuralmonkey.runners.base_runner import (ExecutionResult,
                                               reduce_execution_results)
 
@@ -197,6 +200,8 @@ class TensorFlowManager(object):
                 # We might want to feed different values to each session
                 # E.g. when executing only step at a time during ensembling
                 feed_dicts = [{} for _ in range(len(self.sessions))]
+                # type: List[FeedDict]
+
                 tensor_list_lengths = []  # type: List[int]
 
                 for executable in executables:

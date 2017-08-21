@@ -34,6 +34,7 @@ from neuralmonkey.model.model_part import ModelPart, FeedDict
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.decoders.decoder import Decoder, LoopState
 from neuralmonkey.vocabulary import (END_TOKEN_INDEX, PAD_TOKEN_INDEX)
+from neuralmonkey.decorators import tensor
 
 # pylint: disable=invalid-name
 DecoderState = NamedTuple("DecoderState",
@@ -52,10 +53,10 @@ SearchState = NamedTuple("SearchState",
                           ("lengths", tf.Tensor),
                           ("finished", tf.Tensor)])
 
-SearchStepOutput = NamedTuple("SearchStepOutputTA",
-                              [("scores", tf.TensorArray),
-                               ("parent_ids", tf.TensorArray),
-                               ("token_ids", tf.TensorArray)])
+SearchStepOutput = NamedTuple("SearchStepOutput",
+                              [("scores", tf.Tensor),
+                               ("parent_ids", tf.Tensor),
+                               ("token_ids", tf.Tensor)])
 
 SearchStepOutputTA = NamedTuple("SearchStepOutputTA",
                                 [("scores", tf.TensorArray),
@@ -71,6 +72,7 @@ BeamSearchOutput = NamedTuple("SearchStepOutput",
                               [("last_search_step_output", SearchStepOutput),
                                ("last_dec_loop_state", DecoderState),
                                ("last_search_state", SearchState)])
+
 
 # pylint: enable=invalid-name
 class BeamSearchDecoder(ModelPart):
@@ -102,11 +104,10 @@ class BeamSearchDecoder(ModelPart):
         self._max_steps = tf.constant(max_steps + 1)
         if self._max_steps is None:
             self._max_steps = tf.constant(parent_decoder.max_output_len)
-        self._loop_state = None
 
         # Feedables
-        self._search_state = None
-        self._decoder_state = None
+        self._search_state = None  # type: SearchState
+        self._decoder_state = None  # type: DecoderState
 
         # Output
         self.outputs = self._decoding_loop()
@@ -118,6 +119,18 @@ class BeamSearchDecoder(ModelPart):
     @property
     def vocabulary(self):
         return self.parent_decoder.vocabulary
+
+    @tensor
+    def search_state(self):
+        return self._search_state
+
+    @tensor
+    def decoder_state(self):
+        return self._decoder_state
+
+    @tensor
+    def max_steps(self):
+        return self._max_steps
 
     def get_initial_loop_state(self, att_objects: List) -> BeamSearchLoopState:
         # We want to feed these values in ensembles
@@ -166,7 +179,7 @@ class BeamSearchDecoder(ModelPart):
             bs_output=output_ta,
             decoder_loop_state=dec_ls)
 
-    def _decoding_loop(self) -> SearchStepOutput:
+    def _decoding_loop(self) -> BeamSearchOutput:
         # collect attention objects
         beam_body = self.get_body()
 
@@ -243,7 +256,7 @@ class BeamSearchDecoder(ModelPart):
 
             # mask the probabilities
             # shape(logprobs) = beam x vocabulary
-            logprobs = tf.nn.log_softmax(current_logits) # init: step=0
+            logprobs = tf.nn.log_softmax(current_logits)    # init: step=0
 
             finished_mask = tf.expand_dims(tf.to_float(bs_state.finished), 1)
             unfinished_logprobs = (1. - finished_mask) * logprobs
@@ -293,7 +306,6 @@ class BeamSearchDecoder(ModelPart):
 
             next_beam_ids = tf.div(topk_indices,
                                    len(self.vocabulary))
-
 
             rnn_state = dec_loop_state.prev_rnn_state
             rnn_output = dec_loop_state.prev_rnn_output

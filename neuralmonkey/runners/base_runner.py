@@ -6,13 +6,13 @@ from neuralmonkey.model.model_part import ModelPart
 
 # pylint: disable=invalid-name
 FeedDict = Dict[tf.Tensor, Union[int, float, np.ndarray]]
-NextExecute = Tuple[Set[ModelPart], Union[Dict, List], FeedDict]
-ExecutionResult = NamedTuple("ExecutionResult",
-                             [("outputs", List[Any]),
-                              ("losses", List[float]),
-                              ("scalar_summaries", tf.Summary),
-                              ("histogram_summaries", tf.Summary),
-                              ("image_summaries", tf.Summary)])
+NextExecute = Tuple[Set[ModelPart], Union[Dict, List], List[FeedDict]]
+ExecutionResult = NamedTuple('ExecutionResult',
+                             [('outputs', List[Any]),
+                              ('losses', List[float]),
+                              ('scalar_summaries', tf.Summary),
+                              ('histogram_summaries', tf.Summary),
+                              ('image_summaries', tf.Summary)])
 
 
 class Executable(object):
