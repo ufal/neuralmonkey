@@ -22,7 +22,7 @@ class ChrFEvaluator(object):
         if name is not None:
             self.name = name
         else:
-            self.name = "ChrF-{}".format(n)
+            self.name = "ChrF-{}".format(beta)
 
     # pylint: disable=too-many-locals
     def __call__(self, hypotheses: List[List[str]],
