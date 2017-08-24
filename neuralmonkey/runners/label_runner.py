@@ -15,10 +15,13 @@ class LabelRunner(BaseRunner):
                 ) -> None:
         super(LabelRunner, self).__init__(output_series, decoder)
         self._postprocess = postprocess
+        decoder.decoded
 
     def get_executable(self, compute_losses=False, summaries=True):
         if compute_losses:
             fetches = {"loss": self._decoder.cost}
+        else:
+            fetches = {}
 
         fetches["label_logprobs"] = self._decoder.logprobs
         fetches["input_mask"] = self._decoder.encoder.input_sequence.mask
@@ -48,12 +51,12 @@ class LabelRunExecutable(Executable):
         return self.all_coders, self._fetches, {}
 
     def collect_results(self, results: List[Dict]) -> None:
-        loss = results[0]["loss"]
+        loss = results[0].get("loss", 0.)
         summed_logprobs = results[0]["label_logprobs"]
         input_mask = results[0]["input_mask"]
 
         for sess_result in results[1:]:
-            loss += sess_result["loss"]
+            loss += sess_result.get("loss", 0.)
             summed_logprobs = np.logaddexp(summed_logprobs,
                                            sess_result["label_logprobs"])
             assert input_mask == sess_result["input_mask"]
