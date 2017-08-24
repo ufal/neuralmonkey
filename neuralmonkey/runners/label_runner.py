@@ -1,6 +1,7 @@
 from typing import Any, List, Callable, Dict
 import numpy as np
 
+from neuralmonkey.logging import log
 from neuralmonkey.vocabulary import END_TOKEN_INDEX
 from neuralmonkey.runners.base_runner import (BaseRunner, Executable,
                                               ExecutionResult, NextExecute)
@@ -15,7 +16,9 @@ class LabelRunner(BaseRunner):
                 ) -> None:
         super(LabelRunner, self).__init__(output_series, decoder)
         self._postprocess = postprocess
-        decoder.decoded
+
+        # make sure the lazy decoder creates its output tensor
+        log("Decoder output tensor: {}".format(decoder.decoded))
 
     def get_executable(self, compute_losses=False, summaries=True):
         if compute_losses:
