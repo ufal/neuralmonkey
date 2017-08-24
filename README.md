@@ -115,7 +115,7 @@ If you use the tool for academic purporses, please consider citing
 ```bib
 @article{NeuralMonkey:2017,
     author = {Jind{\v{r}}ich Helcl and Jind{\v{r}}ich Libovick{\'{y}}},
-    title = {Neural Monkey: An Open-source Tool for Sequence Learning},
+    title = {{Neural Monkey: An Open-source Tool for Sequence Learning}},
     journal = {The Prague Bulletin of Mathematical Linguistics},
     year = {2017},
     address = {Prague, Czech Republic},
