@@ -74,7 +74,7 @@ def from_wordlist(path: str,
             next(wordlist)
 
         for line in wordlist:
-            line = line.strip()
+            line = line.rstrip('\r\n')
             # check if line is empty
             if not line:
                 continue
