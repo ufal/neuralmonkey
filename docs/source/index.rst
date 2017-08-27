@@ -8,6 +8,10 @@ Welcome to Neural Monkey's documentation!
 
 Neural Monkey is an open-source toolkit for sequence learning using Tensorflow.
 
+
+If you want to dig in the code, you can browse the `repository
+<https://github.com/ufal/neuralmonkey>`_.
+
 Getting Started
 ---------------
 

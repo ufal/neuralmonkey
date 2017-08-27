@@ -652,7 +652,7 @@ planning to just design an experiment using existing modules, you can start by
 editing one of those examples as well.
 
 If you want to dig in the code, you can browse the `repository
-<https://github.com/ufal/neuralmonkey>`_ Please feel free to fork the repository
+<https://github.com/ufal/neuralmonkey>`_. Please feel free to fork the repository
 and to send us pull requests. The `API documentation
 <http://neural-monkey.readthedocs.io/>`_ is currently under construction, but it
 already contains a little information about Neural Monkey objects and their
