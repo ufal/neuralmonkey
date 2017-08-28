@@ -42,7 +42,7 @@ and CuDNN installations. Similarly, your ``PATH`` variable should point to the
 
 You made it! Neural Monkey is now installed!
 
-Note for Ubuntu 14.04 users
+Note for Ubuntu 14.04 Users
 ***************************
 
 If you get Segmentation fault errors at the very end of the training process,

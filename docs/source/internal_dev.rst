@@ -1,4 +1,4 @@
-Development guidelines
+Development Guidelines
 ======================
 
 .. toctree::

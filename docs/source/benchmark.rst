@@ -1,7 +1,7 @@
 .. _GPU benchmarks:
 
 ==============
-GPU benchmarks
+GPU Benchmarks
 ==============
 
 We have done some benchmarks on our department to find out differences between GPUs and we have

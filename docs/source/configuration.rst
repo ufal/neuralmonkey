@@ -78,7 +78,7 @@ Every section except the ``[main]`` section needs to contain the key
 a value of Python name which is a callable (e.g., a class constructor or a
 function). The other keys are used as named arguments of the callable.
 
-Session manager
+Session Manager
 ---------------
 
 This and following sections describes TensorFlow Manager from the users' perspective: what

@@ -53,7 +53,7 @@ How to read TensorBoard
 The `step` in the TensorBoard is describing how many inputs (not batches) was
 processed.
 
-Attention visualization
+Attention Visualization
 -----------------------
 
 If you are using an attention decoder, visualization of the soft alignment of
