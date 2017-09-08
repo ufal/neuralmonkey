@@ -104,3 +104,8 @@ class GLEUEvaluator(object):
             hypotheses, references, ngrams, case_sensitive)
 
         return min(recall, prec)
+
+
+# pylint: disable=invalid-name
+GLEU = GLEUEvaluator()
+# pylint: enable=invalid-name

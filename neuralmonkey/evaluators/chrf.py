@@ -71,3 +71,4 @@ class ChrFEvaluator(object):
 
 # pylint: disable=invalid-name
 ChrF3 = ChrFEvaluator(beta=3)
+# pylint: enable=invalid-name

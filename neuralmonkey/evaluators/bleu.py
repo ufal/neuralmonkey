@@ -228,3 +228,4 @@ class BLEUEvaluator(object):
 BLEU1 = BLEUEvaluator(n=1)
 BLEU4 = BLEUEvaluator(n=4)
 BLEU = BLEUEvaluator()
+# pylint: enable=invalid-name

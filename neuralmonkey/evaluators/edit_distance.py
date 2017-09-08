@@ -26,3 +26,4 @@ class EditDistanceEvaluator(object):
 
 # pylint: disable=invalid-name
 EditDistance = EditDistanceEvaluator()
+# pylint: enable=invalid-name
