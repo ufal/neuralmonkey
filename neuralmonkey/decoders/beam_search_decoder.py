@@ -101,9 +101,10 @@ class BeamSearchDecoder(ModelPart):
         # In the n+1th step, outputs  of lenght n will be collected
         # and the n+1th step of decoder (which is discarded) will be executed
         self.max_output_len = max_steps
-        self._max_steps = tf.constant(max_steps + 1)
-        if self._max_steps is None:
-            self._max_steps = tf.constant(parent_decoder.max_output_len)
+        if max_steps is None:
+            self._max_steps = parent_decoder.max_output_len
+        else:
+            self._max_steps = tf.constant(max_steps + 1)
 
         # Feedables
         self._search_state = None  # type: SearchState
@@ -168,7 +169,7 @@ class BeamSearchDecoder(ModelPart):
             prev_contexts=(
                 [tf.gather(ctx, indices) for ctx in dec_ls.prev_contexts]),
             finished=tf.gather(dec_ls.finished, indices),
-            attention_loop_states=[])
+            attention_loop_states=dec_ls.attention_loop_states)
         dec_ls = dec_ls._replace(**self._decoder_state._asdict())
 
         # TODO:
