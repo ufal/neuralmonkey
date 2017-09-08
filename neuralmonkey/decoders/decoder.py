@@ -17,10 +17,11 @@ from neuralmonkey.logging import log, warn
 from neuralmonkey.nn.ortho_gru_cell import OrthoGRUCell
 from neuralmonkey.nn.utils import dropout
 from neuralmonkey.encoders.attentive import Attentive
-from neuralmonkey.nn.projection import linear, nonlinear
+from neuralmonkey.nn.projection import linear
 from neuralmonkey.decoders.encoder_projection import (
     linear_encoder_projection, concat_encoder_projection, empty_initial_state)
-from neuralmonkey.decoders.output_projection import no_deep_output
+from neuralmonkey.decoders.output_projection import (OutputProjectionSpec,
+                                                     nonlinear_output)
 from neuralmonkey.decorators import tensor
 
 
@@ -72,12 +73,10 @@ class Decoder(ModelPart):
                  dropout_keep_prob: float = 1.0,
                  rnn_size: Optional[int] = None,
                  embedding_size: Optional[int] = None,
-                 output_projection: Optional[Callable[
-                     [tf.Tensor, tf.Tensor, List[tf.Tensor]],
-                     tf.Tensor]]=None,
-                 encoder_projection: Optional[Callable[
+                 output_projection: OutputProjectionSpec = None,
+                 encoder_projection: Callable[
                      [tf.Tensor, Optional[int], Optional[List[Any]]],
-                     tf.Tensor]]=None,
+                     tf.Tensor]=None,
                  use_attention: bool = False,
                  embeddings_source: Optional[EmbeddedSequence] = None,
                  attention_on_input: bool = True,
@@ -124,7 +123,7 @@ class Decoder(ModelPart):
         self.dropout_keep_prob = dropout_keep_prob
         self.embedding_size = embedding_size
         self.rnn_size = rnn_size
-        self.output_projection = output_projection
+        self.output_projection_spec = output_projection
         self.encoder_projection = encoder_projection
         self.use_attention = use_attention
         self.embeddings_source = embeddings_source
@@ -166,9 +165,17 @@ class Decoder(ModelPart):
         if self._rnn_cell_str not in RNN_CELL_TYPES:
             raise ValueError("RNN cell must be a either 'GRU' or 'LSTM'")
 
-        if self.output_projection is None:
-            log("No output projection specified - using simple concatenation")
-            self.output_projection = no_deep_output
+        if self.output_projection_spec is None:
+            log("No output projection specified - using tanh projection")
+            self.output_projection = nonlinear_output(
+                self.rnn_size, tf.tanh)[0]
+            self.output_projection_size = self.rnn_size
+        elif isinstance(self.output_projection_spec, tuple):
+            (self.output_projection,
+             self.output_projection_size) = tuple(self.output_projection_spec)
+        else:
+            self.output_projection = self.output_projection_spec
+            self.output_projection_size = self.rnn_size
 
         if self._attention_on_input:
             self.input_projection = self.input_plus_attention
@@ -277,7 +284,8 @@ class Decoder(ModelPart):
     def decoding_w(self) -> tf.Variable:
         with tf.name_scope("output_projection"):
             return tf.get_variable(
-                "state_to_word_W", [self.rnn_size, len(self.vocabulary)],
+                "state_to_word_W",
+                [self.output_projection_size, len(self.vocabulary)],
                 initializer=tf.random_uniform_initializer(-0.5, 0.5))
 
     @tensor
@@ -454,14 +462,12 @@ class Decoder(ModelPart):
                     raise ValueError("Unknown RNN cell.")
 
                 with tf.name_scope("rnn_output_projection"):
-                    if attns:
-                        output = nonlinear([cell_output] + list(contexts),
-                                           cell.output_size,
-                                           activation=tf.nn.relu,
-                                           scope="AttnOutputProjection")
-                    else:
-                        output = cell_output
-                        att_loop_states = []
+                    embedded_input = tf.nn.embedding_lookup(
+                        self.embedding_matrix, loop_state.input_symbol)
+
+                    output = self.output_projection(
+                        cell_output, embedded_input, list(contexts),
+                        self.train_mode)
 
                 logits = self._logit_function(output)
 

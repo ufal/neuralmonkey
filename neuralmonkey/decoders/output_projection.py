@@ -2,10 +2,65 @@
 This module contains different variants of projection functions
 for RNN outputs.
 """
+from typing import Union, Tuple, List, Callable
+
 import tensorflow as tf
 
-from neuralmonkey.nn.projection import maxout
-from neuralmonkey.nn.projection import multilayer_projection
+from neuralmonkey.nn.projection import (multilayer_projection, maxout,
+                                        linear, nonlinear)
+
+
+# pylint: disable=invalid-name
+OutputProjection = Callable[
+    [tf.Tensor, tf.Tensor, List[tf.Tensor], tf.Tensor], tf.Tensor]
+
+OutputProjectionSpec = Union[Tuple[OutputProjection, int],
+                             OutputProjection]
+# pylint: enable=invalid-name
+
+
+def _legacy_linear(output_size: int) -> Tuple[OutputProjection, int]:
+    """This was the default projection before commit 9a09553. For backward
+    compatibility, set the output_size parameter to decoder's rnn_size param.
+    """
+    # pylint: disable=unused-argument
+    def _projection(prev_state, prev_output, ctx_tensors, train_mode):
+        return linear([prev_state] + ctx_tensors,
+                      output_size, scope="AttnOutputProjection")
+    # pylint: enable=unused-argument
+
+    return _projection, output_size
+
+
+def _legacy_relu(output_size: int) -> Tuple[OutputProjection, int]:
+    """This was the default projection after commit 9a09553. For backward
+    compatibility, set the output_size parameter to decoder's rnn_size param.
+    """
+    # pylint: disable=unused-argument
+    def _projection(prev_state, prev_output, ctx_tensors, train_mode):
+        return nonlinear([prev_state] + ctx_tensors,
+                         output_size,
+                         activation=tf.nn.relu,
+                         scope="AttnOutputProjection")
+    # pylint: enable=unused-argument
+
+    return _projection, output_size
+
+
+def nonlinear_output(
+        output_size: int,
+        activation_fn: Callable[[tf.Tensor], tf.Tensor]=tf.tanh
+) -> Tuple[OutputProjection, int]:
+
+    # pylint: disable=unused-argument
+    def _projection(prev_state, prev_output, ctx_tensors, train_mode):
+        return nonlinear([prev_state, prev_output] + ctx_tensors,
+                         output_size,
+                         activation=activation_fn)
+    # pylint: enable=unused-argument
+
+    return _projection, output_size
+# todo tady sem skončil
 
 
 def no_deep_output(prev_state, prev_output, ctx_tensors):
