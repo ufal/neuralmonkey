@@ -45,8 +45,7 @@ DecoderState = NamedTuple("DecoderState",
                            ("prev_rnn_output", tf.Tensor),
                            ("prev_logits", tf.Tensor),
                            ("prev_contexts", List[tf.Tensor]),
-                           ("finished", tf.Tensor),
-                           ("attention_loop_states", List[Any])])
+                           ("finished", tf.Tensor)])
 
 SearchState = NamedTuple("SearchState",
                          [("logprob_sum", tf.Tensor),  # beam x 1
@@ -71,7 +70,8 @@ BeamSearchLoopState = NamedTuple("BeamSearchLoopState",
 BeamSearchOutput = NamedTuple("SearchStepOutput",
                               [("last_search_step_output", SearchStepOutput),
                                ("last_dec_loop_state", DecoderState),
-                               ("last_search_state", SearchState)])
+                               ("last_search_state", SearchState),
+                               ("attention_loop_states", List[Any])])
 
 
 # pylint: enable=invalid-name
@@ -100,11 +100,10 @@ class BeamSearchDecoder(ModelPart):
 
         # In the n+1th step, outputs  of lenght n will be collected
         # and the n+1th step of decoder (which is discarded) will be executed
-        self.max_output_len = max_steps
         if max_steps is None:
-            self._max_steps = parent_decoder.max_output_len
-        else:
-            self._max_steps = tf.constant(max_steps + 1)
+            max_steps = parent_decoder.max_output_len
+        self._max_steps = tf.constant(max_steps + 1)
+        self.max_output_len = max_steps
 
         # Feedables
         self._search_state = None  # type: SearchState
@@ -168,8 +167,7 @@ class BeamSearchDecoder(ModelPart):
             prev_logits=dec_ls.prev_logits,
             prev_contexts=(
                 [tf.gather(ctx, indices) for ctx in dec_ls.prev_contexts]),
-            finished=tf.gather(dec_ls.finished, indices),
-            attention_loop_states=dec_ls.attention_loop_states)
+            finished=tf.gather(dec_ls.finished, indices))
         dec_ls = dec_ls._replace(**self._decoder_state._asdict())
 
         # TODO:
@@ -202,6 +200,12 @@ class BeamSearchDecoder(ModelPart):
         parent_ids = final_state.bs_output.parent_ids.stack()
         token_ids = final_state.bs_output.token_ids.stack()
 
+        #att_loop_states=[AttentionLoopState(
+        #    contexts=a_ls.contexts.stack(),
+        #    weights=a_ls.weights.stack())
+        #    for a_ls in dec_loop_state.attention_loop_states]
+
+        # TODO: return att_loop_states properly
         return BeamSearchOutput(
             last_search_step_output=SearchStepOutput(
                 scores=scores,
@@ -215,9 +219,9 @@ class BeamSearchDecoder(ModelPart):
                 prev_rnn_output=dec_loop_state.prev_rnn_output,
                 prev_logits=dec_loop_state.prev_logits,
                 prev_contexts=dec_loop_state.prev_contexts,
-                finished=dec_loop_state.finished,
-                attention_loop_states=dec_loop_state.attention_loop_states),
-            last_search_state=bs_state)
+                finished=dec_loop_state.finished),
+            last_search_state=bs_state,
+            attention_loop_states=[])
 
     def get_body(self) -> Callable:
         """Return a body function for ``tf.while_loop``."""

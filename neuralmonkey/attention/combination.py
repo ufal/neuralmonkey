@@ -19,7 +19,7 @@ from typeguard import check_argument_types
 import tensorflow as tf
 
 from neuralmonkey.attention.base_attention import (
-    BaseAttention, AttentionLoopState, empty_attention_loop_state,
+    BaseAttention, AttentionLoopStateTA, empty_attention_loop_state,
     get_attention_states, get_attention_mask, Attendable)
 from neuralmonkey.checking import assert_shape
 
@@ -161,7 +161,7 @@ class FlatMultiAttention(MultiAttention):
 
             self.masks_concat = tf.concat(self._encoders_masks, 1)
 
-    def initial_loop_state(self) -> AttentionLoopState:
+    def initial_loop_state(self) -> AttentionLoopStateTA:
         return empty_attention_loop_state()
 
     def get_encoder_projections(self, scope):
@@ -205,8 +205,8 @@ class FlatMultiAttention(MultiAttention):
                   query: tf.Tensor,
                   decoder_prev_state: tf.Tensor,
                   decoder_input: tf.Tensor,
-                  loop_state: AttentionLoopState,
-                  step: tf.Tensor) -> Tuple[tf.Tensor, AttentionLoopState]:
+                  loop_state: AttentionLoopStateTA,
+                  step: tf.Tensor) -> Tuple[tf.Tensor, AttentionLoopStateTA]:
         with tf.variable_scope(self.att_scope_name):
             projected_state = tf.layers.dense(query, self.attention_state_size)
             projected_state = tf.expand_dims(projected_state, 1)
@@ -247,7 +247,7 @@ class FlatMultiAttention(MultiAttention):
             contexts = tf.reduce_sum(
                 tf.expand_dims(attentions, 2) * projections_concat, [1])
 
-            next_loop_state = AttentionLoopState(
+            next_loop_state = AttentionLoopStateTA(
                 contexts=loop_state.contexts.write(step, contexts),
                 weights=loop_state.weights.write(step, attentions))
 
@@ -277,7 +277,7 @@ class FlatMultiAttention(MultiAttention):
         return attentions
 
     def finalize_loop(self, key: str,
-                      last_loop_state: AttentionLoopState) -> None:
+                      last_loop_state: AttentionLoopStateTA) -> None:
         # TODO factorization of the flat distribution across encoders
         # could take place here.
         self.histories[key] = last_loop_state.weights.stack()
@@ -302,7 +302,7 @@ def _sentinel(state, prev_state, input_):
 HierarchicalLoopState = NamedTuple(
     "HierarchicalLoopState",
     [("child_loop_states", List),
-     ("loop_state", AttentionLoopState)])
+     ("loop_state", AttentionLoopStateTA)])
 # pylint: enable=invalid-name
 
 
@@ -402,7 +402,7 @@ class HierarchicalMultiAttention(MultiAttention):
             next_contexts = prev_loop_state.contexts.write(step, context)
             next_weights = prev_loop_state.weights.write(step, attention_distr)
 
-            next_loop_state = AttentionLoopState(
+            next_loop_state = AttentionLoopStateTA(
                 contexts=next_contexts,
                 weights=next_weights)
 

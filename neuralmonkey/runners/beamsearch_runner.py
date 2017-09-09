@@ -86,16 +86,19 @@ class BeamSearchExecutable(Executable):
                 bs_outputs.last_search_step_output.token_ids[0:step],
                 axis=0))
 
-        if self._output.step >= self._decoder.max_output_len:
+        if (self._decoder.max_output_len is not None and 
+            self._output.step >= self._decoder.max_output_len):
             self.prepare_results(self._output)
             return
 
         # Prepare the next feed_dict (in ensembles)
         self._next_feed = []
+        finished = True
         for sess_idx, _ in enumerate(results):
             bs_outputs = results[sess_idx]['bs_outputs']
             search_state = bs_outputs.last_search_state
             dec_ls = bs_outputs.last_dec_loop_state
+            finished &= np.all(dec_ls.finished)
             fd = {}
             # Due to the arrays in DecoderState (prev_contexts),
             # we have to create feed for each value separately.
@@ -115,6 +118,8 @@ class BeamSearchExecutable(Executable):
                 self._decoder.max_steps: 1,
                 self._decoder.search_state: search_state})
             self._next_feed.append(fd)
+        if finished:
+            self.prepare_results(self._output)
         return
 
     def prepare_results(self, bs_output):
