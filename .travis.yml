@@ -24,7 +24,7 @@ python:
 before_install:
   - sudo apt-get install libtcmalloc-minimal4
   - export LD_PRELOAD="/usr/lib/libtcmalloc_minimal.so.4"
-  - pip install -U setuptools
+  - easy_install distribute
   - pip install -r requirements.txt
   - if [ -f tests/$TEST_SUITE""_requirements.txt ]; then pip install -r tests/$TEST_SUITE""_requirements.txt; fi
   - if [ -f tests/$TEST_SUITE""_install.sh ]; then tests/$TEST_SUITE""_install.sh; fi
