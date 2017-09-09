@@ -21,3 +21,4 @@ tests/*.de
 .idea
 tmp-*
 out-example-*
+.mypy_cache

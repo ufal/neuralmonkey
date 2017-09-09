@@ -1,7 +1,11 @@
 # pylint: disable=too-many-lines
 # TODO de-clutter this file!
 
-from typing import Any, Callable, Dict, List, Tuple, Optional, Union, Iterable
+# pylint: disable=unused-import
+from typing import (Any, Callable, Dict, List, Tuple, Optional, Union,
+                    Iterable, Set)
+# pylint: enable=unused-import
+
 import time
 import re
 from datetime import timedelta

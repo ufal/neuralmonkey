@@ -8,7 +8,7 @@ variables.
 
 """
 # pylint: disable=unused-import
-from typing import Any, List, Union, Optional
+from typing import Any, List, Union, Optional, Set
 # pylint: enable=unused-import
 
 import os
@@ -189,8 +189,7 @@ class TensorFlowManager(object):
                                             summaries=summaries)
                            for s in execution_scripts]
             while not all(ex.result is not None for ex in executables):
-                all_feedables = set()   # type: Set[Any]
-                # type: Dict[Executable, tf.Tensor]
+                all_feedables = set()  # type: Set[Any]
                 all_tensors_to_execute = {}
                 additional_feed_dicts = []
                 tensor_list_lengths = []  # type: List[int]

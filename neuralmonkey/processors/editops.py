@@ -66,8 +66,7 @@ DELETE = '<delete>'
 def convert_to_edits(source: List[str], target: List[str]) -> List[str]:
     lev = np.zeros([len(source) + 1, len(target) + 1])
     edits = [[[] for _ in range(len(target) + 1)]
-             for _ in range(len(source) + 1)]
-    # type: List[List[List[str]]]
+             for _ in range(len(source) + 1)]  # type: List[List[List[str]]]
 
     for i in range(len(source) + 1):
         lev[i, 0] = i

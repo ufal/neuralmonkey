@@ -367,8 +367,7 @@ def load_dataset_from_files(
 
     if lazy:
         dataset = LazyDataset(name, series_paths_and_readers, series_outputs,
-                              preprocessors)
-        # type: Dataset
+                              preprocessors)  # type: Dataset
     else:
         series = {key: list(reader(paths))
                   for key, (paths, reader) in series_paths_and_readers.items()}

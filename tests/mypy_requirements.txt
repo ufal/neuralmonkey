@@ -1,1 +1,1 @@
-mypy-lang
+mypy

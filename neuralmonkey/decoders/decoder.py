@@ -1,7 +1,7 @@
 # pylint: disable=too-many-lines
 import math
 from typing import (cast, Iterable, List, Callable, Optional,
-                    Any, Tuple, NamedTuple)
+                    Any, Tuple, NamedTuple, Dict)
 
 import numpy as np
 import tensorflow as tf
@@ -22,6 +22,12 @@ from neuralmonkey.decoders.encoder_projection import (
     linear_encoder_projection, concat_encoder_projection, empty_initial_state)
 from neuralmonkey.decoders.output_projection import no_deep_output
 from neuralmonkey.decorators import tensor
+
+
+# pylint: disable=invalid-name
+AttMapping = Dict[Attentive, tf.Tensor]
+# pylint: enable=invalid-name
+
 
 RNN_CELL_TYPES = {
     "GRU": OrthoGRUCell,
@@ -174,8 +180,7 @@ class Decoder(ModelPart):
                 pass
 
             # fetch train attention objects
-            self._train_attention_objects = {}
-            # type: Dict[Attentive, tf.Tensor]
+            self._train_attention_objects = {}  # type: AttMapping
             if self.use_attention:
                 with tf.name_scope("attention_object"):
                     self._train_attention_objects = {
@@ -187,8 +192,7 @@ class Decoder(ModelPart):
             tf.get_variable_scope().reuse_variables()
 
             # fetch runtime attention objects
-            self._runtime_attention_objects = {}
-            # type: Dict[Attentive, tf.Tensor]
+            self._runtime_attention_objects = {}  # type: AttMapping
             if self.use_attention:
                 self._runtime_attention_objects = {
                     e: e.create_attention_object()
