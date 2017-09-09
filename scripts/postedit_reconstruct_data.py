@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-
 """
 This a script that takes the result of automatic postediting encoded as a
 sequence of <keep>, <delete> and insert operations and applies them on the
@@ -7,9 +6,6 @@ original text being post-edited.
 
 The inverse script to this one is 'postedit_prepare_data.py'.
 """
-
-# tests: lint, mypy
-
 import argparse
 from neuralmonkey.processors.german import GermanPreprocessor
 from neuralmonkey.processors.german import GermanPostprocessor
@@ -70,8 +66,8 @@ def main():
 
 
 if __name__ == '__main__':
-    #edits = ['<keep>', 'ahoj', '<delete>', 'proc?']
-    #source = ['Karle', 'co', 'kdy']
+    # edits = ['<keep>', 'ahoj', '<delete>', 'proc?']
+    # source = ['Karle', 'co', 'kdy']
     # print reconstruct(source, edits)
 
     main()
