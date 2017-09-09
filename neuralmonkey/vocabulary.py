@@ -7,7 +7,9 @@ import collections
 import os
 import random
 
-from typing import List, Optional, Tuple
+# pylint: disable=unused-import
+from typing import List, Optional, Tuple, Dict
+# pylint: enable=unused-import
 
 import numpy as np
 from typeguard import check_argument_types
@@ -478,8 +480,8 @@ class Vocabulary(collections.Sized):
         Returns:
             List of lists of words.
         """
-        sentences = [[] for _ in range(vectors[0].shape[0])]
-        # type: List[List[str]]
+        sentences = [[] for _ in
+                     range(vectors[0].shape[0])]  # type: List[List[str]]
 
         for vec in vectors:
             for sentence, word_i in zip(sentences, vec):

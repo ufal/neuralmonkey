@@ -191,7 +191,7 @@ def sentence_gleu(references: np.ndarray,
 def _count_matching_n_grams(ref: np.ndarray,
                             hyp: np.ndarray,
                             n: int) -> Tuple[int, int, int]:
-    ref_counts = Counter()  # type: Counter[str]
+    ref_counts = Counter()  # type: Counter
     total_ref_n_grams = 0
     for n_gram in _get_n_grams(ref, n):
         ref_counts[str(n_gram)] += 1

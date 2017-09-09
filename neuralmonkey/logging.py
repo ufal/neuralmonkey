@@ -4,7 +4,9 @@ import sys
 import os
 
 # pylint: disable=unused-import
-from typing import Any, Optional
+from typing import Any, Optional, List
+# pylint: enable=unused-import
+
 from termcolor import colored
 
 
