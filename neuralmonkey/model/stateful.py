@@ -1,7 +1,7 @@
 from abc import ABCMeta, abstractproperty
 import tensorflow as tf
 
-from neuralmonkey.encoders.attentive import Attentive
+# from neuralmonkey.encoders.attentive import Attentive
 
 
 class Stateful(metaclass=ABCMeta):
@@ -36,8 +36,8 @@ class TemporalStateful(metaclass=ABCMeta):
 class SpatialStateful(metaclass=ABCMeta):
 
     # TODO remove when attentions become parts of ini
-    def __init__(self, *args, **kwargs) -> None:
-        Attentive.__init__(self, *args, **kwargs)
+    # def __init__(self, *args, **kwargs) -> None:
+    # Attentive.__init__(self, *args, **kwargs)
 
     @property
     def spatial_states(self) -> tf.Tensor:

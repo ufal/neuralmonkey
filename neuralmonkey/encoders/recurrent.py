@@ -3,8 +3,8 @@ from typing import Tuple, List
 import tensorflow as tf
 from typeguard import check_argument_types
 
+from neuralmonkey.model.stateful import TemporalStatefulWithOutput
 from neuralmonkey.model.model_part import ModelPart, FeedDict
-from neuralmonkey.model.stateful import TemporalStatefulWithOutput, Stateful
 from neuralmonkey.nn.ortho_gru_cell import OrthoGRUCell
 from neuralmonkey.nn.utils import dropout
 from neuralmonkey.vocabulary import Vocabulary
