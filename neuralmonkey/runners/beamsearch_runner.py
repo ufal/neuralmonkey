@@ -57,6 +57,7 @@ class BeamSearchExecutable(Executable):
                 {'bs_outputs': self._decoder.outputs},
                 self._next_feed)
 
+    # pylint: disable=too-many-locals
     def collect_results(self, results: List[Dict]) -> None:
         # Recompute logits
         # Only necessary when ensembling models
@@ -86,8 +87,8 @@ class BeamSearchExecutable(Executable):
                 bs_outputs.last_search_step_output.token_ids[0:step],
                 axis=0))
 
-        if (self._decoder.max_output_len is not None and 
-            self._output.step >= self._decoder.max_output_len):
+        if (self._decoder.max_output_len is not None and
+                self._output.step >= self._decoder.max_output_len):
             self.prepare_results(self._output)
             return
 
@@ -98,7 +99,7 @@ class BeamSearchExecutable(Executable):
             bs_outputs = results[sess_idx]['bs_outputs']
             search_state = bs_outputs.last_search_state
             dec_ls = bs_outputs.last_dec_loop_state
-            finished &= np.all(dec_ls.finished)
+            finished = (finished and np.all(dec_ls.finished))
             fd = {}
             # Due to the arrays in DecoderState (prev_contexts),
             # we have to create feed for each value separately.
@@ -120,6 +121,8 @@ class BeamSearchExecutable(Executable):
             self._next_feed.append(fd)
         if finished:
             self.prepare_results(self._output)
+
+        self._all_encoders = []
         return
 
     def prepare_results(self, bs_output):
