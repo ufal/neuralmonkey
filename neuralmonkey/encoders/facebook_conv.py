@@ -7,7 +7,6 @@ import tensorflow as tf
 import numpy as np
 from typeguard import check_argument_types
 
-from neuralmonkey.encoders.attentive import Attentive
 from neuralmonkey.model.model_part import ModelPart, FeedDict
 from neuralmonkey.logging import log
 from neuralmonkey.dataset import Dataset
@@ -15,9 +14,10 @@ from neuralmonkey.decorators import tensor
 from neuralmonkey.nn.projection import glu, linear
 from neuralmonkey.nn.utils import dropout
 from neuralmonkey.model.sequence import EmbeddedSequence
+from neuralmonkey.model.stateful import TemporalStatefulWithOutput
 
 
-class SentenceEncoder(ModelPart, Attentive):
+class SentenceEncoder(ModelPart, TemporalStatefulWithOutput):
 
     # pylint: disable=too-many-arguments
     def __init__(self,
@@ -27,18 +27,10 @@ class SentenceEncoder(ModelPart, Attentive):
                  encoder_layers: int,
                  kernel_width: int = 5,
                  dropout_keep_prob: float = 1.0,
-                 attention_type: type = None,
-                 attention_state_size: int = None,
-                 attention_fertility: int = 3,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None) -> None:
-
-        assert check_argument_types()
-
+        check_argument_types()
         ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
-        Attentive.__init__(self, attention_type,
-                           attention_state_size=attention_state_size,
-                           attention_fertility=attention_fertility)
 
         self.input_sequence = input_sequence
         self.encoder_layers = encoder_layers
@@ -57,7 +49,7 @@ class SentenceEncoder(ModelPart, Attentive):
     # pylint: enable=too-many-arguments
 
     @tensor
-    def states(self) -> tf.Tensor:
+    def temporal_states(self) -> tf.Tensor:
         convolutions = linear(self.ordered_embedded_inputs,
                               self.conv_features,
                               scope="order_and_embed")
@@ -70,22 +62,13 @@ class SentenceEncoder(ModelPart, Attentive):
                                      scope="input_to_final_state")
 
     @tensor
-    def encoded(self) -> tf.Tensor:
+    def output(self) -> tf.Tensor:
         # This state concatenation is not based on any paper, but was
         # tested empirically
-        return tf.reduce_max(self.states, axis=1)
+        return tf.reduce_max(self.temporal_states, axis=1)
 
     @tensor
-    def _attention_tensor(self) -> tf.Tensor:
-        return dropout(self.states, self.dropout_keep_prob, self.train_mode)
-
-    @tensor
-    def _attention_mask(self) -> tf.Tensor:
-        # TODO tohle je proti OOP prirode
-        return self.input_sequence.mask
-
-    @tensor
-    def states_mask(self) -> tf.Tensor:
+    def temporal_mask(self) -> tf.Tensor:
         return self.input_sequence.mask
 
     @tensor
