@@ -33,6 +33,7 @@ from neuralmonkey.model.model_part import ModelPart, FeedDict
 from neuralmonkey.decorators import tensor
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.nn.utils import dropout
+from neuralmonkey.logging import log
 
 # pylint: disable=invalid-name
 AttentionLoopState = NamedTuple("AttentionLoopState",
@@ -117,6 +118,8 @@ class Attention(BaseAttention):
         self.encoder = encoder
         self.dropout_keep_prob = dropout_keep_prob
         self._state_size = state_size
+
+        log("Hidden features: {}".format(self.hidden_features))
 
     @tensor
     def attention_states(self) -> tf.Tensor:
