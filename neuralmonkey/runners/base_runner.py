@@ -25,16 +25,20 @@ class Executable(object):
 
 def collect_encoders(coder):
     """Collect recusively all encoders and decoders."""
+    to_return = set([coder])
+    if hasattr(coder, "attentions"):
+        to_return = to_return.union(*(collect_encoders(enc)
+                                      for enc in coder.attentions))
     if hasattr(coder, "encoders"):
-        return set([coder]).union(*(collect_encoders(enc)
-                                    for enc in coder.encoders))
+        to_return = to_return.union(*(collect_encoders(enc)
+                                      for enc in coder.encoders))
     if hasattr(coder, "encoder"):
-        return set([coder]).union(collect_encoders(coder.encoder))
+        to_return = to_return.union(collect_encoders(coder.encoder))
     if hasattr(coder, "parent_decoder"):
-        return set([coder]).union(collect_encoders(coder.parent_decoder))
+        to_return = to_return.union(collect_encoders(coder.parent_decoder))
     # TODO replace by .get_predecesor method of ModelPart
 
-    return set([coder])
+    return to_return
 
 
 class BaseRunner(object):
