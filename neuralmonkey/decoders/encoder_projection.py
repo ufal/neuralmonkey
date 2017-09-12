@@ -4,7 +4,7 @@ initial state of the decoder.
 """
 
 
-from typing import List, Optional, Callable, Any
+from typing import List, Optional, Callable
 
 import tensorflow as tf
 

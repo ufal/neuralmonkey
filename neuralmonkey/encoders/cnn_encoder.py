@@ -1,6 +1,6 @@
 """CNN for image processing."""
 
-from typing import List, Tuple, Type, Optional
+from typing import List, Tuple, Optional
 
 import numpy as np
 import tensorflow as tf
@@ -10,7 +10,6 @@ from tensorflow.contrib.layers import conv2d, max_pool2d
 from neuralmonkey.checking import assert_shape
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.decorators import tensor
-from neuralmonkey.decoding_function import Attention
 from neuralmonkey.model.model_part import ModelPart, FeedDict
 from neuralmonkey.model.stateful import SpatialStatefulWithOutput
 from neuralmonkey.nn.projection import multilayer_projection

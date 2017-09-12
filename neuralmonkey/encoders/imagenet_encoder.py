@@ -1,6 +1,6 @@
 """Pre-trained ImageNet networks."""
 
-from typing import Optional, Type
+from typing import Optional
 
 import numpy as np
 import tensorflow as tf
@@ -14,7 +14,6 @@ import tensorflow.contrib.slim.nets
 from neuralmonkey.logging import warn
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.decorators import tensor
-from neuralmonkey.decoding_function import Attention
 from neuralmonkey.model.model_part import ModelPart, FeedDict
 from neuralmonkey.model.stateful import SpatialStatefulWithOutput
 
@@ -55,8 +54,6 @@ class ImageNet(ModelPart, SpatialStatefulWithOutput):
                  data_id: str,
                  network_type: str,
                  attention_layer: Optional[str] = None,
-                 attention_state_size: Optional[int] = None,
-                 attention_type: Type = Attention,
                  fine_tune: bool = False,
                  encoded_layer: Optional[str] = None,
                  load_checkpoint: Optional[str] = None,
@@ -86,10 +83,6 @@ class ImageNet(ModelPart, SpatialStatefulWithOutput):
                 `True`).
         """
         ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
-
-        if attention_layer is None and attention_type is not None:
-            raise ValueError("Attention type is set, although "
-                             "attention layer is not specified.")
 
         if save_checkpoint is not None and not fine_tune:
             warn("The ImageNet network is not fine-tuned and still it is set "

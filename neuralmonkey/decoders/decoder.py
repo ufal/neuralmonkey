@@ -80,7 +80,7 @@ class Decoder(ModelPart):
                  attention_on_input: bool = True,
                  rnn_cell: str = 'GRU',
                  conditional_gru: bool = False,
-                 save_checkpoint: str= None,
+                 save_checkpoint: str = None,
                  load_checkpoint: str = None) -> None:
         """Create a refactored version of monster decoder.
 

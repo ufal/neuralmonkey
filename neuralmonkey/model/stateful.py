@@ -2,6 +2,7 @@ from abc import ABCMeta, abstractproperty
 import tensorflow as tf
 
 
+# pylint: disable=too-few-public-methods
 class Stateful(metaclass=ABCMeta):
     @abstractproperty
     def output(self) -> tf.Tensor:
@@ -9,6 +10,7 @@ class Stateful(metaclass=ABCMeta):
         resulting state of the object.
         """
         raise NotImplementedError("Abstract property")
+# pylint: enable=too-few-public-methods
 
 
 class TemporalStateful(metaclass=ABCMeta):
@@ -48,6 +50,7 @@ class SpatialStateful(metaclass=ABCMeta):
 
 
 # TODO rename these
+# pylint: disable=abstract-method
 class TemporalStatefulWithOutput(Stateful, TemporalStateful):
     pass
 

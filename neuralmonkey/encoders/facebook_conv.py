@@ -12,7 +12,6 @@ from neuralmonkey.logging import log
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.decorators import tensor
 from neuralmonkey.nn.projection import glu, linear
-from neuralmonkey.nn.utils import dropout
 from neuralmonkey.model.sequence import EmbeddedSequence
 from neuralmonkey.model.stateful import TemporalStatefulWithOutput
 
