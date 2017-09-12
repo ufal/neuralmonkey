@@ -10,13 +10,13 @@ from tensorflow.contrib.layers import conv2d, max_pool2d
 from neuralmonkey.checking import assert_shape
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.decorators import tensor
-from neuralmonkey.encoders.attentive import Attentive
 from neuralmonkey.decoding_function import Attention
 from neuralmonkey.model.model_part import ModelPart, FeedDict
+from neuralmonkey.model.stateful import SpatialStatefulWithOutput
 from neuralmonkey.nn.projection import multilayer_projection
 
 
-class CNNEncoder(ModelPart, Attentive):
+class CNNEncoder(ModelPart, SpatialStatefulWithOutput):
     """An image encoder.
 
     It projects the input image through a serie of convolutioal operations. The
@@ -32,7 +32,6 @@ class CNNEncoder(ModelPart, Attentive):
                  image_height: int, image_width: int, pixel_dim: int,
                  fully_connected: Optional[List[int]] = None,
                  dropout_keep_prob: float = 0.5,
-                 attention_type: Type = Attention,
                  save_checkpoint: Optional[str] = None,
                  load_checkpoint: Optional[str] = None) -> None:
         """Initialize a convolutional network for image processing.
@@ -52,7 +51,6 @@ class CNNEncoder(ModelPart, Attentive):
                 fully connected layer.
         """
         ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
-        Attentive.__init__(self, attention_type)
 
         self.data_id = data_id
         self.dropout_keep_prob = dropout_keep_prob
@@ -104,13 +102,13 @@ class CNNEncoder(ModelPart, Attentive):
         return image_processing_layers
 
     @tensor
-    def states(self):
+    def spatial_states(self):
         # pylint: disable=unsubscriptable-object
         return self.image_processing_layers[-1]
         # pylint: enable=unsubscriptable-object
 
     @tensor
-    def encoded(self) -> tf.Tensor:
+    def output(self) -> tf.Tensor:
         """Output vector of the CNN.
 
         If there are specified some fully connected layers, there are applied
@@ -123,18 +121,18 @@ class CNNEncoder(ModelPart, Attentive):
         """
         # pylint: disable=no-member
         last_height, last_width, last_n_channels = [
-            s.value for s in self.states.get_shape()[1:]]
+            s.value for s in self.spatial_states.get_shape()[1:]]
         # pylint: enable=no-member
 
         if self.fully_connected is None:
             # we average out by the image size -> shape is number
             # channels from the last convolution
-            encoded = tf.reduce_mean(self.states, [1, 2])
+            encoded = tf.reduce_mean(self.spatial_states, [1, 2])
             assert_shape(encoded, [None, self.convolutions[-1][1]])
             return encoded
 
         states_flat = tf.reshape(
-            self.states,
+            self.spatial_states,
             [-1, last_width * last_height * last_n_channels])
         return multilayer_projection(
             states_flat, self.fully_connected,
@@ -143,18 +141,8 @@ class CNNEncoder(ModelPart, Attentive):
             train_mode=self.train_mode)
 
     @tensor
-    def _attention_tensor(self) -> tf.Tensor:
-        # pylint: disable=no-member
-        last_height, last_width, last_n_channels = [
-            s.value for s in self.states.get_shape()[1:]]
-        # pylint: enable=no-member
-        return tf.reshape(
-            self.states,
-            [-1, last_width * last_height, last_n_channels])
-
-    @tensor
-    def _attention_mask(self) -> tf.Tensor:
-        return tf.ones(tf.shape(self._attention_tensor)[:2])
+    def spatial_mask(self) -> tf.Tensor:
+        return tf.ones(tf.shape(self.spatial_states)[:3])
 
     def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
         # if it is from the pickled file, it is list, not numpy tensor,

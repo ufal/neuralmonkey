@@ -128,6 +128,9 @@ class Decoder(ModelPart):
         self._attention_on_input = attention_on_input
         self._rnn_cell_str = rnn_cell
 
+        if self.attentions is None:
+            self.attentions = []
+
         if self.embedding_size is None and self.embeddings_source is None:
             raise ValueError("You must specify either embedding size or the "
                              "embedded sequence from which to reuse the "

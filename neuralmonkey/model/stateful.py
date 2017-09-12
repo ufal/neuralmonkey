@@ -1,11 +1,8 @@
 from abc import ABCMeta, abstractproperty
 import tensorflow as tf
 
-# from neuralmonkey.encoders.attentive import Attentive
-
 
 class Stateful(metaclass=ABCMeta):
-
     @abstractproperty
     def output(self) -> tf.Tensor:
         """A 2D `Tensor` of shape (batch, state_size) which contains the
@@ -15,7 +12,6 @@ class Stateful(metaclass=ABCMeta):
 
 
 class TemporalStateful(metaclass=ABCMeta):
-
     @abstractproperty
     def temporal_states(self) -> tf.Tensor:
         """A 3D `Tensor` of shape (batch, time, state_size) which contains the
@@ -34,11 +30,6 @@ class TemporalStateful(metaclass=ABCMeta):
 
 
 class SpatialStateful(metaclass=ABCMeta):
-
-    # TODO remove when attentions become parts of ini
-    # def __init__(self, *args, **kwargs) -> None:
-    # Attentive.__init__(self, *args, **kwargs)
-
     @property
     def spatial_states(self) -> tf.Tensor:
         """A 4D `Tensor` of shape (batch, width, height, state_size) which
@@ -58,12 +49,8 @@ class SpatialStateful(metaclass=ABCMeta):
 
 # TODO rename these
 class TemporalStatefulWithOutput(Stateful, TemporalStateful):
-    # TODO remove when attentions become parts of ini
-    def __init__(self, *args, **kwargs) -> None:
-        TemporalStateful.__init__(self, *args, **kwargs)
+    pass
 
 
 class SpatialStatefulWithOutput(Stateful, SpatialStateful):
-    # TODO remove when attentions become parts of ini
-    def __init__(self, *args, **kwargs) -> None:
-        SpatialStateful.__init__(self, *args, **kwargs)
+    pass

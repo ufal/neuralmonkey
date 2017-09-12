@@ -24,11 +24,12 @@ histories object is constructed *after* the decoding and its construction
 should be triggered manually from the decoder by calling the ``finalize_loop``
 method.
 """
-from typing import NamedTuple, Dict, Optional, Any, Tuple
+from typing import NamedTuple, Dict, Optional, Any, Tuple, Union
 
 import tensorflow as tf
+from typeguard import check_argument_types
 
-from neuralmonkey.model.stateful import TemporalStateful
+from neuralmonkey.model.stateful import TemporalStateful, SpatialStateful
 from neuralmonkey.model.model_part import ModelPart, FeedDict
 from neuralmonkey.decorators import tensor
 from neuralmonkey.dataset import Dataset
@@ -69,8 +70,7 @@ class BaseAttention(ModelPart):
                  load_checkpoint: str = None) -> None:
         ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
 
-        # TODO is the next TODO still valid?
-        # TODO create context vector size property
+        self.query_state_size = None  # type: tf.Tensor
         self._histories = {}  # type: Dict[str, tf.Tensor]
 
     @property
@@ -107,12 +107,13 @@ class Attention(BaseAttention):
 
     def __init__(self,
                  name: str,
-                 # TODO not just temporal
-                 encoder: TemporalStateful,
+                 encoder: Union[TemporalStateful, SpatialStateful],
                  dropout_keep_prob: float = 1.0,
                  state_size: int = None,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None) -> None:
+        check_argument_types()
+
         BaseAttention.__init__(self, name, save_checkpoint, load_checkpoint)
 
         self.encoder = encoder
@@ -120,12 +121,47 @@ class Attention(BaseAttention):
         self._state_size = state_size
 
         log("Hidden features: {}".format(self.hidden_features))
+        log("Attention mask: {}".format(self.attention_mask))
 
     @tensor
     def attention_states(self) -> tf.Tensor:
-        return dropout(self.encoder.temporal_states,
-                       self.dropout_keep_prob,
-                       self.train_mode)
+
+        if isinstance(self.encoder, TemporalStateful):
+            return dropout(self.encoder.temporal_states,
+                           self.dropout_keep_prob,
+                           self.train_mode)
+        elif isinstance(self.encoder, SpatialStateful):
+            # pylint: disable=no-member
+            shape = [
+                s.value for s in self.encoder.spatial_states.get_shape()[1:]]
+            # pylint: enable=no-member
+            state_set = tf.reshape(self.encoder.spatial_states,
+                                   [-1, shape[0] * shape[1], shape[2]])
+
+            return dropout(state_set,
+                           self.dropout_keep_prob,
+                           self.train_mode)
+        else:
+            raise AssertionError("Unknown encoder type")
+
+    @tensor
+    def attention_mask(self) -> Optional[tf.Tensor]:
+        if isinstance(self.encoder, TemporalStateful):
+            return self.encoder.temporal_mask
+
+        elif isinstance(self.encoder, SpatialStateful):
+            if self.encoder.spatial_mask is None:
+                return None
+
+            # pylint: disable=no-member
+            shape = [
+                s.value for s in self.encoder.spatial_mask.get_shape()[1:]]
+            # pylint: enable=no-member
+            return tf.reshape(
+                self.encoder.spatial_mask, [-1, shape[0] * shape[1]])
+
+        else:
+            raise AssertionError("Unknown encoder type")
 
     # pylint: disable=no-member
     # Pylint fault from resolving tensor decoration
@@ -210,10 +246,10 @@ class Attention(BaseAttention):
 
         energies = self.get_energies(y, loop_state.weights)
 
-        if self.encoder.temporal_mask is None:
+        if self.attention_mask is None:
             weights = tf.nn.softmax(energies)
         else:
-            weights_all = tf.nn.softmax(energies) * self.encoder.temporal_mask
+            weights_all = tf.nn.softmax(energies) * self.attention_mask
             norm = tf.reduce_sum(weights_all, 1, keep_dims=True) + 1e-8
             weights = weights_all / norm
 

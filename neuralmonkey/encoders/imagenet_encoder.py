@@ -14,9 +14,10 @@ import tensorflow.contrib.slim.nets
 from neuralmonkey.logging import warn
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.decorators import tensor
-from neuralmonkey.encoders.attentive import Attentive
 from neuralmonkey.decoding_function import Attention
 from neuralmonkey.model.model_part import ModelPart, FeedDict
+from neuralmonkey.model.stateful import SpatialStatefulWithOutput
+
 
 SUPPORTED_NETWORKS = {
     "AlexNet": (tf_slim.nets.alexnet.alexnet_v2_arg_scope,
@@ -42,7 +43,7 @@ SUPPORTED_NETWORKS = {
 }
 
 
-class ImageNet(ModelPart, Attentive):
+class ImageNet(ModelPart, SpatialStatefulWithOutput):
     """Pre-trained ImageNet network."""
 
     WIDTH = 224
@@ -85,8 +86,6 @@ class ImageNet(ModelPart, Attentive):
                 `True`).
         """
         ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
-        Attentive.__init__(self, attention_type,
-                           attention_state_size=attention_state_size)
 
         if attention_layer is None and attention_type is not None:
             raise ValueError("Attention type is set, although "
@@ -139,7 +138,7 @@ class ImageNet(ModelPart, Attentive):
             tf.float32, [None, self.HEIGHT, self.WIDTH, 3])
 
     @tensor
-    def cnn_states(self) -> Optional[tf.Tensor]:
+    def spatial_states(self) -> Optional[tf.Tensor]:
         if self.attention_layer is None:
             return None
 
@@ -150,24 +149,17 @@ class ImageNet(ModelPart, Attentive):
         return net_output
 
     @tensor
-    def states(self) -> Optional[tf.Tensor]:
-        if self.cnn_states is None:
-            return None
-
-        # pylint: disable=no-member
-        shape = [s.value for s in self.cnn_states.get_shape()[1:]]
-        # pylint: enable=no-member
-        return tf.reshape(
-            self.cnn_states, [-1, shape[0] * shape[1], shape[2]])
+    def spatial_mask(self) -> Optional[tf.Tensor]:
+        return None
 
     @tensor
-    def encoded(self) -> tf.Tensor:
+    def output(self) -> tf.Tensor:
         if self.encoded_layer is None:
-            return tf.reduce_mean(self.cnn_states, [1, 2])
+            return tf.reduce_mean(self.spatial_states, [1, 2])
 
         encoded = tf.squeeze(self.end_points[self.encoded_layer], [1, 2])
         if not self.fine_tune:
-            encoded = tf.stop_gradient(self.encoded)
+            encoded = tf.stop_gradient(encoded)
         return encoded
 
     def _init_saver(self) -> None:
@@ -179,10 +171,6 @@ class ImageNet(ModelPart, Attentive):
                     tf.GraphKeys.GLOBAL_VARIABLES, scope=self.network_type)
                 self._saver = tf.train.Saver(
                     var_list=local_variables + slim_variables)
-
-    @property
-    def _attention_tensor(self) -> tf.Tensor:
-        return self.states
 
     def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
         images = np.array(dataset.get_series(self.data_id))
