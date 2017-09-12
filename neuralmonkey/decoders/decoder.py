@@ -185,6 +185,7 @@ class Decoder(ModelPart):
 
         # TODO when it is possible, remove the printing of the cost var
         log("Decoder initalized. Cost var: {}".format(str(self.cost)))
+        log("Runtime logits tensor: {}".format(str(self.runtime_logits)))
     # pylint: enable=too-many-arguments,too-many-branches,too-many-statements
 
     # pylint: disable=no-self-use
