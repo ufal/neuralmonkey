@@ -145,7 +145,6 @@ class Attention(BaseAttention):
                  save_checkpoint: str = None,
                  load_checkpoint: str = None) -> None:
         check_argument_types()
-
         BaseAttention.__init__(self, name, save_checkpoint, load_checkpoint)
 
         self.encoder = encoder
@@ -168,7 +167,7 @@ class Attention(BaseAttention):
     # pylint: disable=no-member
     # Pylint fault from resolving tensor decoration
     @property
-    def input_state_size(self) -> int:
+    def context_vector_size(self) -> int:
         return self.attention_states.get_shape()[2].value
     # pylint: disable=no-member
 
@@ -176,7 +175,7 @@ class Attention(BaseAttention):
     def state_size(self) -> int:
         if self._state_size is not None:
             return self._state_size
-        return self.input_state_size
+        return self.context_vector_size
 
     @tensor
     def query_projection_matrix(self) -> tf.Variable:
@@ -190,7 +189,8 @@ class Attention(BaseAttention):
     def key_projection_matrix(self) -> tf.Variable:
         return tf.get_variable(
             name="attn_key_projection",
-            shape=[self.input_state_size, self.state_size],
+            # TODO tohle neni spravne
+            shape=[self.context_vector_size, self.state_size],
             initializer=tf.random_normal_initializer(stddev=0.001))
 
     @tensor
@@ -259,7 +259,7 @@ class Attention(BaseAttention):
         context = tf.reduce_sum(
             tf.expand_dims(tf.expand_dims(weights, -1), -1)
             * self._att_states_reshaped, [1, 2])
-        context = tf.reshape(context, [-1, self.input_state_size])
+        context = tf.reshape(context, [-1, self.context_vector_size])
 
         next_contexts = loop_state.contexts.write(step, context)
         next_weights = loop_state.weights.write(step, weights)
