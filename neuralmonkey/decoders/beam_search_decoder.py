@@ -25,12 +25,11 @@ in the decoder when its own ``tf.while_loop`` function is used - this is not
 the case when using beam search because we want to run the decoder's steps
 manually.
 """
-from typing import NamedTuple, List, Callable
+from typing import NamedTuple, Callable
 
 import tensorflow as tf
 from typeguard import check_argument_types
 
-from neuralmonkey.decoding_function import BaseAttention
 from neuralmonkey.model.model_part import ModelPart, FeedDict
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.decoders.decoder import Decoder, LoopState
@@ -99,17 +98,18 @@ class BeamSearchDecoder(ModelPart):
     def vocabulary(self):
         return self.parent_decoder.vocabulary
 
-    def _get_initial_search_state(self, att_objects: List) -> SearchState:
+    def _get_initial_search_state(self) -> SearchState:
         return SearchState(
             logprob_sum=tf.constant([0.0]),
             lengths=tf.constant([1], dtype=tf.int32),
             finished=tf.constant([False]),
             last_word_ids=tf.constant([START_TOKEN_INDEX]),
             last_state=self.parent_decoder.initial_state,
-            last_attns=[tf.zeros([1, a.attn_size]) for a in att_objects])
+            last_attns=[tf.zeros([1, a.attn_size])
+                        for a in self.parent_decoder.attentions])
 
-    def get_initial_loop_state(self, att_objects: List) -> BeamSearchLoopState:
-        state = self._get_initial_search_state(att_objects)
+    def get_initial_loop_state(self) -> BeamSearchLoopState:
+        state = self._get_initial_search_state()
         output_ta = SearchStepOutputTA(
             scores=tf.TensorArray(dtype=tf.float32, dynamic_size=True,
                                   size=0, name="beam_scores"),
@@ -118,8 +118,7 @@ class BeamSearchDecoder(ModelPart):
             token_ids=tf.TensorArray(dtype=tf.int32, dynamic_size=True,
                                      size=0, name="beam_tokens"))
 
-        dec_loop_state = self.parent_decoder.get_initial_loop_state(
-            att_objects)
+        dec_loop_state = self.parent_decoder.get_initial_loop_state()
 
         return BeamSearchLoopState(
             bs_state=state,
@@ -128,16 +127,12 @@ class BeamSearchDecoder(ModelPart):
 
     def _decoding_loop(self) -> SearchStepOutput:
         # collect attention objects
-        att_objects = [self.parent_decoder.get_attention_object(e, False)
-                       for e in self.parent_decoder.encoders]
-        att_objects = [a for a in att_objects if a is not None]
-
-        beam_body = self.get_body(att_objects)
+        beam_body = self.get_body()
 
         # first step has to be run manually because while_loop needs the same
         # shapes between steps and the first beam state is not beam-sized, but
         # just a single state.
-        initial_loop_state = self.get_initial_loop_state(att_objects)
+        initial_loop_state = self.get_initial_loop_state()
         next_bs_loop_state = beam_body(*initial_loop_state)
 
         def cond(*args) -> tf.Tensor:
@@ -154,11 +149,11 @@ class BeamSearchDecoder(ModelPart):
                                 parent_ids=parent_ids,
                                 token_ids=token_ids)
 
-    def get_body(self, att_objects: List[BaseAttention]) -> Callable:
+    def get_body(self) -> Callable:
         """Return a function that will act as the body for the
         ``tf.while_loop`` call.
         """
-        decoder_body = self.parent_decoder.get_body(att_objects, False)
+        decoder_body = self.parent_decoder.get_body(train_mode=False)
 
         # pylint: disable=too-many-locals
         def body(*args) -> BeamSearchLoopState:

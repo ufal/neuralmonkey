@@ -142,8 +142,8 @@ class ImageNet(ModelPart, SpatialStatefulWithOutput):
         return net_output
 
     @tensor
-    def spatial_mask(self) -> Optional[tf.Tensor]:
-        return None
+    def spatial_mask(self) -> tf.Tensor:
+        return tf.ones(tf.shape(self.spatial_states)[:3])
 
     @tensor
     def output(self) -> tf.Tensor:

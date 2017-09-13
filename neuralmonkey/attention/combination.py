@@ -13,78 +13,17 @@ decoder not to attend to the, and extract information on its own hidden state
 (see paper `Knowing when to Look: Adaptive Attention via a Visual Sentinel for
 Image Captioning  <https://arxiv.org/pdf/1612.01887.pdf>`_).
 """
-from typing import Any, List, Union, Type, Tuple, NamedTuple
+from typing import Any, List, Union, Tuple, NamedTuple
+
+from typeguard import check_argument_types
 import tensorflow as tf
 
-from neuralmonkey.dataset import Dataset
-from neuralmonkey.decoding_function import (BaseAttention, AttentionLoopState,
-                                            empty_attention_loop_state)
-from neuralmonkey.model.model_part import ModelPart, FeedDict
-from neuralmonkey.encoders.attentive import Attentive
+from neuralmonkey.attention.base_attention import (
+    BaseAttention, AttentionLoopState, empty_attention_loop_state,
+    get_attention_states, get_attention_mask)
+from neuralmonkey.model.stateful import TemporalStateful, SpatialStateful
 from neuralmonkey.checking import assert_shape
 from neuralmonkey.nn.projection import linear
-
-
-class EncoderWrapper(ModelPart, Attentive):
-    """Wrapper doing attention combination behaving as a single encoder.
-
-    This class wraps encoders and performs the attention combination in such a
-    way that for the decoder, it looks like a single encoder capable to
-    generate a single context vector.
-    """
-
-    def __init__(self,
-                 name: str,
-                 encoders: List[Any],
-                 attention_type: Type,
-                 attention_state_size: int,
-                 use_sentinels=False,
-                 share_attn_projections=False) -> None:
-        """Initializes the encoder wrapper.
-
-        Args:
-            name: Name of the encoder / its scope.
-            encoders: List of encoders to be wrapped.
-            attention_type: Type of the attention combination.
-            attention_state_size: Dimension of the state projection of
-                attention energy computation.
-            use_sentinels: Flag whether the sentinel mechanism should be added
-                to the attention combination.
-            share_attn_projections: Flag whether the hidden state projection
-                should be shared for the both the energies computation and
-                context vector computation.
-        """
-
-        ModelPart.__init__(self, name, None, None)
-        Attentive.__init__(self, attention_type)
-        self.encoders = encoders
-        self._attention_type = attention_type
-        self._attention_state_size = attention_state_size
-        self._use_sentinels = use_sentinels
-        self._share_attn_projections = share_attn_projections
-
-        self.encoded = tf.concat([e.encoded for e in encoders], 1)
-
-    def create_attention_object(self):
-        return self._attention_type(
-            self.encoders,
-            self._attention_state_size,
-            "attention_{}".format(self.name),
-            use_sentinels=self._use_sentinels,
-            share_projections=self._share_attn_projections)
-
-    def feed_dict(self, dataset: Dataset, train: bool) -> FeedDict:
-        return {}
-
-    @property
-    def _attention_tensor(self):
-        raise NotImplementedError("Encoder wrapper does not contain the"
-                                  " attention tensor")
-
-    @property
-    def _attention_mask(self):
-        raise NotImplementedError("Encoder wrapper does not contain the"
-                                  " attention mask")
 
 
 class MultiAttention(BaseAttention):
@@ -92,25 +31,32 @@ class MultiAttention(BaseAttention):
 
     # pylint: disable=unused-argument
     def __init__(self,
-                 encoders: List[Attentive],
+                 name: str,
                  attention_state_size: int,
-                 scope: Union[tf.VariableScope, str],
-                 share_projections: bool = False,
-                 use_sentinels: bool = False) -> None:
-        super().__init__(scope, None, attention_state_size)
-        self._encoders = encoders
+                 share_attn_projections: bool = False,
+                 use_sentinels: bool = False,
+                 save_checkpoint: str = None,
+                 load_checkpoint: str = None) -> None:
+        BaseAttention.__init__(self, name, save_checkpoint, load_checkpoint)
         self.attentions_in_time = []  # type: List[tf.Tensor]
-        self._share_projections = share_projections
+        self.attention_state_size = attention_state_size
+        self._share_projections = share_attn_projections
         self._use_sentinels = use_sentinels
 
-        with tf.variable_scope(self.scope):
+        self.att_scope_name = "attention_{}".format(name)
+
+        with self.use_scope():
             self.attn_v = tf.get_variable(
                 "attn_v", [1, 1, self.attention_state_size],
                 initializer=tf.random_normal_initializer(stddev=.001))
     # pylint: enable=unused-argument
 
-    def attention(self, decoder_state, decoder_prev_state,
-                  decoder_input, _, step):
+    def attention(self,
+                  query: tf.Tensor,
+                  decoder_prev_state: tf.Tensor,
+                  decoder_input: tf.Tensor,
+                  loop_state: Any,
+                  step: tf.Tensor) -> Tuple[tf.Tensor, Any]:
         """Get context vector for given decoder state."""
         raise NotImplementedError("Abstract method")
 
@@ -162,12 +108,29 @@ class FlatMultiAttention(MultiAttention):
 
     See equations 8 to 10 in the Attention Combination Strategies paper.
     """
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self,
+                 name: str,
+                 encoders: List[Union[TemporalStateful, SpatialStateful]],
+                 attention_state_size: int,
+                 share_attn_projections: bool = False,
+                 use_sentinels: bool = False,
+                 save_checkpoint: str = None,
+                 load_checkpoint: str = None) -> None:
+        check_argument_types()
+        MultiAttention.__init__(
+            self,
+            name=name,
+            attention_state_size=attention_state_size,
+            share_attn_projections=share_attn_projections,
+            use_sentinels=use_sentinels,
+            save_checkpoint=save_checkpoint,
+            load_checkpoint=load_checkpoint)
+        self._encoders = encoders
 
         # pylint: disable=protected-access
-        self._encoders_tensors = [e._attention_tensor for e in self._encoders]
-        self._encoders_masks = [e._attention_mask for e in self._encoders]
+        self._encoders_tensors = [
+            get_attention_states(e) for e in self._encoders]
+        self._encoders_masks = [get_attention_mask(e) for e in self._encoders]
         # pylint: enable=protected-access
 
         for e_m in self._encoders_masks:
@@ -176,7 +139,7 @@ class FlatMultiAttention(MultiAttention):
         for e_t in self._encoders_tensors:
             assert_shape(e_t, [-1, -1, -1])
 
-        with tf.variable_scope(self.scope):
+        with self.use_scope():
             self.encoder_projections_for_logits = \
                 self.get_encoder_projections("logits_projections")
 
@@ -234,15 +197,19 @@ class FlatMultiAttention(MultiAttention):
                 encoder_projections.append(projection)
             return encoder_projections
 
+    @property
+    def context_vector_size(self) -> int:
+        return self.encoder_projections_for_ctx[0].get_shape()[2].value
+
     # pylint: disable=too-many-locals
     def attention(self,
-                  decoder_state: tf.Tensor,
+                  query: tf.Tensor,
                   decoder_prev_state: tf.Tensor,
                   decoder_input: tf.Tensor,
                   loop_state: AttentionLoopState,
                   step: tf.Tensor) -> Tuple[tf.Tensor, AttentionLoopState]:
-        with tf.variable_scope(self.scope):
-            projected_state = linear(decoder_state, self.attention_state_size)
+        with tf.variable_scope(self.att_scope_name):
+            projected_state = linear(query, self.attention_state_size)
             projected_state = tf.expand_dims(projected_state, 1)
 
             assert_shape(projected_state, [-1, 1, self.attention_state_size])
@@ -256,7 +223,7 @@ class FlatMultiAttention(MultiAttention):
                     self.attn_v * tf.tanh(projected_state + proj), [2]) + bias)
 
             if self._use_sentinels:
-                sentinel_value = _sentinel(decoder_state,
+                sentinel_value = _sentinel(query,
                                            decoder_prev_state,
                                            decoder_input)
                 projected_sentinel, sentinel_logit = self._vector_logit(
@@ -351,45 +318,58 @@ class HierarchicalMultiAttention(MultiAttention):
     See equations 6 and 7 in the Attention Combination Strategies paper.
     """
 
-    def __init__(self, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+    def __init__(self,
+                 name: str,
+                 attentions: List[BaseAttention],
+                 attention_state_size: int,
+                 use_sentinels: bool,
+                 share_attn_projections: bool,
+                 save_checkpoint: str = None,
+                 load_checkpoint: str = None) -> None:
+        check_argument_types()
+        MultiAttention.__init__(
+            self,
+            name=name,
+            attention_state_size=attention_state_size,
+            use_sentinels=use_sentinels,
+            share_attn_projections=share_attn_projections,
+            save_checkpoint=save_checkpoint,
+            load_checkpoint=load_checkpoint)
 
-        with tf.variable_scope(self.scope):
-            self._attn_objs = [
-                e.create_attention_object() for e in self._encoders]
+        self.attentions = attentions
 
     def initial_loop_state(self) -> HierarchicalLoopState:
         return HierarchicalLoopState(
             child_loop_states=[a.initial_loop_state()
-                               for a in self._attn_objs],
+                               for a in self.attentions],
             loop_state=empty_attention_loop_state())
 
     # pylint: disable=too-many-locals
     def attention(self,
-                  decoder_state: tf.Tensor,
+                  query: tf.Tensor,
                   decoder_prev_state: tf.Tensor,
                   decoder_input: tf.Tensor,
                   loop_state: HierarchicalLoopState,
                   step: tf.Tensor) -> Tuple[tf.Tensor, HierarchicalLoopState]:
 
-        with tf.variable_scope(self.scope):
-            projected_state = linear(decoder_state, self.attention_state_size)
+        with tf.variable_scope(self.att_scope_name):
+            projected_state = linear(query, self.attention_state_size)
             projected_state = tf.expand_dims(projected_state, 1)
 
             assert_shape(projected_state, [-1, 1, self.attention_state_size])
             attn_ctx_vectors, child_loop_states = zip(*[
-                a.attention(decoder_state, decoder_prev_state, decoder_input,
+                a.attention(query, decoder_prev_state, decoder_input,
                             ls, step)
-                for a, ls in zip(self._attn_objs,
+                for a, ls in zip(self.attentions,
                                  loop_state.child_loop_states)])
 
             proj_ctxs, attn_logits = [list(t) for t in zip(*[
                 self._vector_logit(projected_state,
-                                   ctx_vec, scope=enc.name)  # type: ignore
-                for ctx_vec, enc in zip(attn_ctx_vectors, self._encoders)])]
+                                   ctx_vec, scope=att.name)  # type: ignore
+                for ctx_vec, att in zip(attn_ctx_vectors, self.attentions)])]
 
             if self._use_sentinels:
-                sentinel_value = _sentinel(decoder_state,
+                sentinel_value = _sentinel(query,
                                            decoder_prev_state,
                                            decoder_input)
                 proj_sentinel, sentinel_logit = self._vector_logit(
@@ -407,8 +387,8 @@ class HierarchicalMultiAttention(MultiAttention):
                     tf.expand_dims(
                         linear(ctx_vec, self.attention_state_size,
                                scope="proj_attn_{}".format(
-                                   enc.name)), 1)  # type: ignore
-                    for ctx_vec, enc in zip(attn_ctx_vectors, self._encoders)]
+                                   att.name)), 1)  # type: ignore
+                    for ctx_vec, att in zip(attn_ctx_vectors, self.attentions)]
                 if self._use_sentinels:
                     output_cxts.append(tf.expand_dims(
                         linear(sentinel_value, self.attention_state_size,
@@ -435,7 +415,11 @@ class HierarchicalMultiAttention(MultiAttention):
 
     def finalize_loop(self, key: str, last_loop_state: Any) -> None:
         for c_attention, c_loop_state in zip(
-                self._attn_objs, last_loop_state.child_loop_states):
+                self.attentions, last_loop_state.child_loop_states):
             c_attention.finalize_loop(key, c_loop_state)
 
         self.histories[key] = last_loop_state.loop_state.weights.stack()
+
+    @property
+    def context_vector_size(self) -> int:
+        return self.attention_state_size

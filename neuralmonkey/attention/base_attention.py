@@ -63,6 +63,38 @@ def empty_attention_loop_state() -> AttentionLoopState:
             name="distributions"))
 
 
+def get_attention_states(encoder: Union[TemporalStateful,
+                                        SpatialStateful]) -> tf.Tensor:
+    if isinstance(encoder, TemporalStateful):
+        return encoder.temporal_states
+
+    elif isinstance(encoder, SpatialStateful):
+        # pylint: disable=no-member
+        shape = [s.value for s in encoder.spatial_states.get_shape()[1:]]
+        # pylint: enable=no-member
+        return tf.reshape(encoder.spatial_states,
+                          [-1, shape[0] * shape[1], shape[2]])
+    else:
+        raise AssertionError("Unknown encoder type")
+
+
+def get_attention_mask(encoder: Union[TemporalStateful,
+                                      SpatialStateful]) -> Optional[tf.Tensor]:
+    if isinstance(encoder, TemporalStateful):
+        return encoder.temporal_mask
+
+    elif isinstance(encoder, SpatialStateful):
+        if encoder.spatial_mask is None:
+            return None
+
+        # pylint: disable=no-member
+        shape = [s.value for s in encoder.spatial_mask.get_shape()[1:]]
+        # pylint: enable=no-member
+        return tf.reshape(encoder.spatial_mask, [-1, shape[0] * shape[1]])
+    else:
+        raise AssertionError("Unknown encoder type")
+
+
 class BaseAttention(ModelPart):
     def __init__(self,
                  name: str,
@@ -125,43 +157,13 @@ class Attention(BaseAttention):
 
     @tensor
     def attention_states(self) -> tf.Tensor:
-
-        if isinstance(self.encoder, TemporalStateful):
-            return dropout(self.encoder.temporal_states,
-                           self.dropout_keep_prob,
-                           self.train_mode)
-        elif isinstance(self.encoder, SpatialStateful):
-            # pylint: disable=no-member
-            shape = [
-                s.value for s in self.encoder.spatial_states.get_shape()[1:]]
-            # pylint: enable=no-member
-            state_set = tf.reshape(self.encoder.spatial_states,
-                                   [-1, shape[0] * shape[1], shape[2]])
-
-            return dropout(state_set,
-                           self.dropout_keep_prob,
-                           self.train_mode)
-        else:
-            raise AssertionError("Unknown encoder type")
+        return dropout(get_attention_states(self.encoder),
+                       self.dropout_keep_prob,
+                       self.train_mode)
 
     @tensor
     def attention_mask(self) -> Optional[tf.Tensor]:
-        if isinstance(self.encoder, TemporalStateful):
-            return self.encoder.temporal_mask
-
-        elif isinstance(self.encoder, SpatialStateful):
-            if self.encoder.spatial_mask is None:
-                return None
-
-            # pylint: disable=no-member
-            shape = [
-                s.value for s in self.encoder.spatial_mask.get_shape()[1:]]
-            # pylint: enable=no-member
-            return tf.reshape(
-                self.encoder.spatial_mask, [-1, shape[0] * shape[1]])
-
-        else:
-            raise AssertionError("Unknown encoder type")
+        return get_attention_mask(self.encoder)
 
     # pylint: disable=no-member
     # Pylint fault from resolving tensor decoration

@@ -5,10 +5,10 @@ from typing import Optional, Tuple, List
 import tensorflow as tf
 from typeguard import check_argument_types
 
-from neuralmonkey.encoders.attentive import Attentive
 from neuralmonkey.encoders.recurrent import RNNCellTuple
 from neuralmonkey.model.model_part import ModelPart, FeedDict
 from neuralmonkey.model.sequence import Sequence
+from neuralmonkey.model.stateful import TemporalStatefulWithOutput
 from neuralmonkey.nn.noisy_gru_cell import NoisyGRUCell
 from neuralmonkey.nn.ortho_gru_cell import OrthoGRUCell
 from neuralmonkey.nn.utils import dropout
@@ -18,7 +18,7 @@ from neuralmonkey.decorators import tensor
 
 
 # pylint: disable=too-many-instance-attributes
-class SentenceCNNEncoder(ModelPart, Attentive):
+class SentenceCNNEncoder(ModelPart, TemporalStatefulWithOutput):
     """Encoder processing a sentence using a CNN then
     running a bidirectional RNN on the result.
 
@@ -37,8 +37,6 @@ class SentenceCNNEncoder(ModelPart, Attentive):
                  rnn_size: int,
                  filters: List[Tuple[int, int]],
                  dropout_keep_prob: float = 1.0,
-                 attention_type: type = None,
-                 attention_fertility: int = 3,
                  use_noisy_activations: bool = False,
                  save_checkpoint: Optional[str] = None,
                  load_checkpoint: Optional[str] = None) -> None:
@@ -65,8 +63,6 @@ class SentenceCNNEncoder(ModelPart, Attentive):
                 CoverageAttention (default 3).
         """
         ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
-        Attentive.__init__(
-            self, attention_type, attention_fertility=attention_fertility)
         check_argument_types()
 
         self.input_sequence = input_sequence
@@ -177,24 +173,19 @@ class SentenceCNNEncoder(ModelPart, Attentive):
             dtype=tf.float32)
 
     @tensor
-    def states(self) -> tf.Tensor:
+    def temporal_states(self) -> tf.Tensor:
         # pylint: disable=unsubscriptable-object
         return tf.concat(self.bidirectional_rnn[0], 2)
         # pylint: enable=unsubscriptable-object
 
     @tensor
-    def encoded(self) -> tf.Tensor:
+    def output(self) -> tf.Tensor:
         # pylint: disable=unsubscriptable-object
         return tf.concat(self.bidirectional_rnn[1], 1)
         # pylint: enable=unsubscriptable-object
 
     @tensor
-    def _attention_tensor(self) -> tf.Tensor:
-        return dropout(self.states, self.dropout_keep_prob,
-                       self.train_mode)
-
-    @tensor
-    def _attention_mask(self) -> tf.Tensor:
+    def temporal_mask(self) -> tf.Tensor:
         expanded = tf.expand_dims(
             tf.expand_dims(self.input_sequence.mask, -1),
             -1)

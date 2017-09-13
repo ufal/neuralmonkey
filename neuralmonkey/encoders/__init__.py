@@ -1,6 +1,5 @@
 from .attentive import Attentive
 from .cnn_encoder import CNNEncoder
-from .encoder_wrapper import EncoderWrapper
 from .numpy_encoder import VectorEncoder
 from .raw_rnn_encoder import RawRNNEncoder
 from .recurrent import FactoredEncoder

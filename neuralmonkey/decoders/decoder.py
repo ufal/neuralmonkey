@@ -7,7 +7,7 @@ import numpy as np
 import tensorflow as tf
 from typeguard import check_argument_types
 
-from neuralmonkey.attention.base_attention import Attention
+from neuralmonkey.attention.base_attention import BaseAttention
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.vocabulary import (Vocabulary, START_TOKEN, END_TOKEN_INDEX,
                                      PAD_TOKEN_INDEX)
@@ -75,7 +75,7 @@ class Decoder(ModelPart):
                  encoder_projection: Callable[
                      [tf.Tensor, Optional[int], Optional[List[Any]]],
                      tf.Tensor]=None,
-                 attentions: List[Attention] = None,
+                 attentions: List[BaseAttention] = None,
                  embeddings_source: EmbeddedSequence = None,
                  attention_on_input: bool = True,
                  rnn_cell: str = 'GRU',
@@ -493,7 +493,7 @@ class Decoder(ModelPart):
         logit_ta = tf.TensorArray(dtype=tf.float32, dynamic_size=True,
                                   size=0, name="logits")
 
-        contexts = [tf.zeros([self.batch_size, a.input_state_size])
+        contexts = [tf.zeros([self.batch_size, a.context_vector_size])
                     for a in self.attentions]
 
         mask_ta = tf.TensorArray(dtype=tf.bool, dynamic_size=True,
