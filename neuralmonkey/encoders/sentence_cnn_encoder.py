@@ -57,10 +57,6 @@ class SentenceCNNEncoder(ModelPart, TemporalStatefulWithOutput):
         Keyword arguments:
             dropout_keep_prob: The dropout keep probability
                 (default 1.0)
-            attention_type: The class that is used for creating
-                attention mechanism (default None)
-            attention_fertility: Fertility parameter used with
-                CoverageAttention (default 3).
         """
         ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
         check_argument_types()

@@ -1,4 +1,3 @@
-from .attentive import Attentive
 from .cnn_encoder import CNNEncoder
 from .numpy_encoder import VectorEncoder
 from .raw_rnn_encoder import RawRNNEncoder

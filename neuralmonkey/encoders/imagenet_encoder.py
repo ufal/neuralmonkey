@@ -70,7 +70,6 @@ class ImageNet(ModelPart, SpatialStatefulWithOutput):
                 TFSlim documentation for end point specifications.
             attention_state_size: Dimensionality of state projection in
                 attention computation.
-            attention_type: Type of attention.
             fine_tune: Flag whether the network should be further trained with
                 the rest of the model.
             encoded_layer: String id of the network layer that will be used as

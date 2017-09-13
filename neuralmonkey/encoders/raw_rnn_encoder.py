@@ -5,8 +5,8 @@ import tensorflow as tf
 from tensorflow.contrib.rnn import RNNCell
 from typeguard import check_argument_types
 
-from neuralmonkey.encoders.attentive import Attentive
 from neuralmonkey.model.model_part import ModelPart, FeedDict
+from neuralmonkey.model.stateful import TemporalStatefulWithOutput
 from neuralmonkey.logging import log
 from neuralmonkey.nn.ortho_gru_cell import OrthoGRUCell
 from neuralmonkey.nn.utils import dropout
@@ -43,7 +43,7 @@ def _make_rnn_cell(spec: RNNSpec) -> Callable[[], RNNCell]:
 
 
 # pylint: disable=too-many-instance-attributes
-class RawRNNEncoder(ModelPart, Attentive):
+class RawRNNEncoder(ModelPart, TemporalStatefulWithOutput):
     """A raw RNN encoder that gets input as a tensor."""
 
     # pylint: disable=too-many-arguments,too-many-locals
@@ -54,7 +54,6 @@ class RawRNNEncoder(ModelPart, Attentive):
                  rnn_layers: List[RNNSpecTuple],
                  max_input_len: Optional[int] = None,
                  dropout_keep_prob: float = 1.0,
-                 attention_type: Optional[Any] = None,
                  save_checkpoint: Optional[str] = None,
                  load_checkpoint: Optional[str] = None) -> None:
         """Creates a new instance of the encoder.
@@ -69,12 +68,9 @@ class RawRNNEncoder(ModelPart, Attentive):
         Keyword arguments:
             dropout_keep_prob: The dropout keep probability
                 (default 1.0)
-            attention_type: The class that is used for creating
-                attention mechanism (default None)
         """
-        ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
-        Attentive.__init__(self, attention_type)
         check_argument_types()
+        ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
 
         self.data_id = data_id
 
@@ -150,11 +146,15 @@ class RawRNNEncoder(ModelPart, Attentive):
         log("RNN encoder initialized")
 
     @property
-    def _attention_tensor(self) -> tf.Tensor:
+    def output(self) -> tf.Tensor:
+        return self.encoded
+
+    @property
+    def temporal_states(self) -> tf.Tensor:
         return self.__attention_tensor
 
     @property
-    def _attention_mask(self) -> tf.Tensor:
+    def temporal_mask(self) -> tf.Tensor:
         return self.states_mask
 
     def _create_input_placeholders(self) -> None:

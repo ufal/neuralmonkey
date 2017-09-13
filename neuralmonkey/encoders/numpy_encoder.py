@@ -1,17 +1,18 @@
-from typing import Callable, List, Optional
+from typing import List, Optional
 from typeguard import check_argument_types
 
 import tensorflow as tf
 
 from neuralmonkey.dataset import Dataset
-from neuralmonkey.encoders.attentive import Attentive
+from neuralmonkey.decorators import tensor
 from neuralmonkey.model.model_part import ModelPart, FeedDict
+from neuralmonkey.model.stateful import Stateful, SpatialStatefulWithOutput
 
 
 # pylint: disable=too-few-public-methods
 
 
-class VectorEncoder(ModelPart):
+class VectorEncoder(ModelPart, Stateful):
 
     def __init__(self,
                  name: str,
@@ -46,24 +47,26 @@ class VectorEncoder(ModelPart):
             else:
                 self.encoded = self.vector
 
+    @property
+    def output(self) -> tf.Tensor:
+        return self.encoded
+
     # pylint: disable=unused-argument
     def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
         return {self.vector: dataset.get_series(self.data_id)}
 
 
-class PostCNNImageEncoder(ModelPart, Attentive):
+class PostCNNImageEncoder(ModelPart, SpatialStatefulWithOutput):
     # pylint: disable=too-many-arguments
     def __init__(self,
                  name: str,
                  input_shape: List[int],
                  output_shape: int,
                  data_id: str,
-                 attention_type: Callable = None,
                  save_checkpoint: Optional[str] = None,
                  load_checkpoint: Optional[str] = None) -> None:
-        ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
-        Attentive.__init__(self, attention_type)
         check_argument_types()
+        ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
 
         assert len(input_shape) == 3
         if output_shape <= 0:
@@ -80,25 +83,26 @@ class PostCNNImageEncoder(ModelPart, Attentive):
             self.flat = tf.reduce_mean(self.image_features,
                                        axis=[1, 2],
                                        name="average_image")
-            project_w = tf.get_variable(
+
+            self.project_w = tf.get_variable(
                 name="img_init_proj_W",
                 shape=[input_shape[2], output_shape],
                 initializer=tf.random_normal_initializer())
-            project_b = tf.get_variable(
+            self.project_b = tf.get_variable(
                 name="img_init_b", shape=[output_shape],
                 initializer=tf.zeros_initializer())
 
-            self.encoded = tf.tanh(tf.matmul(self.flat, project_w) + project_b)
+    @tensor
+    def output(self) -> tf.Tensor:
+        return tf.tanh(tf.matmul(self.flat, self.project_w) + self.project_b)
 
-            self.__attention_tensor = tf.reshape(
-                self.image_features,
-                [-1, input_shape[0] * input_shape[1],
-                 input_shape[2]],
-                name="flatten_image")
+    @tensor
+    def spatial_states(self) -> tf.Tensor:
+        return self.image_features
 
-    @property
-    def _attention_tensor(self):
-        return self.__attention_tensor
+    @tensor
+    def spatial_mask(self) -> tf.Tensor:
+        return tf.ones(tf.shape(self.spatial_states)[:3])
 
     def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
         res = {}  # type: FeedDict

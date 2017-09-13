@@ -105,7 +105,7 @@ class BeamSearchDecoder(ModelPart):
             finished=tf.constant([False]),
             last_word_ids=tf.constant([START_TOKEN_INDEX]),
             last_state=self.parent_decoder.initial_state,
-            last_attns=[tf.zeros([1, a.attn_size])
+            last_attns=[tf.zeros([1, a.context_vector_size])
                         for a in self.parent_decoder.attentions])
 
     def get_initial_loop_state(self) -> BeamSearchLoopState:

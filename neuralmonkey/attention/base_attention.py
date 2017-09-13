@@ -134,6 +134,10 @@ class BaseAttention(ModelPart):
     def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
         return {self.train_mode: train}
 
+    @property
+    def context_vector_size(self) -> int:
+        raise NotImplementedError("Abstract property")
+
 
 class Attention(BaseAttention):
 

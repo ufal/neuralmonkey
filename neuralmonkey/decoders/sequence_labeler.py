@@ -28,7 +28,7 @@ class SequenceLabeler(ModelPart):
         self.data_id = data_id
         self.dropout_keep_prob = dropout_keep_prob
 
-        self.rnn_size = int(encoder.states.get_shape()[-1])
+        self.rnn_size = int(encoder.temporal_states.get_shape()[-1])
         self.max_output_len = self.encoder.input_sequence.max_length
 
     # pylint: disable=no-self-use
@@ -108,7 +108,7 @@ class SequenceLabeler(ModelPart):
 
         # TODO dropout needs to be revisited
 
-        encoder_states = tf.expand_dims(self.encoder.states, 2)
+        encoder_states = tf.expand_dims(self.encoder.temporal_states, 2)
         weights_4d = tf.expand_dims(tf.expand_dims(weights, 0), 0)
 
         multiplication = tf.nn.conv2d(

@@ -548,23 +548,6 @@ class Decoder(ModelPart):
 
         return logits, rnn_outputs, mask
 
-    def _visualize_attention(self) -> None:
-        """Create image summaries with attentions"""
-        # TODO! this method will become part of attention that is a separate
-        # ModelPart which will ensure that all lazily created tensors will be
-        # already there.
-        for i, a in enumerate(self.attentions):
-            if not hasattr(a, "attentions_in_time"):
-                continue
-
-            alignments = tf.expand_dims(tf.transpose(
-                tf.stack(a.attentions_in_time), perm=[1, 2, 0]), -1)
-
-            tf.summary.image(
-                "attention_{}".format(i), alignments,
-                collections=["summary_val_plots"],
-                max_outputs=256)
-
     def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
         """Populate the feed dictionary for the decoder object
 
