@@ -1,4 +1,4 @@
-from typing import Any, Callable, List, Optional, Tuple, Union, NamedTuple
+from typing import Callable, List, Optional, Tuple, Union, NamedTuple
 
 import numpy as np
 import tensorflow as tf
