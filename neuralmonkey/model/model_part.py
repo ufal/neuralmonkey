@@ -2,7 +2,7 @@
 
 from abc import ABCMeta
 from contextlib import contextmanager
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Set
 
 import tensorflow as tf
 
@@ -18,13 +18,13 @@ class ModelPart(metaclass=ABCMeta):
     """Base class of all model parts."""
     def __init__(self,
                  name: str,
-                 save_checkpoint: Optional[str] = None,
-                 load_checkpoint: Optional[str] = None) -> None:
+                 save_checkpoint: str = None,
+                 load_checkpoint: str = None) -> None:
         self._name = name
         self._save_checkpoint = save_checkpoint
         self._load_checkpoint = load_checkpoint
 
-        self._saver = None  # type: Optional[tf.train.Saver]
+        self._saver = None  # type: tf.train.Saver
 
         with tf.variable_scope(name) as scope:
             self._variable_scope = scope
@@ -43,6 +43,34 @@ class ModelPart(metaclass=ABCMeta):
             # we want to use the original one:
             with tf.name_scope(self._variable_scope.original_name_scope):
                 yield
+
+    def get_dependencies(self) -> Set["ModelPart"]:
+        """Collect recusively all encoders and decoders."""
+        to_return = set([self])
+
+        if hasattr(self, "attentions"):
+            to_return = to_return.union(
+                *(enc.get_dependencies()
+                  for enc in getattr(self, "attentions")
+                  if isinstance(enc, ModelPart)))
+
+        if hasattr(self, "encoders"):
+            to_return = to_return.union(
+                *(enc.get_dependencies()
+                  for enc in getattr(self, "encoders")
+                  if isinstance(enc, ModelPart)))
+
+        if hasattr(self, "encoder"):
+            enc = getattr(self, "encoder")
+            if isinstance(enc, ModelPart):
+                to_return = to_return.union(enc.get_dependencies())
+
+        if hasattr(self, "parent_decoder"):
+            dec = getattr(self, "parent_decoder")
+            if isinstance(dec, ModelPart):
+                to_return = to_return.union(dec.get_dependencies())
+
+        return to_return
 
     def feed_dict(self, dataset: Dataset, train: bool) -> FeedDict:
         """Prepare feed dicts for part's placeholders from a dataset."""

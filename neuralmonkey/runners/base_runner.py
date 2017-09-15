@@ -1,11 +1,12 @@
-from typing import Any, Dict, Tuple, List, NamedTuple, Union
+from typing import Any, Dict, Tuple, List, NamedTuple, Union, Set
 import numpy as np
 import tensorflow as tf
 
+from neuralmonkey.model.model_part import ModelPart
 
 # pylint: disable=invalid-name
 FeedDict = Dict[tf.Tensor, Union[int, float, np.ndarray]]
-NextExecute = Tuple[List[Any], Union[Dict, List], FeedDict]
+NextExecute = Tuple[Set[ModelPart], Union[Dict, List], FeedDict]
 ExecutionResult = NamedTuple('ExecutionResult',
                              [('outputs', List[Any]),
                               ('losses', List[float]),
@@ -15,7 +16,6 @@ ExecutionResult = NamedTuple('ExecutionResult',
 
 
 class Executable(object):
-
     def next_to_execute(self) -> NextExecute:
         raise NotImplementedError()
 
@@ -23,37 +23,25 @@ class Executable(object):
         raise NotImplementedError()
 
 
-def collect_encoders(coder):
-    """Collect recusively all encoders and decoders."""
-    to_return = set([coder])
-    if hasattr(coder, "attentions"):
-        to_return = to_return.union(*(collect_encoders(enc)
-                                      for enc in coder.attentions))
-    if hasattr(coder, "encoders"):
-        to_return = to_return.union(*(collect_encoders(enc)
-                                      for enc in coder.encoders))
-    if hasattr(coder, "encoder"):
-        to_return = to_return.union(collect_encoders(coder.encoder))
-    if hasattr(coder, "parent_decoder"):
-        to_return = to_return.union(collect_encoders(coder.parent_decoder))
-    # TODO replace by .get_predecesor method of ModelPart
-
-    return to_return
-
-
 class BaseRunner(object):
-    def __init__(self, output_series: str, decoder) -> None:
+    def __init__(self, output_series: str, decoder: ModelPart) -> None:
         self.output_series = output_series
         self._decoder = decoder
-        self.all_coders = collect_encoders(decoder)
+        self.all_coders = decoder.get_dependencies()
 
-    def get_executable(self, compute_losses=False,
-                       summaries=True) -> Executable:
+    def get_executable(self,
+                       compute_losses: bool = False,
+                       summaries: bool = True) -> Executable:
         raise NotImplementedError()
 
     @property
     def decoder_data_id(self) -> str:
-        return self._decoder.data_id
+        if not hasattr(self._decoder, "data_id"):
+            raise ValueError(
+                "Top-level decoder {} does not have the 'data_id' attribute"
+                .format(self._decoder.name))
+
+        return getattr(self._decoder, "data_id")
 
     @property
     def loss_names(self) -> List[str]:

@@ -1,4 +1,4 @@
-from typing import Callable, List, Dict, Optional
+from typing import Callable, List, Dict, Optional, Set, cast
 
 import numpy as np
 from typeguard import check_argument_types
@@ -14,7 +14,7 @@ from neuralmonkey.vocabulary import Vocabulary, END_TOKEN
 class BeamSearchExecutable(Executable):
     def __init__(self,
                  rank: int,
-                 all_encoders: List[ModelPart],
+                 all_encoders: Set[ModelPart],
                  bs_outputs: SearchStepOutput,
                  vocabulary: Vocabulary,
                  postprocess: Optional[Callable]) -> None:
@@ -25,7 +25,7 @@ class BeamSearchExecutable(Executable):
         self._vocabulary = vocabulary
         self._postprocess = postprocess
 
-        self.result = None  # type: Optional[ExecutionResult]
+        self.result = None  # type: ExecutionResult
 
     def next_to_execute(self) -> NextExecute:
         return self._all_encoders, {'bs_outputs': self._bs_outputs}, {}
@@ -77,8 +77,8 @@ class BeamSearchRunner(BaseRunner):
                  decoder: BeamSearchDecoder,
                  rank: int = 1,
                  postprocess: Callable[[List[str]], List[str]] = None) -> None:
-        super(BeamSearchRunner, self).__init__(output_series, decoder)
         check_argument_types()
+        BaseRunner.__init__(self, output_series, decoder)
 
         if rank < 1 or rank > decoder.beam_size:
             raise ValueError(
@@ -91,9 +91,11 @@ class BeamSearchRunner(BaseRunner):
     def get_executable(self,
                        compute_losses: bool = False,
                        summaries: bool = True) -> BeamSearchExecutable:
+        decoder = cast(BeamSearchDecoder, self._decoder)
+
         return BeamSearchExecutable(
-            self._rank, self.all_coders, self._decoder.outputs,
-            self._decoder.vocabulary, self._postprocess)
+            self._rank, self.all_coders, decoder.outputs,
+            decoder.vocabulary, self._postprocess)
 
     @property
     def loss_names(self) -> List[str]:

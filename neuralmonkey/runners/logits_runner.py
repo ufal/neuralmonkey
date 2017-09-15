@@ -1,9 +1,6 @@
 """A runner outputing logits or normalized distriution from a decoder."""
 
-from typing import Dict, List, Any
-# pylint: disable=unused-import
-from typing import Optional
-# pylint: enable=unused-import
+from typing import Dict, List, Any, Set
 from typeguard import check_argument_types
 
 import numpy as np
@@ -19,7 +16,7 @@ from neuralmonkey.vocabulary import Vocabulary
 class LogitsExecutable(Executable):
 
     def __init__(self,
-                 all_coders: List[ModelPart],
+                 all_coders: Set[ModelPart],
                  fetches: FeedDict,
                  vocabulary: Vocabulary,
                  normalize: bool = True,
@@ -31,7 +28,7 @@ class LogitsExecutable(Executable):
         self._pick_index = pick_index
 
         self.decoded_sentences = []  # type: List[List[str]]
-        self.result = None  # type: Optional[ExecutionResult]
+        self.result = None  # type: ExecutionResult
 
     def next_to_execute(self) -> NextExecute:
         """Get the feedables and tensors to run."""
@@ -101,8 +98,30 @@ class LogitsRunner(BaseRunner):
             pick_value: If not None, it specifies a value from the decoder's
                 vocabulary whose logit or probability should be on output.
         """
-        super(LogitsRunner, self).__init__(output_series, decoder)
         check_argument_types()
+        BaseRunner.__init__(self, output_series, decoder)
+
+        if not hasattr(self._decoder, "vocabulary"):
+            raise TypeError("Decoder for logits runner should have the "
+                            "'vocabulary' attribute")
+
+        if not hasattr(self._decoder, "decoded_logits"):
+            raise TypeError("Decoder for logits runner should have the "
+                            "'decoded_logits' attribute")
+
+        # TODO why these two?
+        if not hasattr(self._decoder, "train_loss"):
+            raise TypeError("Decoder for logits runner should have the "
+                            "'train_loss' attribute")
+
+        if not hasattr(self._decoder, "vocabulary"):
+            raise TypeError("Decoder for logits runner should have the "
+                            "'runtime_loss' attribute")
+
+        self._decoder_vocab = getattr(self._decoder, "vocabulary")
+        self._decoder_train_loss = getattr(self._decoder, "train_loss")
+        self._decoder_runtime_loss = getattr(self._decoder, "runtime_loss")
+        self._decoder_logits = getattr(self._decoder, "decoded_logits")
 
         if pick_index is not None and pick_value is not None:
             raise ValueError("Either a pick index or a vocabulary value can "
@@ -110,8 +129,9 @@ class LogitsRunner(BaseRunner):
 
         self._normalize = normalize
         if pick_value is not None:
-            if pick_value in decoder.vocabulary:
-                self._pick_index = decoder.vocabulary.word_to_index[pick_value]
+            if pick_value in self._decoder_vocab:
+                vocab_map = self._decoder_vocab.word_to_index
+                self._pick_index = vocab_map[pick_value]
             else:
                 raise ValueError(
                     "Value '{}' is not in vocabulary of decoder '{}'".format(
@@ -123,16 +143,16 @@ class LogitsRunner(BaseRunner):
                        compute_losses: bool = False,
                        summaries: bool = True) -> LogitsExecutable:
         if compute_losses:
-            fetches = {"train_loss": self._decoder.train_loss,
-                       "runtime_loss": self._decoder.runtime_loss}
+            fetches = {"train_loss": self._decoder_train_loss,
+                       "runtime_loss": self._decoder_runtime_loss}
         else:
             fetches = {"train_loss": tf.zeros([]),
                        "runtime_loss": tf.zeros([])}
 
-        fetches["logits"] = self._decoder.decoded_logits
+        fetches["logits"] = self._decoder_logits
 
         return LogitsExecutable(self.all_coders, fetches,
-                                self._decoder.vocabulary,
+                                self._decoder_vocab,
                                 self._normalize,
                                 self._pick_index)
 
