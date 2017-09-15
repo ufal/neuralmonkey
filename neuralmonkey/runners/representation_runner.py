@@ -1,12 +1,9 @@
 """A runner that prints out the input representation from an encoder."""
-
-# pylint: disable=unused-import
-from typing import Dict, List, Optional
-# pylint: enable=unused-import
-
+from typing import Dict, List
 import tensorflow as tf
 
 from neuralmonkey.model.model_part import ModelPart
+from neuralmonkey.model.stateful import Stateful
 from neuralmonkey.runners.base_runner import (BaseRunner, Executable,
                                               ExecutionResult, NextExecute)
 
@@ -20,7 +17,7 @@ class RepresentationExecutable(Executable):
         self._encoded = encoded
         self._used_session = used_session
 
-        self.result = None  # type: Optional[ExecutionResult]
+        self.result = None  # type: ExecutionResult
 
     def next_to_execute(self) -> NextExecute:
         return self._prev_coders, {"encoded": self._encoded}, {}
@@ -50,7 +47,7 @@ class RepresentationRunner(BaseRunner):
 
     def __init__(self,
                  output_series: str,
-                 encoder: ModelPart,
+                 encoder: Stateful,
                  used_session: int = 0) -> None:
         """Initialize the representation runner.
 
@@ -63,7 +60,7 @@ class RepresentationRunner(BaseRunner):
         super(RepresentationRunner, self).__init__(output_series, encoder)
 
         self._used_session = used_session
-        self._encoded = encoder.encoded  # type: ignore
+        self._encoded = encoder.output
 
     def get_executable(self, compute_losses=False,
                        summaries=True) -> RepresentationExecutable:

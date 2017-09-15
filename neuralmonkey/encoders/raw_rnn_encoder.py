@@ -138,11 +138,6 @@ class RawRNNEncoder(ModelPart, TemporalStatefulWithOutput):
             self.hidden_states = states
             self.encoded = encoded
 
-            with tf.variable_scope('attention_tensor'):
-                self.__attention_tensor = dropout(
-                    self.hidden_states, self.dropout_keep_prob,
-                    self.train_mode)
-
         log("RNN encoder initialized")
 
     @property
@@ -151,7 +146,7 @@ class RawRNNEncoder(ModelPart, TemporalStatefulWithOutput):
 
     @property
     def temporal_states(self) -> tf.Tensor:
-        return self.__attention_tensor
+        return self.hidden_states
 
     @property
     def temporal_mask(self) -> tf.Tensor:

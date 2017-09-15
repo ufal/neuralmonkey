@@ -1,4 +1,4 @@
-from typing import cast, Any, Callable, Iterable, List
+from typing import cast, Callable, Iterable, List
 
 import tensorflow as tf
 
@@ -6,6 +6,7 @@ from typeguard import check_argument_types
 from neuralmonkey.nn.projection import multilayer_projection, linear
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.model.model_part import ModelPart, FeedDict
+from neuralmonkey.model.stateful import Stateful
 from neuralmonkey.decorators import tensor
 
 
@@ -18,7 +19,7 @@ class SequenceRegressor(ModelPart):
     # pylint: disable=too-many-arguments
     def __init__(self,
                  name: str,
-                 encoders: List[Any],
+                 encoders: List[Stateful],
                  data_id: str,
                  layers: List[int] = None,
                  activation_fn: Callable[[tf.Tensor], tf.Tensor]=tf.nn.relu,
@@ -58,7 +59,7 @@ class SequenceRegressor(ModelPart):
 
     @tensor
     def _mlp_input(self):
-        return tf.concat([enc.encoded for enc in self.encoders], 1)
+        return tf.concat([enc.output for enc in self.encoders], 1)
 
     @tensor
     def _mlp_output(self):

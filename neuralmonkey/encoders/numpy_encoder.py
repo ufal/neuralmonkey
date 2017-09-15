@@ -42,14 +42,14 @@ class VectorEncoder(ModelPart, Stateful):
                     name="img_init_b", shape=[output_shape],
                     initializer=tf.zeros_initializer())
 
-                self.encoded = tf.matmul(
+                self._encoded = tf.matmul(
                     self.vector, project_w) + project_b
             else:
-                self.encoded = self.vector
+                self._encoded = self.vector
 
     @property
     def output(self) -> tf.Tensor:
-        return self.encoded
+        return self._encoded
 
     # pylint: disable=unused-argument
     def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:

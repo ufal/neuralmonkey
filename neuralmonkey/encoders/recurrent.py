@@ -83,7 +83,7 @@ class RecurrentEncoder(ModelPart, TemporalStatefulWithOutput):
         return self.states
 
     @tensor
-    def encoded(self) -> tf.Tensor:
+    def output(self) -> tf.Tensor:
         # pylint: disable=unsubscriptable-object
         if self.rnn_cell_str == "GRU":
             return tf.concat(self.bidirectional_rnn[1], 1)
@@ -92,10 +92,6 @@ class RecurrentEncoder(ModelPart, TemporalStatefulWithOutput):
             final_states = [state.h for state in self.bidirectional_rnn[1]]
             return tf.concat(final_states, 1)
         # pylint: enable=unsubscriptable-object
-
-    @tensor
-    def output(self) -> tf.Tensor:
-        return self.encoded
 
     @tensor
     def temporal_mask(self) -> tf.Tensor:
