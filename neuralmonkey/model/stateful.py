@@ -1,3 +1,17 @@
+"""Module that provides classes that encapsulate model parts with states.
+
+There are three classes: `Stateful`, `TemporalStateful`, and `SpatialStateful`.
+
+Model parts that do not keep states in time but have a single tensor on the
+output should be instances of `Stateful`. Model parts that keep their hidden
+states in a time-oriented list (e.g. recurrent encoder) should be instances
+of `TemporalStateful`. Model parts that keep the states in a 2D matrix (e.g.
+image encoders) should be instances of `SpatialStateful`.
+
+There are also classes that inherit from both stateful and temporal or spatial
+stateful (e.g. `TemporalStatefulWithOutput`) that can be used for model parts
+that satisfy more requirements (e.g. recurrent encoder).
+"""
 from abc import ABCMeta, abstractproperty
 import tensorflow as tf
 
@@ -49,7 +63,6 @@ class SpatialStateful(metaclass=ABCMeta):
         raise NotImplementedError("Abstract property")
 
 
-# TODO rename these
 # pylint: disable=abstract-method
 class TemporalStatefulWithOutput(Stateful, TemporalStateful):
     pass

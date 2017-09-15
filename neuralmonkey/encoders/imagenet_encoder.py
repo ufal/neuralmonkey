@@ -2,6 +2,7 @@
 
 from typing import Optional
 
+from typeguard import check_argument_types
 import numpy as np
 import tensorflow as tf
 import tensorflow.contrib.slim as tf_slim
@@ -81,6 +82,7 @@ class ImageNet(ModelPart, SpatialStatefulWithOutput):
                 the training. (Makes sense only if `fine_tune` is set to
                 `True`).
         """
+        check_argument_types()
         ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
 
         if save_checkpoint is not None and not fine_tune:
@@ -142,6 +144,8 @@ class ImageNet(ModelPart, SpatialStatefulWithOutput):
 
     @tensor
     def spatial_mask(self) -> tf.Tensor:
+        if self.attention_layer is None:
+            return None
         return tf.ones(tf.shape(self.spatial_states)[:3])
 
     @tensor

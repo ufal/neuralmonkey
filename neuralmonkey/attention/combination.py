@@ -6,7 +6,7 @@ more complicated fashion.
 
 Currently there are two attention combination strategies flat and hierarchical
 (see paper `Attention Combination Strategies for Multi-Source
-Sequence-to-Sequence Learning <https://arxiv.org/pdf/1704.06567.pdf>`_).
+Sequence-to-Sequence Learning <www.aclweb.org/anthology/P/P17/P17-2031.pdf>`_).
 
 The combination strategies may use the sentinel mechanism which allows the
 decoder not to attend to the, and extract information on its own hidden state
