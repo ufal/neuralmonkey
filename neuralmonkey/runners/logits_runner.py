@@ -114,7 +114,7 @@ class LogitsRunner(BaseRunner):
             raise TypeError("Decoder for logits runner should have the "
                             "'train_loss' attribute")
 
-        if not hasattr(self._decoder, "vocabulary"):
+        if not hasattr(self._decoder, "runtime_loss"):
             raise TypeError("Decoder for logits runner should have the "
                             "'runtime_loss' attribute")
 
