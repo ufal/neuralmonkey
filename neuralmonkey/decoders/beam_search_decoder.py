@@ -25,7 +25,7 @@ in the decoder when its own ``tf.while_loop`` function is used - this is not
 the case when using beam search because we want to run the decoder's steps
 manually.
 """
-from typing import NamedTuple, List, Callable, Optional, Any
+from typing import NamedTuple, List, Callable, Any
 
 import tensorflow as tf
 from typeguard import check_argument_types

@@ -121,8 +121,6 @@ class BeamSearchExecutable(Executable):
             self._next_feed.append(fd)
         if finished:
             self.prepare_results(self._output)
-
-        self._all_encoders = []
         return
 
     def prepare_results(self, bs_output):
