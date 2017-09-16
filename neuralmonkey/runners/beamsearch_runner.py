@@ -61,12 +61,12 @@ class BeamSearchExecutable(Executable):
     def collect_results(self, results: List[Dict]) -> None:
         # Recompute logits
         # Only necessary when ensembling models
-        prev_logits = []
+        prev_logprobs = []
         for sess_idx, _ in enumerate(results):
             bs_outputs = results[sess_idx]['bs_outputs']
-            prev_logits.append(bs_outputs.last_dec_loop_state.prev_logits)
+            prev_logprobs.append(bs_outputs.last_search_state.prev_logprobs)
 
-        prev_logits = np.divide(np.sum(prev_logits, 0), self._num_sessions)
+        prev_logprobs = np.divide(np.sum(prev_logprobs, 0), self._num_sessions)
 
         # We are finished
         # The last score is computed
@@ -98,6 +98,9 @@ class BeamSearchExecutable(Executable):
         for sess_idx, _ in enumerate(results):
             bs_outputs = results[sess_idx]['bs_outputs']
             search_state = bs_outputs.last_search_state
+            search_state = search_state._replace(
+                prev_logprobs=prev_logprobs)
+
             dec_ls = bs_outputs.last_dec_loop_state
             finished = (finished and np.all(dec_ls.finished))
             fd = {}

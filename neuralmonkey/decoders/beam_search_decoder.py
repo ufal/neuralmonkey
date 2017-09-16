@@ -48,6 +48,7 @@ DecoderState = NamedTuple("DecoderState",
 
 SearchState = NamedTuple("SearchState",
                          [("logprob_sum", tf.Tensor),  # beam x 1
+                          ("prev_logprobs", tf.Tensor), # beam x Vocabulary
                           ("lengths", tf.Tensor),
                           ("finished", tf.Tensor)])
 
@@ -132,12 +133,6 @@ class BeamSearchDecoder(ModelPart):
         return self._max_steps
 
     def get_initial_loop_state(self, att_objects: List) -> BeamSearchLoopState:
-        # We want to feed these values in ensembles
-        self._search_state = SearchState(
-            logprob_sum=tf.placeholder_with_default([0.0], [None]),
-            lengths=tf.placeholder_with_default([1], [None]),
-            finished=tf.placeholder_with_default([False], [None]))
-
         # TODO: make these feedable
         output_ta = SearchStepOutputTA(
             scores=tf.TensorArray(dtype=tf.float32, dynamic_size=True,
@@ -152,25 +147,37 @@ class BeamSearchDecoder(ModelPart):
         decoder_body = self.parent_decoder.get_body(False)
         dec_ls = decoder_body(*dec_ls)
 
+        # We want to feed these values in ensembles
+        self._search_state = SearchState(
+            logprob_sum=tf.placeholder_with_default([0.0], [None]),
+            prev_logprobs=tf.nn.log_softmax(dec_ls.prev_logits),
+            lengths=tf.placeholder_with_default([1], [None]),
+            finished=tf.placeholder_with_default([False], [None]))
+
         # We create BeamSearchDecoder attributes
         # that can be directly fed from outside
-        # the Session.run() due to the logit recombination
+        # the Session.run() due to the logprob recombination
         # in ensembles.
-        indices = tf.tile([0], [self._beam_size])
+        #indices = tf.tile([0], [self._beam_size])
         self._decoder_state = DecoderState(
             step=dec_ls.step,
-            input_symbol=tf.gather(dec_ls.input_symbol, indices),
-            prev_rnn_state=tf.gather(dec_ls.prev_rnn_state, indices),
-            prev_rnn_output=tf.gather(dec_ls.prev_rnn_output, indices),
+            input_symbol=dec_ls.input_symbol,
+            prev_rnn_state=dec_ls.prev_rnn_state,
+            prev_rnn_output=dec_ls.prev_rnn_output,
             prev_logits=dec_ls.prev_logits,
-            prev_contexts=(
-                [tf.gather(ctx, indices) for ctx in dec_ls.prev_contexts]),
-            finished=tf.gather(dec_ls.finished, indices))
+            prev_contexts=dec_ls.prev_contexts,
+            finished=dec_ls.finished)
+            #input_symbol=tf.gather(dec_ls.input_symbol, indices),
+            #prev_rnn_state=tf.gather(dec_ls.prev_rnn_state, indices),
+            #prev_rnn_output=tf.gather(dec_ls.prev_rnn_output, indices),
+            #prev_logits=dec_ls.prev_logits,
+            #prev_contexts=(
+            #    [tf.gather(ctx, indices) for ctx in dec_ls.prev_contexts]),
+            #finished=tf.gather(dec_ls.finished, indices))
         dec_ls = dec_ls._replace(**self._decoder_state._asdict())
 
         # TODO:
         # Make TensorArrays also feedable
-
         return BeamSearchLoopState(
             bs_state=self._search_state,
             bs_output=output_ta,
@@ -254,11 +261,12 @@ class BeamSearchDecoder(ModelPart):
 
             # The decoder should be "one step ahead" (see above)
             step = dec_loop_state.step - 1
-            current_logits = dec_loop_state.prev_logits
+            #current_logits = dec_loop_state.prev_logits
 
             # mask the probabilities
             # shape(logprobs) = beam x vocabulary
-            logprobs = tf.nn.log_softmax(current_logits)    # init: step=0
+            #logprobs = tf.nn.log_softmax(current_logits)    # init: step=0
+            logprobs = bs_state.prev_logprobs
 
             finished_mask = tf.expand_dims(tf.to_float(bs_state.finished), 1)
             unfinished_logprobs = (1. - finished_mask) * logprobs
@@ -317,14 +325,9 @@ class BeamSearchDecoder(ModelPart):
             next_beam_prev_rnn_output = tf.gather(rnn_output, next_beam_ids)
             next_beam_prev_contexts = [tf.gather(ctx, next_beam_ids) for ctx in
                                        contexts]
-            next_beam_prev_logits = tf.gather(current_logits,
+            next_beam_prev_logits = tf.gather(dec_loop_state.prev_logits,
                                               next_beam_ids)
             next_beam_lengths = tf.gather(hyp_lengths, next_beam_ids)
-
-            next_search_state = SearchState(
-                logprob_sum=next_beam_logprob_sum,
-                lengths=next_beam_lengths,
-                finished=dec_loop_state.finished)
 
             next_finished = tf.gather(dec_loop_state.finished, next_beam_ids)
             next_just_finished = tf.equal(next_word_ids, END_TOKEN_INDEX)
@@ -366,6 +369,12 @@ class BeamSearchDecoder(ModelPart):
             # CALL THE DECODER BODY FUNCTION
             # TODO figure out why mypy throws too-many-arguments on this
             next_loop_state = decoder_body(*dec_loop_state)  # type: ignore
+
+            next_search_state = SearchState(
+                logprob_sum=next_beam_logprob_sum,
+                prev_logprobs=tf.nn.log_softmax(next_loop_state.prev_logits),
+                lengths=next_beam_lengths,
+                finished=dec_loop_state.finished)
 
             next_output = SearchStepOutputTA(
                 scores=bs_output.scores.write(step, topk_scores),
