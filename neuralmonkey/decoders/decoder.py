@@ -540,6 +540,9 @@ class Decoder(ModelPart):
 
             attn_obj.finalize_loop(att_history_key, att_state)
 
+            if not train_mode:
+                attn_obj.visualize_attention(att_history_key)
+
         logits = final_loop_state.logits.stack()
         rnn_outputs = final_loop_state.rnn_outputs.stack()
 

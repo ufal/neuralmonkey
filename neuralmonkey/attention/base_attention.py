@@ -136,3 +136,14 @@ class BaseAttention(ModelPart):
     @property
     def context_vector_size(self) -> int:
         raise NotImplementedError("Abstract property")
+
+    def visualize_attention(self, key: str) -> None:
+        if key not in self.histories:
+            raise ValueError(
+                "Key {} not among attention histories".format(key))
+
+        alignments = tf.expand_dims(
+            tf.transpose(self.histories[key], perm=[1, 2, 0]), -1)
+
+        tf.summary.image(self.name, alignments,
+                         collections=["summary_att_plots"], max_outputs=256)
