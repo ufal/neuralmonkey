@@ -130,7 +130,9 @@ class BeamSearchExecutable(Executable):
         max_time = bs_output.scores.shape[0] - 1
 
         output_tokens = []
-        hyp_idx = self._rank - 1
+        hyp_idx = np.argpartition(
+            -bs_output.scores[-1], self._rank - 1)[self._rank -1]
+        bs_score = bs_output.scores[-1][hyp_idx]
         for time in reversed(range(max_time)):
             token_id = bs_output.token_ids[time][hyp_idx]
             token = self._vocabulary.index_to_word[token_id]
@@ -154,7 +156,7 @@ class BeamSearchExecutable(Executable):
         # we want to use the runner during training.
         self.result = ExecutionResult(
             outputs=decoded_tokens,
-            losses=[bs_output.scores[-1][self._rank - 1]],
+            losses=[bs_score],
             scalar_summaries=None,
             histogram_summaries=None,
             image_summaries=None)

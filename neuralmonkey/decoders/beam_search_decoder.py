@@ -132,7 +132,7 @@ class BeamSearchDecoder(ModelPart):
     def max_steps(self):
         return self._max_steps
 
-    def get_initial_loop_state(self, att_objects: List) -> BeamSearchLoopState:
+    def get_initial_loop_state(self) -> BeamSearchLoopState:
         # TODO: make these feedable
         output_ta = SearchStepOutputTA(
             scores=tf.TensorArray(dtype=tf.float32, dynamic_size=True,
@@ -158,7 +158,6 @@ class BeamSearchDecoder(ModelPart):
         # that can be directly fed from outside
         # the Session.run() due to the logprob recombination
         # in ensembles.
-        #indices = tf.tile([0], [self._beam_size])
         self._decoder_state = DecoderState(
             step=dec_ls.step,
             input_symbol=dec_ls.input_symbol,
@@ -167,13 +166,6 @@ class BeamSearchDecoder(ModelPart):
             prev_logits=dec_ls.prev_logits,
             prev_contexts=dec_ls.prev_contexts,
             finished=dec_ls.finished)
-            #input_symbol=tf.gather(dec_ls.input_symbol, indices),
-            #prev_rnn_state=tf.gather(dec_ls.prev_rnn_state, indices),
-            #prev_rnn_output=tf.gather(dec_ls.prev_rnn_output, indices),
-            #prev_logits=dec_ls.prev_logits,
-            #prev_contexts=(
-            #    [tf.gather(ctx, indices) for ctx in dec_ls.prev_contexts]),
-            #finished=tf.gather(dec_ls.finished, indices))
         dec_ls = dec_ls._replace(**self._decoder_state._asdict())
 
         # TODO:
@@ -187,15 +179,23 @@ class BeamSearchDecoder(ModelPart):
         # collect attention objects
         beam_body = self.get_body()
 
-        # first step has to be run manually because while_loop needs the same
-        # shapes between steps and the first beam state is not beam-sized, but
-        # just a single state.
         initial_loop_state = self.get_initial_loop_state()
-        next_bs_loop_state = beam_body(*initial_loop_state)
 
         def cond(*args) -> tf.Tensor:
             bsls = BeamSearchLoopState(*args)
             return tf.less(bsls.decoder_loop_state.step - 1, self._max_steps)
+
+        # First step has to be run manually because while_loop needs the same
+        # shapes between steps and the first beam state is not beam-sized, but
+        # just a single state.
+        #
+        # When running ensembles, we want to provide
+        # ensembled logprobs to the beam_body before manually running
+        # the first step
+        next_bs_loop_state = tf.cond(
+            cond(*initial_loop_state),
+            lambda: beam_body(*initial_loop_state),
+            lambda: initial_loop_state)
 
         final_state = tf.while_loop(cond, beam_body, next_bs_loop_state)
         dec_loop_state = final_state.decoder_loop_state
@@ -204,11 +204,6 @@ class BeamSearchDecoder(ModelPart):
         scores = final_state.bs_output.scores.stack()
         parent_ids = final_state.bs_output.parent_ids.stack()
         token_ids = final_state.bs_output.token_ids.stack()
-
-        #att_loop_states=[AttentionLoopState(
-        #    contexts=a_ls.contexts.stack(),
-        #    weights=a_ls.weights.stack())
-        #    for a_ls in dec_loop_state.attention_loop_states]
 
         # TODO: return att_loop_states properly
         return BeamSearchOutput(
@@ -265,7 +260,6 @@ class BeamSearchDecoder(ModelPart):
 
             # mask the probabilities
             # shape(logprobs) = beam x vocabulary
-            #logprobs = tf.nn.log_softmax(current_logits)    # init: step=0
             logprobs = bs_state.prev_logprobs
 
             finished_mask = tf.expand_dims(tf.to_float(bs_state.finished), 1)
