@@ -42,8 +42,8 @@ class BeamSearchExecutable(Executable):
             parent_ids=np.empty([0, self._beam_size], dtype=int),
             token_ids=np.empty([0, self._beam_size], dtype=int))
 
-        self._next_feed = [{} for _ in range(self._num_sessions)]
-        # type: List[FeedDict]
+        self._next_feed = [{} for _ in range(self._num_sessions)] \
+            # type: List[FeedDict]
 
         # If we are ensembling, we run only one step at a time
         if self._num_sessions > 1:
@@ -131,7 +131,7 @@ class BeamSearchExecutable(Executable):
 
         output_tokens = []
         hyp_idx = np.argpartition(
-            -bs_output.scores[-1], self._rank - 1)[self._rank -1]
+            -bs_output.scores[-1], self._rank - 1)[self._rank - 1]
         bs_score = bs_output.scores[-1][hyp_idx]
         for time in reversed(range(max_time)):
             token_id = bs_output.token_ids[time][hyp_idx]

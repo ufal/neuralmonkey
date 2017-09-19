@@ -199,8 +199,8 @@ class TensorFlowManager(object):
 
                 # We might want to feed different values to each session
                 # E.g. when executing only step at a time during ensembling
-                feed_dicts = [{} for _ in range(len(self.sessions))]
-                # type: List[FeedDict]
+                feed_dicts = [{} for _ in range(len(self.sessions))] \
+                    # type: List[FeedDict]
 
                 tensor_list_lengths = []  # type: List[int]
 

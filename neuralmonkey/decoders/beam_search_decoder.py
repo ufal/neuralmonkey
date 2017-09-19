@@ -48,7 +48,7 @@ DecoderState = NamedTuple("DecoderState",
 
 SearchState = NamedTuple("SearchState",
                          [("logprob_sum", tf.Tensor),  # beam x 1
-                          ("prev_logprobs", tf.Tensor), # beam x Vocabulary
+                          ("prev_logprobs", tf.Tensor),  # beam x Vocabulary
                           ("lengths", tf.Tensor),
                           ("finished", tf.Tensor)])
 
@@ -256,7 +256,7 @@ class BeamSearchDecoder(ModelPart):
 
             # The decoder should be "one step ahead" (see above)
             step = dec_loop_state.step - 1
-            #current_logits = dec_loop_state.prev_logits
+            # current_logits = dec_loop_state.prev_logits
 
             # mask the probabilities
             # shape(logprobs) = beam x vocabulary
