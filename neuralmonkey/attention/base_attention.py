@@ -34,6 +34,7 @@ from neuralmonkey.decorators import tensor
 from neuralmonkey.dataset import Dataset
 
 # pylint: disable=invalid-name
+Attendable = Union[TemporalStateful, SpatialStateful]
 AttentionLoopState = NamedTuple("AttentionLoopState",
                                 [("contexts", tf.TensorArray),
                                  ("weights", tf.TensorArray)])
@@ -60,8 +61,7 @@ def empty_attention_loop_state() -> AttentionLoopState:
             name="distributions", clear_after_read=False))
 
 
-def get_attention_states(encoder: Union[TemporalStateful,
-                                        SpatialStateful]) -> tf.Tensor:
+def get_attention_states(encoder: Attendable) -> tf.Tensor:
     if isinstance(encoder, TemporalStateful):
         return encoder.temporal_states
 
@@ -75,8 +75,7 @@ def get_attention_states(encoder: Union[TemporalStateful,
         raise AssertionError("Unknown encoder type")
 
 
-def get_attention_mask(encoder: Union[TemporalStateful,
-                                      SpatialStateful]) -> Optional[tf.Tensor]:
+def get_attention_mask(encoder: Attendable) -> Optional[tf.Tensor]:
     if isinstance(encoder, TemporalStateful):
         if encoder.temporal_mask is None:
             raise ValueError("The encoder temporal mask should not be none")

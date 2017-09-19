@@ -4,19 +4,17 @@ See arxiv.org/abs/1601.04811
 The CoverageAttention class inherites from the basic feed-forward attention
 introduced by Bahdanau et al. (2015)
 """
-from typing import Union
-
 import tensorflow as tf
 from typeguard import check_argument_types
 
+from neuralmonkey.attention.base_attention import Attendable
 from neuralmonkey.attention.feed_forward import Attention
-from neuralmonkey.model.stateful import TemporalStateful, SpatialStateful
 
 
 class CoverageAttention(Attention):
     def __init__(self,
                  name: str,
-                 encoder: Union[TemporalStateful, SpatialStateful],
+                 encoder: Attendable,
                  dropout_keep_prob: float = 1.0,
                  state_size: int = None,
                  max_fertility: int = 5,

@@ -3,15 +3,14 @@ used in Bahdanau et al. (2015)
 
 See arxiv.org/abs/1409.0473
 """
-from typing import Union, Optional, Tuple
+from typing import Optional, Tuple
 
 import tensorflow as tf
 from typeguard import check_argument_types
 
 from neuralmonkey.attention.base_attention import (
     BaseAttention, AttentionLoopState, empty_attention_loop_state,
-    get_attention_states, get_attention_mask)
-from neuralmonkey.model.stateful import TemporalStateful, SpatialStateful
+    get_attention_states, get_attention_mask, Attendable)
 from neuralmonkey.decorators import tensor
 from neuralmonkey.nn.utils import dropout
 from neuralmonkey.logging import log
@@ -21,7 +20,7 @@ class Attention(BaseAttention):
 
     def __init__(self,
                  name: str,
-                 encoder: Union[TemporalStateful, SpatialStateful],
+                 encoder: Attendable,
                  dropout_keep_prob: float = 1.0,
                  state_size: int = None,
                  save_checkpoint: str = None,

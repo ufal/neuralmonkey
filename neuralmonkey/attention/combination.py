@@ -13,15 +13,14 @@ decoder not to attend to the, and extract information on its own hidden state
 (see paper `Knowing when to Look: Adaptive Attention via a Visual Sentinel for
 Image Captioning  <https://arxiv.org/pdf/1612.01887.pdf>`_).
 """
-from typing import Any, List, Union, Tuple, NamedTuple
+from typing import Any, List, Tuple, NamedTuple
 
 from typeguard import check_argument_types
 import tensorflow as tf
 
 from neuralmonkey.attention.base_attention import (
     BaseAttention, AttentionLoopState, empty_attention_loop_state,
-    get_attention_states, get_attention_mask)
-from neuralmonkey.model.stateful import TemporalStateful, SpatialStateful
+    get_attention_states, get_attention_mask, Attendable)
 from neuralmonkey.checking import assert_shape
 
 
@@ -109,7 +108,7 @@ class FlatMultiAttention(MultiAttention):
     """
     def __init__(self,
                  name: str,
-                 encoders: List[Union[TemporalStateful, SpatialStateful]],
+                 encoders: List[Attendable],
                  attention_state_size: int,
                  share_attn_projections: bool = False,
                  use_sentinels: bool = False,
