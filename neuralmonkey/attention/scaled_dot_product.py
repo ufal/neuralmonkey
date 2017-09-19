@@ -8,6 +8,7 @@ from typing import Tuple
 import tensorflow as tf
 from typeguard import check_argument_types
 
+from neuralmonkey.nn.utils import dropout
 from neuralmonkey.attention.base_attention import (
     BaseAttention, Attendable, get_attention_states, get_attention_mask,
     AttentionLoopStateTA, empty_attention_loop_state)
@@ -19,6 +20,7 @@ class ScaledDotProdAttention(BaseAttention):
                  name: str,
                  keys_encoder: Attendable,
                  values_encoder: Attendable = None,
+                 dropout_keep_prob: float = 1.0,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None) -> None:
         check_argument_types()
@@ -30,6 +32,8 @@ class ScaledDotProdAttention(BaseAttention):
         self.attention_keys = get_attention_states(keys_encoder)
         self.attention_values = get_attention_states(values_encoder)
         self.attention_mask = get_attention_mask(keys_encoder)
+
+        self.dropout_keep_prob = dropout_keep_prob
 
         self._dimension = self.attention_keys.get_shape()[-1].value
         self._scaling_factor = 1 / math.sqrt(self._dimension)
@@ -53,6 +57,9 @@ class ScaledDotProdAttention(BaseAttention):
             weights_all = weights * self.attention_mask
             norm = tf.reduce_sum(weights_all, 1, keep_dims=True) + 1e-8
             weights = weights_all / norm
+
+        # apply dropout to the weights (Attention Dropout)
+        weights = dropout(weights, self.dropout_keep_prob, self.train_mode)
 
         # sum up along the time axis
         context = tf.reduce_sum(
