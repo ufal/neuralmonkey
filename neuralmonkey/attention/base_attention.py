@@ -30,7 +30,6 @@ import tensorflow as tf
 
 from neuralmonkey.model.stateful import TemporalStateful, SpatialStateful
 from neuralmonkey.model.model_part import ModelPart, FeedDict
-from neuralmonkey.decorators import tensor
 from neuralmonkey.dataset import Dataset
 
 # pylint: disable=invalid-name
@@ -103,6 +102,8 @@ class BaseAttention(ModelPart):
         self.query_state_size = None  # type: tf.Tensor
         self._histories = {}  # type: Dict[str, tf.Tensor]
 
+        self.train_mode = tf.placeholder(tf.bool, [], "train_mode")
+
     @property
     def histories(self) -> Dict[str, tf.Tensor]:
         return self._histories
@@ -122,12 +123,6 @@ class BaseAttention(ModelPart):
 
     def finalize_loop(self, key: str, last_loop_state: Any) -> None:
         raise NotImplementedError("Abstract method")
-
-    # pylint: disable=no-self-use
-    @tensor
-    def train_mode(self) -> tf.Tensor:
-        return tf.placeholder(tf.bool, [], "train_mode")
-    # pylint: enable=no-self-use
 
     def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
         return {self.train_mode: train}
