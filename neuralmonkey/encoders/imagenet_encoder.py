@@ -146,7 +146,11 @@ class ImageNet(ModelPart, SpatialStatefulWithOutput):
     def spatial_mask(self) -> tf.Tensor:
         if self.attention_layer is None:
             return None
-        return tf.ones(tf.shape(self.spatial_states)[:3])
+        mask = tf.ones(tf.shape(self.spatial_states)[:3])
+        # pylint: disable=no-member
+        mask.set_shape(self.spatial_states.get_shape()[:3])
+        # pylint: enable=no-member
+        return mask
 
     @tensor
     def output(self) -> tf.Tensor:
