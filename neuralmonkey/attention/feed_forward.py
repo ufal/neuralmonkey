@@ -129,7 +129,7 @@ class Attention(BaseAttention):
         y = y + self.projection_bias_vector
         y = tf.reshape(y, [-1, 1, 1, self.state_size])
 
-        energies = self.get_energies(y, loop_state.weights)
+        energies = self.get_energies(y, loop_state.weights.identity())
 
         if self.attention_mask is None:
             weights = tf.nn.softmax(energies)

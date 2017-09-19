@@ -57,7 +57,7 @@ def empty_attention_loop_state() -> AttentionLoopState:
             name="contexts"),
         weights=tf.TensorArray(
             dtype=tf.float32, size=0, dynamic_size=True,
-            name="distributions"))
+            name="distributions", clear_after_read=False))
 
 
 def get_attention_states(encoder: Union[TemporalStateful,
