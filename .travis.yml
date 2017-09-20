@@ -5,6 +5,8 @@ group: deprecated-2017Q3
 language: python
 
 env:
+  global:
+    - PYTHONHASHSEED=0
   matrix:
     - TEST_SUITE=lint
     - TEST_SUITE=pycodestyle
