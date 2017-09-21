@@ -134,7 +134,7 @@ class Decoder(AutoregressiveDecoder):
 
         if self.encoder_projection is None:
             if not self.encoders:
-                log("No encoder - language model only.")
+                log("No direct encoder input. Using empty initial state")
                 self.encoder_projection = empty_initial_state
             elif rnn_size is None:
                 log("No rnn_size or encoder_projection: Using concatenation of"

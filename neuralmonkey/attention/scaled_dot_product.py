@@ -62,28 +62,34 @@ class MultiHeadAttention(BaseAttention):
         self._head_dim = int(self._dimension / self.n_heads)
         self._scaling_factor = 1 / math.sqrt(self._head_dim)
 
+    # pylint: disable=too-many-locals
+    # TODO improve this code
     def attention(self,
                   query: tf.Tensor,
                   decoder_prev_state: tf.Tensor,
                   decoder_input: tf.Tensor,
                   loop_state: MultiHeadLoopStateTA,
                   step: tf.Tensor) -> Tuple[tf.Tensor, MultiHeadLoopStateTA]:
-
         if self.n_heads == 1:
             context, weights = self.attention_single_head(
                 query, self.attention_keys, self.attention_values)
             head_weights = [weights]
         else:
             # project query, keys and vals: [batch, rnn] to [batch, rnn2]
+            query_proj = tf.layers.dense(
+                query, self._dimension, name="query_proj")
+            keys_proj = tf.layers.dense(
+                self.attention_keys, self._dimension, name="keys_proj")
+            vals_proj = tf.layers.dense(
+                self.attention_values, self._dimension, name="vals_proj")
+
+            query_heads = tf.split(query_proj, self.n_heads, axis=1)
+            keys_heads = tf.split(keys_proj, self.n_heads, axis=2)
+            vals_heads = tf.split(vals_proj, self.n_heads, axis=2)
+
             head_contexts, head_weights = zip(*[
-                self.attention_single_head(
-                    tf.layers.dense(query, self._head_dim,
-                                    name="query_proj_head{}".format(i)),
-                    tf.layers.dense(self.attention_keys, self._head_dim,
-                                    name="keys_proj_head{}".format(i)),
-                    tf.layers.dense(self.attention_values, self._head_dim,
-                                    name="values_proj_head{}".format(i)))
-                for i in range(self.n_heads)])
+                self.attention_single_head(q, k, v)
+                for q, k, v in zip(query_heads, keys_heads, vals_heads)])
 
             context = tf.layers.dense(
                 tf.concat(head_contexts, -1), self._dimension,
@@ -99,6 +105,46 @@ class MultiHeadAttention(BaseAttention):
             head_weights=next_head_weights)
 
         return context, next_loop_state
+    # pylint: enable=too-many-locals
+
+    def attention_3d(self, query_3d: tf.Tensor) -> tf.Tensor:
+
+        if self.n_heads == 1:
+            query_heads = [query_3d]
+            keys_heads = [self.attention_keys]
+            vals_heads = [self.attention_values]
+        else:
+            # Linearly project queries, keys and vals, then split
+            # query_proj of shape batch, time(q), self._dimension (=q_channels)
+            query_proj = tf.layers.dense(
+                query_3d, self._dimension, name="query_proj")
+            keys_proj = tf.layers.dense(
+                self.attention_keys, self._dimension, name="keys_proj")
+            vals_proj = tf.layers.dense(
+                self.attention_values, self._dimension, name="vals_proj")
+
+            query_heads = tf.split(query_proj, self.n_heads, axis=2)
+            keys_heads = tf.split(keys_proj, self.n_heads, axis=2)
+            vals_heads = tf.split(vals_proj, self.n_heads, axis=2)
+
+        # head_contexts_3d, head_weights_3d = zip(*[
+        head_contexts_3d, _ = zip(*[
+            self.attention_single_head_3d(q, k, v)
+            for q, k, v in zip(query_heads, keys_heads, vals_heads)])
+
+        context_3d = tf.layers.dense(tf.concat(head_contexts_3d, -1),
+                                     self._dimension, name="output_proj")
+
+        # next_contexts = loop_state.contexts.write(step, context_3d)
+        # next_head_weights = [
+        #     loop_state.head_weights[i].write(step, head_weights_3d[i])
+        #     for i in range(self.n_heads)]
+
+        # next_loop_state = MultiHeadLoopState3DTA(
+        #     contexts=next_contexts,
+        #     head_weights=next_head_weights)
+
+        return context_3d
 
     def attention_single_head(self, query: tf.Tensor,
                               keys: tf.Tensor,
@@ -125,6 +171,54 @@ class MultiHeadAttention(BaseAttention):
             tf.expand_dims(weights, -1) * values, [1])
 
         return context, weights
+
+    def attention_single_head_3d(self, query: tf.Tensor,
+                                 keys: tf.Tensor,
+                                 values: tf.Tensor) -> Tuple[tf.Tensor,
+                                                             tf.Tensor]:
+        # Shapes:
+        # query:  batch, time(q), k_channels
+        # keys:   batch, time(k), k_channels
+        # values: batch, time(k), v_channels
+        # Outputs:
+        # context: batch, time(q), v_channels
+        # weights: batch, time(q), time(k)
+
+        # Scale first:
+        query_scaled = query * self._scaling_factor
+
+        # For dot-product, we use matrix multiplication
+        # shape: batch, time(q), time(k) (k_channels is the matmul axis)
+        energies = tf.matmul(query_scaled, keys, transpose_b=True)
+
+        # Softmax along the last axis
+        # shape: batch, time(q), time(k)
+        weights_3d = tf.nn.softmax(energies)
+
+        if self.attention_mask is not None:
+            # attention mask shape: batch, time(k)
+            # weights_all shape: batch, time(q), time(k)
+            weights_all = weights_3d * tf.expand_dims(self.attention_mask, 1)
+            # normalization along time(k)
+            # norm shape: batch, time(q), 1
+            norm = tf.reduce_sum(weights_all, 2, keep_dims=True) + 1e-8
+            weights_3d = weights_all / norm
+
+        # apply dropout to the weights (Attention Dropout)
+        weights_3d = dropout(
+            weights_3d, self.dropout_keep_prob, self.train_mode)
+
+        # sum up along the time(k) axis, weigh values along the v_channels axis
+
+        # 1. expand weights_3d to shape batch, time(q), time(k), 1
+        # 2. expand values to shape     batch, 1, time(k), v_channels
+        # 3. element-wise multiplication broadcasts that to
+        #    shape: batch, time(q), time(k), v_channels
+        # 4. sum along the time(k) axis
+        context_3d = tf.reduce_sum(
+            tf.expand_dims(weights_3d, 3) * tf.expand_dims(values, 1), 2)
+
+        return context_3d, weights_3d
 
     def initial_loop_state(self) -> MultiHeadLoopStateTA:
         return MultiHeadLoopStateTA(
