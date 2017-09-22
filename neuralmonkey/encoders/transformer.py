@@ -15,7 +15,8 @@ from neuralmonkey.decorators import tensor
 from neuralmonkey.attention.scaled_dot_product import MultiHeadAttention
 from neuralmonkey.model.model_part import FeedDict, ModelPart
 from neuralmonkey.model.sequence import Sequence
-from neuralmonkey.model.stateful import TemporalStateful
+from neuralmonkey.model.stateful import (TemporalStateful,
+                                         TemporalStatefulWithOutput)
 
 
 class TransformerLayer(TemporalStateful):
@@ -32,7 +33,7 @@ class TransformerLayer(TemporalStateful):
         return self._mask
 
 
-class TransformerEncoder(ModelPart, TemporalStateful):
+class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
 
     # pylint: disable=too-many-arguments
     def __init__(self,
@@ -46,7 +47,6 @@ class TransformerEncoder(ModelPart, TemporalStateful):
                  load_checkpoint: str = None) -> None:
         check_argument_types()
         ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
-        TemporalStateful.__init__(self)
 
         self.input_sequence = input_sequence
         self.dimension = self.input_sequence.dimension
@@ -69,6 +69,10 @@ class TransformerEncoder(ModelPart, TemporalStateful):
         self.self_attentions = [None for _ in range(self.depth)] \
             # type: List[Optional[MultiHeadAttention]]
     # pylint: enable=too-many-arguments
+
+    @tensor
+    def output(self) -> tf.Tensor:
+        return tf.reduce_sum(self.temporal_states, axis=1)
 
     @tensor
     def encoder_inputs(self) -> tf.Tensor:
