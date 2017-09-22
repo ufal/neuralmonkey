@@ -3,8 +3,8 @@ from typing import Tuple, List
 import tensorflow as tf
 from typeguard import check_argument_types
 
+from neuralmonkey.model.stateful import TemporalStatefulWithOutput
 from neuralmonkey.model.model_part import ModelPart, FeedDict
-from neuralmonkey.encoders.attentive import Attentive
 from neuralmonkey.nn.ortho_gru_cell import OrthoGRUCell
 from neuralmonkey.nn.utils import dropout
 from neuralmonkey.vocabulary import Vocabulary
@@ -23,7 +23,7 @@ RNN_CELL_TYPES = {
 }
 
 
-class RecurrentEncoder(ModelPart, Attentive):
+class RecurrentEncoder(ModelPart, TemporalStatefulWithOutput):
 
     # pylint: disable=too-many-arguments
     def __init__(self,
@@ -32,16 +32,11 @@ class RecurrentEncoder(ModelPart, Attentive):
                  rnn_size: int,
                  dropout_keep_prob: float = 1.0,
                  rnn_cell: str = "GRU",
-                 attention_type: type = None,
-                 attention_state_size: int = None,
-                 attention_fertility: int = 3,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None) -> None:
         """Create a new instance of a recurrent encoder."""
         ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
-        Attentive.__init__(self, attention_type,
-                           attention_state_size=attention_state_size,
-                           attention_fertility=attention_fertility)
+        TemporalStatefulWithOutput.__init__(self)
         check_argument_types()
 
         self.input_sequence = input_sequence
@@ -84,7 +79,11 @@ class RecurrentEncoder(ModelPart, Attentive):
         # pylint: enable=unsubscriptable-object
 
     @tensor
-    def encoded(self) -> tf.Tensor:
+    def temporal_states(self) -> tf.Tensor:
+        return self.states
+
+    @tensor
+    def output(self) -> tf.Tensor:
         # pylint: disable=unsubscriptable-object
         if self.rnn_cell_str == "GRU":
             return tf.concat(self.bidirectional_rnn[1], 1)
@@ -95,12 +94,7 @@ class RecurrentEncoder(ModelPart, Attentive):
         # pylint: enable=unsubscriptable-object
 
     @tensor
-    def _attention_tensor(self) -> tf.Tensor:
-        return dropout(self.states, self.dropout_keep_prob, self.train_mode)
-
-    @tensor
-    def _attention_mask(self) -> tf.Tensor:
-        # TODO tohle je proti OOP prirode
+    def temporal_mask(self) -> tf.Tensor:
         return self.input_sequence.mask
 
     @tensor
@@ -130,9 +124,6 @@ class SentenceEncoder(RecurrentEncoder):
                  max_input_len: int = None,
                  dropout_keep_prob: float = 1.0,
                  rnn_cell: str = "GRU",
-                 attention_type: type = None,
-                 attention_fertility: int = 3,
-                 attention_state_size: int = None,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None) -> None:
         """Create a new instance of the sentence encoder. """
@@ -163,9 +154,6 @@ class SentenceEncoder(RecurrentEncoder):
             rnn_size=rnn_size,
             dropout_keep_prob=dropout_keep_prob,
             rnn_cell=rnn_cell,
-            attention_type=attention_type,
-            attention_fertility=attention_fertility,
-            attention_state_size=attention_state_size,
             save_checkpoint=save_checkpoint,
             load_checkpoint=load_checkpoint)
     # pylint: enable=too-many-arguments,too-many-locals
@@ -182,9 +170,6 @@ class FactoredEncoder(RecurrentEncoder):
                  max_input_len: int = None,
                  dropout_keep_prob: float = 1.0,
                  rnn_cell: str = "GRU",
-                 attention_type: type = None,
-                 attention_fertility: int = 3,
-                 attention_state_size: int = None,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None) -> None:
         """Create a new instance of the sentence encoder. """
@@ -207,9 +192,6 @@ class FactoredEncoder(RecurrentEncoder):
             rnn_size=rnn_size,
             dropout_keep_prob=dropout_keep_prob,
             rnn_cell=rnn_cell,
-            attention_type=attention_type,
-            attention_fertility=attention_fertility,
-            attention_state_size=attention_state_size,
             save_checkpoint=save_checkpoint,
             load_checkpoint=load_checkpoint)
     # pylint: enable=too-many-arguments,too-many-locals

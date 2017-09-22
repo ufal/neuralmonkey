@@ -21,9 +21,9 @@ class GreedyRunner(BaseRunner):
         super(GreedyRunner, self).__init__(output_series, decoder)
         self._postprocess = postprocess
 
-        val_plot_summaries = tf.get_collection("summary_val_plots")
-        if val_plot_summaries:
-            self.image_summaries = tf.summary.merge(val_plot_summaries)
+        att_plot_summaries = tf.get_collection("summary_att_plots")
+        if att_plot_summaries:
+            self.image_summaries = tf.summary.merge(att_plot_summaries)
         else:
             self.image_summaries = None
 

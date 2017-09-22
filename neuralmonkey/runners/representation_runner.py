@@ -1,26 +1,24 @@
 """A runner that prints out the input representation from an encoder."""
-
-# pylint: disable=unused-import
-from typing import Dict, List, Optional
-# pylint: enable=unused-import
-
+from typing import Dict, List, cast, Set
+from typeguard import check_argument_types
 import tensorflow as tf
 
 from neuralmonkey.model.model_part import ModelPart
+from neuralmonkey.model.stateful import Stateful
 from neuralmonkey.runners.base_runner import (BaseRunner, Executable,
                                               ExecutionResult, NextExecute)
 
 
 class RepresentationExecutable(Executable):
 
-    def __init__(self, prev_coders: List[ModelPart],
+    def __init__(self, prev_coders: Set[ModelPart],
                  encoded: tf.Tensor,
                  used_session: int) -> None:
         self._prev_coders = prev_coders
         self._encoded = encoded
         self._used_session = used_session
 
-        self.result = None  # type: Optional[ExecutionResult]
+        self.result = None  # type: ExecutionResult
 
     def next_to_execute(self) -> NextExecute:
         return self._prev_coders, {"encoded": self._encoded}, {}
@@ -50,7 +48,7 @@ class RepresentationRunner(BaseRunner):
 
     def __init__(self,
                  output_series: str,
-                 encoder: ModelPart,
+                 encoder: Stateful,
                  used_session: int = 0) -> None:
         """Initialize the representation runner.
 
@@ -60,13 +58,21 @@ class RepresentationRunner(BaseRunner):
             used_session: Id of the TensorFlow session used in case of model
                 ensembles.
         """
-        super(RepresentationRunner, self).__init__(output_series, encoder)
+        check_argument_types()
 
-        self._used_session = used_session
-        self._encoded = encoder.encoded  # type: ignore
+        if not isinstance(encoder, ModelPart):
+            raise TypeError("The encoder of the representation runner has to "
+                            "be an instance of 'ModelPart'")
 
-    def get_executable(self, compute_losses=False,
-                       summaries=True) -> RepresentationExecutable:
+        BaseRunner.__init__(self, output_series, cast(ModelPart, encoder))
+
+        self._used_session = used_session  # type: int
+        self._encoded = encoder.output  # type: Stateful
+
+    def get_executable(self,
+                       compute_losses: bool = False,
+                       summaries: bool = True) -> RepresentationExecutable:
+
         return RepresentationExecutable(self.all_coders,
                                         self._encoded,
                                         self._used_session)

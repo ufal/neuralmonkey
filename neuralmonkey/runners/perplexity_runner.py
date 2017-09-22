@@ -1,7 +1,6 @@
-# pylint: disable=unused-import
-from typing import Dict, List, Optional
-# pylint: enable=unused-import
+from typing import Dict, List, Set, cast
 
+from typeguard import check_argument_types
 import tensorflow as tf
 import numpy as np
 
@@ -12,11 +11,11 @@ from neuralmonkey.runners.base_runner import (BaseRunner, Executable,
 
 
 class PerplexityExecutable(Executable):
-    def __init__(self, all_coders: List[ModelPart],
+    def __init__(self, all_coders: Set[ModelPart],
                  xent_op: tf.Tensor) -> None:
         self._all_coders = all_coders
         self._xent_op = xent_op
-        self.result = None  # type: Optional[ExecutionResult]
+        self.result = None  # type: ExecutionResult
 
     def next_to_execute(self) -> NextExecute:
         """Get the feedables and tensors to run."""
@@ -37,9 +36,10 @@ class PerplexityRunner(BaseRunner):
     def __init__(self,
                  output_series: str,
                  decoder: Decoder) -> None:
-        super(PerplexityRunner, self).__init__(output_series, decoder)
+        check_argument_types()
+        BaseRunner.__init__(self, output_series, decoder)
 
-        self._decoder_xent = self._decoder.train_xents
+        self._decoder_xent = cast(Decoder, self._decoder).train_xents
 
     def get_executable(self, compute_losses=False,
                        summaries=True) -> PerplexityExecutable:

@@ -8,11 +8,12 @@ import tensorflow as tf
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.decorators import tensor
 from neuralmonkey.model.model_part import ModelPart, FeedDict
+from neuralmonkey.model.stateful import Stateful
 from neuralmonkey.nn.utils import dropout
 from neuralmonkey.vocabulary import Vocabulary
 
 
-class SequenceCNNEncoder(ModelPart):
+class SequenceCNNEncoder(ModelPart, Stateful):
     """Encoder processing a sequence using a CNN."""
 
     # pylint: disable=too-many-arguments
@@ -43,8 +44,8 @@ class SequenceCNNEncoder(ModelPart):
             dropout_keep_prob: The dropout keep probability
                 (default 1.0)
         """
-        ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
         check_argument_types()
+        ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
 
         self.vocabulary = vocabulary
         self.data_id = data_id
@@ -56,19 +57,17 @@ class SequenceCNNEncoder(ModelPart):
     # pylint: disable=no-self-use
     @tensor
     def train_mode(self) -> tf.Tensor:
-        return tf.placeholder(tf.bool, shape=[],
-                              name="train_mode")
+        return tf.placeholder(tf.bool, shape=[], name="train_mode")
 
     @tensor
     def inputs(self) -> tf.Tensor:
-        return tf.placeholder(tf.int32,
-                              shape=[None, None],
-                              name="encoder_input")
+        return tf.placeholder(
+            tf.int32, shape=[None, None], name="encoder_input")
 
     @tensor
     def input_mask(self) -> tf.Tensor:
-        return tf.placeholder(tf.float32, shape=[None, None],
-                              name="encoder_padding")
+        return tf.placeholder(
+            tf.float32, shape=[None, None], name="encoder_padding")
     # pylint: enable=no-self-use
 
     @tensor
@@ -84,8 +83,7 @@ class SequenceCNNEncoder(ModelPart):
                 self.train_mode)
 
     @tensor
-    def encoded(self) -> tf.Tensor:
-
+    def output(self) -> tf.Tensor:
         pooled_outputs = []
         for filter_size, num_filters in self.filters:
             with tf.variable_scope("conv-maxpool-%s" % filter_size):

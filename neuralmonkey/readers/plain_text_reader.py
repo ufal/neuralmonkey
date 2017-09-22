@@ -53,7 +53,7 @@ def column_separated_reader(
         text_reader = string_reader(encoding)
         for line in text_reader(files):
             io_line = io.StringIO(line.rstrip('\r\n'))
-            if quotechar is None:
+            if quotechar is not None:
                 parsed_csv = list(csv.reader(io_line, delimiter=delimiter,
                                              quotechar=quotechar,
                                              skipinitialspace=True))
@@ -78,12 +78,11 @@ def column_separated_reader(
 
 
 def csv_reader(column: int):
-    return column_separated_reader(column=column, delimiter=',', quotechar='"')
+    return column_separated_reader(column, delimiter=',', quotechar='"')
 
 
 def tsv_reader(column: int):
-    return column_separated_reader(column=column, delimiter='\t',
-                                   quotechar=None)
+    return column_separated_reader(column, delimiter='\t', quotechar=None)
 
 
 # pylint: disable=invalid-name

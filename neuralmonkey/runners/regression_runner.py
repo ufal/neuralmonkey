@@ -1,6 +1,4 @@
-# pylint: disable=unused-import
-from typing import Dict, List, Optional, Callable, Any
-# pylint: enable=unused-import
+from typing import Dict, List, Callable, Set, cast
 
 import numpy as np
 import tensorflow as tf
@@ -19,21 +17,22 @@ class RegressionRunner(BaseRunner):
                  output_series: str,
                  decoder: SequenceRegressor,
                  postprocess: Callable[[float], float] = None) -> None:
-        super(RegressionRunner, self).__init__(output_series, decoder)
-        assert check_argument_types()
+        check_argument_types()
+        BaseRunner.__init__(self, output_series, decoder)
 
         self._postprocess = postprocess
 
     def get_executable(self,
                        compute_losses: bool = False,
-                       summaries=True) -> Executable:
+                       summaries: bool = True) -> Executable:
+        decoder = cast(SequenceRegressor, self._decoder)
 
         if compute_losses:
-            fetches = {"mse": self._decoder.cost}
+            fetches = {"mse": decoder.cost}
         else:
             fetches = {}
 
-        fetches["prediction"] = self._decoder.predictions
+        fetches["prediction"] = decoder.predictions
 
         return RegressionRunExecutable(self.all_coders, fetches,
                                        self._postprocess)
@@ -46,14 +45,14 @@ class RegressionRunner(BaseRunner):
 class RegressionRunExecutable(Executable):
 
     def __init__(self,
-                 all_coders: List[ModelPart],
+                 all_coders: Set[ModelPart],
                  fetches: Dict[str, tf.Tensor],
                  postprocess: Callable[[float], float] = None) -> None:
 
         self.all_coders = all_coders
         self._fetches = fetches
         self._postprocess = postprocess
-        self.result = None  # type: Optional[ExecutionResult]
+        self.result = None  # type: ExecutionResult
 
     def next_to_execute(self) -> NextExecute:
         """Get the feedables and tensors to run."""

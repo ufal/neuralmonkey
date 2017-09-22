@@ -6,7 +6,6 @@ import copy
 
 from typing import Dict, List, Any, Iterable
 
-from neuralmonkey.decoding_function import Attention, CoverageAttention
 from neuralmonkey.encoders.numpy_encoder import (VectorEncoder,
                                                  PostCNNImageEncoder)
 from neuralmonkey.encoders.recurrent import SentenceEncoder
@@ -25,8 +24,6 @@ SENTENCE_ENCODER_GOOD = {
     "rnn_size": [30],
     "max_input_len": [None, 15],
     "dropout_keep_prob": [0.5, 1.],
-    "attention_type": [Attention, CoverageAttention, None],
-    "attention_fertility": [1]
 }
 
 SENTENCE_ENCODER_BAD = {
@@ -38,8 +35,6 @@ SENTENCE_ENCODER_BAD = {
     "rnn_size": [-1, 0, "ahoj", 3.14, VOCABULARY, SentenceEncoder, None],
     "max_input_len": [-1, 0, "ahoj", 3.14, VOCABULARY, SentenceEncoder],
     "dropout_keep_prob": [0.0, 0, -1.0, 2.0, "ahoj", VOCABULARY, None],
-    "attention_type": [-1, "ahoj", VOCABULARY, SentenceEncoder],
-    "attention_fertility": [None, "ahoj", VOCABULARY, SentenceEncoder]
 }
 
 SENTENCE_CNN_ENCODER_GOOD = {
@@ -50,7 +45,6 @@ SENTENCE_CNN_ENCODER_GOOD = {
     "rnn_size": [30],
     "filters": [[(2, 10)], [(3, 20), (4, 10)]],
     "dropout_keep_prob": [0.5, 1.],
-    "attention_type": [Attention, CoverageAttention, None],
     "use_noisy_activations": [False]
 }
 
@@ -64,8 +58,6 @@ SENTENCE_CNN_ENCODER_BAD = {
     "filters": ["ahoj", [], [(0, 0)], [(1, 2, 3)], [VOCABULARY, None],
                 [(None, None)]],
     "dropout_keep_prob": [0.0, 0, -1.0, 2.0, "ahoj", VOCABULARY, None],
-    "attention_type": [-1, "ahoj", VOCABULARY, SentenceEncoder],
-    "attention_fertility": [None, "ahoj", VOCABULARY, SentenceEncoder],
     "use_noisy_activations": [None, SentenceEncoder]
 }
 
@@ -89,14 +81,12 @@ POST_CNN_IMAGE_ENCODER_GOOD = {
     "input_shape": [[1, 2, 3], [10, 20, 3]],
     "output_shape": [10],
     "data_id": ["marmelade"],
-    "attention_type": [Attention, CoverageAttention, None]
 }
 
 POST_CNN_IMAGE_ENCODER_BAD = {
     "nonexistent": ["ahoj"],
     "name": [None, 1],
     "data_id": [3.14, VOCABULARY, None],
-    "attention_type": [-1, "ahoj", VOCABULARY, SentenceEncoder],
     "output_shape": [0, -1, "hoj", 3.14, None, VOCABULARY, SentenceEncoder],
     "input_shape": [3, [10, 20], [-1, 10, 20], "123", "ahoj", 3.14,
                     VOCABULARY, []]

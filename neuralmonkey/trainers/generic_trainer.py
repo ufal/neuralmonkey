@@ -1,10 +1,11 @@
-from typing import Any, Dict, List, NamedTuple, Optional, Tuple, Union
+from typing import Dict, List, NamedTuple, Optional, Tuple, Union
 import re
 
 import tensorflow as tf
 
-from neuralmonkey.runners.base_runner import (collect_encoders, Executable,
-                                              ExecutionResult, NextExecute)
+from neuralmonkey.model.model_part import ModelPart
+from neuralmonkey.runners.base_runner import (
+    Executable, ExecutionResult, NextExecute)
 
 
 # pylint: disable=invalid-name
@@ -12,7 +13,7 @@ Gradients = List[Tuple[tf.Tensor, tf.Variable]]
 ObjectiveWeight = Union[tf.Tensor, float, None]
 Objective = NamedTuple('Objective',
                        [('name', str),
-                        ('decoder', Any),
+                        ('decoder', ModelPart),
                         ('loss', tf.Tensor),
                         ('gradients', Optional[Gradients]),
                         ('weight', ObjectiveWeight)])
@@ -77,7 +78,7 @@ class GenericTrainer(object):
                              for grad, var in gradients
                              if grad is not None]
 
-            self.all_coders = set.union(*(collect_encoders(obj.decoder)
+            self.all_coders = set.union(*(obj.decoder.get_dependencies()
                                           for obj in objectives))
 
             if global_step is None:

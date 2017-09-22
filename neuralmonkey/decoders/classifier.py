@@ -1,10 +1,11 @@
-from typing import cast, Any, Callable, Iterable, Optional, List
+from typing import cast, Callable, Iterable, Optional, List
 
 import tensorflow as tf
 
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.vocabulary import Vocabulary
 from neuralmonkey.model.model_part import ModelPart, FeedDict
+from neuralmonkey.model.stateful import Stateful
 from neuralmonkey.nn.mlp import MultilayerPerceptron
 from neuralmonkey.decorators import tensor
 
@@ -18,7 +19,7 @@ class Classifier(ModelPart):
     # pylint: disable=too-many-arguments
     def __init__(self,
                  name: str,
-                 encoders: List[Any],
+                 encoders: List[Stateful],
                  vocabulary: Vocabulary,
                  data_id: str,
                  layers: List[int],
@@ -68,7 +69,7 @@ class Classifier(ModelPart):
 
     @tensor
     def _mlp(self) -> MultilayerPerceptron:
-        mlp_input = tf.concat([enc.encoded for enc in self.encoders], 1)
+        mlp_input = tf.concat([enc.output for enc in self.encoders], 1)
         return MultilayerPerceptron(
             mlp_input, self.layers,
             self.dropout_keep_prob, len(self.vocabulary),
