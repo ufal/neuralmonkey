@@ -3,7 +3,7 @@ from typing import cast, Callable, Iterable, List
 import tensorflow as tf
 
 from typeguard import check_argument_types
-from neuralmonkey.nn.projection import multilayer_projection, linear
+from neuralmonkey.nn.projection import multilayer_projection
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.model.model_part import ModelPart, FeedDict
 from neuralmonkey.model.stateful import Stateful
@@ -69,8 +69,8 @@ class SequenceRegressor(ModelPart):
 
     @tensor
     def predictions(self):
-        return linear(self._mlp_output, self.dimension,
-                      scope="output_projection")
+        return tf.layers.dense(
+            self._mlp_output, self.dimension, name="output_projection")
 
     @tensor
     def cost(self):

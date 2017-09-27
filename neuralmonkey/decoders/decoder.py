@@ -18,7 +18,6 @@ from neuralmonkey.model.stateful import (TemporalStatefulWithOutput,
 from neuralmonkey.logging import log, warn
 from neuralmonkey.nn.ortho_gru_cell import OrthoGRUCell
 from neuralmonkey.nn.utils import dropout
-from neuralmonkey.nn.projection import linear
 from neuralmonkey.decoders.encoder_projection import (
     linear_encoder_projection, concat_encoder_projection, empty_initial_state)
 from neuralmonkey.decoders.output_projection import (OutputProjectionSpec,
@@ -379,9 +378,10 @@ class Decoder(ModelPart):
         loop_state = LoopState(*args)
 
         embedded_input = self.embed_input_symbol(*loop_state)
+        emb_with_ctx = tf.concat(
+            [embedded_input] + loop_state.prev_contexts, 1)
 
-        return linear([embedded_input] + loop_state.prev_contexts,
-                      self.embedding_size)
+        return tf.layers.dense(emb_with_ctx, self.embedding_size)
 
     def get_body(self,
                  train_mode: bool,

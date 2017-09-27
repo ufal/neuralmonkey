@@ -3,11 +3,10 @@ This module contains different variants of projection functions
 for RNN outputs.
 """
 from typing import Union, Tuple, List, Callable
-
 import tensorflow as tf
+from typeguard import check_argument_types
 
-from neuralmonkey.nn.projection import (multilayer_projection, maxout,
-                                        linear, nonlinear)
+from neuralmonkey.nn.projection import multilayer_projection, maxout
 
 
 # pylint: disable=invalid-name
@@ -23,10 +22,13 @@ def _legacy_linear(output_size: int) -> Tuple[OutputProjection, int]:
     """This was the default projection before commit 9a09553. For backward
     compatibility, set the output_size parameter to decoder's rnn_size param.
     """
+    check_argument_types()
+
     # pylint: disable=unused-argument
     def _projection(prev_state, prev_output, ctx_tensors, train_mode):
-        return linear([prev_state] + ctx_tensors,
-                      output_size, scope="AttnOutputProjection")
+        state_with_ctx = tf.concat([prev_state] + ctx_tensors, 1)
+        return tf.layers.dense(state_with_ctx, output_size,
+                               name="AttnOutputProjection")
     # pylint: enable=unused-argument
 
     return _projection, output_size
@@ -36,12 +38,14 @@ def _legacy_relu(output_size: int) -> Tuple[OutputProjection, int]:
     """This was the default projection after commit 9a09553. For backward
     compatibility, set the output_size parameter to decoder's rnn_size param.
     """
+    check_argument_types()
+
     # pylint: disable=unused-argument
     def _projection(prev_state, prev_output, ctx_tensors, train_mode):
-        return nonlinear([prev_state] + ctx_tensors,
-                         output_size,
-                         activation=tf.nn.relu,
-                         scope="AttnOutputProjection")
+        state_with_ctx = tf.concat([prev_state] + ctx_tensors, 1)
+        return tf.layers.dense(state_with_ctx, output_size,
+                               activation=tf.nn.relu,
+                               name="AttnOutputProjection")
     # pylint: enable=unused-argument
 
     return _projection, output_size
@@ -51,12 +55,13 @@ def nonlinear_output(
         output_size: int,
         activation_fn: Callable[[tf.Tensor], tf.Tensor]=tf.tanh
 ) -> Tuple[OutputProjection, int]:
+    check_argument_types()
 
     # pylint: disable=unused-argument
     def _projection(prev_state, prev_output, ctx_tensors, train_mode):
-        return nonlinear([prev_state, prev_output] + ctx_tensors,
-                         output_size,
-                         activation=activation_fn)
+        state_out_ctx = tf.concat([prev_state, prev_output] + ctx_tensors, 1)
+        return tf.layers.dense(state_out_ctx, output_size,
+                               activation=activation_fn)
     # pylint: enable=unused-argument
 
     return _projection, output_size
@@ -77,9 +82,11 @@ def maxout_output(maxout_size: int) -> Tuple[OutputProjection, int]:
     Returns:
         Returns the maxout projection of the concatenated inputs
     """
+    check_argument_types()
+
     def _projection(prev_state, prev_output, ctx_tensors, _):
-        return maxout([prev_state, prev_output] + ctx_tensors,
-                      maxout_size)
+        state_out_ctx = tf.concat([prev_state, prev_output] + ctx_tensors, 1)
+        return maxout(state_out_ctx, maxout_size)
 
     return _projection, maxout_size
 
@@ -96,6 +103,8 @@ def mlp_output(layer_sizes: List[int],
         dropout_keep_prob: the dropout keep probability
         activation: The activation function to use in each layer.
     """
+    check_argument_types()
+
     def _projection(prev_state, prev_output, ctx_tensors, train_mode):
         mlp_input = tf.concat([prev_state, prev_output] + ctx_tensors, 1)
 

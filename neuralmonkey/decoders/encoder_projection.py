@@ -10,7 +10,6 @@ import tensorflow as tf
 
 from neuralmonkey.model.stateful import Stateful
 from neuralmonkey.nn.utils import dropout
-from neuralmonkey.nn.projection import linear
 from neuralmonkey.logging import log
 
 
@@ -62,12 +61,12 @@ def linear_encoder_projection(
             raise ValueError("There must be at least one encoder for this type"
                              " of encoder projection")
 
-        with tf.variable_scope("encoders_projection") as scope:
-            encoded_concat = tf.concat([e.output for e in encoders], 1)
-            encoded_concat = dropout(
-                encoded_concat, dropout_keep_prob, train_mode)
+        encoded_concat = tf.concat([e.output for e in encoders], 1)
+        encoded_concat = dropout(
+            encoded_concat, dropout_keep_prob, train_mode)
 
-            return linear(encoded_concat, rnn_size, scope)
+        return tf.layers.dense(encoded_concat, rnn_size,
+                               name="encoders_projection")
 
     return func
 

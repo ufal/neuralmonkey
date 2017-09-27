@@ -23,7 +23,6 @@ from neuralmonkey.attention.base_attention import (
     get_attention_states, get_attention_mask)
 from neuralmonkey.model.stateful import TemporalStateful, SpatialStateful
 from neuralmonkey.checking import assert_shape
-from neuralmonkey.nn.projection import linear
 
 
 class MultiAttention(BaseAttention):
@@ -78,15 +77,15 @@ class MultiAttention(BaseAttention):
                 initializer=tf.constant_initializer(0.0))
 
             proj_vector_for_logit = tf.expand_dims(
-                linear(vector_value, self.attention_state_size,
-                       scope="vector_projection"), 1)
+                tf.layers.dense(vector_value, self.attention_state_size,
+                                name="vector_projection"), 1)
 
             if self._share_projections:
                 proj_vector_for_ctx = proj_vector_for_logit
             else:
                 proj_vector_for_ctx = tf.expand_dims(
-                    linear(vector_value, self.attention_state_size,
-                           scope="vector_ctx_proj"), 1)
+                    tf.layers.dense(vector_value, self.attention_state_size,
+                                    name="vector_ctx_proj"), 1)
 
             vector_logit = tf.reduce_sum(
                 self.attn_v *
@@ -209,7 +208,7 @@ class FlatMultiAttention(MultiAttention):
                   loop_state: AttentionLoopState,
                   step: tf.Tensor) -> Tuple[tf.Tensor, AttentionLoopState]:
         with tf.variable_scope(self.att_scope_name):
-            projected_state = linear(query, self.attention_state_size)
+            projected_state = tf.layers.dense(query, self.attention_state_size)
             projected_state = tf.expand_dims(projected_state, 1)
 
             assert_shape(projected_state, [-1, 1, self.attention_state_size])
@@ -289,9 +288,9 @@ def _sentinel(state, prev_state, input_):
     with tf.variable_scope("sentinel"):
 
         decoder_state_size = state.get_shape()[-1].value
-        concatenation = tf.concat([prev_state, input_], 1)
+        st_with_inp = tf.concat([prev_state, input_], 1)
 
-        gate = tf.nn.sigmoid(linear(concatenation, decoder_state_size))
+        gate = tf.nn.sigmoid(tf.layers.dense(st_with_inp, decoder_state_size))
         sentinel_value = gate * state
 
         assert_shape(sentinel_value, [-1, decoder_state_size])
@@ -353,7 +352,7 @@ class HierarchicalMultiAttention(MultiAttention):
                   step: tf.Tensor) -> Tuple[tf.Tensor, HierarchicalLoopState]:
 
         with tf.variable_scope(self.att_scope_name):
-            projected_state = linear(query, self.attention_state_size)
+            projected_state = tf.layers.dense(query, self.attention_state_size)
             projected_state = tf.expand_dims(projected_state, 1)
 
             assert_shape(projected_state, [-1, 1, self.attention_state_size])
@@ -385,14 +384,15 @@ class HierarchicalMultiAttention(MultiAttention):
             else:
                 output_cxts = [
                     tf.expand_dims(
-                        linear(ctx_vec, self.attention_state_size,
-                               scope="proj_attn_{}".format(
-                                   att.name)), 1)  # type: ignore
+                        tf.layers.dense(ctx_vec, self.attention_state_size,
+                                        name="proj_attn_{}".format(
+                                            att.name)), 1)  # type: ignore
                     for ctx_vec, att in zip(attn_ctx_vectors, self.attentions)]
                 if self._use_sentinels:
                     output_cxts.append(tf.expand_dims(
-                        linear(sentinel_value, self.attention_state_size,
-                               scope="proj_sentinel"), 1))
+                        tf.layers.dense(
+                            sentinel_value, self.attention_state_size,
+                            name="proj_sentinel"), 1))
 
             projections_concat = tf.concat(output_cxts, 1)
             context = tf.reduce_sum(
