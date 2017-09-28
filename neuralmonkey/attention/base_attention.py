@@ -30,10 +30,10 @@ import tensorflow as tf
 
 from neuralmonkey.model.stateful import TemporalStateful, SpatialStateful
 from neuralmonkey.model.model_part import ModelPart, FeedDict
-from neuralmonkey.decorators import tensor
 from neuralmonkey.dataset import Dataset
 
 # pylint: disable=invalid-name
+Attendable = Union[TemporalStateful, SpatialStateful]
 AttentionLoopState = NamedTuple("AttentionLoopState",
                                 [("contexts", tf.TensorArray),
                                  ("weights", tf.TensorArray)])
@@ -60,8 +60,7 @@ def empty_attention_loop_state() -> AttentionLoopState:
             name="distributions", clear_after_read=False))
 
 
-def get_attention_states(encoder: Union[TemporalStateful,
-                                        SpatialStateful]) -> tf.Tensor:
+def get_attention_states(encoder: Attendable) -> tf.Tensor:
     if isinstance(encoder, TemporalStateful):
         return encoder.temporal_states
 
@@ -75,8 +74,7 @@ def get_attention_states(encoder: Union[TemporalStateful,
         raise AssertionError("Unknown encoder type")
 
 
-def get_attention_mask(encoder: Union[TemporalStateful,
-                                      SpatialStateful]) -> Optional[tf.Tensor]:
+def get_attention_mask(encoder: Attendable) -> Optional[tf.Tensor]:
     if isinstance(encoder, TemporalStateful):
         if encoder.temporal_mask is None:
             raise ValueError("The encoder temporal mask should not be none")
@@ -104,6 +102,8 @@ class BaseAttention(ModelPart):
         self.query_state_size = None  # type: tf.Tensor
         self._histories = {}  # type: Dict[str, tf.Tensor]
 
+        self.train_mode = tf.placeholder(tf.bool, [], "train_mode")
+
     @property
     def histories(self) -> Dict[str, tf.Tensor]:
         return self._histories
@@ -123,12 +123,6 @@ class BaseAttention(ModelPart):
 
     def finalize_loop(self, key: str, last_loop_state: Any) -> None:
         raise NotImplementedError("Abstract method")
-
-    # pylint: disable=no-self-use
-    @tensor
-    def train_mode(self) -> tf.Tensor:
-        return tf.placeholder(tf.bool, [], "train_mode")
-    # pylint: enable=no-self-use
 
     def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
         return {self.train_mode: train}
