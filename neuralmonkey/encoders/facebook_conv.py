@@ -11,7 +11,7 @@ from neuralmonkey.model.model_part import ModelPart, FeedDict
 from neuralmonkey.logging import log
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.decorators import tensor
-from neuralmonkey.nn.projection import glu, linear
+from neuralmonkey.nn.projection import glu
 from neuralmonkey.model.sequence import EmbeddedSequence
 from neuralmonkey.model.stateful import TemporalStatefulWithOutput
 
@@ -49,16 +49,19 @@ class SentenceEncoder(ModelPart, TemporalStatefulWithOutput):
 
     @tensor
     def temporal_states(self) -> tf.Tensor:
-        convolutions = linear(self.ordered_embedded_inputs,
-                              self.conv_features,
-                              scope="order_and_embed")
+        convolutions = tf.layers.dense(
+            self.ordered_embedded_inputs,
+            self.conv_features,
+            name="order_and_embed")
+
         for layer in range(self.encoder_layers):
             convolutions = self._residual_conv(
                 convolutions, "encoder_conv_{}".format(layer))
 
-        return convolutions + linear(self.ordered_embedded_inputs,
-                                     self.conv_features,
-                                     scope="input_to_final_state")
+        return convolutions + tf.layers.dense(
+            self.ordered_embedded_inputs,
+            self.conv_features,
+            name="input_to_final_state")
 
     @tensor
     def output(self) -> tf.Tensor:
