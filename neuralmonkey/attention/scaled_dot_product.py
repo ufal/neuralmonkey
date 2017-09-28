@@ -9,7 +9,6 @@ import tensorflow as tf
 from typeguard import check_argument_types
 
 from neuralmonkey.nn.utils import dropout
-from neuralmonkey.nn.projection import linear
 from neuralmonkey.attention.base_attention import (
     BaseAttention, Attendable, get_attention_states, get_attention_mask)
 
@@ -74,16 +73,17 @@ class MultiHeadAttention(BaseAttention):
             # project query, keys and vals: [batch, rnn] to [batch, rnn2]
             head_contexts, head_weights = zip(*[
                 self.attention_single_head(
-                    linear(query, self._head_dim,
-                           scope="query_proj_head{}".format(i)),
-                    linear(self.attention_keys, self._head_dim,
-                           scope="keys_proj_head{}".format(i)),
-                    linear(self.attention_values, self._head_dim,
-                           scope="values_proj_head{}".format(i)))
+                    tf.layers.dense(query, self._head_dim,
+                                    name="query_proj_head{}".format(i)),
+                    tf.layers.dense(self.attention_keys, self._head_dim,
+                                    name="keys_proj_head{}".format(i)),
+                    tf.layers.dense(self.attention_values, self._head_dim,
+                                    name="values_proj_head{}".format(i)))
                 for i in range(self.n_heads)])
 
-            context = linear(tf.concat(head_contexts, -1), self._dimension,
-                             scope="output_proj")
+            context = tf.layers.dense(
+                tf.concat(head_contexts, -1), self._dimension,
+                name="output_proj")
 
         next_contexts = loop_state.contexts.write(step, context)
         next_head_weights = [loop_state.head_weights[i].write(step,
