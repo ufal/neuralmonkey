@@ -5,8 +5,8 @@ The sequence decoder uses the while loop to get the outputs. Descendants should
 only specify the initial state and the while loop body.
 """
 import math
-from typing import (NamedTuple, Any, Union, Callable, Tuple, cast, Iterable,
-                    List)
+from typing import (NamedTuple, Union, Callable, Tuple, cast, Iterable, Type,
+                    List, Optional, Any)
 
 import numpy as np
 import tensorflow as tf
@@ -18,18 +18,44 @@ from neuralmonkey.model.model_part import ModelPart, FeedDict
 from neuralmonkey.nn.utils import dropout
 from neuralmonkey.vocabulary import Vocabulary, START_TOKEN
 
+
+def extend_namedtuple(name: str, parent: Type,
+                      fields: List[Tuple[str, Type]]) -> Type:
+    """Extend a named tuple to contain more elements."""
+    # pylint: disable=protected-access
+    ext_fields = [(k, parent._field_types[k]) for k in parent._fields] + fields
+    # pylint: enable=protected-access
+    return cast(Type, NamedTuple(name, ext_fields))
+
+
 # The LoopState is a structure that works with the tf.while_loop function
 # the decoder loop state stores all the information that is not invariant
 # for the decoder run.
-LoopState = NamedTuple(
-    "LoopState",
-    [("step", tf.Tensor),  # 1D int, number of the step
-     ("finished", tf.Tensor),  # batch-sized, bool
-     ("logits", tf.TensorArray),
+# pylint: disable=invalid-name
+DecoderHistories = NamedTuple(
+    "DecoderHistories",
+    [("logits", tf.TensorArray),
      ("decoder_outputs", tf.TensorArray),
      ("outputs", tf.TensorArray),
-     ("mask", tf.TensorArray),  # float matrix, 0s and 1s
-     ("dec_ls", Any)])  # Decoder-specific loop state
+     ("mask", tf.TensorArray)])  # float matrix, 0s and 1s
+
+DecoderConstants = NamedTuple(
+    "DecoderConstants",
+    [("train_inputs", Optional[tf.Tensor])])
+
+DecoderFeedables = NamedTuple(
+    "DecoderFeedables",
+    [("step", tf.Tensor),  # 1D int, number of the step
+     ("finished", tf.Tensor),  # batch-sized, bool
+     ("input_symbol", tf.Tensor),
+     ("prev_logits", tf.Tensor)])
+
+LoopState = NamedTuple(
+    "LoopState",
+    [("histories", Any),
+     ("constants", Any),
+     ("feedables", Any)])
+# pylint: enable=invalid-name
 
 
 # pylint: disable=too-many-public-methods
@@ -165,9 +191,9 @@ class SequenceDecoder(ModelPart):
 
     def loop_continue_criterion(self, *args) -> tf.Tensor:
         loop_state = LoopState(*args)
-        finished = loop_state.finished
+        finished = loop_state.feedables.finished
         not_all_done = tf.logical_not(tf.reduce_all(finished))
-        before_max_len = tf.less(loop_state.step,
+        before_max_len = tf.less(loop_state.feedables.step,
                                  self.max_output_len)
         return tf.logical_and(not_all_done, before_max_len)
 
@@ -189,12 +215,12 @@ class SequenceDecoder(ModelPart):
 
         self.finalize_loop(final_loop_state, train_mode)
 
-        logits = final_loop_state.logits.stack()
-        decoder_outputs = final_loop_state.decoder_outputs.stack()
-        decoded = final_loop_state.outputs.stack()
+        logits = final_loop_state.histories.logits.stack()
+        decoder_outputs = final_loop_state.histories.decoder_outputs.stack()
+        decoded = final_loop_state.histories.outputs.stack()
 
         # TODO mask should include also the end symbol
-        mask = final_loop_state.mask.stack()
+        mask = final_loop_state.histories.mask.stack()
 
         return logits, decoder_outputs, mask, decoded
 

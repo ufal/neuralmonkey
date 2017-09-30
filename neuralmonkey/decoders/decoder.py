@@ -1,10 +1,11 @@
-# pylint: disable=too-many-lines
-from typing import List, Callable, Optional, Any, NamedTuple, Union
+from typing import List, Callable, Optional, Any, Union, Tuple
 
 import tensorflow as tf
 from typeguard import check_argument_types
 
-from neuralmonkey.decoders.sequence_decoder import SequenceDecoder, LoopState
+from neuralmonkey.decoders.sequence_decoder import (
+    SequenceDecoder, LoopState, extend_namedtuple, DecoderHistories,
+    DecoderFeedables, DecoderConstants)
 from neuralmonkey.attention.base_attention import BaseAttention
 from neuralmonkey.vocabulary import (Vocabulary, END_TOKEN_INDEX,
                                      PAD_TOKEN_INDEX)
@@ -27,15 +28,19 @@ RNN_CELL_TYPES = {
     "LSTM": tf.contrib.rnn.LSTMCell
 }
 
-RNNLoopState = NamedTuple(
-    "RNNLoopState",
-    [("input_symbol", tf.Tensor),  # batch of ints to vocab
-     ("train_inputs", Optional[tf.Tensor]),
-     ("prev_rnn_state", tf.Tensor),
+# pylint: disable=invalid-name
+RNNFeedables = extend_namedtuple(
+    "DecoderFeedables",
+    DecoderFeedables,
+    [("prev_rnn_state", tf.Tensor),
      ("prev_rnn_output", tf.Tensor),
-     ("prev_logits", tf.Tensor),
-     ("prev_contexts", List[tf.Tensor]),
-     ("attention_loop_states", List[Any])])  # see att docs
+     ("prev_contexts", List[tf.Tensor])])
+
+RNNHistories = extend_namedtuple(
+    "RNNHistories",
+    DecoderHistories,
+    [("attention_histories", List[Tuple])])  # AttentionLoopStateTA and kids
+# pylint: enable=invalid-name
 
 
 # pylint: disable=too-many-instance-attributes
@@ -237,10 +242,8 @@ class Decoder(SequenceDecoder):
 
     def embed_input_symbol(self, *args) -> tf.Tensor:
         loop_state = LoopState(*args)
-        rnn_ls = loop_state.dec_ls
-
         embedded_input = tf.nn.embedding_lookup(
-            self.embedding_matrix, rnn_ls.input_symbol)
+            self.embedding_matrix, loop_state.feedables.input_symbol)
 
         return dropout(embedded_input, self.dropout_keep_prob, self.train_mode)
 
@@ -251,11 +254,9 @@ class Decoder(SequenceDecoder):
         of the size fo embedding.
         """
         loop_state = LoopState(*args)
-        rnn_ls = loop_state.dec_ls
-
         embedded_input = self.embed_input_symbol(*loop_state)
         emb_with_ctx = tf.concat(
-            [embedded_input] + rnn_ls.prev_contexts, 1)
+            [embedded_input] + loop_state.feedables.prev_contexts, 1)
 
         return tf.layers.dense(emb_with_ctx, self.embedding_size)
 
@@ -265,8 +266,7 @@ class Decoder(SequenceDecoder):
         # pylint: disable=too-many-branches
         def body(*args) -> LoopState:
             loop_state = LoopState(*args)
-            rnn_ls = loop_state.dec_ls
-            step = loop_state.step
+            step = loop_state.feedables.step
 
             with tf.variable_scope(self.step_scope):
                 # Compute the input to the RNN
@@ -276,14 +276,16 @@ class Decoder(SequenceDecoder):
                 cell = self._get_rnn_cell()
                 if self._rnn_cell_str in ["GRU", "NematusGRU"]:
                     cell_output, next_state = cell(
-                        rnn_input, rnn_ls.prev_rnn_output)
+                        rnn_input, loop_state.feedables.prev_rnn_output)
 
                     attns = [
-                        a.attention(cell_output, rnn_ls.prev_rnn_output,
-                                    rnn_input, att_loop_state, loop_state.step)
+                        a.attention(
+                            cell_output, loop_state.feedables.prev_rnn_output,
+                            rnn_input, att_loop_state,
+                            loop_state.feedables.step)
                         for a, att_loop_state in zip(
                             self.attentions,
-                            rnn_ls.attention_loop_states)]
+                            loop_state.histories.attention_histories)]
                     if self.attentions:
                         contexts, att_loop_states = zip(*attns)
                     else:
@@ -297,15 +299,18 @@ class Decoder(SequenceDecoder):
 
                 elif self._rnn_cell_str == "LSTM":
                     prev_state = tf.contrib.rnn.LSTMStateTuple(
-                        rnn_ls.prev_rnn_state, rnn_ls.prev_rnn_output)
+                        loop_state.feedables.prev_rnn_state,
+                        loop_state.feedables.prev_rnn_output)
                     cell_output, state = cell(rnn_input, prev_state)
                     next_state = state.c
                     attns = [
-                        a.attention(cell_output, rnn_ls.prev_rnn_output,
-                                    rnn_input, att_loop_state, loop_state.step)
+                        a.attention(
+                            cell_output, loop_state.feedables.prev_rnn_output,
+                            rnn_input, att_loop_state,
+                            loop_state.feedables.step)
                         for a, att_loop_state in zip(
                             self.attentions,
-                            rnn_ls.attention_loop_states)]
+                            loop_state.histories.attention_histories)]
                     if self.attentions:
                         contexts, att_loop_states = zip(*attns)
                     else:
@@ -315,7 +320,8 @@ class Decoder(SequenceDecoder):
 
                 with tf.name_scope("rnn_output_projection"):
                     embedded_input = tf.nn.embedding_lookup(
-                        self.embedding_matrix, rnn_ls.input_symbol)
+                        self.embedding_matrix,
+                        loop_state.feedables.input_symbol)
 
                     output = self.output_projection(
                         cell_output, embedded_input, list(contexts),
@@ -329,11 +335,11 @@ class Decoder(SequenceDecoder):
                 next_symbols = tf.to_int32(
                     tf.squeeze(tf.multinomial(logits, num_samples=1), axis=1))
             elif train_mode:
-                next_symbols = rnn_ls.train_inputs[step]
+                next_symbols = loop_state.constants.train_inputs[step]
             else:
                 next_symbols = tf.to_int32(tf.argmax(logits, axis=1))
                 int_unfinished_mask = tf.to_int32(
-                    tf.logical_not(loop_state.finished))
+                    tf.logical_not(loop_state.feedables.finished))
 
                 # Note this works only when PAD_TOKEN_INDEX is 0. Otherwise
                 # this have to be rewritten
@@ -341,28 +347,30 @@ class Decoder(SequenceDecoder):
                 next_symbols = next_symbols * int_unfinished_mask
 
             has_just_finished = tf.equal(next_symbols, END_TOKEN_INDEX)
-            has_finished = tf.logical_or(loop_state.finished,
+            has_finished = tf.logical_or(loop_state.feedables.finished,
                                          has_just_finished)
             not_finished = tf.logical_not(has_finished)
 
-            new_rnn_ls = RNNLoopState(
-                input_symbol=next_symbols,
-                train_inputs=rnn_ls.train_inputs,
+            new_feedables = RNNFeedables(
                 prev_rnn_state=next_state,
                 prev_rnn_output=cell_output,
-                prev_logits=logits,
                 prev_contexts=list(contexts),
-                attention_loop_states=list(att_loop_states))
+                step=step + 1,
+                finished=has_finished,
+                input_symbol=next_symbols,
+                prev_logits=logits)
+
+            new_histories = RNNHistories(
+                attention_histories=list(att_loop_states),
+                logits=loop_state.histories.logits.write(step, logits),
+                decoder_outputs=loop_state.histories.decoder_outputs.write(
+                    step + 1, cell_output),
+                mask=loop_state.histories.mask.write(step, not_finished))
 
             new_loop_state = LoopState(
-                step=step + 1,
-                decoder_outputs=loop_state.decoder_outputs.write(
-                    step + 1, cell_output),
-                outputs=loop_state.outputs.write(step, next_symbols),
-                logits=loop_state.logits.write(step, logits),
-                finished=has_finished,
-                mask=loop_state.mask.write(step, not_finished),
-                dec_ls=new_rnn_ls)
+                histories=new_histories,
+                constants=loop_state.constants,
+                feedables=new_feedables)
 
             return new_loop_state
         # pylint: enable=too-many-branches
@@ -389,30 +397,36 @@ class Decoder(SequenceDecoder):
         attn_loop_states = [a.initial_loop_state()
                             for a in self.attentions if a is not None]
 
-        rnn_loop_state = RNNLoopState(
+        rnn_feedables = RNNFeedables(
+            # general:
+            step=0,
+            finished=tf.zeros([self.batch_size], dtype=tf.bool),
             input_symbol=self.go_symbols,
-            train_inputs=self.train_inputs,
+            prev_logits=tf.zeros([self.batch_size, len(self.vocabulary)]),
+            # rnn-specific:
             prev_rnn_state=self.initial_state,
             prev_rnn_output=self.initial_state,
-            prev_logits=tf.zeros([self.batch_size, len(self.vocabulary)]),
-            prev_contexts=contexts,
-            attention_loop_states=attn_loop_states)
+            prev_contexts=contexts)
+
+        rnn_histories = RNNHistories(
+            attention_histories=attn_loop_states,
+            # general:
+            logits=logit_ta,
+            decoder_outputs=rnn_output_ta,
+            mask=mask_ta)
+
+        loop_constants = DecoderConstants(train_inputs=self.train_inputs)
 
         return LoopState(
-            step=0,
-            decoder_outputs=rnn_output_ta,
-            outputs=output_ta,
-            logits=logit_ta,
-            mask=mask_ta,
-            finished=tf.zeros([self.batch_size], dtype=tf.bool),
-            dec_ls=rnn_loop_state)
+            histories=rnn_histories,
+            constants=loop_constants,
+            feedables=rnn_feedables)
 
     def finalize_loop(self, final_loop_state: LoopState,
                       train_mode: bool) -> None:
-        rnn_ls = final_loop_state.dec_ls
-
         for att_state, attn_obj in zip(
-                rnn_ls.attention_loop_states, self.attentions):
+                final_loop_state.histories.attention_histories,
+                self.attentions):
 
             att_history_key = "{}_{}".format(
                 self.name, "train" if train_mode else "run")
