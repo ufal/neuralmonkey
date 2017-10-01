@@ -351,6 +351,7 @@ class Decoder(SequenceDecoder):
                                          has_just_finished)
             not_finished = tf.logical_not(has_finished)
 
+            # pylint: disable=not-callable
             new_feedables = RNNFeedables(
                 prev_rnn_state=next_state,
                 prev_rnn_output=cell_output,
@@ -366,6 +367,7 @@ class Decoder(SequenceDecoder):
                 decoder_outputs=loop_state.histories.decoder_outputs.write(
                     step + 1, cell_output),
                 mask=loop_state.histories.mask.write(step, not_finished))
+            # pylint: enable=not-callable
 
             new_loop_state = LoopState(
                 histories=new_histories,
@@ -397,6 +399,7 @@ class Decoder(SequenceDecoder):
         attn_loop_states = [a.initial_loop_state()
                             for a in self.attentions if a is not None]
 
+        # pylint: disable=not-callable
         rnn_feedables = RNNFeedables(
             # general:
             step=0,
@@ -414,6 +417,7 @@ class Decoder(SequenceDecoder):
             logits=logit_ta,
             decoder_outputs=rnn_output_ta,
             mask=mask_ta)
+        # pylint: enable=not-callable
 
         loop_constants = DecoderConstants(train_inputs=self.train_inputs)
 
