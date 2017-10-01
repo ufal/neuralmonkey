@@ -53,7 +53,7 @@ def _legacy_relu(output_size: int) -> Tuple[OutputProjection, int]:
 
 def nonlinear_output(
         output_size: int,
-        activation_fn: Callable[[tf.Tensor], tf.Tensor]=tf.tanh
+        activation_fn: Callable[[tf.Tensor], tf.Tensor] = tf.tanh
 ) -> Tuple[OutputProjection, int]:
     check_argument_types()
 
@@ -92,7 +92,7 @@ def maxout_output(maxout_size: int) -> Tuple[OutputProjection, int]:
 
 
 def mlp_output(layer_sizes: List[int],
-               activation: Callable[[tf.Tensor], tf.Tensor]=tf.tanh,
+               activation: Callable[[tf.Tensor], tf.Tensor] = tf.tanh,
                dropout_keep_prob: float = 1.0) -> Tuple[OutputProjection, int]:
     """Compute RNN deep output using the multilayer perceptron
     with a specified activation function.

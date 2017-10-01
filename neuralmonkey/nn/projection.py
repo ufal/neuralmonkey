@@ -38,7 +38,7 @@ def multilayer_projection(
         input_: tf.Tensor,
         layer_sizes: List[int],
         train_mode: tf.Tensor,
-        activation: Callable[[tf.Tensor], tf.Tensor]=tf.nn.relu,
+        activation: Callable[[tf.Tensor], tf.Tensor] = tf.nn.relu,
         dropout_keep_prob: float = 1.0,
         scope: str = "mlp") -> tf.Tensor:
     mlp_input = input_
@@ -57,7 +57,7 @@ def multilayer_projection(
 
 
 def glu(input_: tf.Tensor,
-        gating_fn: Callable[[tf.Tensor], tf.Tensor]=tf.sigmoid) -> tf.Tensor:
+        gating_fn: Callable[[tf.Tensor], tf.Tensor] = tf.sigmoid) -> tf.Tensor:
     """Gated linear unit - Dauphin et al. (2016)
     http://arxiv.org/abs/1612.08083
     """

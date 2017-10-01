@@ -22,7 +22,7 @@ class SequenceRegressor(ModelPart):
                  encoders: List[Stateful],
                  data_id: str,
                  layers: List[int] = None,
-                 activation_fn: Callable[[tf.Tensor], tf.Tensor]=tf.nn.relu,
+                 activation_fn: Callable[[tf.Tensor], tf.Tensor] = tf.nn.relu,
                  dropout_keep_prob: float = 1.0,
                  dimension: int = 1,
                  save_checkpoint: str = None,
