@@ -34,7 +34,7 @@ from neuralmonkey.model.model_part import ModelPart, FeedDict
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.decoders.sequence_decoder import LoopState
 from neuralmonkey.decoders.decoder import Decoder
-from neuralmonkey.vocabulary import (END_TOKEN_INDEX, PAD_TOKEN_INDEX)
+from neuralmonkey.vocabulary import PAD_TOKEN_INDEX
 from neuralmonkey.decorators import tensor
 
 # pylint: disable=invalid-name
@@ -284,56 +284,30 @@ class BeamSearchDecoder(ModelPart):
             next_beam_ids = tf.div(topk_indices,
                                    len(self.vocabulary))
 
-            rnn_state = dec_loop_state.feedables.prev_rnn_state
-            rnn_output = dec_loop_state.feedables.prev_rnn_output
-            contexts = dec_loop_state.feedables.prev_contexts
+            next_feedables_dict = {"input_symbol": next_word_ids}
+            for key, val in dec_loop_state.feedables._asdict().items():
+                if key == "step" or key == "input_symbol":
+                    continue
 
-            next_beam_prev_rnn_state = tf.gather(rnn_state, next_beam_ids)
-            next_beam_prev_rnn_output = tf.gather(rnn_output, next_beam_ids)
-            next_beam_prev_contexts = [tf.gather(ctx, next_beam_ids)
-                                       for ctx in contexts]
-            next_beam_prev_logits = tf.gather(
-                dec_loop_state.feedables.prev_logits, next_beam_ids)
+                if isinstance(val, tf.Tensor):
+                    next_feedables_dict[key] = tf.gather(val, next_beam_ids)
+                elif isinstance(val, list):
+                    if not all(isinstance(t, tf.Tensor) for t in val):
+                        raise TypeError("Expected tf.Tensor among feedables")
+
+                    next_feedables_dict[key] = [tf.gather(t, next_beam_ids)
+                                                for t in val]
+                else:
+                    raise TypeError("Expected only tensors or list of tensors "
+                                    "among feedables")
+
             next_beam_lengths = tf.gather(hyp_lengths, next_beam_ids)
-
-            next_finished = tf.gather(
-                dec_loop_state.feedables.finished, next_beam_ids)
-            next_just_finished = tf.equal(next_word_ids, END_TOKEN_INDEX)
-            next_finished = tf.logical_or(next_finished, next_just_finished)
-
-            # Update decoder state before computing the next state
-            # For run-time computation, the decoder needs:
-            # - step
-            # - input_symbol
-            # - prev_rnn_state
-            # - prev_rnn_output
-            # - prev_contexts
-            # - attention_loop_states
-            # - finished
-
-            # For train-mode computation, it also needs
-            # - train_inputs
-
-            # For recording the computation in time, it needs
-            # - rnn_outputs (TA)
-            # - logits (TA)
-            # - mask (TA)
-
-            # Because of the beam search algorithm, it outputs
-            # (but does not not need)
-            # - prev_logits
 
             # During beam search decoding, we are not interested in recording
             # of the computation as done by the decoder. The record is stored
             # in search states and step outputs of this decoder.
             next_feedables = dec_loop_state.feedables._replace(
-                input_symbol=next_word_ids,
-                prev_rnn_state=next_beam_prev_rnn_state,
-                prev_rnn_output=next_beam_prev_rnn_output,
-                prev_logits=next_beam_prev_logits,
-                prev_contexts=next_beam_prev_contexts,
-                finished=next_finished)
-            # step=dec_loop_state.feedables.step)
+                **next_feedables_dict)
 
             dec_loop_state = dec_loop_state._replace(feedables=next_feedables)
 
