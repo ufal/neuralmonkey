@@ -1,5 +1,6 @@
-from typing import Callable, List, Dict, Optional, Set, cast, NamedTuple
+from typing import Callable, List, Dict, Optional, Set, cast
 
+import scipy
 import numpy as np
 from typeguard import check_argument_types
 
@@ -10,13 +11,7 @@ from neuralmonkey.runners.base_runner import (BaseRunner, Executable,
 # pylint: disable=unused-import
 from neuralmonkey.runners.base_runner import FeedDict
 # pylint: enable=unused-import
-from neuralmonkey.vocabulary import Vocabulary, END_TOKEN
-
-BeamSearchOutput = NamedTuple("BeamSearchOutput",
-                              [("step", int),
-                               ("scores", List[List[float]]),
-                               ("parent_ids", List[List[int]]),
-                               ("token_ids", List[List[int]])])
+from neuralmonkey.vocabulary import END_TOKEN
 
 
 class BeamSearchExecutable(Executable):
@@ -25,22 +20,18 @@ class BeamSearchExecutable(Executable):
                  all_encoders: Set[ModelPart],
                  num_sessions: int,
                  decoder: BeamSearchDecoder,
-                 vocabulary: Vocabulary,
-                 beam_size: int,
                  postprocess: Optional[Callable]) -> None:
 
         self._rank = rank
         self._num_sessions = num_sessions
         self._all_encoders = all_encoders
         self._decoder = decoder
-        self._vocabulary = vocabulary
         self._postprocess = postprocess
-        self._beam_size = beam_size
-        self._output = BeamSearchOutput(
-            step=0,
-            scores=np.empty([0, self._beam_size], dtype=float),
-            parent_ids=np.empty([0, self._beam_size], dtype=int),
-            token_ids=np.empty([0, self._beam_size], dtype=int))
+
+        self.step = 0
+        self.scores = np.empty([0, decoder.beam_size], dtype=float)
+        self.parent_ids = np.empty([0, decoder.beam_size], dtype=int)
+        self.token_ids = np.empty([0, decoder.beam_size], dtype=int)
 
         self._next_feed = [{} for _ in range(self._num_sessions)] \
             # type: List[FeedDict]
@@ -61,83 +52,86 @@ class BeamSearchExecutable(Executable):
     def collect_results(self, results: List[Dict]) -> None:
         # Recompute logits
         # Only necessary when ensembling models
-        prev_logprobs = []
-        for sess_idx, _ in enumerate(results):
-            bs_outputs = results[sess_idx]['bs_outputs']
-            prev_logprobs.append(bs_outputs.last_search_state.prev_logprobs)
+        prev_logprobs = [res["bs_outputs"].last_search_state.prev_logprobs
+                         for res in results]
 
-        prev_logprobs = np.divide(np.sum(prev_logprobs, 0), self._num_sessions)
+        # Arithmetic mean
+        ens_logprobs = (scipy.misc.logsumexp(prev_logprobs, 0)
+                        - np.log(self._num_sessions))
 
-        # We are finished
         # The last score is computed
-        bs_outputs = results[0]['bs_outputs']
+        bs_outputs = results[0]["bs_outputs"]
         step = bs_outputs.last_dec_loop_state.step - 1
-        self._output = self._output._replace(
-            step=self._output.step + step,
-            scores=np.append(
-                self._output.scores,
-                bs_outputs.last_search_step_output.scores[0:step],
-                axis=0),
-            parent_ids=np.append(
-                self._output.parent_ids,
-                bs_outputs.last_search_step_output.parent_ids[0:step],
-                axis=0),
-            token_ids=np.append(
-                self._output.token_ids,
-                bs_outputs.last_search_step_output.token_ids[0:step],
-                axis=0))
+
+        self.step += step
+        self.scores = np.append(
+            self.scores,
+            bs_outputs.last_search_step_output.scores[0:step],
+            axis=0)
+
+        self.parent_ids = np.append(
+            self.parent_ids,
+            bs_outputs.last_search_step_output.parent_ids[0:step],
+            axis=0)
+
+        self.token_ids = np.append(
+            self.token_ids,
+            bs_outputs.last_search_step_output.token_ids[0:step],
+            axis=0)
 
         if (self._decoder.max_output_len is not None and
-                self._output.step >= self._decoder.max_output_len):
-            self.prepare_results(self._output)
+                self.step >= self._decoder.max_output_len):
+            self.prepare_results()
             return
 
         # Prepare the next feed_dict (in ensembles)
         self._next_feed = []
         finished = True
-        for sess_idx, _ in enumerate(results):
-            bs_outputs = results[sess_idx]['bs_outputs']
-            search_state = bs_outputs.last_search_state
-            search_state = search_state._replace(
-                prev_logprobs=prev_logprobs)
 
-            dec_ls = bs_outputs.last_dec_loop_state
-            finished = (finished and np.all(dec_ls.finished))
-            fd = {}
+        for result in results:
+            bs_outputs = result["bs_outputs"]
+
+            search_state = bs_outputs.last_search_state._replace(
+                prev_logprobs=ens_logprobs)
+
+            fd = {self._decoder.max_steps: 1,
+                  self._decoder.search_state: search_state}
+
+            dec_feedables = bs_outputs.last_dec_loop_state
+            finished = finished and np.all(dec_feedables.finished)
+
             # Due to the arrays in DecoderState (prev_contexts),
             # we have to create feed for each value separately.
             for field in self._decoder.decoder_state._fields:
                 # We do not feed the step
-                if field == 'step':
+                if field == "step":
                     continue
                 tensor = getattr(self._decoder.decoder_state, field)
-                value = getattr(dec_ls, field)
+                value = getattr(dec_feedables, field)
                 if isinstance(tensor, list):
                     for t, val in zip(tensor, value):
                         fd.update({t: val})
                 else:
                     fd.update({tensor: value})
 
-            fd.update({
-                self._decoder.max_steps: 1,
-                self._decoder.search_state: search_state})
             self._next_feed.append(fd)
-        if finished:
-            self.prepare_results(self._output)
-        return
 
-    def prepare_results(self, bs_output):
-        max_time = bs_output.scores.shape[0] - 1
+        if finished:
+            self.prepare_results()
+    # pylint: enable=too-many-locals
+
+    def prepare_results(self):
+        max_time = self.scores.shape[0] - 1
 
         output_tokens = []
         hyp_idx = np.argpartition(
-            -bs_output.scores[-1], self._rank - 1)[self._rank - 1]
-        bs_score = bs_output.scores[-1][hyp_idx]
+            -self.scores[-1], self._rank - 1)[self._rank - 1]
+        bs_score = self.scores[-1][hyp_idx]
         for time in reversed(range(max_time)):
-            token_id = bs_output.token_ids[time][hyp_idx]
-            token = self._vocabulary.index_to_word[token_id]
+            token_id = self.token_ids[time][hyp_idx]
+            token = self._decoder.vocabulary.index_to_word[token_id]
             output_tokens.append(token)
-            hyp_idx = bs_output.parent_ids[time][hyp_idx]
+            hyp_idx = self.parent_ids[time][hyp_idx]
 
         output_tokens.reverse()
 
@@ -187,7 +181,7 @@ class BeamSearchRunner(BaseRunner):
 
         return BeamSearchExecutable(
             self._rank, self.all_coders, num_sessions, decoder,
-            decoder.vocabulary, decoder.beam_size, self._postprocess)
+            self._postprocess)
 
     @property
     def loss_names(self) -> List[str]:
