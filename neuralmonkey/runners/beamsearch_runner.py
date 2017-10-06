@@ -37,9 +37,11 @@ class BeamSearchExecutable(Executable):
             # type: List[FeedDict]
 
         # If we are ensembling, we run only one step at a time
+        # Note, that in the first iteration, we only want to generate
+        # logprobs for ensembling, therefore we set max_steps = 0
         if self._num_sessions > 1:
             for fd in self._next_feed:
-                fd.update({self._decoder.max_steps: 1})
+                fd.update({self._decoder.max_steps: 0})
 
         self.result = None  # type: ExecutionResult
 
@@ -80,7 +82,7 @@ class BeamSearchExecutable(Executable):
             axis=0)
 
         if (self._decoder.max_output_len is not None and
-                self.step >= self._decoder.max_output_len):
+                self.step > self._decoder.max_output_len):
             self.prepare_results()
             return
 

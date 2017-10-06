@@ -34,7 +34,7 @@ from neuralmonkey.model.model_part import ModelPart, FeedDict
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.decoders.sequence_decoder import LoopState
 from neuralmonkey.decoders.decoder import Decoder
-from neuralmonkey.vocabulary import PAD_TOKEN_INDEX
+from neuralmonkey.vocabulary import (END_TOKEN_INDEX, PAD_TOKEN_INDEX)
 from neuralmonkey.decorators import tensor
 
 # pylint: disable=invalid-name
@@ -229,7 +229,6 @@ class BeamSearchDecoder(ModelPart):
 
             # The decoder should be "one step ahead" (see above)
             step = dec_loop_state.feedables.step - 1
-            # current_logits = dec_loop_state.feedables.prev_logits
 
             # mask the probabilities
             # shape(logprobs) = beam x vocabulary
@@ -284,9 +283,15 @@ class BeamSearchDecoder(ModelPart):
             next_beam_ids = tf.div(topk_indices,
                                    len(self.vocabulary))
 
-            next_feedables_dict = {"input_symbol": next_word_ids}
+            next_finished = tf.gather(bs_state.finished, next_beam_ids)
+            next_just_finished = tf.equal(next_word_ids, END_TOKEN_INDEX)
+            next_finished = tf.logical_or(next_finished, next_just_finished)
+
+            next_feedables_dict = {
+                "input_symbol": next_word_ids,
+                "finished": next_finished}
             for key, val in dec_loop_state.feedables._asdict().items():
-                if key == "step" or key == "input_symbol":
+                if key in ["step", "input_symbol", "finished"]:
                     continue
 
                 if isinstance(val, tf.Tensor):
@@ -320,7 +325,7 @@ class BeamSearchDecoder(ModelPart):
                 prev_logprobs=tf.nn.log_softmax(
                     next_loop_state.feedables.prev_logits),
                 lengths=next_beam_lengths,
-                finished=dec_loop_state.feedables.finished)
+                finished=next_finished)
 
             next_output = SearchStepOutputTA(
                 scores=bs_output.scores.write(step, topk_scores),
