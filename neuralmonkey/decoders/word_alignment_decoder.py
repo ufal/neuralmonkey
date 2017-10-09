@@ -10,9 +10,9 @@ from neuralmonkey.decorators import tensor
 
 
 class WordAlignmentDecoder(ModelPart):
-    """
-    A decoder that computes soft alignment from an attentive encoder. Loss is
-    computed as cross-entropy against a reference alignment.
+    """A decoder that computes soft alignment from an attentive encoder.
+
+    Loss is computed as cross-entropy against a reference alignment.
     """
 
     def __init__(self,

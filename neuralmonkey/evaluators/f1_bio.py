@@ -2,7 +2,7 @@ from typing import List, Set
 
 
 class F1Evaluator(object):
-    """ F1 evaluator for BIO tagging, e.g. NP chunking.
+    """F1 evaluator for BIO tagging, e.g. NP chunking.
 
     The entities are annotated as beginning of the entity (B), continuation of
     the entity (I), the rest is outside the entity (O).

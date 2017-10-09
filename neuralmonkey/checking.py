@@ -1,5 +1,6 @@
-"""
-This module servers as a library of API checks used as assertions during
+"""API checking module.
+
+This module serves as a library of API checks used as assertions during
 constructing the computational graph.
 """
 

@@ -8,7 +8,8 @@ from neuralmonkey.config.parsing import parse_file, write_file
 
 
 class Configuration(object):
-    """
+    """Configuration loader.
+
     Loads the configuration file in an analogical way the python's
     argparse.ArgumentParser works.
     """
@@ -93,7 +94,7 @@ class Configuration(object):
         self.model = self.make_namespace(model)
 
     def _check_loaded_conf(self) -> None:
-        """ Checks whether there are unexpected or missing fields """
+        """Check whether there are unexpected or missing fields."""
         expected_missing = []
         for name in self.names:
             if name not in self.defaults:

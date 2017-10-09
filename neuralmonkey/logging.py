@@ -28,14 +28,12 @@ class Logging(object):
 
     @staticmethod
     def set_log_file(path: str) -> None:
-        """Sets up the file where the logging will be done."""
+        """Set up the file where the logging will be done."""
         Logging.log_file = codecs.open(path, 'w', 'utf-8', buffering=0)
 
     @staticmethod
     def log_print(text: str) -> None:
-        """Prints a string both to console and
-        a log file is it is defined.
-        """
+        """Print a string both to console and a log file is it is defined."""
         if Logging.log_file is not None:
             if not isinstance(text, str):
                 text = str(text)
@@ -46,19 +44,19 @@ class Logging(object):
 
     @staticmethod
     def log(message: str, color: str = 'yellow') -> None:
-        """Logs message with a colored timestamp."""
+        """Log a message with a colored timestamp."""
         log_print("{}: {}".format(colored(
             Logging._get_time(), color), message))
 
     @staticmethod
     def notice(message: str) -> None:
-        """Logs notice with a colored timestamp."""
+        """Log a notice with a colored timestamp."""
         log_print("{}: {}".format(colored(
             Logging._get_time(), 'red'), message))
 
     @staticmethod
     def warn(message: str) -> None:
-        """Logs a warning."""
+        """Log a warning."""
         log_print(colored("{}: Warning! {}".format(
             Logging._get_time(), message), color='red'))
         if Logging.strict_mode:
@@ -67,9 +65,7 @@ class Logging(object):
 
     @staticmethod
     def print_header(title: str, path: str) -> None:
-        """Prints the title of the experiment and
-        the set of arguments it uses.
-        """
+        """Print the title of the experiment and a set of arguments it uses."""
         log_print(colored("".join("=" for _ in range(80)), 'green'))
         log_print(colored(title.upper(), 'green'))
         log_print(colored("".join("=" for _ in range(80)), 'green'))

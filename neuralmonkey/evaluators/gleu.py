@@ -3,8 +3,8 @@ from neuralmonkey.evaluators.bleu import BLEUEvaluator
 
 
 class GLEUEvaluator(object):
-    """
-    Sentence-level evaluation metric that correlates with BLEU on corpus-level.
+    """Sentence-level evaluation metric correlating with BLEU on corpus-level.
+
     From "Google's Neural Machine Translation System: Bridging the Gap
     between Human and Machine Translation" by Wu et al.
     (https://arxiv.org/pdf/1609.08144v2.pdf)
@@ -12,7 +12,8 @@ class GLEUEvaluator(object):
     GLEU is the minimum of recall and precision of all n-grams up to n in
     references and hypotheses.
 
-    Ngram counts are based on the bleu methods."""
+    Ngram counts are based on the bleu methods.
+    """
 
     def __init__(self, n: int = 4, deduplicate: bool = False,
                  name: Optional[str] = None) -> None:
@@ -44,8 +45,7 @@ class GLEUEvaluator(object):
             references_list: List[List[List[str]]],
             ngrams: int,
             case_sensitive: bool) -> Tuple[float, float]:
-        """Computes the modified n-gram precision and recall
-           on a list of sentences
+        """Compute a modified n-gram precision and recall on a sentence list.
 
         Arguments:
             hypotheses: List of output sentences as lists of words
@@ -91,7 +91,7 @@ class GLEUEvaluator(object):
              references: List[List[List[str]]],
              ngrams: int = 4,
              case_sensitive: bool = True) -> float:
-        """Computes GLEU on a corpus with multiple references. No smoothing.
+        """Compute GLEU on a corpus with multiple references (no smoothing).
 
         Arguments:
             hypotheses: List of hypotheses

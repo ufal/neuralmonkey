@@ -1,6 +1,7 @@
-"""
+"""Configuration Object Builder.
+
 This module is responsible for instantiating objects
-specified by the experiment configuration
+specified by the experiment configuration.
 """
 
 import collections
@@ -15,9 +16,7 @@ from neuralmonkey.config.exceptions import (ConfigInvalidValueException,
 
 # pylint:disable=too-few-public-methods
 class ClassSymbol(object):
-    """
-    Represents a class (or other callable) in configuration.
-    """
+    """Represents a class (or other callable) in configuration."""
 
     def __init__(self, string: str) -> None:
         self.clazz = string
@@ -62,8 +61,9 @@ def build_object(value: str,
                  all_dicts: Dict[str, Any],
                  existing_objects: Dict[str, Any],
                  depth: int) -> Any:
-    """Builds an object from config dictionary of its arguments.
-    It works recursively.
+    """Build an object from config dictionary of its arguments.
+
+    Works recursively.
 
     Arguments:
         value: Value that should be resolved (either a literal value or
@@ -120,7 +120,7 @@ def instantiate_class(name: str,
                       all_dicts: Dict[str, Any],
                       existing_objects: Dict[str, Any],
                       depth: int) -> Any:
-    """ Instantiate a class from the configuration
+    """Instantiate a class from the configuration.
 
     Arguments: see help(build_object)
     """
@@ -173,7 +173,7 @@ def instantiate_class(name: str,
 def build_config(config_dicts: Dict[str, Any],
                  ignore_names: Set[str],
                  warn_unused: bool = False) -> Dict[str, Any]:
-    """ Builds the model from the configuration
+    """Build the model from the configuration.
 
     Arguments:
         config_dicts: The parsed configuration file

@@ -1,19 +1,17 @@
-"""
-Module that contains exceptions handled in config parsing and loading
-"""
+"""Module that contains exceptions handled in config parsing and loading."""
 
 import traceback
 from typing import Any, Optional
 
 
 class IniError(Exception):
-    """ Exception caused by error in INI file syntax """
+    """Exception caused by error in INI file syntax."""
 
     def __init__(self,
                  line: int,
                  message: str,
                  original_exc: Optional[Exception] = None) -> None:
-        """ Creates an instance of the exception.
+        """Create an instance of the exception.
 
         Arguments:
             line: Line number on which the error occured
@@ -27,7 +25,7 @@ class IniError(Exception):
         self.original_exc = original_exc
 
     def __str__(self) -> str:
-        """ Converts this exception to string """
+        """Convert this exception to string."""
 
         msg = "Error on line {}: {}".format(self.line, self.message)
         if self.original_exc is not None:
@@ -40,7 +38,7 @@ class IniError(Exception):
 class ConfigInvalidValueException(Exception):
 
     def __init__(self, value: Any, message: str) -> None:
-        """ Creates an instance of the exception
+        """Create an instance of the exception.
 
         Arguments:
             value: The invalid value
@@ -51,17 +49,17 @@ class ConfigInvalidValueException(Exception):
         self.message = message
 
     def __str__(self) -> str:
-        """ Converts this exception to string """
+        """Convert this exception to string."""
         return "Error in configuration of {}: {}".format(self.value,
                                                          self.message)
 
 
 class ConfigBuildException(Exception):
-    """ Exception caused by error in loading the model """
+    """Exception caused by error in loading the model."""
 
     def __init__(self, object_name: str,
                  original_exception: Exception) -> None:
-        """ Creates an instance of the exception
+        """Create an instance of the exception.
 
         Arguments:
             object_name: The name of the object that has failed to build
@@ -72,7 +70,7 @@ class ConfigBuildException(Exception):
         self.original_exception = original_exception
 
     def __str__(self) -> str:
-        """ Converts this exception to string"""
+        """Convert this exception to string."""
 
         trc = "".join(traceback.format_list(traceback.extract_tb(
             self.original_exception.__traceback__)))

@@ -1,6 +1,4 @@
-"""
-This is a training script for sequence to sequence learning.
-"""
+"""Training script for sequence to sequence learning."""
 
 import argparse
 import sys

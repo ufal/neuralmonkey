@@ -1,13 +1,12 @@
-"""
-This module provides utility functions used across the package.
-"""
+"""Module which provides utility functions used across the package."""
+
 import tensorflow as tf
 
 
 def dropout(variable: tf.Tensor,
             keep_prob: float,
             train_mode: tf.Tensor) -> tf.Tensor:
-    """Performs dropout on a variable, depending on mode.
+    """Perform dropout on a variable, depending on mode.
 
     Arguments:
         variable: The variable to be dropped out

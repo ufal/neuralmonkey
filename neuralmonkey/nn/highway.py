@@ -1,11 +1,9 @@
-"""
-This module implements the highway networks.
-"""
+"""Module implementing the highway networks."""
 import tensorflow as tf
 
 
 def highway(inputs, activation=tf.nn.relu, scope="HighwayNetwork"):
-    """Simple highway layer
+    """Create a single highway layer.
 
     y = H(x, Wh) * T(x, Wt) + x * C(x, Wc)
 

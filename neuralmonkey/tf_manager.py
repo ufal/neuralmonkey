@@ -1,6 +1,4 @@
-"""==================
-TensorFlow Manager
-==================
+"""TensorFlow Manager.
 
 TensorFlow manager is a helper object in Neural Monkey which manages TensorFlow
 sessions, execution of the computation graph, and saving and restoring of model
@@ -274,7 +272,8 @@ class TensorFlowManager(object):
 
 
 def _feed_dicts(dataset, coders, train=False):
-    """
+    """Feed the coders with data from dataset.
+
     This function ensures all encoder and decoder objects feed their the data
     they need from the dataset.
     """

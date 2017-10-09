@@ -8,6 +8,7 @@ from neuralmonkey.dataset import Dataset
 # pylint: disable=too-few-public-methods
 class Preprocess(object):
     """Preprocessor transorming two series into series of edit operations."""
+
     def __init__(self, source_id: str, target_id: str) -> None:
         self._source_id = source_id
         self._target_id = target_id
@@ -22,6 +23,7 @@ class Preprocess(object):
 
 class Postprocess(object):
     """Proprocessor applying edit operations on a series."""
+
     def __init__(
             self, source_id: str, edits_id: str,
             result_postprocess: Callable[

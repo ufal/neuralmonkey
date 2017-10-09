@@ -1,5 +1,6 @@
-"""The feed-forward attention mechanism. This is the attention mechanism
-used in Bahdanau et al. (2015)
+"""The feed-forward attention mechanism.
+
+This is the attention mechanism used in Bahdanau et al. (2015)
 
 See arxiv.org/abs/1409.0473
 """

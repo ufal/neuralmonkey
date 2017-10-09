@@ -4,7 +4,7 @@ import numpy as np
 
 
 def get_string_vector_reader(dtype: Type = np.float32, columns: int = None):
-    """Get a reader for vectors encoded as whitespace-separated numbers"""
+    """Get a reader for vectors encoded as whitespace-separated numbers."""
     def process_line(line: str, lineno: int, path: str) -> np.ndarray:
         numbers = line.strip().split()
         if columns is not None and len(numbers) != columns:

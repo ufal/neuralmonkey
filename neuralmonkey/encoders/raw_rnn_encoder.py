@@ -56,7 +56,7 @@ class RawRNNEncoder(ModelPart, TemporalStatefulWithOutput):
                  dropout_keep_prob: float = 1.0,
                  save_checkpoint: Optional[str] = None,
                  load_checkpoint: Optional[str] = None) -> None:
-        """Creates a new instance of the encoder.
+        """Create a new instance of the encoder.
 
         Arguments:
             data_id: Identifier of the data series fed to this encoder
@@ -153,7 +153,7 @@ class RawRNNEncoder(ModelPart, TemporalStatefulWithOutput):
         return self.states_mask
 
     def _create_input_placeholders(self) -> None:
-        """Creates input placeholder nodes in the computation graph"""
+        """Create an input placeholder nodes in the computation graph."""
         self.train_mode = tf.placeholder(tf.bool, shape=[], name="train_mode")
 
         self.inputs = tf.placeholder(tf.float32,

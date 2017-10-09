@@ -53,7 +53,9 @@ LoopState = NamedTuple("LoopState",
 # Big decoder cannot be simpler. Not sure if refactoring
 # it into smaller units would be helpful
 class Decoder(ModelPart):
-    """A class that manages parts of the computation graph that are
+    """Decoder class.
+
+    A class that manages parts of the computation graph that are
     used for the decoding.
     """
 
@@ -219,7 +221,9 @@ class Decoder(ModelPart):
 
     @tensor
     def initial_state(self) -> tf.Tensor:
-        """The part of the computation graph that computes
+        """Compute initial decoder state.
+
+        The part of the computation graph that computes
         the initial state of the decoder.
         """
         with tf.variable_scope("initial_state"):
@@ -247,7 +251,7 @@ class Decoder(ModelPart):
 
     @tensor
     def embedding_matrix(self) -> tf.Variable:
-        """Variables and operations for embedding of input words
+        """Variables and operations for embedding of input words.
 
         If we are reusing word embeddings, this function takes the embedding
         matrix from the first encoder
@@ -372,8 +376,10 @@ class Decoder(ModelPart):
         return dropout(embedded_input, self.dropout_keep_prob, self.train_mode)
 
     def input_plus_attention(self, *args) -> tf.Tensor:
-        """Merge input and previous attentions into one vector of the
-         right size.
+        """Merge input and previous attentions.
+
+        Input and previous attentions are merged into a single vector
+        of the size fo embedding.
         """
         loop_state = LoopState(*args)
 
@@ -552,7 +558,7 @@ class Decoder(ModelPart):
         return logits, rnn_outputs, mask
 
     def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
-        """Populate the feed dictionary for the decoder object
+        """Populate the feed dictionary for the decoder object.
 
         Arguments:
             dataset: The dataset to use for the decoder.

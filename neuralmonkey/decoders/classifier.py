@@ -16,6 +16,7 @@ class Classifier(ModelPart):
     The API pretends it is an RNN decoder which always generates a sequence of
     length exactly one.
     """
+
     # pylint: disable=too-many-arguments
     def __init__(self,
                  name: str,
@@ -28,6 +29,7 @@ class Classifier(ModelPart):
                  save_checkpoint: Optional[str] = None,
                  load_checkpoint: Optional[str] = None) -> None:
         """Construct a new instance of the sequence classifier.
+
         Args:
             name: Name of the decoder. Should be unique accross all Neural
                 Monkey objects

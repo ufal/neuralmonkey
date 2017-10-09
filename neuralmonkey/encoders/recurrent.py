@@ -102,7 +102,7 @@ class RecurrentEncoder(ModelPart, TemporalStatefulWithOutput):
         return self.input_sequence.mask
 
     def _rnn_cells(self) -> RNNCellTuple:
-        """Return the graph template to for creating RNN memory cells"""
+        """Return the graph template to for creating RNN memory cells."""
         return(RNN_CELL_TYPES[self.rnn_cell_str](self.rnn_size),
                RNN_CELL_TYPES[self.rnn_cell_str](self.rnn_size))
 
@@ -126,7 +126,7 @@ class SentenceEncoder(RecurrentEncoder):
                  rnn_cell: str = "GRU",
                  save_checkpoint: str = None,
                  load_checkpoint: str = None) -> None:
-        """Create a new instance of the sentence encoder. """
+        """Create a new instance of the sentence encoder."""
 
         # TODO Think this through.
         s_ckp = "input_{}".format(save_checkpoint) if save_checkpoint else None
@@ -172,7 +172,7 @@ class FactoredEncoder(RecurrentEncoder):
                  rnn_cell: str = "GRU",
                  save_checkpoint: str = None,
                  load_checkpoint: str = None) -> None:
-        """Create a new instance of the sentence encoder. """
+        """Create a new instance of the sentence encoder."""
         s_ckp = "input_{}".format(save_checkpoint) if save_checkpoint else None
         l_ckp = "input_{}".format(load_checkpoint) if load_checkpoint else None
 

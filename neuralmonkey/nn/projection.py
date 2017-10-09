@@ -1,6 +1,4 @@
-"""
-This module implements various types of projections.
-"""
+"""Module which implements various types of projections."""
 from typing import List, Callable
 import tensorflow as tf
 from neuralmonkey.nn.utils import dropout
@@ -9,7 +7,10 @@ from neuralmonkey.nn.utils import dropout
 def maxout(inputs: tf.Tensor,
            size: int,
            scope: str = "MaxoutProjection") -> tf.Tensor:
-    """Implementation of Maxout layer (Goodfellow et al., 2013)
+    """Apply a maxout operation.
+
+    Implementation of Maxout layer (Goodfellow et al., 2013).
+
     http://arxiv.org/pdf/1302.4389.pdf
 
     z = Wx + b
@@ -58,7 +59,10 @@ def multilayer_projection(
 
 def glu(input_: tf.Tensor,
         gating_fn: Callable[[tf.Tensor], tf.Tensor] = tf.sigmoid) -> tf.Tensor:
-    """Gated linear unit - Dauphin et al. (2016)
+    """Apply a Gated Linear Unit.
+
+    Gated Linear Unit - Dauphin et al. (2016).
+
     http://arxiv.org/abs/1612.08083
     """
     dimensions = input_.get_shape().as_list()

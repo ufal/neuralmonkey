@@ -19,12 +19,16 @@ from neuralmonkey.decorators import tensor
 
 # pylint: disable=too-many-instance-attributes
 class SentenceCNNEncoder(ModelPart, TemporalStatefulWithOutput):
-    """Encoder processing a sentence using a CNN then
-    running a bidirectional RNN on the result.
+    """Recurrent over Convolutional Encoder.
+
+    Encoder processing a sentence using a CNN
+    then running a bidirectional RNN on the result.
 
     Based on: Jason Lee, Kyunghyun Cho, Thomas Hofmann: Fully
     Character-Level Neural Machine Translation without Explicit
-    Segmentation (https://arxiv.org/pdf/1610.03017.pdf)
+    Segmentation.
+
+    See https://arxiv.org/pdf/1610.03017.pdf
     """
 
     # pylint: disable=too-many-arguments,too-many-locals
@@ -193,7 +197,7 @@ class SentenceCNNEncoder(ModelPart, TemporalStatefulWithOutput):
         return tf.squeeze(pooled, [2, 3])
 
     def rnn_cells(self) -> RNNCellTuple:
-        """Return the graph template to for creating RNN memory cells"""
+        """Return the graph template to for creating RNN memory cells."""
 
         if self.use_noisy_activations:
             return(NoisyGRUCell(self.rnn_size, self.train_mode),

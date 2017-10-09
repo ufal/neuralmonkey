@@ -8,7 +8,7 @@ from neuralmonkey.logging import log
 
 
 class BLEUReferenceImplWrapper(object):
-    """Wrapper for TectoMT's wrapper for reference NIST and BLEU scorer"""
+    """Wrapper for TectoMT's wrapper for reference NIST and BLEU scorer."""
 
     def __init__(self, wrapper, name="BLEU", encoding="utf-8"):
         log("Reference BLEU wrapper is deprecated", color="red")

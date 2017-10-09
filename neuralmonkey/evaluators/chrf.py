@@ -3,8 +3,9 @@ from typing import List, Optional
 
 # pylint: disable=too-few-public-methods
 class ChrFEvaluator(object):
-    """Compute ChrF introduced in
-    http://www.statmt.org/wmt15/pdf/WMT49.pdf
+    """Compute ChrF score.
+
+    See http://www.statmt.org/wmt15/pdf/WMT49.pdf
     """
 
     def __init__(self, n: int = 6, beta: float = 1,

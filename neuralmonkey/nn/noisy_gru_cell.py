@@ -5,10 +5,10 @@ import tensorflow as tf
 
 
 class NoisyGRUCell(tf.contrib.rnn.RNNCell):
-    """
-    Gated Recurrent Unit cell (cf. http://arxiv.org/abs/1406.1078) with noisy
-    activation functions (http://arxiv.org/abs/1603.00391). The theano code is
-    availble at https://github.com/caglar/noisy_units.
+    """Gated Recurrent Unit cell (cf. http://arxiv.org/abs/1406.1078).
+
+    GRU with noisy activation functions (http://arxiv.org/abs/1603.00391).
+    The theano code is availble at https://github.com/caglar/noisy_units.
 
     It is based on the TensorFlow implementatin of GRU just the activation
     function are changed for the noisy ones.
@@ -47,9 +47,12 @@ class NoisyGRUCell(tf.contrib.rnn.RNNCell):
 
 def noisy_activation(x, generic, linearized, training,
                      alpha: float = 1.1, c: float = 0.5):
-    """
-    Implements the noisy activation with Half-Normal Noise for Hard-Saturation
-    functions. See http://arxiv.org/abs/1603.00391, Algorithm 1.
+    """Apply the noisy activation.
+
+    Implements the noisy activation with Half-Normal Noise
+    for Hard-Saturation functions.
+
+    See http://arxiv.org/abs/1603.00391, Algorithm 1.
 
     Args:
 

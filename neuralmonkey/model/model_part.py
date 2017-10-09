@@ -16,6 +16,7 @@ FeedDict = Dict[tf.Tensor, Any]
 
 class ModelPart(metaclass=ABCMeta):
     """Base class of all model parts."""
+
     def __init__(self,
                  name: str,
                  save_checkpoint: str = None,
@@ -36,8 +37,11 @@ class ModelPart(metaclass=ABCMeta):
 
     @contextmanager
     def use_scope(self):
-        """Return a context manager that (re)opens the model part's variable
-        and name scope."""
+        """Return a context manager.
+
+        Return a context manager that (re)opens the model part's variable
+        and name scope.
+        """
         with tf.variable_scope(self._variable_scope):
             # tf.variable_scope always creates a NEW name scope for ops, but
             # we want to use the original one:

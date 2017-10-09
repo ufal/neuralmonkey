@@ -1,4 +1,6 @@
-"""This module implements the Vocabulary class and the helper functions that
+"""Vocabulary class module.
+
+This module implements the Vocabulary class and the helper functions that
 can be used to obtain a Vocabulary instance.
 """
 # pylint: disable=too-many-lines
@@ -55,8 +57,10 @@ def from_wordlist(path: str,
                   encoding: str = "utf-8",
                   contains_header: bool = True,
                   contains_frequencies: bool = True) -> 'Vocabulary':
-    """Loads vocabulary from a wordlist. The file can contain either list of
-    words with no header. Or it can contain words and their counts separated
+    """Load a vocabulary from a wordlist.
+
+    The file can contain either list of words with no header.
+    Or it can contain words and their counts separated
     by tab and a header on the first line.
 
     Arguments:
@@ -103,7 +107,7 @@ def from_dataset(datasets: List[Dataset], series_ids: List[str], max_size: int,
                  save_file: str = None, overwrite: bool = False,
                  min_freq: Optional[int] = None,
                  unk_sample_prob: float = 0.5) -> 'Vocabulary':
-    """Loads vocabulary from a dataset with an option to save it.
+    """Load a vocabulary from a dataset with an option to save it.
 
     Arguments:
         datasets: A list of datasets from which to create the vocabulary
@@ -160,7 +164,7 @@ def from_dataset(datasets: List[Dataset], series_ids: List[str], max_size: int,
 
 
 def from_bpe(path: str, encoding: str = "utf-8") -> 'Vocabulary':
-    """Loads vocabulary from Byte-pair encoding merge list.
+    """Load a vocabulary from Byte-pair encoding merge list.
 
     NOTE: The frequencies of words in this vocabulary are not computed from
     data. Instead, they correspond to the number of times the subword units
@@ -202,7 +206,9 @@ def initialize_vocabulary(directory: str, name: str,
                           datasets: List[Dataset] = None,
                           series_ids: List[str] = None,
                           max_size: int = None) -> 'Vocabulary':
-    """This function is supposed to initialize vocabulary when called from
+    """Initialize a vocabulary.
+
+    This function is supposed to initialize vocabulary when called from
     the configuration file. It first checks whether the vocabulary is already
     loaded on the provided path and if not, it tries to generate it from
     the provided dataset.
@@ -307,7 +313,7 @@ class Vocabulary(collections.Sized):
             self.add_word(word)
 
     def get_word_index(self, word: str) -> int:
-        """ Return index of the specified word.
+        """Return index of the specified word.
 
         Arguments:
             word: The word to look up.
@@ -347,8 +353,9 @@ class Vocabulary(collections.Sized):
         return idx
 
     def truncate(self, size: int) -> None:
-        """Truncate the vocabulary to the requested size by discarding
-        infrequent tokens.
+        """Truncate the vocabulary to the requested size.
+
+        The infrequent tokens are discarded.
 
         Arguments:
             size: The final size of the vocabulary
@@ -493,8 +500,10 @@ class Vocabulary(collections.Sized):
     def save_wordlist(self, path: str, overwrite: bool = False,
                       save_frequencies: bool = False,
                       encoding: str = "utf-8") -> None:
-        """Save the vocabulary as a wordlist. The file is ordered by the ids of
-        words. This function is used mainly for embedding visualization.
+        """Save the vocabulary as a wordlist.
+
+        The file is ordered by the ids of words.
+        This function is used mainly for embedding visualization.
 
         Arguments:
             path: The path to save the file to.
@@ -502,6 +511,7 @@ class Vocabulary(collections.Sized):
                 Defaults to False.
             save_frequencies: flag if frequencies should be stored. This
                 parameter adds header into the output file.
+
         Raises:
             FileExistsError if the file exists and overwrite flag is
             disabled.
@@ -532,7 +542,7 @@ class Vocabulary(collections.Sized):
                 output_file.write("\n")
 
     def log_sample(self, size: int = 5):
-        """Logs a sample of the vocabulary
+        """Log a sample of the vocabulary.
 
         Arguments:
             size: How many sample words to log.

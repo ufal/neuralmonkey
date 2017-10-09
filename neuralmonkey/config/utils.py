@@ -1,4 +1,6 @@
-"""This module contains helper functions that are suppoosed to be called from
+"""Utilities.
+
+This module contains helper functions that are suppoosed to be called from
 the configuration file because calling the functions or the class constructors
 directly would be inconvinent or impossible.
 """

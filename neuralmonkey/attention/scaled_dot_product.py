@@ -1,4 +1,4 @@
-"""The scaled dot-product attention mechanism, defined in Vaswani et al. (2017)
+"""The scaled dot-product attention mechanism defined in Vaswani et al. (2017).
 
 The attention energies are computed as dot products between the query vector
 and the key vector. The query vector is scaled down by the square root of its

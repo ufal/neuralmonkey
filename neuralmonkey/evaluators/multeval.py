@@ -14,7 +14,8 @@ class MultEvalWrapper(object):
     def __init__(self, wrapper: str, name: str = "MultEval",
                  encoding: str = "utf-8",
                  metric: str = "bleu", language: str = "en") -> None:
-        """
+        """Initialize the wrapper.
+
         :param wrapper: path to multeval.sh script
         :param name: name of the evaluator
         :param encoding: encoding of input files

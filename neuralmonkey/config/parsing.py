@@ -1,4 +1,4 @@
-""" Module responsible for INI parsing """
+"""Module responsible for INI parsing."""
 
 from collections import OrderedDict
 import configparser
@@ -46,8 +46,10 @@ def _keyval_parser_dict() -> Dict[Any, Callable]:
 
 
 def _split_on_commas(string: str) -> List[str]:
-    """Splits a bracketed string by commas, preserving any commas
-    inside brackets."""
+    """Split a bracketed string on commas.
+
+    The commas inside brackets are preserved.
+    """
 
     items = []
     char_buffer = []  # type: List[Optional[str]]
@@ -77,7 +79,7 @@ def _split_on_commas(string: str) -> List[str]:
 
 
 def _parse_list(string: str) -> List[Any]:
-    """ Parses the string recursively as a list """
+    """Parse the string recursively as a list."""
 
     matched_content = LIST.match(string).group(1)
     if matched_content == '':
@@ -94,7 +96,7 @@ def _parse_list(string: str) -> List[Any]:
 
 
 def _parse_tuple(string: str) -> Tuple[Any, ...]:
-    """ Parses the string recursively as a tuple """
+    """Parse the string recursively as a tuple."""
 
     items = _split_on_commas(TUPLE.match(string).group(1))
     values = [_parse_value(val) for val in items]
@@ -103,13 +105,12 @@ def _parse_tuple(string: str) -> Tuple[Any, ...]:
 
 
 def _parse_class_name(string: str) -> ClassSymbol:
-    """ Parse the string as a module or class name.
-    """
+    """Parse the string as a module or class name."""
     return ClassSymbol(string)
 
 
 def _parse_value(string: str) -> Any:
-    """ Parses the value recursively according to the Nerualmonkey grammar.
+    """Parse the value recursively according to the Nerualmonkey grammar.
 
     Arguments:
         string: the string to be parsed
@@ -127,7 +128,7 @@ def _parse_value(string: str) -> Any:
 
 def _parse_ini(config_file: Iterable[str],
                filename: str = "") -> Dict[str, Any]:
-    """ Parses an INI file into a dictionary """
+    """Parse an INI file into a dictionary."""
 
     line_numbers = (line.strip() + " " + str(i + 1)
                     if line.strip() != "" else ""
@@ -168,7 +169,7 @@ def _apply_change(config_dict: Dict[str, Any], setting: str) -> None:
 def parse_file(config_file: Iterable[str],
                changes: Optional[Iterable[str]] = None
               ) -> Tuple[Dict[str, Any], Dict[str, Any]]:
-    """ Parses an INI file and creates all values """
+    """Parse an INI file and creates all values."""
 
     parsed_dicts = OrderedDict()  # type: Dict[str, Any]
     time_stamp = time.strftime("%Y-%m-%d-%H-%M-%S")

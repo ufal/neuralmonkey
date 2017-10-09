@@ -1,7 +1,5 @@
-"""
-This module contains different variants of projection functions
-for RNN outputs.
-"""
+"""Module with different variants of projection functions for RNN outputs."""
+
 from typing import Union, Tuple, List, Callable
 import tensorflow as tf
 from typeguard import check_argument_types
@@ -19,8 +17,12 @@ OutputProjectionSpec = Union[Tuple[OutputProjection, int],
 
 
 def _legacy_linear(output_size: int) -> Tuple[OutputProjection, int]:
-    """This was the default projection before commit 9a09553. For backward
-    compatibility, set the output_size parameter to decoder's rnn_size param.
+    """Apply a legacy linear projection.
+
+    This was the default projection before commit 9a09553.
+
+    For backward compatibility, set the output_size parameter
+    to decoder's rnn_size param.
     """
     check_argument_types()
 
@@ -35,8 +37,12 @@ def _legacy_linear(output_size: int) -> Tuple[OutputProjection, int]:
 
 
 def _legacy_relu(output_size: int) -> Tuple[OutputProjection, int]:
-    """This was the default projection after commit 9a09553. For backward
-    compatibility, set the output_size parameter to decoder's rnn_size param.
+    """Apply a legacy relu projection.
+
+    This was the default projection after commit 9a09553.
+
+    For backward compatibility, set the output_size parameter
+    to decoder's rnn_size param.
     """
     check_argument_types()
 
@@ -68,7 +74,9 @@ def nonlinear_output(
 
 
 def maxout_output(maxout_size: int) -> Tuple[OutputProjection, int]:
-    """Compute RNN output out of the previous state and output, and the
+    """Apply maxout.
+
+    Compute RNN output out of the previous state and output, and the
     context tensors returned from attention mechanisms, as described
     in the article
 
@@ -94,7 +102,9 @@ def maxout_output(maxout_size: int) -> Tuple[OutputProjection, int]:
 def mlp_output(layer_sizes: List[int],
                activation: Callable[[tf.Tensor], tf.Tensor] = tf.tanh,
                dropout_keep_prob: float = 1.0) -> Tuple[OutputProjection, int]:
-    """Compute RNN deep output using the multilayer perceptron
+    """Apply a multilayer perceptron.
+
+    Compute RNN deep output using the multilayer perceptron
     with a specified activation function.
     (Pascanu et al., 2013 [https://arxiv.org/pdf/1312.6026v5.pdf])
 

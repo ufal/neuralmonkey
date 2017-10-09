@@ -4,7 +4,7 @@ from neuralmonkey.nn.projection import multilayer_projection
 
 
 class MultilayerPerceptron(object):
-    """ General implementation of the multilayer perceptron. """
+    """General implementation of the multilayer perceptron."""
 
     # pylint: disable=too-many-arguments
     def __init__(self,

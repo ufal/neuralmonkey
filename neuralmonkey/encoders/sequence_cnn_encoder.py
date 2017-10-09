@@ -27,7 +27,7 @@ class SequenceCNNEncoder(ModelPart, Stateful):
                  dropout_keep_prob: float = 1.0,
                  save_checkpoint: Optional[str] = None,
                  load_checkpoint: Optional[str] = None) -> None:
-        """Creates a new instance of the CNN sequence encoder.
+        """Create a new instance of the CNN sequence encoder.
 
         Based on: Yoon Kim: Convolutional Neural Networks for Sentence
         Classification (http://emnlp2014.org/papers/pdf/EMNLP2014181.pdf)

@@ -86,7 +86,7 @@ class LogitsRunner(BaseRunner):
                  normalize: bool = True,
                  pick_index: int = None,
                  pick_value: str = None) -> None:
-        """Initializes the logits runner.
+        """Initialize the logits runner.
 
         Args:
             output_series: Name of the series produces by the runner.

@@ -51,8 +51,8 @@ def training_loop(tf_manager: TensorFlowManager,
                   runners_batch_size: Optional[int] = None,
                   initial_variables: Optional[Union[str, List[str]]] = None,
                   postprocess: Postprocess = None) -> None:
-    """
-    Performs the training loop for given graph and data.
+    """Execute the training loop for given graph and data.
+
     Args:
         tf_manager: TensorFlowManager with initialized sessions.
         epochs: Number of epochs for which the algoritm will learn.
@@ -511,7 +511,7 @@ def _log_continuous_evaluation(tb_writer: tf.summary.FileWriter,
 
 def _format_evaluation_line(evaluation_res: Evaluation,
                             main_metric: str) -> str:
-    """ Format the evaluation metric for stdout with last one bold."""
+    """Format the evaluation metric for stdout with last one bold."""
     eval_string = "    ".join("{}: {:.4g}".format(name, value)
                               for name, value in evaluation_res.items()
                               if name != main_metric)

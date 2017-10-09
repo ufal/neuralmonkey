@@ -1,4 +1,4 @@
-"""From the paper Convolutional Sequence to Sequence Learning
+"""From the paper Convolutional Sequence to Sequence Learning.
 
 http://arxiv.org/abs/1705.03122
 """

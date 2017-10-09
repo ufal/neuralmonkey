@@ -16,6 +16,7 @@ class SequenceRegressor(ModelPart):
     The API pretends it is an RNN decoder which always generates a sequence of
     length exactly one.
     """
+
     # pylint: disable=too-many-arguments
     def __init__(self,
                  name: str,

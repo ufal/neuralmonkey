@@ -29,7 +29,7 @@ class BLEUEvaluator(object):
     @staticmethod
     def ngram_counts(sentence: List[str], n: int,
                      lowercase: bool, delimiter: str = " ") -> Counter:
-        """Get n-grams from a sentence
+        """Get n-grams from a sentence.
 
         Arguments:
             sentence: Sentence as a list of words
@@ -52,7 +52,7 @@ class BLEUEvaluator(object):
 
     @staticmethod
     def merge_max_counters(counters: List[Counter]) -> Counter:
-        """Merge counters using maximum values"""
+        """Merge counters using maximum values."""
         merged = Counter()  # type: Counter
 
         for counter in counters:
@@ -66,7 +66,7 @@ class BLEUEvaluator(object):
                                  references_list: List[List[List[str]]],
                                  n: int,
                                  case_sensitive: bool) -> Tuple[float, int]:
-        """Computes the modified n-gram precision on a list of sentences
+        """Compute the modified n-gram precision on a list of sentences.
 
         Arguments:
             hypotheses: List of output sentences as lists of words
@@ -108,8 +108,9 @@ class BLEUEvaluator(object):
     def effective_reference_length(
             hypotheses: List[List[str]],
             references_list: List[List[List[str]]]) -> int:
-        """Computes the effective reference corpus length (based on best match
-        length)
+        """Compute the effective reference corpus length.
+
+        The effective reference corpus length is based on best match length.
 
         Arguments:
             hypotheses: List of output sentences as lists of words
@@ -140,8 +141,10 @@ class BLEUEvaluator(object):
     @staticmethod
     def minimum_reference_length(hypotheses: List[List[str]],
                                  references_list: List[List[str]]) -> int:
-        """Computes the effective reference corpus length (based on the
-        shortest reference sentence length)
+        """Compute the minimum reference corpus length.
+
+        The minimum reference corpus length is based
+        on the shortest reference sentence length.
 
         Arguments:
             hypotheses: List of output sentences as lists of words
@@ -164,8 +167,11 @@ class BLEUEvaluator(object):
     @staticmethod
     def bleu(hypotheses: List[List[str]], references: List[List[List[str]]],
              ngrams: int = 4, case_sensitive: bool = True):
-        """Computes BLEU on a corpus with multiple references using uniform
-        weights. Default is to use smoothing as in reference implementation on:
+        """Compute BLEU on a corpus with multiple references.
+
+        The n-grams are uniformly weighted.
+
+        Default is to use smoothing as in reference implementation on:
         https://github.com/ufal/qtleap/blob/master/cuni_train/bin/mteval-v13a.pl#L831-L873
 
         Arguments:

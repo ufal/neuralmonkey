@@ -1,5 +1,4 @@
-"""Module which implements decoding functions using multiple attentions
-for RNN decoders.
+"""Decoding functions using multiple attentions for RNN decoders.
 
 See http://arxiv.org/abs/1606.07481
 

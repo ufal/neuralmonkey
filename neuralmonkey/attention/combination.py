@@ -106,6 +106,7 @@ class FlatMultiAttention(MultiAttention):
 
     See equations 8 to 10 in the Attention Combination Strategies paper.
     """
+
     def __init__(self,
                  name: str,
                  encoders: List[Attendable],

@@ -69,6 +69,7 @@ class BeamSearchDecoder(ModelPart):
     https://arxiv.org/pdf/1609.08144.pdf. Length normalization is parameter
     alpha from equation 14.
     """
+
     def __init__(self,
                  name: str,
                  parent_decoder: Decoder,
@@ -150,19 +151,19 @@ class BeamSearchDecoder(ModelPart):
                                 token_ids=token_ids)
 
     def get_body(self) -> Callable:
-        """Return a function that will act as the body for the
-        ``tf.while_loop`` call.
-        """
+        """Return a body function for ``tf.while_loop``."""
         decoder_body = self.parent_decoder.get_body(train_mode=False)
 
         # pylint: disable=too-many-locals
         def body(*args) -> BeamSearchLoopState:
-            """The beam search body function. This is where the beam search
-            algorithm is implemented.
+            """Execute a single beam search step.
+
+            The beam search body function.
+            This is where the beam search algorithm is implemented.
 
             Arguments:
-                loop_state: ``BeamSearchLoopState`` instance (see the docs for
-                    this module)
+                loop_state: ``BeamSearchLoopState`` instance (see the docs
+                    for this module)
             """
             loop_state = BeamSearchLoopState(*args)
             bs_state = loop_state.bs_state
@@ -309,7 +310,7 @@ class BeamSearchDecoder(ModelPart):
         return body
 
     def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
-        """Populate the feed dictionary for the decoder object
+        """Populate the feed dictionary for the decoder object.
 
         Arguments:
             dataset: The dataset to use for the decoder.
@@ -321,7 +322,7 @@ class BeamSearchDecoder(ModelPart):
         return {}
 
     def _length_penalty(self, lengths):
-        """lp term from eq. 14"""
+        """Apply lp term from eq. 14."""
 
         return ((5. + tf.to_float(lengths)) ** self._length_normalization /
                 (5. + 1.) ** self._length_normalization)

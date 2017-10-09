@@ -24,7 +24,7 @@ class BPEPreprocessor(object):
             self.bpe = BPE(f_data, separator)
 
     def __call__(self, sentence: List[str]) -> List[str]:
-        """Adapted code from BPE.segment """
+        """Adapted code from BPE.segment."""
 
         output = []
         for word in sentence:

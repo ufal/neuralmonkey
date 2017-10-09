@@ -7,7 +7,7 @@ def inverse_sigmoid_decay(param, rate, min_value: float = 0.,
                           max_value: float = 1.,
                           name: Optional[str] = None,
                           dtype=tf.float32) -> tf.Tensor:
-    """Inverse sigmoid decay: k/(k+exp(x/k)).
+    """Compute an inverse sigmoid decay: k/(k+exp(x/k)).
 
     The result will be scaled to the range (min_value, max_value).
 
@@ -27,7 +27,7 @@ def inverse_sigmoid_decay(param, rate, min_value: float = 0.,
 
 def piecewise_function(param, values, changepoints, name=None,
                        dtype=tf.float32):
-    """A piecewise function.
+    """Compute a piecewise function.
 
     Arguments:
         param: The function parameter.

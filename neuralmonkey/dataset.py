@@ -1,4 +1,4 @@
-""" Implementation of the dataset class. """
+"""Implementation of the dataset class."""
 
 import os
 import random
@@ -19,7 +19,9 @@ Reader = Callable[[List[str]], Any]
 
 
 class Dataset(collections.Sized):
-    """ This class serves as collection for data series for particular
+    """Base Dataset class.
+
+    This class serves as collection for data series for particular
     encoders and decoders in the model. If it is not provided a parent
     dataset, it also manages the vocabularies inferred from the data.
 
@@ -28,8 +30,9 @@ class Dataset(collections.Sized):
 
     def __init__(self, name: str, series: Dict[str, List],
                  series_outputs: Dict[str, str]) -> None:
-        """Creates a dataset from the provided already preprocessed
-        series of data.
+        """Create a dataset from the provided series of data.
+
+        The data is already preprocessed.
 
         Arguments:
             name: The name for the dataset
@@ -103,7 +106,7 @@ class Dataset(collections.Sized):
         return self._series.keys()
 
     def shuffle(self) -> None:
-        """Shuffle the dataset randomly """
+        """Shuffle the dataset randomly."""
         keys = list(self._series.keys())
         zipped = list(zip(*[self._series[k] for k in keys]))
         random.shuffle(zipped)
@@ -267,7 +270,7 @@ class LazyDataset(Dataset):
             raise Exception("Series '{}' is not in the dataset.".format(name))
 
     def shuffle(self) -> None:
-        """Does nothing, not in-memory shuffle is impossible.
+        """Do nothing, not in-memory shuffle is impossible.
 
         TODO: this is related to the ``__len__`` method.
         """
@@ -322,8 +325,8 @@ def load_dataset_from_files(
         name: str = None, lazy: bool = False,
         preprocessors: List[Tuple[str, str, Callable]] = None,
         **kwargs) -> Dataset:
-
     """Load a dataset from the files specified by the provided arguments.
+
     Paths to the data are provided in a form of dictionary.
 
     Keyword arguments:
@@ -345,6 +348,7 @@ def load_dataset_from_files(
                 followed by a new series name. In case of the pre-processed
                 series, a callable taking the dataset and returning a new
                 series is expected as a value.
+
     Returns:
         The newly created dataset.
 
@@ -450,6 +454,7 @@ def _get_series_paths_and_readers(
 
 def _get_series_outputs(series_config: SeriesConfig) -> Dict[str, str]:
     """Get paths to series outputs from the dataset keyword argument specs.
+
     Output file for a series named 'xxx' is specified by parameter 's_xxx_out'
 
     Arguments:

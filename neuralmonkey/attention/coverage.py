@@ -1,4 +1,5 @@
-"""Coverage attention introduced in Tu et al. (2016)
+"""Coverage attention introduced in Tu et al. (2016).
+
 See arxiv.org/abs/1601.04811
 
 The CoverageAttention class inherites from the basic feed-forward attention
