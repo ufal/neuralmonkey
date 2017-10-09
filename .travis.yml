@@ -8,6 +8,7 @@ env:
   matrix:
     - TEST_SUITE=lint
     - TEST_SUITE=pycodestyle
+    - TEST_SUITE=pydocstyle
     - TEST_SUITE=unit-tests
     - TEST_SUITE=tests
     - TEST_SUITE=mypy
