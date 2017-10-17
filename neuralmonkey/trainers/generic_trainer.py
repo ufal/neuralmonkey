@@ -21,13 +21,22 @@ Objective = NamedTuple('Objective',
 BIAS_REGEX = re.compile(r'[Bb]ias')
 
 
-# pylint: disable=too-few-public-methods,too-many-locals
+# pylint: disable=too-few-public-methods,too-many-locals,too-many-arguments
 class GenericTrainer(object):
 
     def __init__(self, objectives: List[Objective],
                  l1_weight: float = 0.0, l2_weight: float = 0.0,
                  clip_norm: Optional[float] = None, optimizer=None,
-                 global_step=None) -> None:
+                 global_step=None, var_scopes: Optional[List[str]] = None,
+                 var_collection: Optional[str] = None) -> None:
+
+        if not var_collection:
+            var_collection = tf.GraphKeys.TRAINABLE_VARIABLES
+        if not var_scopes:
+            var_scopes = [None]
+        var_lists = [tf.get_collection(var_collection, scope)
+                     for scope in var_scopes]
+        self.var_list = [var for var_list in var_lists for var in var_list]
 
         with tf.name_scope("trainer"):
             self.optimizer = optimizer or tf.train.AdamOptimizer(1e-4)
@@ -101,7 +110,7 @@ class GenericTrainer(object):
                 tf.get_collection("summary_train"))
 
     def _get_gradients(self, tensor: tf.Tensor) -> Gradients:
-        gradient_list = self.optimizer.compute_gradients(tensor)
+        gradient_list = self.optimizer.compute_gradients(tensor, self.var_list)
         return gradient_list
 
     def get_executable(

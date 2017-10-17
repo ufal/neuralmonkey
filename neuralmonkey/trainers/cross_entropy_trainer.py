@@ -16,7 +16,7 @@ def xent_objective(decoder, weight=None) -> Objective:
         weight=weight,
     )
 
-# pylint: disable=too-few-public-methods
+# pylint: disable=too-few-public-methods,too-many-arguments
 
 
 class CrossEntropyTrainer(GenericTrainer):
@@ -24,7 +24,9 @@ class CrossEntropyTrainer(GenericTrainer):
     def __init__(self, decoders: List[Any],
                  decoder_weights: Optional[List[ObjectiveWeight]] = None,
                  l1_weight=0., l2_weight=0.,
-                 clip_norm=False, optimizer=None, global_step=None) -> None:
+                 clip_norm=False, optimizer=None, global_step=None,
+                 var_scopes: Optional[List[str]] = None,
+                 var_collection: Optional[str] = None) -> None:
         check_argument_types()
 
         if decoder_weights is None:
@@ -39,4 +41,5 @@ class CrossEntropyTrainer(GenericTrainer):
                       for dec, w in zip(decoders, decoder_weights)]
         super(CrossEntropyTrainer, self).__init__(
             objectives, l1_weight, l2_weight, clip_norm=clip_norm,
-            optimizer=optimizer, global_step=global_step)
+            optimizer=optimizer, global_step=global_step,
+            var_scopes=var_scopes, var_collection=var_collection)

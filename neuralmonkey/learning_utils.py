@@ -104,7 +104,7 @@ def training_loop(tf_manager: TensorFlowManager,
 
     _check_series_collisions(runners, postprocess)
 
-    _log_model_variables()
+    _log_model_variables(var_list=trainer.var_list)
 
     if tf_manager.report_gpu_memory_consumption:
         log("GPU memory usage: {}".format(gpu_memusage()))
@@ -651,12 +651,18 @@ def _skip_lines(start_offset: int,
         log("Skipped {} instances".format(skipped_instances))
 
 
-def _log_model_variables() -> None:
+def _log_model_variables(var_list: Optional[List[tf.Variable]] = None) -> None:
     trainable_vars = tf.trainable_variables()
+    if not var_list:
+        var_list = trainable_vars
+    fixed_vars = [var for var in trainable_vars if var not in var_list]
+
     total_params = 0
 
-    logstr = "The model has {} trainable variables:\n\n".format(
-        len(trainable_vars))
+    logstr = "The model has {} trainable variables{}:\n\n".format(
+        len(trainable_vars),
+        ' ({} {})'.format(len(fixed_vars), colored('fixed', on_color='on_red'))
+        if fixed_vars else '')
 
     logstr += colored(
         "{: ^80}{: ^20}{: ^10}\n".format("Variable name", "Shape", "Size"),
@@ -668,8 +674,12 @@ def _log_model_variables() -> None:
         params_in_var = int(np.prod(shape))
         total_params += params_in_var
 
-        log_entry = "{: <80}{: <20}{: >10}".format(var.name, str(shape),
-                                                   params_in_var)
+        name = var.name
+        if var not in var_list:
+            name = colored(name, on_color='on_red')
+        # Pad and compensate for control characters:
+        name = name.ljust(80 + (len(name) - len(var.name)))
+        log_entry = "{}{: <20}{: >10}".format(name, str(shape), params_in_var)
         logstr += "\n{}".format(log_entry)
 
     logstr += "\n"
