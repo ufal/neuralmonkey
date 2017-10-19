@@ -651,7 +651,7 @@ def _skip_lines(start_offset: int,
         log("Skipped {} instances".format(skipped_instances))
 
 
-def _log_model_variables(var_list: Optional[List[tf.Variable]] = None) -> None:
+def _log_model_variables(var_list: List[tf.Variable] = None) -> None:
     trainable_vars = tf.trainable_variables()
     if not var_list:
         var_list = trainable_vars

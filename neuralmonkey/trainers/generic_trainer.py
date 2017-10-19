@@ -26,16 +26,17 @@ class GenericTrainer(object):
 
     def __init__(self, objectives: List[Objective],
                  l1_weight: float = 0.0, l2_weight: float = 0.0,
-                 clip_norm: Optional[float] = None, optimizer=None,
-                 global_step=None, var_scopes: Optional[List[str]] = None,
-                 var_collection: Optional[str] = None) -> None:
+                 clip_norm: float = None, optimizer=None,
+                 global_step=None, var_scopes: List[str] = None,
+                 var_collection: str = None) -> None:
 
-        if not var_collection:
+        if var_collection is None:
             var_collection = tf.GraphKeys.TRAINABLE_VARIABLES
-        if not var_scopes:
+        if var_scopes is None:
             var_scopes = [None]
         var_lists = [tf.get_collection(var_collection, scope)
                      for scope in var_scopes]
+        # Flatten the list of lists
         self.var_list = [var for var_list in var_lists for var in var_list]
 
         with tf.name_scope("trainer"):

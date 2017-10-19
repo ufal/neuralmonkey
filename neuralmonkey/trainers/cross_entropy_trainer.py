@@ -1,4 +1,4 @@
-from typing import Any, List, Optional
+from typing import Any, List
 
 from typeguard import check_argument_types
 
@@ -22,11 +22,11 @@ def xent_objective(decoder, weight=None) -> Objective:
 class CrossEntropyTrainer(GenericTrainer):
 
     def __init__(self, decoders: List[Any],
-                 decoder_weights: Optional[List[ObjectiveWeight]] = None,
+                 decoder_weights: List[ObjectiveWeight] = None,
                  l1_weight=0., l2_weight=0.,
                  clip_norm=False, optimizer=None, global_step=None,
-                 var_scopes: Optional[List[str]] = None,
-                 var_collection: Optional[str] = None) -> None:
+                 var_scopes: List[str] = None,
+                 var_collection: str = None) -> None:
         check_argument_types()
 
         if decoder_weights is None:
