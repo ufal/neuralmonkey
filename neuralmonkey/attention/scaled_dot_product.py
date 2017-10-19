@@ -107,7 +107,8 @@ class MultiHeadAttention(BaseAttention):
         return context, next_loop_state
     # pylint: enable=too-many-locals
 
-    def attention_3d(self, query_3d: tf.Tensor) -> tf.Tensor:
+    def attention_3d(self, query_3d: tf.Tensor,
+                     masked: bool = False) -> tf.Tensor:
 
         if self.n_heads == 1:
             query_heads = [query_3d]
@@ -129,7 +130,7 @@ class MultiHeadAttention(BaseAttention):
 
         # head_contexts_3d, head_weights_3d = zip(*[
         head_contexts_3d, _ = zip(*[
-            self.attention_single_head_3d(q, k, v)
+            self.attention_single_head_3d(q, k, v, masked=masked)
             for q, k, v in zip(query_heads, keys_heads, vals_heads)])
 
         context_3d = tf.layers.dense(tf.concat(head_contexts_3d, -1),
@@ -152,6 +153,7 @@ class MultiHeadAttention(BaseAttention):
                                                           tf.Tensor]:
         # shape: batch, time (similarities of attention keys in batch and time
         # to the queries in the batch)
+
         dot_product = tf.reduce_sum(
             tf.expand_dims(query, 1) * keys, [-1])
         energies = dot_product * self._scaling_factor
@@ -174,8 +176,9 @@ class MultiHeadAttention(BaseAttention):
 
     def attention_single_head_3d(self, query: tf.Tensor,
                                  keys: tf.Tensor,
-                                 values: tf.Tensor) -> Tuple[tf.Tensor,
-                                                             tf.Tensor]:
+                                 values: tf.Tensor,
+                                 masked: bool = False) -> Tuple[tf.Tensor,
+                                                                tf.Tensor]:
         # Shapes:
         # query:  batch, time(q), k_channels
         # keys:   batch, time(k), k_channels
@@ -189,7 +192,16 @@ class MultiHeadAttention(BaseAttention):
 
         # For dot-product, we use matrix multiplication
         # shape: batch, time(q), time(k) (k_channels is the matmul axis)
+
         energies = tf.matmul(query_scaled, keys, transpose_b=True)
+
+        # To protect the attention from looking ahead of time, we must
+        # replace the energies of future keys with negative infinity
+        # We use lower triangular matrix and basic log tricks
+        if masked:
+            exp_energies = tf.exp(energies)
+            mask_energies = tf.matrix_band_part(exp_energies, -1, 0)
+            energies = tf.log(mask_energies)
 
         # Softmax along the last axis
         # shape: batch, time(q), time(k)
