@@ -131,11 +131,18 @@ class AutoregressiveDecoder(ModelPart):
         return tf.matmul(state, self.decoding_w) + self.decoding_b
 
     @tensor
+    def train_loop_result(self) -> Tuple[tf.Tensor, tf.Tensor, tf.Tensor]:
+        return self.decoding_loop(train_mode=True)
+
+    @tensor
     def train_logits(self) -> tf.Tensor:
         # THE LAST TRAIN INPUT IS NOT USED IN DECODING FUNCTION
         # (just as a target)
-        logits, _, _, _ = self.decoding_loop(train_mode=True)
-        return logits
+        return tuple(self.train_loop_result)[0]
+
+    @tensor
+    def train_output_states(self) -> tf.Tensor:
+        return tuple(self.train_loop_result)[1]
 
     @tensor
     def train_logprobs(self) -> tf.Tensor:
@@ -169,7 +176,7 @@ class AutoregressiveDecoder(ModelPart):
         return tuple(self.runtime_loop_result)[0]
 
     @tensor
-    def runtime_rnn_states(self) -> tf.Tensor:
+    def runtime_output_states(self) -> tf.Tensor:
         return tuple(self.runtime_loop_result)[1]
 
     @tensor
@@ -210,7 +217,37 @@ class AutoregressiveDecoder(ModelPart):
         raise NotImplementedError("Abstract property")
 
     def get_initial_loop_state(self) -> LoopState:
-        raise NotImplementedError("Abstract method")
+
+        dec_output_ta = tf.TensorArray(dtype=tf.float32, dynamic_size=True,
+                                       size=0, name="decoder_outputs")
+
+        logit_ta = tf.TensorArray(dtype=tf.float32, dynamic_size=True,
+                                  size=0, name="logits")
+
+        mask_ta = tf.TensorArray(dtype=tf.bool, dynamic_size=True,
+                                 size=0, name="mask")
+
+        outputs_ta = tf.TensorArray(dtype=tf.int32, dynamic_size=True,
+                                    size=0, name="outputs")
+
+        feedables = DecoderFeedables(
+            step=0,
+            finished=tf.zeros([self.batch_size], dtype=tf.bool),
+            input_symbol=self.go_symbols,
+            prev_logits=tf.zeros([self.batch_size, len(self.vocabulary)]))
+
+        histories = DecoderHistories(
+            logits=logit_ta,
+            decoder_outputs=dec_output_ta,
+            mask=mask_ta,
+            outputs=outputs_ta)
+
+        constants = DecoderConstants(train_inputs=self.train_inputs)
+
+        return LoopState(
+            histories=histories,
+            constants=constants,
+            feedables=feedables)
 
     def loop_continue_criterion(self, *args) -> tf.Tensor:
         """Decide whether to break out of the while loop.

@@ -5,7 +5,7 @@ from typeguard import check_argument_types
 
 from neuralmonkey.decoders.autoregressive import (
     AutoregressiveDecoder, LoopState, extend_namedtuple, DecoderHistories,
-    DecoderFeedables, DecoderConstants)
+    DecoderFeedables)
 from neuralmonkey.attention.base_attention import BaseAttention
 from neuralmonkey.vocabulary import (
     Vocabulary, END_TOKEN_INDEX, PAD_TOKEN_INDEX)
@@ -366,7 +366,7 @@ class Decoder(AutoregressiveDecoder):
                 attention_histories=list(att_loop_states),
                 logits=loop_state.histories.logits.write(step, logits),
                 decoder_outputs=loop_state.histories.decoder_outputs.write(
-                    step + 1, cell_output),
+                    step, cell_output),
                 outputs=loop_state.histories.outputs.write(step, next_symbols),
                 mask=loop_state.histories.mask.write(step, not_finished))
             # pylint: enable=not-callable
@@ -382,51 +382,29 @@ class Decoder(AutoregressiveDecoder):
         return body
 
     def get_initial_loop_state(self) -> LoopState:
-        rnn_output_ta = tf.TensorArray(dtype=tf.float32, dynamic_size=True,
-                                       size=0, name="decoder_outputs")
-        rnn_output_ta = rnn_output_ta.write(0, self.initial_state)
+        default_ls = SequenceDecoder.get_initial_loop_state(self)
+        feedables = default_ls.feedables._asdict()
+        histories = default_ls.histories._asdict()
 
-        logit_ta = tf.TensorArray(dtype=tf.float32, dynamic_size=True,
-                                  size=0, name="logits")
+        feedables["prev_contexts"] = [
+            tf.zeros([self.batch_size, a.context_vector_size])
+            for a in self.attentions]
 
-        outputs_ta = tf.TensorArray(dtype=tf.int32, dynamic_size=True,
-                                    size=0, name="outputs")
+        feedables["prev_rnn_state"] = self.initial_state
+        feedables["prev_rnn_output"] = self.initial_state
 
-        contexts = [tf.zeros([self.batch_size, a.context_vector_size])
-                    for a in self.attentions]
-
-        mask_ta = tf.TensorArray(dtype=tf.bool, dynamic_size=True,
-                                 size=0, name="mask")
-
-        attn_loop_states = [a.initial_loop_state()
-                            for a in self.attentions if a is not None]
+        histories["attention_histories"] = [
+            a.initial_loop_state()
+            for a in self.attentions if a is not None]
 
         # pylint: disable=not-callable
-        rnn_feedables = RNNFeedables(
-            # general:
-            step=tf.constant(0, dtype=tf.int32),
-            finished=tf.zeros([self.batch_size], dtype=tf.bool),
-            input_symbol=self.go_symbols,
-            prev_logits=tf.zeros([self.batch_size, len(self.vocabulary)]),
-            # rnn-specific:
-            prev_rnn_state=self.initial_state,
-            prev_rnn_output=self.initial_state,
-            prev_contexts=contexts)
-
-        rnn_histories = RNNHistories(
-            attention_histories=attn_loop_states,
-            # general:
-            logits=logit_ta,
-            decoder_outputs=rnn_output_ta,
-            outputs=outputs_ta,
-            mask=mask_ta)
+        rnn_feedables = RNNFeedables(**feedables)
+        rnn_histories = RNNHistories(**histories)
         # pylint: enable=not-callable
-
-        loop_constants = DecoderConstants(train_inputs=self.train_inputs)
 
         return LoopState(
             histories=rnn_histories,
-            constants=loop_constants,
+            constants=default_ls.constants,
             feedables=rnn_feedables)
 
     def finalize_loop(self, final_loop_state: LoopState,
