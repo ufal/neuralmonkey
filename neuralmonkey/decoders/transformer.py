@@ -97,9 +97,17 @@ class TransformerDecoder(SequenceDecoder):
     def embedded_train_inputs(self) -> tf.Tensor:
         # THE LAST TRAIN INPUT IS NOT USED IN DECODING FUNCTION
         # (just as a target)
-        return self.embed_inputs(
-            tf.concat([tf.expand_dims(self.go_symbols, 1),
-                       tf.transpose(self.train_inputs[:-1])], 1))
+
+        # shape (batch, 1 + (time - 1))
+        input_tokens = tf.concat(
+            [tf.expand_dims(self.go_symbols, 1),
+             tf.transpose(self.train_inputs[:-1])], 1)
+
+        input_embeddings = self.embed_inputs(input_tokens)
+
+        return dropout(input_embeddings,
+                       self.dropout_keep_prob,
+                       self.train_mode)
 
     def get_self_att_object(self, level: int,
                             pr_layer: TransformerLayer) -> MultiHeadAttention:
@@ -155,6 +163,9 @@ class TransformerDecoder(SequenceDecoder):
             self_att_result = att.attention_3d(
                 prev_layer.temporal_states, masked=True)
 
+        self_att_result = dropout(
+            self_att_result, self.dropout_keep_prob, self.train_mode)
+
         inter_attention_query = tf.contrib.layers.layer_norm(
             self_att_result + prev_layer.temporal_states)
 
@@ -162,6 +173,9 @@ class TransformerDecoder(SequenceDecoder):
         with tf.variable_scope("dec_inter_att_level_{}".format(level)):
             att = self.get_inter_att_object(level)
             inter_att_result = att.attention_3d(inter_attention_query)
+
+        inter_att_result = dropout(
+            inter_att_result, self.dropout_keep_prob, self.train_mode)
 
         ff_input = tf.contrib.layers.layer_norm(
             inter_att_result + inter_attention_query)
@@ -172,6 +186,7 @@ class TransformerDecoder(SequenceDecoder):
 
         ff_output = tf.layers.dense(ff_hidden, self.dimension,
                                     name="ff_out_{}".format(level))
+        ff_output = dropout(ff_output, self.dropout_keep_prob, self.train_mode)
 
         output_states = tf.contrib.layers.layer_norm(ff_output + ff_input)
         return TransformerLayer(states=output_states, mask=mask)

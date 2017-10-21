@@ -18,6 +18,7 @@ from neuralmonkey.model.model_part import FeedDict, ModelPart
 from neuralmonkey.model.sequence import Sequence
 from neuralmonkey.model.stateful import (TemporalStateful,
                                          TemporalStatefulWithOutput)
+from neuralmonkey.nn.utils import dropout
 
 
 def position_signal(dimension: int, length: tf.Tensor) -> tf.Tensor:
@@ -110,7 +111,8 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
     def encoder_inputs(self) -> tf.Tensor:
         length = tf.shape(self.input_sequence.data)[1]
         signal = position_signal(self.dimension, length)
-        return self.input_sequence.data + signal
+        return dropout(self.input_sequence.data + signal,
+                       self.dropout_keep_prob, self.train_mode)
 
     def layer(self, level: int) -> TransformerLayer:
 
@@ -142,6 +144,9 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
             self_att_result = att.attention_3d(prev_layer.temporal_states)
             self.self_attentions[level - 1] = att
 
+        self_att_result = dropout(
+            self_att_result, self.dropout_keep_prob, self.train_mode)
+
         ff_input = tf.contrib.layers.layer_norm(
             self_att_result + prev_layer.temporal_states)
 
@@ -151,6 +156,7 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
 
         ff_output = tf.layers.dense(ff_hidden, self.dimension,
                                     name="ff_out_{}".format(level))
+        ff_output = dropout(ff_output, self.dropout_keep_prob, self.train_mode)
 
         output_states = tf.contrib.layers.layer_norm(ff_output + ff_input)
 
