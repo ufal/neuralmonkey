@@ -120,7 +120,4 @@ class SentenceEncoder(ModelPart, TemporalStatefulWithOutput):
     # pylint: enable=no-self-use
 
     def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
-        fd = self.input_sequence.feed_dict(dataset, train)
-        fd[self.train_mode] = train
-
-        return fd
+        return {self.train_mode: train}

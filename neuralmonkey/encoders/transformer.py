@@ -167,10 +167,12 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
     def get_dependencies(self) -> Set[ModelPart]:
         assert all(self.self_attentions)
 
-        dependencies = [self.input_sequence]  # type: List[ModelPart]
-        dependencies += self.self_attentions
+        dependencies = ModelPart.get_dependencies(self)
 
-        return set(dependencies)
+        for att in self.self_attentions:
+            dependencies = dependencies.union(att.get_dependencies())
+
+        return dependencies
 
     def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
         return {self.train_mode: train}
