@@ -9,12 +9,14 @@ import tensorflow as tf
 from typeguard import check_argument_types
 
 from neuralmonkey.attention.scaled_dot_product import MultiHeadAttention
+from neuralmonkey.attention.base_attention import (
+    Attendable, get_attention_states)
 from neuralmonkey.decorators import tensor
 from neuralmonkey.decoders.sequence_decoder import (
     SequenceDecoder, LoopState, extend_namedtuple, DecoderHistories,
     DecoderFeedables)
 from neuralmonkey.encoders.transformer import (
-    TransformerLayer, TransformerEncoder, position_signal)
+    TransformerLayer, position_signal)
 from neuralmonkey.logging import log
 from neuralmonkey.model.model_part import ModelPart
 from neuralmonkey.nn.utils import dropout
@@ -36,7 +38,7 @@ class TransformerDecoder(SequenceDecoder):
     # pylint: disable=too-many-arguments
     def __init__(self,
                  name: str,
-                 encoder: TransformerEncoder,
+                 encoder: Attendable,
                  vocabulary: Vocabulary,
                  data_id: str,
                  # TODO infer the default for these three from the encoder
@@ -65,7 +67,8 @@ class TransformerDecoder(SequenceDecoder):
         self.n_heads_enc = n_heads_enc
         self.depth = depth
 
-        self.dimension = self.encoder.dimension
+        enc_states = get_attention_states(self.encoder)
+        self.dimension = enc_states.get_shape()[2].value
 
         self.self_attentions = [None for _ in range(self.depth)] \
             # type: List[MultiHeadAttention]
