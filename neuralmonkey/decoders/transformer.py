@@ -8,9 +8,10 @@ from typing import Callable, Set, List, Tuple  # pylint: disable=unused-import
 import tensorflow as tf
 from typeguard import check_argument_types
 
-from neuralmonkey.attention.scaled_dot_product import MultiHeadAttention
+from neuralmonkey.attention.scaled_dot_product import (
+    attention, empty_multi_head_loop_state)
 from neuralmonkey.attention.base_attention import (
-    Attendable, get_attention_states)
+    Attendable, get_attention_states, get_attention_mask)
 from neuralmonkey.decorators import tensor
 from neuralmonkey.decoders.sequence_decoder import (
     SequenceDecoder, LoopState, extend_namedtuple, DecoderHistories,
@@ -18,7 +19,6 @@ from neuralmonkey.decoders.sequence_decoder import (
 from neuralmonkey.encoders.transformer import (
     TransformerLayer, position_signal)
 from neuralmonkey.logging import log
-from neuralmonkey.model.model_part import ModelPart
 from neuralmonkey.nn.utils import dropout
 from neuralmonkey.vocabulary import (
     Vocabulary, PAD_TOKEN_INDEX, END_TOKEN_INDEX)
@@ -29,7 +29,8 @@ TransformerHistories = extend_namedtuple(
     DecoderHistories,
     [("decoded_symbols", tf.TensorArray),
      ("self_attention_histories", List[Tuple]),
-     ("inter_attention_histories", List[Tuple])])
+     ("inter_attention_histories", List[Tuple]),
+     ("input_mask", tf.TensorArray)])
 # pylint: enable=invalid-name
 
 
@@ -48,6 +49,7 @@ class TransformerDecoder(SequenceDecoder):
                  depth: int,
                  max_output_len: int = None,
                  dropout_keep_prob: float = 1.0,
+                 attention_dropout_keep_prob: float = 1.0,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None) -> None:
         check_argument_types()
@@ -66,14 +68,11 @@ class TransformerDecoder(SequenceDecoder):
         self.n_heads_self = n_heads_self
         self.n_heads_enc = n_heads_enc
         self.depth = depth
+        self.attention_dropout_keep_prob = attention_dropout_keep_prob
 
-        enc_states = get_attention_states(self.encoder)
-        self.dimension = enc_states.get_shape()[2].value
-
-        self.self_attentions = [None for _ in range(self.depth)] \
-            # type: List[MultiHeadAttention]
-        self.inter_attentions = [None for _ in range(self.depth)] \
-            # type: List[MultiHeadAttention]
+        self.encoder_states = get_attention_states(self.encoder)
+        self.encoder_mask = get_attention_mask(self.encoder)
+        self.dimension = self.encoder_states.get_shape()[2].value
 
         log("Decoder cost op: {}".format(self.cost))
         self._variable_scope.reuse_variables()
@@ -112,106 +111,115 @@ class TransformerDecoder(SequenceDecoder):
                        self.dropout_keep_prob,
                        self.train_mode)
 
-    def get_self_att_object(self, level: int,
-                            pr_layer: TransformerLayer) -> MultiHeadAttention:
-        if self.self_attentions[level - 1] is None:
-            s_ckp = ("dec_self_att_{}_{}".format(level, self._save_checkpoint)
-                     if self._save_checkpoint else None)
-            l_ckp = ("dec_self_att_{}_{}".format(level, self._load_checkpoint)
-                     if self._load_checkpoint else None)
+    def masked_self_attention(
+            self, level: int, prev_layer: TransformerLayer) -> tf.Tensor:
 
-            self.self_attentions[level - 1] = MultiHeadAttention(
-                name="mask_self_att_{}".format(level),
-                n_heads=self.n_heads_self,
-                keys_encoder=pr_layer,
-                values_encoder=pr_layer,
-                dropout_keep_prob=self.dropout_keep_prob,
-                save_checkpoint=s_ckp,
-                load_checkpoint=l_ckp)
+        with tf.variable_scope("dec_self_att_level_{}".format(level)):
+            # TODO handle histories
+            self_context, _ = attention(
+                queries=prev_layer.temporal_states,
+                keys=prev_layer.temporal_states,
+                values=prev_layer.temporal_states,
+                keys_mask=prev_layer.temporal_mask,
+                num_heads=self.n_heads_self,
+                masked=True,
+                dropout_callback=lambda x: dropout(
+                    x, self.attention_dropout_keep_prob, self.train_mode))
 
-        return self.self_attentions[level - 1]
+            return dropout(
+                self_context, self.dropout_keep_prob, self.train_mode)
 
-    def get_inter_att_object(self, level: int) -> MultiHeadAttention:
-        if self.inter_attentions[level - 1] is None:
-            s_ckp = ("inter_att_{}_{}".format(level, self._save_checkpoint)
-                     if self._save_checkpoint else None)
-            l_ckp = ("inter_att_{}_{}".format(level, self._load_checkpoint)
-                     if self._load_checkpoint else None)
+    def encoder_attention(self, level: int, queries: tf.Tensor) -> tf.Tensor:
 
-            self.inter_attentions[level - 1] = MultiHeadAttention(
-                name="inter_att_{}".format(level),
-                n_heads=self.n_heads_enc,
-                keys_encoder=self.encoder,
-                values_encoder=self.encoder,
-                dropout_keep_prob=self.dropout_keep_prob,
-                save_checkpoint=s_ckp,
-                load_checkpoint=l_ckp)
+        with tf.variable_scope("dec_inter_att_level_{}".format(level)):
+            encoder_att_states = get_attention_states(self.encoder)
+            encoder_att_mask = get_attention_mask(self.encoder)
 
-        return self.inter_attentions[level - 1]
+            # TODO handle histories
+            encoder_context, _ = attention(
+                queries=queries,
+                keys=encoder_att_states,
+                values=encoder_att_states,
+                keys_mask=encoder_att_mask,
+                num_heads=self.n_heads_enc,
+                dropout_callback=lambda x: dropout(
+                    x, self.attention_dropout_keep_prob, self.train_mode))
+
+            return dropout(
+                encoder_context, self.dropout_keep_prob, self.train_mode)
 
     def layer(self, level: int, inputs: tf.Tensor,
               mask: tf.Tensor) -> TransformerLayer:
-
         # Recursive implementation. Outputs of the zeroth layer are the inputs
         if level == 0:
-            return TransformerLayer(inputs, mask)
+            norm_inputs = tf.contrib.layers.layer_norm(inputs)
+            return TransformerLayer(norm_inputs, mask)
 
+        # Compute the outputs of the previous layer
         prev_layer = self.layer(level - 1, inputs, mask)
 
-        # Compute the outputs of this layer
+        # Run self-attention
+        self_context = self.masked_self_attention(level, prev_layer)
 
-        # TODO generalize att work with 3D queries as default
-        with tf.variable_scope("dec_self_att_level_{}".format(level)):
-            att = self.get_self_att_object(level, prev_layer)
-            self_att_result, _ = att.attention_4d(
-                prev_layer.temporal_states, masked=True)
+        # Residual connections + layer normalization
+        encoder_queries = tf.contrib.layers.layer_norm(
+            self_context + prev_layer.temporal_states)
 
-        self_att_result = dropout(
-            self_att_result, self.dropout_keep_prob, self.train_mode)
+        # Attend to the encoder
+        encoder_context = self.encoder_attention(level, encoder_queries)
 
-        inter_attention_query = tf.contrib.layers.layer_norm(
-            self_att_result + prev_layer.temporal_states)
-
-        # TODO generalize att work with 3D queries as default
-        with tf.variable_scope("dec_inter_att_level_{}".format(level)):
-            att = self.get_inter_att_object(level)
-            inter_att_result, _ = att.attention_4d(inter_attention_query)
-
-        inter_att_result = dropout(
-            inter_att_result, self.dropout_keep_prob, self.train_mode)
-
+        # Residual connections + layer normalization
         ff_input = tf.contrib.layers.layer_norm(
-            inter_att_result + inter_attention_query)
+            encoder_context + self_context)
 
-        ff_hidden = tf.layers.dense(ff_input, self.ff_hidden_size,
-                                    activation=tf.nn.relu,
-                                    name="ff_hidden_{}".format(level))
+        # Feed-forward network hidden layer + ReLU + dropout
+        ff_hidden = tf.layers.dense(
+            ff_input, self.ff_hidden_size, activation=tf.nn.relu,
+            name="ff_hidden_{}".format(level))
+        ff_hidden_drop = dropout(
+            ff_hidden, self.dropout_keep_prob, self.train_mode)
 
-        ff_output = tf.layers.dense(ff_hidden, self.dimension,
-                                    name="ff_out_{}".format(level))
+        # Feed-forward output projection + dropout
+        ff_output = tf.layers.dense(
+            ff_hidden, self.dimension, name="ff_out_{}".format(level))
         ff_output = dropout(ff_output, self.dropout_keep_prob, self.train_mode)
 
+        # Residual connections + layer normalization
         output_states = tf.contrib.layers.layer_norm(ff_output + ff_input)
+
         return TransformerLayer(states=output_states, mask=mask)
 
     @tensor
     def train_logits(self) -> tf.Tensor:
         last_layer = self.layer(self.depth, self.embedded_train_inputs,
                                 tf.transpose(self.train_mask))
-
-        temporal_states = dropout(last_layer.temporal_states,
-                                  self.dropout_keep_prob, self.train_mode)
-
         # matmul with output matrix
         # t_states shape: (batch, time, channels)
         # dec_w shape: (channels, vocab)
+        logits_unbiased = tf.nn.conv1d(
+            last_layer.temporal_states, tf.expand_dims(self.decoding_w, 0), 1,
+            "SAME")
 
-        logits = tf.nn.conv1d(
-            temporal_states, tf.expand_dims(self.decoding_w, 0), 1, "SAME")
+        # shape (batch, time, vocab)
+        logits = logits_unbiased + tf.reshape(self.decoding_b, [1, 1, -1])
 
-        return tf.transpose(
-            logits + tf.expand_dims(tf.expand_dims(self.decoding_b, 0), 0),
-            perm=[1, 0, 2])
+        # return logits in time-major shape
+        return tf.transpose(logits, perm=[1, 0, 2])
+
+    # @tensor
+    # def train_xents(self) -> tf.Tensor:
+    #     train_targets = tf.transpose(self.train_inputs)
+
+    #     return tf.contrib.seq2seq.sequence_loss(
+    #         tf.transpose(self.train_logits, perm=[1, 0, 2]),
+    #         train_targets,
+    #         tf.transpose(self.train_mask),
+    #         average_across_batch=False,
+    #         softmax_loss_function=(
+    #             lambda labels, logits:
+    #             tf.losses.softmax_cross_entropy(
+    #                 tf.one_hot(labels, len(self.vocabulary)),
+    #                 logits, label_smoothing=0.1)))
 
     def get_initial_loop_state(self) -> LoopState:
 
@@ -220,20 +228,29 @@ class TransformerDecoder(SequenceDecoder):
         histories = default_ls.histories._asdict()
 
         histories["self_attention_histories"] = [
-            a.initial_loop_state() for a in self.self_attentions]
+            empty_multi_head_loop_state(self.n_heads_self)
+            for a in range(self.depth)]
 
         histories["inter_attention_histories"] = [
-            a.initial_loop_state() for a in self.inter_attentions]
+            empty_multi_head_loop_state(self.n_heads_enc)
+            for a in range(self.depth)]
 
         histories["decoded_symbols"] = tf.TensorArray(
             dtype=tf.int32, dynamic_size=True, size=0,
             clear_after_read=False, name="decoded_symbols")
 
+        input_mask = tf.TensorArray(
+            dtype=tf.float32, dynamic_size=True, size=0,
+            clear_after_read=False, name="input_mask")
+
+        histories["input_mask"] = input_mask.write(
+            0, tf.ones_like(self.go_symbols, dtype=tf.float32))
+
         tr_histories = TransformerHistories(**histories)
 
         return LoopState(
             histories=tr_histories,
-            constants=default_ls.constants,
+            constants=[],
             feedables=default_ls.feedables)
 
     def get_body(self, train_mode: bool, sample: bool = False) -> Callable:
@@ -257,15 +274,14 @@ class TransformerDecoder(SequenceDecoder):
             embedded_inputs = self.embed_inputs(tf.transpose(decoded_symbols))
 
             # MASKA (time, batch)
-            mask = tf.to_float(histories.mask.stack())
+            mask = histories.input_mask.stack()
             mask.set_shape([None, None])
 
             last_layer = self.layer(self.depth, embedded_inputs,
                                     tf.transpose(mask))
 
             # (batch, state_size)
-            output_state = tf.transpose(
-                last_layer.temporal_states, perm=[1, 0, 2])[-1]
+            output_state = last_layer.temporal_states[:, -1, :]
 
             logits = tf.matmul(output_state, self.decoding_w) + self.decoding_b
 
@@ -297,25 +313,19 @@ class TransformerDecoder(SequenceDecoder):
                     step, output_state),
                 mask=histories.mask.write(step, not_finished),
                 # transformer-specific:
+                # TODO handle attention histories correctly
                 decoded_symbols=decoded_symbols_ta,
                 self_attention_histories=histories.self_attention_histories,
-                inter_attention_histories=histories.inter_attention_histories)
+                inter_attention_histories=histories.inter_attention_histories,
+                input_mask=histories.input_mask.write(
+                    step + 1, tf.to_float(not_finished)))
 
             new_loop_state = LoopState(
                 histories=new_histories,
-                constants=loop_state.constants,
+                constants=[],
                 feedables=new_feedables)
 
             return new_loop_state
         # pylint: enable=too-many-locals
 
         return body
-
-    def get_dependencies(self) -> Set[ModelPart]:
-        default_dependencies = ModelPart.get_dependencies(self)
-
-        assert all(self.self_attentions)
-        assert all(self.inter_attentions)
-
-        dependencies = set(self.self_attentions + self.inter_attentions)
-        return default_dependencies.union(dependencies)

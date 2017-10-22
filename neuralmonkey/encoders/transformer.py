@@ -12,7 +12,7 @@ from typeguard import check_argument_types
 
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.decorators import tensor
-from neuralmonkey.attention.scaled_dot_product import MultiHeadAttention
+from neuralmonkey.attention.scaled_dot_product import attention
 from neuralmonkey.logging import log
 from neuralmonkey.model.model_part import FeedDict, ModelPart
 from neuralmonkey.model.sequence import Sequence
@@ -97,9 +97,6 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
             raise ValueError("Dropout keep prob for attn must be in (0,1].")
 
         self.train_mode = tf.placeholder(tf.bool, [], "train_mode")
-        self.self_attentions = [None for _ in range(self.depth)] \
-            # type: List[Optional[MultiHeadAttention]]
-
         log("Output op: {}".format(self.output))
     # pylint: enable=too-many-arguments
 
@@ -114,51 +111,53 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
         return dropout(self.input_sequence.data + signal,
                        self.dropout_keep_prob, self.train_mode)
 
-    def layer(self, level: int) -> TransformerLayer:
+    def self_attention(
+            self, level: int, prev_layer: TransformerLayer) -> tf.Tensor:
 
-        # Recursive implementation. Outputs of the zeroth layer are the inputs
+        with tf.variable_scope("self_attention_{}".format(level)):
+            self_context, _ = attention(
+                queries=prev_layer.temporal_states,
+                keys=prev_layer.temporal_states,
+                values=prev_layer.temporal_states,
+                keys_mask=prev_layer.temporal_mask,
+                num_heads=self.n_heads,
+                dropout_callback=lambda x: dropout(
+                    x, self.attention_dropout_keep_prob, self.train_mode))
+
+            return dropout(
+                self_context, self.dropout_keep_prob, self.train_mode)
+
+    def layer(self, level: int) -> TransformerLayer:
+        # Recursive implementation. Outputs of the zeroth layer are normalized
+        # inputs.
         if level == 0:
-            return TransformerLayer(self.encoder_inputs,
-                                    self.temporal_mask)
+            norm_inputs = tf.contrib.layers.layer_norm(self.encoder_inputs)
+            return TransformerLayer(norm_inputs, self.temporal_mask)
 
         # Compute the outputs of the previous layer
         prev_layer = self.layer(level - 1)
 
-        # Compute the outputs of this layer
-        s_ckp = "enc_self_att_{}_{}".format(
-            level, self._save_checkpoint) if self._save_checkpoint else None
-        l_ckp = "enc_self_att_{}_{}".format(
-            level, self._load_checkpoint) if self._load_checkpoint else None
+        # Run self-attention
+        self_context = self.self_attention(level, prev_layer)
 
-        att = MultiHeadAttention(
-            name="self_att_{}".format(level),
-            n_heads=self.n_heads,
-            keys_encoder=prev_layer,
-            values_encoder=prev_layer,
-            dropout_keep_prob=self.attention_dropout_keep_prob,
-            save_checkpoint=s_ckp,
-            load_checkpoint=l_ckp)
-
-        # TODO generalize att work with 3D queries as default
-        with tf.variable_scope("att_level_{}".format(level)):
-            self_att_result, _ = att.attention_4d(prev_layer.temporal_states)
-            self.self_attentions[level - 1] = att
-
-        self_att_result = dropout(
-            self_att_result, self.dropout_keep_prob, self.train_mode)
-
+        # Residual connections + layer normalization
         ff_input = tf.contrib.layers.layer_norm(
-            self_att_result + prev_layer.temporal_states)
+            self_context + prev_layer.temporal_states)
 
-        ff_hidden = tf.layers.dense(ff_input, self.ff_hidden_size,
-                                    activation=tf.nn.relu,
-                                    name="ff_hidden_{}".format(level))
+        # Feed-forward network hidden layer + ReLU + dropout
+        ff_hidden = tf.layers.dense(
+            ff_input, self.ff_hidden_size, activation=tf.nn.relu,
+            name="ff_hidden_{}".format(level))
+        ff_hidden_drop = dropout(
+            ff_hidden, self.dropout_keep_prob, self.train_mode)
 
-        ff_output = tf.layers.dense(ff_hidden, self.dimension,
-                                    name="ff_out_{}".format(level))
+        # Feed-forward output projection + dropout
+        ff_output = tf.layers.dense(
+            ff_hidden_drop, self.dimension, name="ff_out_{}".format(level))
         ff_output = dropout(ff_output, self.dropout_keep_prob, self.train_mode)
 
-        output_states = tf.contrib.layers.layer_norm(ff_output + ff_input)
+        # Residual connections + layer normalization
+        output_states = tf.contrib.layers.layer_norm(ff_input + ff_output)
 
         return TransformerLayer(states=output_states, mask=self.temporal_mask)
 
@@ -169,16 +168,6 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
     @tensor
     def temporal_mask(self) -> tf.Tensor:
         return self.input_sequence.mask
-
-    def get_dependencies(self) -> Set[ModelPart]:
-        assert all(self.self_attentions)
-
-        dependencies = ModelPart.get_dependencies(self)
-
-        for att in self.self_attentions:
-            dependencies = dependencies.union(att.get_dependencies())
-
-        return dependencies
 
     def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
         return {self.train_mode: train}

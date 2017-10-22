@@ -7,7 +7,7 @@ dimensionality. This attention function has no trainable parameters.
 See arxiv.org/abs/1706.03762
 """
 import math
-from typing import Tuple, List, NamedTuple
+from typing import Tuple, List, NamedTuple, Callable
 
 import tensorflow as tf
 import numpy as np
@@ -53,6 +53,109 @@ def mask_future(energies: tf.Tensor) -> tf.Tensor:
     masked_value = tf.fill(tf.shape(energies), -np.inf)
     return tf.where(mask_area, energies, masked_value)
 
+def attention(
+        queries: tf.Tensor,
+        keys: tf.Tensor,
+        values: tf.Tensor,
+        keys_mask: tf.Tensor,
+        num_heads: int,
+        dropout_callback: Callable[[tf.Tensor], tf.Tensor],
+        masked: bool = False) -> tf.Tensor:
+
+    if num_heads <= 0:
+        raise ValueError("Number of heads must be greater than zero.")
+
+    # Input shapes:
+    # queries:  batch, time(q), k_channels
+    # keys:   batch, time(k), k_channels
+    # values: batch, time(k), v_channels
+    #
+    # Output shapes:
+    # context: batch, time(q), v_channels
+    # weights: batch, time(q), time(k)
+
+    queries_dim = queries.get_shape()[-1].value
+    keys_dim = keys.get_shape()[-1].value
+
+    # Query and keys should match in the last dimension
+    if queries_dim != keys_dim:
+        raise ValueError("Queries and keys do not match in the last dimension."
+                         "Query: {}, Key: {}".format(queries_dim, keys_dim))
+
+    # Last dimension must be divisible by num_heads
+    if queries_dim % num_heads != 0:
+        raise ValueError(
+            "Last dimension of the query ({}) should be divisible by the "
+            "number of heads ({})".format(queries_dim, num_heads))
+
+    head_dim = int(queries_dim / num_heads)
+
+    # For multi-head attention, queries, keys and values are linearly projected
+    if num_heads > 1:
+        queries = tf.layers.dense(queries, queries_dim, name="query_proj")
+        keys = tf.layers.dense(keys, queries_dim, name="keys_proj")
+        values = tf.layers.dense(values, queries_dim, name="vals_proj")
+
+    # Scale first:
+    queries_scaled = queries / math.sqrt(head_dim)
+
+    # Reshape the k_channels dimension to the number of heads
+    queries = split_for_heads(queries_scaled, num_heads, head_dim)
+    keys = split_for_heads(keys, num_heads, head_dim)
+    values = split_for_heads(values, num_heads, head_dim)
+
+    # For dot-product, we use matrix multiplication
+    # shape: batch, head, time(q), time(k) (k_channels is the matmul axis)
+    energies = tf.matmul(queries, keys, transpose_b=True)
+
+    # To protect the attention from looking ahead of time, we must
+    # replace the energies of future keys with negative infinity
+    # We use lower triangular matrix and basic tf where tricks
+    if masked:
+        energies = mask_future(energies)
+
+    # Softmax along the last axis
+    # shape: batch, head, time(q), time(k)
+    weights = tf.nn.softmax(energies)
+
+    if keys_mask is not None:
+        weights = mask_weights(weights, keys_mask)
+
+    # apply dropout to the weights (Attention Dropout)
+    weights = dropout_callback(weights)
+
+    # CODE MUSEUM
+    # 1. expand weights (4d) to shape batch, head, time(q), time(k), 1
+    # 2. expand values to shape batch, head, 1, time(k), head_dim
+    # 3. element-wise multiplication broadcasts that to
+    #    shape: batch, head, time(q), time(k), head_dim
+    # 4. sum along the time(k) axis
+    # context = tf.reduce_sum(
+    #    tf.expand_dims(weights, 4) * tf.expand_dims(values, 2), 3)
+    # END OF CODE MUSEUM
+    context = tf.matmul(weights, values)
+
+    # transpose and reshape to shape [batch, time(q), v_channels]
+    context_shape = tf.shape(context)
+    context = tf.reshape(
+        tf.transpose(context, perm=[0, 2, 1, 3]),
+        [context_shape[0], context_shape[2], queries_dim])
+
+    if num_heads > 1:
+        context = tf.layers.dense(context, queries_dim, name="output_proj")
+
+    return context, weights
+
+
+def empty_multi_head_loop_state(num_heads: int) -> MultiHeadLoopStateTA:
+    return MultiHeadLoopStateTA(
+        contexts=tf.TensorArray(
+            dtype=tf.float32, size=0, dynamic_size=True,
+            name="contexts"),
+        head_weights=[tf.TensorArray(
+            dtype=tf.float32, size=0, dynamic_size=True,
+            name="distributions_head{}".format(i)) for i in range(num_heads)])
+
 
 class MultiHeadAttention(BaseAttention):
 
@@ -80,18 +183,8 @@ class MultiHeadAttention(BaseAttention):
             values_encoder = keys_encoder
 
         self.attention_keys = get_attention_states(keys_encoder)
-        self.attention_values = get_attention_states(values_encoder)
         self.attention_mask = get_attention_mask(keys_encoder)
-
-        self._dimension = self.attention_keys.get_shape()[-1].value
-
-        if self._dimension % self.n_heads != 0:
-            raise ValueError("Model dimension ({}) must be divisible by the "
-                             "number of attention heads ({})"
-                             .format(self._dimension, self.n_heads))
-
-        self._head_dim = int(self._dimension / self.n_heads)
-        self._scaling_factor = 1 / math.sqrt(self._head_dim)
+        self.attention_values = get_attention_states(values_encoder)
 
     def attention(self,
                   query: tf.Tensor,
@@ -103,7 +196,14 @@ class MultiHeadAttention(BaseAttention):
         # transform (batch, query_size) to (batch, 1, query_size)
         # context is (batch, 1, value_size)
         # weights is (batch, head, 1, time(keys))
-        context_3d, weights_4d = self.attention_4d(tf.expand_dims(query, 1))
+        context_3d, weights_4d = attention(
+            queries=tf.expand_dims(query, 1),
+            keys=self.attention_keys,
+            values=self.attention_values,
+            keys_mask=self.attention_mask,
+            num_heads=self.n_heads,
+            dropout_callback=lambda x: dropout(
+                x, self.dropout_keep_prob, self.train_mode))
 
         # head_weights_3d is HEAD-wise list of (batch, 1, 1, time(keys))
         head_weights_3d = tf.split(weights_4d, self.n_heads, axis=1)
@@ -122,88 +222,8 @@ class MultiHeadAttention(BaseAttention):
 
         return context, next_loop_state
 
-    def attention_4d(self, query_3d: tf.Tensor,
-                     masked: bool = False) -> tf.Tensor:
-        if self.n_heads > 1:
-            # Linearly project queries, keys and vals, then split
-            # query_proj of shape batch, time(q), self._dimension (=q_channels)
-            query_proj = tf.layers.dense(
-                query_3d, self._dimension, name="query_proj")
-            keys_proj = tf.layers.dense(
-                self.attention_keys, self._dimension, name="keys_proj")
-            vals_proj = tf.layers.dense(
-                self.attention_values, self._dimension, name="vals_proj")
-
-        else:
-            query_proj = query_3d
-            keys_proj = self.attention_keys
-            vals_proj = self.attention_values
-
-        # Shapes:
-        # query:  batch, time(q), k_channels
-        # keys:   batch, time(k), k_channels
-        # values: batch, time(k), v_channels
-        # Outputs:
-        # context: batch, time(q), v_channels
-        # weights: batch, time(q), time(k)
-
-        # Scale first:
-        query_scaled = query_proj * self._scaling_factor
-
-        # Reshape the k_channels dimension to the number of heads
-        query = split_for_heads(query_scaled, self.n_heads, self._head_dim)
-        keys = split_for_heads(keys_proj, self.n_heads, self._head_dim)
-        values = split_for_heads(vals_proj, self.n_heads, self._head_dim)
-
-        # For dot-product, we use matrix multiplication
-        # shape: batch, head, time(q), time(k) (k_channels is the matmul axis)
-        energies = tf.matmul(query, keys, transpose_b=True)
-
-        # To protect the attention from looking ahead of time, we must
-        # replace the energies of future keys with negative infinity
-        # We use lower triangular matrix and basic tf where tricks
-        if masked:
-            energies = mask_future(energies)
-
-        # Softmax along the last axis
-        # shape: batch, head, time(q), time(k)
-        weights_4d = tf.nn.softmax(energies)
-
-        if self.attention_mask is not None:
-            weights_4d = mask_weights(weights_4d, self.attention_mask)
-
-        # apply dropout to the weights (Attention Dropout)
-        weights_4d = dropout(
-            weights_4d, self.dropout_keep_prob, self.train_mode)
-
-        # 1. expand weights_4d to shape batch, head, time(q), time(k), 1
-        # 2. expand values to shape batch, head, 1, time(k), head_dim
-        # 3. element-wise multiplication broadcasts that to
-        #    shape: batch, head, time(q), time(k), head_dim
-        # 4. sum along the time(k) axis
-        context_4d = tf.reduce_sum(
-            tf.expand_dims(weights_4d, 4) * tf.expand_dims(values, 2), 3)
-
-        # transpose and reshape to shape [batch, time(q), v_channels]
-        context_shape = tf.shape(context_4d)
-        context_3d = tf.reshape(
-            tf.transpose(context_4d, perm=[0, 2, 1, 3]),
-            [context_shape[0], context_shape[2], self._dimension])
-
-        context_3d = tf.layers.dense(
-            context_3d, self._dimension, name="output_proj")
-
-        return context_3d, weights_4d
-
     def initial_loop_state(self) -> MultiHeadLoopStateTA:
-        return MultiHeadLoopStateTA(
-            contexts=tf.TensorArray(
-                dtype=tf.float32, size=0, dynamic_size=True,
-                name="contexts"),
-            head_weights=[tf.TensorArray(
-                dtype=tf.float32, size=0, dynamic_size=True,
-                name="distributions_head{}".format(i), clear_after_read=False)
-                          for i in range(self.n_heads)])
+        return empty_multi_head_loop_state(self.n_heads)
 
     def finalize_loop(self, key: str,
                       last_loop_state: MultiHeadLoopStateTA) -> None:
