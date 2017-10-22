@@ -10,6 +10,7 @@ import math
 from typing import Tuple, List, NamedTuple
 
 import tensorflow as tf
+import numpy as np
 from typeguard import check_argument_types
 
 from neuralmonkey.nn.utils import dropout
@@ -192,16 +193,17 @@ class MultiHeadAttention(BaseAttention):
 
         # For dot-product, we use matrix multiplication
         # shape: batch, time(q), time(k) (k_channels is the matmul axis)
-
         energies = tf.matmul(query_scaled, keys, transpose_b=True)
 
         # To protect the attention from looking ahead of time, we must
         # replace the energies of future keys with negative infinity
-        # We use lower triangular matrix and basic log tricks
+        # We use lower triangular matrix and basic tf where tricks
         if masked:
-            exp_energies = tf.exp(energies)
-            mask_energies = tf.matrix_band_part(exp_energies, -1, 0)
-            energies = tf.log(mask_energies)
+            triangular_mask = tf.matrix_band_part(
+                tf.ones_like(energies), -1, 0)
+            energies = tf.where(
+                tf.equal(triangular_mask, 1),
+                energies, tf.fill(energies.shape, -np.inf))
 
         # Softmax along the last axis
         # shape: batch, time(q), time(k)
