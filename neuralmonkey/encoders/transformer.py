@@ -43,6 +43,7 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
                  depth: int,
                  n_heads: int,
                  dropout_keep_prob: float = 1.0,
+                 attention_dropout_keep_prob: float = 1.0,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None) -> None:
         check_argument_types()
@@ -54,6 +55,7 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
         self.depth = depth
         self.n_heads = n_heads
         self.dropout_keep_prob = dropout_keep_prob
+        self.attention_dropout_keep_prob = attention_dropout_keep_prob
 
         if self.depth <= 0:
             raise ValueError("Depth must be a positive integer.")
@@ -64,6 +66,10 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
 
         if self.dropout_keep_prob <= 0.0 or self.dropout_keep_prob > 1.0:
             raise ValueError("Dropout keep prob must be inside (0,1].")
+
+        if (self.attention_dropout_keep_prob <= 0.0
+                or self.attention_dropout_keep_prob > 1.0):
+            raise ValueError("Dropout keep prob for attn must be in (0,1].")
 
         self.train_mode = tf.placeholder(tf.bool, [], "train_mode")
         self.self_attentions = [None for _ in range(self.depth)] \
@@ -115,13 +121,14 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
         l_ckp = "enc_self_att_{}_{}".format(
             level, self._load_checkpoint) if self._load_checkpoint else None
 
-        att = MultiHeadAttention(name="self_att_{}".format(level),
-                                 n_heads=self.n_heads,
-                                 keys_encoder=prev_layer,
-                                 values_encoder=prev_layer,
-                                 dropout_keep_prob=self.dropout_keep_prob,
-                                 save_checkpoint=s_ckp,
-                                 load_checkpoint=l_ckp)
+        att = MultiHeadAttention(
+            name="self_att_{}".format(level),
+            n_heads=self.n_heads,
+            keys_encoder=prev_layer,
+            values_encoder=prev_layer,
+            dropout_keep_prob=self.attention_dropout_keep_prob,
+            save_checkpoint=s_ckp,
+            load_checkpoint=l_ckp)
 
         # TODO generalize att work with 3D queries as default
         with tf.variable_scope("att_level_{}".format(level)):
