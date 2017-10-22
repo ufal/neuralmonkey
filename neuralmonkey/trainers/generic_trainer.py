@@ -82,6 +82,9 @@ class GenericTrainer(object):
                 else:
                     gradients = implicit_gradients
 
+                tf.summary.scalar("train_opt_cost", differentiable_loss_sum,
+                                  collections=["summary_train"])
+
             if clip_norm:
                 assert clip_norm > 0.0
                 gradients = [(tf.clip_by_norm(grad, clip_norm), var)
