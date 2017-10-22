@@ -141,7 +141,7 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
 
         # TODO generalize att work with 3D queries as default
         with tf.variable_scope("att_level_{}".format(level)):
-            self_att_result = att.attention_3d(prev_layer.temporal_states)
+            self_att_result, _ = att.attention_3d(prev_layer.temporal_states)
             self.self_attentions[level - 1] = att
 
         self_att_result = dropout(

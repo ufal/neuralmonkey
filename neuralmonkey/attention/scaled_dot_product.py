@@ -63,38 +63,20 @@ class MultiHeadAttention(BaseAttention):
         self._head_dim = int(self._dimension / self.n_heads)
         self._scaling_factor = 1 / math.sqrt(self._head_dim)
 
-    # pylint: disable=too-many-locals
-    # TODO improve this code
     def attention(self,
                   query: tf.Tensor,
                   decoder_prev_state: tf.Tensor,
                   decoder_input: tf.Tensor,
                   loop_state: MultiHeadLoopStateTA,
                   step: tf.Tensor) -> Tuple[tf.Tensor, MultiHeadLoopStateTA]:
-        if self.n_heads == 1:
-            context, weights = self.attention_single_head(
-                query, self.attention_keys, self.attention_values)
-            head_weights = [weights]
-        else:
-            # project query, keys and vals: [batch, rnn] to [batch, rnn2]
-            query_proj = tf.layers.dense(
-                query, self._dimension, name="query_proj")
-            keys_proj = tf.layers.dense(
-                self.attention_keys, self._dimension, name="keys_proj")
-            vals_proj = tf.layers.dense(
-                self.attention_values, self._dimension, name="vals_proj")
 
-            query_heads = tf.split(query_proj, self.n_heads, axis=1)
-            keys_heads = tf.split(keys_proj, self.n_heads, axis=2)
-            vals_heads = tf.split(vals_proj, self.n_heads, axis=2)
+        # transform (batch, query_size) to (batch, 1, query_size)
+        # context is (batch, 1, value_size)
+        # weights is a list of (batch, 1, time(keys))
+        context_3d, weights_3d = self.attention_3d(tf.expand_dims(query, 1))
 
-            head_contexts, head_weights = zip(*[
-                self.attention_single_head(q, k, v)
-                for q, k, v in zip(query_heads, keys_heads, vals_heads)])
-
-            context = tf.layers.dense(
-                tf.concat(head_contexts, -1), self._dimension,
-                name="output_proj")
+        context = tf.squeeze(context_3d, axis=1)
+        head_weights = [tf.squeeze(w, axis=1) for w in weights_3d]
 
         next_contexts = loop_state.contexts.write(step, context)
         next_head_weights = [loop_state.head_weights[i].write(step,
@@ -106,7 +88,6 @@ class MultiHeadAttention(BaseAttention):
             head_weights=next_head_weights)
 
         return context, next_loop_state
-    # pylint: enable=too-many-locals
 
     def attention_3d(self, query_3d: tf.Tensor,
                      masked: bool = False) -> tf.Tensor:
@@ -130,7 +111,7 @@ class MultiHeadAttention(BaseAttention):
             vals_heads = tf.split(vals_proj, self.n_heads, axis=2)
 
         # head_contexts_3d, head_weights_3d = zip(*[
-        head_contexts_3d, _ = zip(*[
+        head_contexts_3d, head_weights_3d = zip(*[
             self.attention_single_head_3d(q, k, v, masked=masked)
             for q, k, v in zip(query_heads, keys_heads, vals_heads)])
 
@@ -146,34 +127,7 @@ class MultiHeadAttention(BaseAttention):
         #     contexts=next_contexts,
         #     head_weights=next_head_weights)
 
-        return context_3d
-
-    def attention_single_head(self, query: tf.Tensor,
-                              keys: tf.Tensor,
-                              values: tf.Tensor) -> Tuple[tf.Tensor,
-                                                          tf.Tensor]:
-        # shape: batch, time (similarities of attention keys in batch and time
-        # to the queries in the batch)
-
-        dot_product = tf.reduce_sum(
-            tf.expand_dims(query, 1) * keys, [-1])
-        energies = dot_product * self._scaling_factor
-
-        weights = tf.nn.softmax(energies)
-
-        if self.attention_mask is not None:
-            weights_all = weights * self.attention_mask
-            norm = tf.reduce_sum(weights_all, 1, keep_dims=True) + 1e-8
-            weights = weights_all / norm
-
-        # apply dropout to the weights (Attention Dropout)
-        weights = dropout(weights, self.dropout_keep_prob, self.train_mode)
-
-        # sum up along the time axis
-        context = tf.reduce_sum(
-            tf.expand_dims(weights, -1) * values, [1])
-
-        return context, weights
+        return context_3d, head_weights_3d
 
     def attention_single_head_3d(self, query: tf.Tensor,
                                  keys: tf.Tensor,

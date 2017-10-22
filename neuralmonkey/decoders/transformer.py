@@ -160,7 +160,7 @@ class TransformerDecoder(SequenceDecoder):
         # TODO generalize att work with 3D queries as default
         with tf.variable_scope("dec_self_att_level_{}".format(level)):
             att = self.get_self_att_object(level, prev_layer)
-            self_att_result = att.attention_3d(
+            self_att_result, _ = att.attention_3d(
                 prev_layer.temporal_states, masked=True)
 
         self_att_result = dropout(
@@ -172,7 +172,7 @@ class TransformerDecoder(SequenceDecoder):
         # TODO generalize att work with 3D queries as default
         with tf.variable_scope("dec_inter_att_level_{}".format(level)):
             att = self.get_inter_att_object(level)
-            inter_att_result = att.attention_3d(inter_attention_query)
+            inter_att_result, _ = att.attention_3d(inter_attention_query)
 
         inter_att_result = dropout(
             inter_att_result, self.dropout_keep_prob, self.train_mode)
