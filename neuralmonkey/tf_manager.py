@@ -18,6 +18,7 @@ import tensorflow as tf
 from tensorflow.python import debug as tf_debug
 # pylint: enable=no-name-in-module
 from typeguard import check_argument_types
+from contextlib import contextmanager
 
 from neuralmonkey.logging import log
 from neuralmonkey.dataset import Dataset
@@ -42,6 +43,8 @@ class TensorFlowManager(object):
                  gpu_allow_growth: bool = True,
                  per_process_gpu_memory_fraction: float = 1.0,
                  report_gpu_memory_consumption: bool = False,
+                 workers: List[str] = [],
+                 worker_id: int = 0,
                  enable_tf_debug: bool = False) -> None:
         """Initialize a TensorflowManager.
 
@@ -60,8 +63,17 @@ class TensorFlowManager(object):
             per_process_gpu_memory_fraction: Limit TF memory use.
             report_gpu_memory_consumption: Report overall GPU memory at every
                 logging
+            workers: TODO
+            worker_id: TODO
+            enable_tf_debug: TODO
         """
         check_argument_types()
+
+        self.workers = workers
+        self.worker_id = worker_id
+
+        self.debug = enable_tf_debug
+        self.num_sessions = num_sessions
 
         session_cfg = tf.ConfigProto()
         session_cfg.inter_op_parallelism_threads = num_threads
@@ -78,23 +90,37 @@ class TensorFlowManager(object):
         self.saver_max_to_keep = save_n_best
         self.minimize_metric = minimize_metric
 
-        self.sessions = [tf.Session(config=session_cfg)
-                         for _ in range(num_sessions)]
+        if (self.worker_id != 0 
+            and self.worker_id >= len(self.workers)
+            and self.worker_id < 0):
+            raise Exception("worker_id index is out of range")
 
-        if enable_tf_debug:
-            self.sessions = [tf_debug.LocalCLIDebugWrapperSession(sess)
-                             for sess in self.sessions]
+        if len(self.workers) != 0:
+            self.cluster = tf.train.ClusterSpec({"worker": self.workers})
+            self.server = tf.train.Server(cluster,
+                                          job_name="worker",
+                                          task_index=self.worker_id,
+                                          config=session_cfg)
+        else:
+            self.cluster = None
+            self.server = tf.train.Server.create_local_server()
 
-        init_op = tf.global_variables_initializer()
-        for sess in self.sessions:
-            sess.run(init_op)
+        self.init_op = tf.global_variables_initializer()
+        #if self.is_chief:
         self.saver = tf.train.Saver(max_to_keep=self.saver_max_to_keep)
 
+        self.supervisors = None
+
+        # TODO: does this work with tf.train.Supervisor?
+        #if enable_tf_debug:
+        #    self.supervisors = [tf_debug.LocalCLIDebugWrapperSession(sess)
+        #                     for sess in self.sessions]
+
         if variable_files:
-            if len(variable_files) != num_sessions:
+            if len(variable_files) != self.num_sessions:
                 raise Exception(("The number of provided variable files ({}) "
                                  "is different than a number sessions ({})")
-                                .format(len(variable_files), num_sessions))
+                                .format(len(variable_files), self.num_sessions))
             self.restore(variable_files)
 
         self.best_score_index = 0
@@ -128,7 +154,34 @@ class TensorFlowManager(object):
         with open(self.best_vars_file, "w") as var_file:
             var_file.write(best_vars_prefix)
 
+    def get_sessions(self) -> tf.Session:
+        sessions = [sv.prepare_or_wait_for_session(self.server.target)
+                    for sv in self.supervisors]
+        if self.debug:
+            sessions = [tf_debug.LocalCLIDebugWrapperSession(sess)
+                        for sess in sessions]
+        return sessions
+
+    @contextmanager
+    def use_device(self) -> tf.device:
+        with tf.device(tf.train.replica_device_setter(
+            worker_device="/job:worker/task:%d" % self.worker_id,
+            cluster=self.cluster)):
+                yield
+
+    def init_supervisors(self, logdir: str) -> None:
+        self.supervisors = [tf.train.Supervisor(is_chief=self.is_chief,
+                                                logdir=logdir,
+                                                init_op=self.init_op,
+                                                saver=None,
+                                                summary_op=None)
+                            for _ in range(self.num_sessions)]
+
+
     def init_saving(self, vars_prefix: str) -> None:
+        if not self.is_chief:
+            return
+
         if self.saver_max_to_keep == 1:
             self.variables_files = [vars_prefix]
         else:
@@ -139,6 +192,9 @@ class TensorFlowManager(object):
         self._update_best_vars(var_index=0)
 
     def validation_hook(self, score: float, epoch: int, batch: int) -> None:
+        if not self.is_chief:
+            return
+
         if self._is_better(score, self.best_score):
             self.best_score = score
             self.best_score_epoch = epoch
@@ -161,6 +217,9 @@ class TensorFlowManager(object):
 
             log("Best scores saved so far: {}".format(
                 self.saved_scores))
+
+    def is_chief(self) -> bool:
+        return self.worker_id == 0
 
     # pylint: disable=too-many-locals
     def execute(self,
@@ -208,9 +267,10 @@ class TensorFlowManager(object):
                 for fdict in additional_feed_dicts:
                     feed_dict.update(fdict)
 
-                session_results = [sess.run(all_tensors_to_execute,
-                                            feed_dict=feed_dict)
-                                   for sess in self.sessions]
+                session_results = \
+                    [sess.run(all_tensors_to_execute,
+                                              feed_dict=feed_dict)
+                     for sess in self.get_sessions()]
 
                 for executable in executables:
                     if executable.result is None:
@@ -227,44 +287,53 @@ class TensorFlowManager(object):
         return collected_results
 
     def save(self, variable_files: Union[str, List[str]]) -> None:
-        if isinstance(variable_files, str) and len(self.sessions) == 1:
-            self.saver.save(self.sessions[0], variable_files)
+        if not self.is_chief:
+            return
+
+        if isinstance(variable_files, str) and len(self.supervisors) == 1:
+            self.saver.save(self.get_sessions()[0], variable_files)
             return
 
         if isinstance(variable_files, str):
             variable_files = ["{}.{}".format(
-                variable_files, i) for i in range(len(self.sessions))]
+                variable_files, i) for i in range(len(self.supervisors))]
 
-        if len(variable_files) != len(self.sessions):
+        if len(variable_files) != len(self.supervisors):
             raise Exception(
                 "Provided {} files for restoring {} sessions.".format(
-                    len(variable_files), len(self.sessions)))
+                    len(variable_files), len(self.supervisors)))
 
-        for sess, file_name in zip(self.sessions, variable_files):
+        for sess, file_name in zip(self.get_sessions(), variable_files):
             self.saver.save(sess, file_name)
 
     def restore(self, variable_files: Union[str, List[str]]) -> None:
+        if not self.is_chief:
+            return
+
         if isinstance(variable_files, str):
             variable_files = [variable_files]
-        if len(variable_files) != len(self.sessions):
+        if len(variable_files) != len(self.supervisors):
             raise Exception(
                 "Provided {} files for restoring {} sessions.".format(
-                    len(variable_files), len(self.sessions)))
+                    len(variable_files), len(self.supervisors)))
 
-        for sess, file_name in zip(self.sessions, variable_files):
+        for sess, file_name in zip(self.get_sessions(), variable_files):
             log("Loading variables from {}".format(file_name))
             self.saver.restore(sess, file_name)
 
     def restore_best_vars(self) -> None:
         # TODO warn when link does not exist
-        self.restore(self.variables_files[self.best_score_index])
+        if self.is_chief:
+            self.restore(self.variables_files[self.best_score_index])
 
     def initialize_model_parts(self, runners, save=False) -> None:
         """Initialize model parts variables from their checkpoints."""
+        if not self.is_chief:
+            return
 
         all_coders = set.union(*[rnr.all_coders for rnr in runners])
         for coder in all_coders:
-            for session in self.sessions:
+            for session in self.get_sessions():
                 coder.load(session)
 
         if save:

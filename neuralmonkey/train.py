@@ -48,6 +48,9 @@ def create_config() -> Configuration:
     config.add_argument('random_seed', required=False)
     config.add_argument('initial_variables', required=False, default=None)
     config.add_argument('overwrite_output_dir', required=False, default=False)
+    config.add_argument("ps_hosts", required=False, default=None)
+    config.add_argument("workers", required=False, default=[])
+    config.add_argument("worker_id", required=False, default=0)
 
     return config
 
@@ -83,8 +86,10 @@ def main() -> None:
     np.random.seed(cfg.args.random_seed)
     tf.set_random_seed(cfg.args.random_seed)
 
+
     # pylint: disable=no-member
-    if (os.path.isdir(cfg.args.output) and
+    is_chief = (cfg.args.worker_id == 0)
+    if is_chief and (os.path.isdir(cfg.args.output) and
             os.path.exists(os.path.join(cfg.args.output, "experiment.ini"))):
         if cfg.args.overwrite_output_dir or args.overwrite:
             # we do not want to delete the directory contents
@@ -98,7 +103,7 @@ def main() -> None:
             exit(1)
 
     # pylint: disable=broad-except
-    if not os.path.isdir(cfg.args.output):
+    if is_chief and not os.path.isdir(cfg.args.output):
         try:
             os.mkdir(cfg.args.output)
         except Exception as exc:
@@ -107,9 +112,9 @@ def main() -> None:
             exit(1)
 
     args_file = "{}/args".format(cfg.args.output)
-    log_file = "{}/experiment.log".format(cfg.args.output)
-    ini_file = "{}/experiment.ini".format(cfg.args.output)
-    orig_ini_file = "{}/original.ini".format(cfg.args.output)
+    log_file = "{}/experiment-worker{}.log".format(cfg.args.output, cfg.args.worker_id)
+    ini_file = "{}/experiment-worker{}.ini".format(cfg.args.output, cfg.args.worker_id)
+    orig_ini_file = "{}/original-worker{}.ini".format(cfg.args.output, cfg.args.worker_id)
     git_commit_file = "{}/git_commit".format(cfg.args.output)
     git_diff_file = "{}/git_diff".format(cfg.args.output)
     variables_file_prefix = "{}/variables.data".format(cfg.args.output)
@@ -126,12 +131,12 @@ def main() -> None:
 
         args_file = "{}/args.cont-{}".format(
             cfg.args.output, cont_index)
-        log_file = "{}/experiment.log.cont-{}".format(
-            cfg.args.output, cont_index)
-        ini_file = "{}/experiment.ini.cont-{}".format(
-            cfg.args.output, cont_index)
-        orig_ini_file = "{}/original.ini.cont-{}".format(
-            cfg.args.output, cont_index)
+        log_file = "{}/experiment-worker{}.log.cont-{}".format(
+            cfg.args.output, cfg.args.worker_id, cont_index)
+        ini_file = "{}/experiment-worker{}.ini.cont-{}".format(
+            cfg.args.output, cfg.args.worker_id, cont_index)
+        orig_ini_file = "{}/original-worker{}.ini.cont-{}".format(
+            cfg.args.output, cfg.args.worker_id, cont_index)
         git_commit_file = "{}/git_commit.cont-{}".format(
             cfg.args.output, cont_index)
         git_diff_file = "{}/git_diff.cont-{}".format(
@@ -170,7 +175,9 @@ def main() -> None:
 
     cfg.build_model(warn_unused=True)
 
-    cfg.model.tf_manager.init_saving(variables_file_prefix)
+    cfg.model.tf_manager.init_supervisors(cfg.model.output)
+    if is_chief:
+        cfg.model.tf_manager.init_saving(variables_file_prefix)
 
     try:
         check_dataset_and_coders(cfg.model.train_dataset,
@@ -184,7 +191,7 @@ def main() -> None:
         log(str(exc), color='red')
         exit(1)
 
-    if cfg.model.visualize_embeddings:
+    if is_chief and cfg.model.visualize_embeddings:
 
         tb_projector = projector.ProjectorConfig()
 

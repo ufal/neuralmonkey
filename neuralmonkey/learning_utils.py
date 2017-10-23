@@ -131,18 +131,19 @@ def training_loop(tf_manager: TensorFlowManager,
     seen_instances = 0
     last_seen_instances = 0
 
-    if initial_variables is None:
-        # Assume we don't look at coder checkpoints when global
-        # initial variables are supplied
-        tf_manager.initialize_model_parts(
-            runners + [trainer], save=True)  # type: ignore
-    else:
-        tf_manager.restore(initial_variables)
+    with tf_manager.use_device():
+        if initial_variables is None:
+            # Assume we don't look at coder checkpoints when global
+            # initial variables are supplied
+            tf_manager.initialize_model_parts(
+                runners + [trainer], save=True)  # type: ignore
+        else:
+            tf_manager.restore(initial_variables)
 
-    if log_directory:
+    if log_directory and tf_manager.is_chief:
         log("Initializing TensorBoard summary writer.")
         tb_writer = tf.summary.FileWriter(
-            log_directory, tf_manager.sessions[0].graph)
+            log_directory, tf_manager.get_sessions()[0].graph)
         log("TensorBoard writer initialized.")
 
     log("Starting training")
@@ -182,10 +183,11 @@ def training_loop(tf_manager: TensorFlowManager,
                         evaluators, batch_dataset, runners,
                         train_results, train_outputs)
 
-                    _log_continuous_evaluation(
-                        tb_writer, tf_manager, main_metric, train_evaluation,
-                        seen_instances, epoch_n, epochs, trainer_result,
-                        train=True)
+                    if tf_manager.is_chief:
+                        _log_continuous_evaluation(
+                            tb_writer, tf_manager, main_metric, train_evaluation,
+                            seen_instances, epoch_n, epochs, trainer_result,
+                            train=True)
                     last_log_time = time.process_time()
                 else:
                     tf_manager.execute(batch_dataset, [trainer],
@@ -232,13 +234,14 @@ def training_loop(tf_manager: TensorFlowManager,
                                     attrs=['bold'])
 
                                 # store also graph parts
-                                all_coders = set.union(
-                                    *[rnr.all_coders
-                                      for rnr in runners +
-                                      [trainer]])  # type: ignore
-                                for coder in all_coders:
-                                    for session in tf_manager.sessions:
-                                        coder.save(session)
+                                if tf_manager.is_chief:
+                                    all_coders = set.union(
+                                        *[rnr.all_coders
+                                          for rnr in runners +
+                                          [trainer]])  # type: ignore
+                                    for coder in all_coders:
+                                        for session in tf_manager.get_sessions():
+                                            coder.save(session)
                             else:
                                 best_score_str = "{:.4g}".format(
                                     tf_manager.best_score)
@@ -254,10 +257,11 @@ def training_loop(tf_manager: TensorFlowManager,
                             valset_name = valset.name
                         else:
                             valset_name = None
-                        _log_continuous_evaluation(
-                            tb_writer, tf_manager, main_metric, val_evaluation,
-                            seen_instances, epoch_n, epochs, val_results,
-                            train=False, dataset_name=valset_name)
+                        if tf_manager.is_chief:
+                            _log_continuous_evaluation(
+                                tb_writer, tf_manager, main_metric, val_evaluation,
+                                seen_instances, epoch_n, epochs, val_results,
+                                train=False, dataset_name=valset_name)
 
                     # how long was the training between validations
                     training_duration = val_duration_start - last_val_time
@@ -287,6 +291,11 @@ def training_loop(tf_manager: TensorFlowManager,
 
     if test_datasets:
         tf_manager.restore_best_vars()
+
+    # We translate the test set only with the main worker node
+    if not tf_manager.is_chief:
+        log("Finished.")
+        return
 
     for dataset in test_datasets:
         test_results, test_outputs = run_on_dataset(
