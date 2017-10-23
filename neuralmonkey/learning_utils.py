@@ -185,7 +185,8 @@ def training_loop(tf_manager: TensorFlowManager,
 
                     if tf_manager.is_chief:
                         _log_continuous_evaluation(
-                            tb_writer, tf_manager, main_metric, train_evaluation,
+                            tb_writer, tf_manager, main_metric,
+                            train_evaluation,
                             seen_instances, epoch_n, epochs, trainer_result,
                             train=True)
                     last_log_time = time.process_time()
@@ -240,8 +241,10 @@ def training_loop(tf_manager: TensorFlowManager,
                                           for rnr in runners +
                                           [trainer]])  # type: ignore
                                     for coder in all_coders:
+                                        # pylint: disable=line-too-long
                                         for session in tf_manager.get_sessions():
                                             coder.save(session)
+                                        # pylint: enable=line-too-long
                             else:
                                 best_score_str = "{:.4g}".format(
                                     tf_manager.best_score)
@@ -259,7 +262,8 @@ def training_loop(tf_manager: TensorFlowManager,
                             valset_name = None
                         if tf_manager.is_chief:
                             _log_continuous_evaluation(
-                                tb_writer, tf_manager, main_metric, val_evaluation,
+                                tb_writer, tf_manager, main_metric,
+                                val_evaluation,
                                 seen_instances, epoch_n, epochs, val_results,
                                 train=False, dataset_name=valset_name)
 

@@ -7,6 +7,7 @@ import os
 
 from subprocess import check_output
 from tensorflow.python.client import device_lib as _device_lib
+import tensorflow as tf
 
 
 __HAS_GPU_RESULT = None
@@ -74,3 +75,35 @@ def gpu_memusage() -> str:
                 for e in gpu_list]
 
     return 'MiB:' + ",".join(info)
+
+class Saver(tf.train.Saver):
+    """TODO: docstring."""
+
+    def __init__(max_to_keep):
+        """TODO: docstring."""
+        self._saver = tf.train.Saver(max_to_keep)
+        self._save_file = None
+
+    def save(self,
+             sess,
+             save_path,
+             global_step=None,
+             latest_filename=None,
+             meta_graph_suffix='meta',
+             write_meta_graph=True,
+             write_state=True):
+        if self.save_file:
+            self.saver.save(sess=sess,
+                            save_path=self.save_file,
+                            global_step=global_step,
+                            latest_filename=latest_filename,
+                            meta_graph_suffix=meta_graph_suffix,
+                            write_meta_graph=write_meta_graph,
+                            write_state=write_state)
+            self.save_file = None
+
+    def set_save_file(self, file_path):
+        pass
+
+    def restore(self):
+        pass

@@ -89,8 +89,10 @@ def main() -> None:
 
     # pylint: disable=no-member
     is_chief = (cfg.args.worker_id == 0)
-    if is_chief and (os.path.isdir(cfg.args.output) and
-            os.path.exists(os.path.join(cfg.args.output, "experiment.ini"))):
+    if (is_chief
+            and os.path.isdir(cfg.args.output)
+            and os.path.exists(os.path.join(cfg.args.output,
+                                            "experiment.ini"))):
         if cfg.args.overwrite_output_dir or args.overwrite:
             # we do not want to delete the directory contents
             log("Directory with experiment.ini '{}' exists, "
@@ -112,9 +114,12 @@ def main() -> None:
             exit(1)
 
     args_file = "{}/args".format(cfg.args.output)
-    log_file = "{}/experiment-worker{}.log".format(cfg.args.output, cfg.args.worker_id)
-    ini_file = "{}/experiment-worker{}.ini".format(cfg.args.output, cfg.args.worker_id)
-    orig_ini_file = "{}/original-worker{}.ini".format(cfg.args.output, cfg.args.worker_id)
+    log_file = "{}/experiment-worker{}.log".format(cfg.args.output,
+                                                   cfg.args.worker_id)
+    ini_file = "{}/experiment-worker{}.ini".format(cfg.args.output,
+                                                   cfg.args.worker_id)
+    orig_ini_file = "{}/original-worker{}.ini".format(cfg.args.output,
+                                                      cfg.args.worker_id)
     git_commit_file = "{}/git_commit".format(cfg.args.output)
     git_diff_file = "{}/git_diff".format(cfg.args.output)
     variables_file_prefix = "{}/variables.data".format(cfg.args.output)

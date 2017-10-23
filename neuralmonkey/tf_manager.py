@@ -11,6 +11,7 @@ from typing import Any, List, Union, Optional, Set
 
 import os
 import time
+from contextlib import contextmanager
 
 import numpy as np
 import tensorflow as tf
@@ -18,7 +19,6 @@ import tensorflow as tf
 from tensorflow.python import debug as tf_debug
 # pylint: enable=no-name-in-module
 from typeguard import check_argument_types
-from contextlib import contextmanager
 
 from neuralmonkey.logging import log
 from neuralmonkey.dataset import Dataset
@@ -26,6 +26,7 @@ from neuralmonkey.runners.base_runner import (ExecutionResult,
                                               reduce_execution_results)
 
 
+# pylint: disable=too-many-instance-attributes
 class TensorFlowManager(object):
     """Inteface between computational graph, data and TF sessions.
 
@@ -43,7 +44,7 @@ class TensorFlowManager(object):
                  gpu_allow_growth: bool = True,
                  per_process_gpu_memory_fraction: float = 1.0,
                  report_gpu_memory_consumption: bool = False,
-                 workers: List[str] = [],
+                 workers: List[str] = None,
                  worker_id: int = 0,
                  enable_tf_debug: bool = False) -> None:
         """Initialize a TensorflowManager.
@@ -71,6 +72,7 @@ class TensorFlowManager(object):
 
         self.workers = workers
         self.worker_id = worker_id
+        self.cluster = None
 
         self.debug = enable_tf_debug
         self.num_sessions = num_sessions
@@ -90,26 +92,23 @@ class TensorFlowManager(object):
         self.saver_max_to_keep = save_n_best
         self.minimize_metric = minimize_metric
 
-        if (self.worker_id != 0 
-            and self.worker_id >= len(self.workers)
-            and self.worker_id < 0):
+        if (self.workers != None
+                and self.worker_id >= len(self.workers)
+                and self.worker_id < 0):
             raise Exception("worker_id index is out of range")
 
-        if len(self.workers) != 0:
+        if self.workers != None:
             self.cluster = tf.train.ClusterSpec({"worker": self.workers})
-            self.server = tf.train.Server(cluster,
+            self.server = tf.train.Server(self.cluster,
                                           job_name="worker",
                                           task_index=self.worker_id,
                                           config=session_cfg)
         else:
-            self.cluster = None
             self.server = tf.train.Server.create_local_server()
 
         self.init_op = tf.global_variables_initializer()
         #if self.is_chief:
         self.saver = tf.train.Saver(max_to_keep=self.saver_max_to_keep)
-
-        self.supervisors = None
 
         # TODO: does this work with tf.train.Supervisor?
         #if enable_tf_debug:
@@ -118,9 +117,10 @@ class TensorFlowManager(object):
 
         if variable_files:
             if len(variable_files) != self.num_sessions:
-                raise Exception(("The number of provided variable files ({}) "
-                                 "is different than a number sessions ({})")
-                                .format(len(variable_files), self.num_sessions))
+                raise Exception(
+                    ("The number of provided variable files ({}) "
+                     "is different than a number sessions ({})")
+                    .format(len(variable_files), self.num_sessions))
             self.restore(variable_files)
 
         self.best_score_index = 0
@@ -133,6 +133,8 @@ class TensorFlowManager(object):
 
         self.variables_files = []  # type: List[str]
         self.best_vars_file = None  # type: str
+
+        self.init_supervisors(None)
 
     # pylint: enable=too-many-arguments
 
@@ -167,7 +169,7 @@ class TensorFlowManager(object):
         with tf.device(tf.train.replica_device_setter(
             worker_device="/job:worker/task:%d" % self.worker_id,
             cluster=self.cluster)):
-                yield
+            yield
 
     def init_supervisors(self, logdir: str) -> None:
         self.supervisors = [tf.train.Supervisor(is_chief=self.is_chief,
@@ -176,6 +178,7 @@ class TensorFlowManager(object):
                                                 saver=None,
                                                 summary_op=None)
                             for _ in range(self.num_sessions)]
+        return
 
 
     def init_saving(self, vars_prefix: str) -> None:
@@ -269,7 +272,7 @@ class TensorFlowManager(object):
 
                 session_results = \
                     [sess.run(all_tensors_to_execute,
-                                              feed_dict=feed_dict)
+                              feed_dict=feed_dict)
                      for sess in self.get_sessions()]
 
                 for executable in executables:
