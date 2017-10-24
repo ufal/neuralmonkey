@@ -1,1 +1,2 @@
 pylint
+pylint-quotes

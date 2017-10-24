@@ -216,6 +216,10 @@ indent-after-paren=4
 # Expected format of line ending, e.g. empty (any line ending), LF or CRLF.
 expected-line-ending-format=
 
+string-quote=double-avoid-escape
+triple-quote=double
+docstring-quote=double
+
 
 [LOGGING]
 
