@@ -18,7 +18,7 @@ def get_string_vector_reader(dtype: Type = np.float32, columns: int = None):
             current_line = 0
 
             if path.endswith(".gz"):
-                with gzip.open(path, 'r') as f_data:
+                with gzip.open(path, "r") as f_data:
                     for line in f_data:
                         current_line += 1
                         if line.strip():

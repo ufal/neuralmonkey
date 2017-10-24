@@ -41,10 +41,10 @@ class SequenceRegressor(ModelPart):
         self._dropout_keep_prob = dropout_keep_prob
 
         tf.summary.scalar(
-            'val_optimization_cost', self.cost,
+            "val_optimization_cost", self.cost,
             collections=["summary_val"])
         tf.summary.scalar(
-            'train_optimization_cost',
+            "train_optimization_cost",
             self.cost, collections=["summary_train"])
     # pylint: enable=too-many-arguments
 

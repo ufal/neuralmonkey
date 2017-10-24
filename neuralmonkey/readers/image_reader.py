@@ -11,7 +11,7 @@ def image_reader(prefix="",
                  rescale_w: bool = False,
                  rescale_h: bool = False,
                  keep_aspect_ratio: bool = False,
-                 mode: str = 'RGB') -> Callable:
+                 mode: str = "RGB") -> Callable:
     """Get a reader of images loading them from a list of pahts.
 
     Args:
@@ -94,7 +94,7 @@ def imagenet_reader(prefix: str,
                             "Image file '{}' no. {} does not exist."
                             .format(path, i + 1))
 
-                    image = Image.open(path).convert('RGB')
+                    image = Image.open(path).convert("RGB")
 
                     width, height = image.size
                     if width == height:

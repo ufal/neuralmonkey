@@ -64,17 +64,17 @@ class Configuration(object):
 
     def load_file(self, path: str,
                   changes: Optional[List[str]] = None) -> None:
-        log("Loading INI file: '{}'".format(path), color='blue')
+        log("Loading INI file: '{}'".format(path), color="blue")
 
         try:
-            with open(path, 'r', encoding='utf-8') as file:
+            with open(path, "r", encoding="utf-8") as file:
                 self.raw_config, self.config_dict = parse_file(file, changes)
             log("INI file is parsed.")
 
-            arguments = self.make_namespace(self.config_dict['main'])
+            arguments = self.make_namespace(self.config_dict["main"])
         # pylint: disable=broad-except
         except Exception as exc:
-            log("Failed to load INI file: {}".format(exc), color='red')
+            log("Failed to load INI file: {}".format(exc), color="red")
             traceback.print_exc()
             exit(1)
 
@@ -87,7 +87,7 @@ class Configuration(object):
             model = build_config(self.config_dict, self.ignored, warn_unused)
         # pylint: disable=broad-except
         except Exception as exc:
-            log("Failed to build model: {}".format(exc), color='red')
+            log("Failed to build model: {}".format(exc), color="red")
             traceback.print_exc()
             exit(1)
         log("Model built.")
@@ -103,7 +103,7 @@ class Configuration(object):
             raise Exception("Missing mandatory fields: {}"
                             .format(", ".join(expected_missing)))
         unexpected = []
-        for name in self.config_dict['main']:
+        for name in self.config_dict["main"]:
             if name not in self.names and name not in self.ignored:
                 unexpected.append(name)
         if unexpected:
@@ -111,5 +111,5 @@ class Configuration(object):
                             .format(", ".join(unexpected)))
 
     def save_file(self, path: str) -> None:
-        with open(path, 'w', encoding='utf-8') as file:
+        with open(path, "w", encoding="utf-8") as file:
             write_file(self.raw_config, file)

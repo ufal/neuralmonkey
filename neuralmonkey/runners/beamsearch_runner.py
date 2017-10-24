@@ -28,13 +28,13 @@ class BeamSearchExecutable(Executable):
         self.result = None  # type: ExecutionResult
 
     def next_to_execute(self) -> NextExecute:
-        return self._all_encoders, {'bs_outputs': self._bs_outputs}, {}
+        return self._all_encoders, {"bs_outputs": self._bs_outputs}, {}
 
     def collect_results(self, results: List[Dict]) -> None:
         if len(results) > 1:
             raise ValueError("Beam search runner does not support ensembling.")
 
-        evaluated_bs = results[0]['bs_outputs']
+        evaluated_bs = results[0]["bs_outputs"]
         max_time = evaluated_bs.scores.shape[0]
 
         # pick the end of the hypothesis based on its rank

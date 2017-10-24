@@ -31,7 +31,7 @@ class ClassSymbol(object):
             module = importlib.import_module(simple_module_path)
         except ImportError:
             try:
-                if class_parts[0] == 'tf':
+                if class_parts[0] == "tf":
                     # Due to the architecture of TensorFlow, it must be
                     # imported this way.
                     tensorflow = importlib.import_module("tensorflow")
@@ -129,9 +129,9 @@ def instantiate_class(name: str,
         raise ConfigInvalidValueException(name, "Undefined object")
     this_dict = all_dicts[name]
 
-    if 'class' not in this_dict:
+    if "class" not in this_dict:
         raise ConfigInvalidValueException(name, "Undefined object type")
-    clazz = this_dict['class'].create()
+    clazz = this_dict["class"].create()
 
     if not isclass(clazz) and not isfunction(clazz):
         raise ConfigInvalidValueException(
@@ -141,7 +141,7 @@ def instantiate_class(name: str,
     arguments = dict()
 
     for key, value in this_dict.items():
-        if key == 'class':
+        if key == "class":
             continue
 
         arguments[key] = build_object(value, all_dicts, existing_objects,
@@ -185,13 +185,13 @@ def build_config(config_dicts: Dict[str, Any],
 
     existing_objects = collections.OrderedDict()  # type: Dict[str, Any]
 
-    main_config = config_dicts['main']
+    main_config = config_dicts["main"]
 
     configuration = collections.OrderedDict()  # type: Dict[str, Any]
     # TODO ensure tf_manager goes last in a better way
     for key, value in sorted(main_config.items(),
-                             key=lambda t: t[0] if t[0] != 'tf_manager'
-                             else 'zzz'):
+                             key=lambda t: t[0] if t[0] != "tf_manager"
+                             else "zzz"):
         if key not in ignore_names:
             try:
                 configuration[key] = build_object(
@@ -200,7 +200,7 @@ def build_config(config_dicts: Dict[str, Any],
                 raise ConfigBuildException(key, exc) from None
 
     if warn_unused:
-        existing_names = {x[7:] for x in existing_objects.keys()} | {'main'}
+        existing_names = {x[7:] for x in existing_objects.keys()} | {"main"}
         unused = config_dicts.keys() - existing_names
         if unused:
             warn("Configuration contains unused sections: "

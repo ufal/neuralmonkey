@@ -61,8 +61,8 @@ class Postprocess(object):
 # pylint: enable=too-few-public-methods
 
 
-KEEP = '<keep>'
-DELETE = '<delete>'
+KEEP = "<keep>"
+DELETE = "<delete>"
 
 
 def convert_to_edits(source: List[str], target: List[str]) -> List[str]:

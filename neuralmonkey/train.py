@@ -22,32 +22,32 @@ def create_config() -> Configuration:
     config = Configuration()
 
     # training loop arguments
-    config.add_argument('tf_manager')
-    config.add_argument('epochs', cond=lambda x: x >= 0)
-    config.add_argument('trainer')
-    config.add_argument('batch_size', cond=lambda x: x > 0)
-    config.add_argument('train_dataset')
-    config.add_argument('val_dataset')
-    config.add_argument('output')
-    config.add_argument('evaluation')
-    config.add_argument('runners')
-    config.add_argument('test_datasets', required=False, default=[])
-    config.add_argument('logging_period', required=False, default=20)
-    config.add_argument('validation_period', required=False, default=500)
-    config.add_argument('visualize_embeddings', required=False, default=None)
-    config.add_argument('val_preview_input_series',
+    config.add_argument("tf_manager")
+    config.add_argument("epochs", cond=lambda x: x >= 0)
+    config.add_argument("trainer")
+    config.add_argument("batch_size", cond=lambda x: x > 0)
+    config.add_argument("train_dataset")
+    config.add_argument("val_dataset")
+    config.add_argument("output")
+    config.add_argument("evaluation")
+    config.add_argument("runners")
+    config.add_argument("test_datasets", required=False, default=[])
+    config.add_argument("logging_period", required=False, default=20)
+    config.add_argument("validation_period", required=False, default=500)
+    config.add_argument("visualize_embeddings", required=False, default=None)
+    config.add_argument("val_preview_input_series",
                         required=False, default=None)
-    config.add_argument('val_preview_output_series',
+    config.add_argument("val_preview_output_series",
                         required=False, default=None)
-    config.add_argument('val_preview_num_examples',
+    config.add_argument("val_preview_num_examples",
                         required=False, default=15)
-    config.add_argument('train_start_offset', required=False, default=0)
-    config.add_argument('runners_batch_size', required=False, default=None)
-    config.add_argument('postprocess')
-    config.add_argument('name')
-    config.add_argument('random_seed', required=False)
-    config.add_argument('initial_variables', required=False, default=None)
-    config.add_argument('overwrite_output_dir', required=False, default=False)
+    config.add_argument("train_start_offset", required=False, default=0)
+    config.add_argument("runners_batch_size", required=False, default=None)
+    config.add_argument("postprocess")
+    config.add_argument("name")
+    config.add_argument("random_seed", required=False)
+    config.add_argument("initial_variables", required=False, default=None)
+    config.add_argument("overwrite_output_dir", required=False, default=False)
 
     return config
 
@@ -55,18 +55,18 @@ def create_config() -> Configuration:
 # pylint: disable=too-many-statements, too-many-locals, too-many-branches
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('config', metavar='INI-FILE',
-                        help='the configuration file for the experiment')
-    parser.add_argument('-s', '--set', type=str, metavar='SETTING',
-                        action='append', dest='config_changes',
-                        help='override an option in the configuration; the '
-                        'syntax is [section.]option=value')
-    parser.add_argument('-i', '--init', dest='init_only', action='store_true',
-                        help='initialize the experiment directory and exit '
-                        'without building the model')
-    parser.add_argument('-f', '--overwrite', action='store_true',
-                        help='force overwriting the output directory; can be '
-                        'used to start an experiment created with --init')
+    parser.add_argument("config", metavar="INI-FILE",
+                        help="the configuration file for the experiment")
+    parser.add_argument("-s", "--set", type=str, metavar="SETTING",
+                        action="append", dest="config_changes",
+                        help="override an option in the configuration; the "
+                        "syntax is [section.]option=value")
+    parser.add_argument("-i", "--init", dest="init_only", action="store_true",
+                        help="initialize the experiment directory and exit "
+                        "without building the model")
+    parser.add_argument("-f", "--overwrite", action="store_true",
+                        help="force overwriting the output directory; can be "
+                        "used to start an experiment created with --init")
     args = parser.parse_args()
 
     # define valid parameters and defaults
@@ -94,7 +94,7 @@ def main() -> None:
         else:
             log("Directory with experiment.ini '{}' exists, "
                 "overwriting disabled."
-                .format(cfg.args.output), color='red')
+                .format(cfg.args.output), color="red")
             exit(1)
 
     # pylint: disable=broad-except
@@ -103,7 +103,7 @@ def main() -> None:
             os.mkdir(cfg.args.output)
         except Exception as exc:
             log("Failed to create experiment directory: {}. Exception: {}"
-                .format(cfg.args.output, exc), color='red')
+                .format(cfg.args.output, exc), color="red")
             exit(1)
 
     args_file = "{}/args".format(cfg.args.output)
@@ -139,8 +139,8 @@ def main() -> None:
         variables_file_prefix = "{}/variables.data.cont-{}".format(
             cfg.args.output, cont_index)
 
-    with open(args_file, 'w') as file:
-        print(' '.join(shlex.quote(a) for a in sys.argv), file=file)
+    with open(args_file, "w") as file:
+        print(" ".join(shlex.quote(a) for a in sys.argv), file=file)
 
     cfg.save_file(ini_file)
     copyfile(args.config, orig_ini_file)
@@ -148,8 +148,8 @@ def main() -> None:
     if args.init_only:
         log("Experiment directory initialized.")
 
-        cmd = [os.path.basename(sys.argv[0]), '-f', ini_file]
-        log("To start experiment, run: {}".format(' '.join(shlex.quote(a)
+        cmd = [os.path.basename(sys.argv[0]), "-f", ini_file]
+        log("To start experiment, run: {}".format(" ".join(shlex.quote(a)
                                                            for a in cmd)))
         exit(0)
 
@@ -181,7 +181,7 @@ def main() -> None:
             for val_dataset in cfg.model.val_dataset:
                 check_dataset_and_coders(val_dataset, cfg.model.runners)
     except CheckingException as exc:
-        log(str(exc), color='red')
+        log(str(exc), color="red")
         exit(1)
 
     if cfg.model.visualize_embeddings:

@@ -19,15 +19,15 @@ INTEGER = re.compile(r"^[0-9]+$")
 FLOAT = re.compile(r"^[0-9]*\.[0-9]*(e[+-]?[0-9]+)?$")
 LIST = re.compile(r"\[([^]]*)\]")
 TUPLE = re.compile(r"\(([^]]+)\)")
-STRING = re.compile(r"^\"(.*)\"$")
+STRING = re.compile(r'^"(.*)"$')
 CLASS_NAME = re.compile(
     r"^_*[a-zA-Z][a-zA-Z0-9_]*(\._*[a-zA-Z][a-zA-Z0-9_]*)+$")
 
 
 CONSTANTS = {
-    'False': False,
-    'True': True,
-    'None': None
+    "False": False,
+    "True": True,
+    "None": None
 }
 
 
@@ -56,21 +56,21 @@ def _split_on_commas(string: str) -> List[str]:
     openings = []  # type: List[Optional[str]]
 
     for i, char in enumerate(string):
-        if char == ',' and not openings:
+        if char == "," and not openings:
             if char_buffer:
                 items.append("".join(char_buffer))
             char_buffer = []
             continue
-        elif char == ' ' and not char_buffer:
+        elif char == " " and not char_buffer:
             continue
-        elif char == '(' or char == '[':
+        elif char == "(" or char == "[":
             openings.append(char)
-        elif char == ')':
-            if openings.pop() != '(':
-                raise Exception('Invalid bracket end ")", col {}.'.format(i))
-        elif char == ']':
-            if openings.pop() != '[':
-                raise Exception('Invalid bracket end "]", col {}.'.format(i))
+        elif char == ")":
+            if openings.pop() != "(":
+                raise Exception("Invalid bracket end ')', col {}.".format(i))
+        elif char == "]":
+            if openings.pop() != "[":
+                raise Exception("Invalid bracket end ']', col {}.".format(i))
         char_buffer.append(char)
 
     if char_buffer:
@@ -82,7 +82,7 @@ def _parse_list(string: str) -> List[Any]:
     """Parse the string recursively as a list."""
 
     matched_content = LIST.match(string).group(1)
-    if matched_content == '':
+    if matched_content == "":
         return []
 
     items = _split_on_commas(matched_content)
@@ -149,14 +149,14 @@ def _parse_ini(config_file: Iterable[str],
 
 
 def _apply_change(config_dict: Dict[str, Any], setting: str) -> None:
-    if '=' not in setting:
-        raise Exception('Invalid setting "{}"'.format(setting))
-    key, value = (s.strip() for s in setting.split('=', maxsplit=1))
+    if "=" not in setting:
+        raise Exception("Invalid setting '{}'".format(setting))
+    key, value = (s.strip() for s in setting.split("=", maxsplit=1))
 
-    if '.' in key:
-        section, option = key.split('.', maxsplit=1)
+    if "." in key:
+        section, option = key.split(".", maxsplit=1)
     else:
-        section = 'main'
+        section = "main"
         option = key
 
     if section not in config_dict:

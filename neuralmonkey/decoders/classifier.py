@@ -55,7 +55,7 @@ class Classifier(ModelPart):
         self.max_output_len = 1
 
         tf.summary.scalar(
-            'train_optimization_cost',
+            "train_optimization_cost",
             self.cost, collections=["summary_train"])
 # pylint: enable=too-many-arguments
 

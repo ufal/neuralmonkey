@@ -14,7 +14,7 @@ class MultilayerPerceptron(object):
                  output_size: int,
                  train_mode: tf.Tensor,
                  activation_fn: Callable[[tf.Tensor], tf.Tensor] = tf.nn.relu,
-                 name: str = 'multilayer_perceptron') -> None:
+                 name: str = "multilayer_perceptron") -> None:
 
         with tf.variable_scope(name):
             last_layer = multilayer_projection(

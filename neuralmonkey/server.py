@@ -12,10 +12,10 @@ from neuralmonkey.run import CONFIG, initialize_for_running
 
 APP = Flask(__name__)
 APP.config.from_object(__name__)
-APP.config['args'] = None
+APP.config["args"] = None
 
 
-@APP.route('/', methods=['GET', 'POST'])
+@APP.route("/", methods=["GET", "POST"])
 def post_request():
     start_time = datetime.datetime.now()
     request_data = request.get_json()
@@ -24,7 +24,7 @@ def post_request():
         response_data = {"error": "No data were provided."}
         code = 400
     else:
-        args = APP.config['args']
+        args = APP.config["args"]
 
         try:
             dataset = Dataset("request", request_data, {})
@@ -37,15 +37,15 @@ def post_request():
             code = 200
         # pylint: disable=broad-except
         except Exception as exc:
-            response_data = {'error': str(exc)}
+            response_data = {"error": str(exc)}
             code = 400
 
-    response_data['duration'] = (
+    response_data["duration"] = (
         datetime.datetime.now() - start_time).total_seconds()
     json_response = json.dumps(response_data)
     response = flask.Response(json_response,
-                              content_type='application/json; charset=utf-8')
-    response.headers.add('content-length', len(json_response.encode('utf-8')))
+                              content_type="application/json; charset=utf-8")
+    response.headers.add("content-length", len(json_response.encode("utf-8")))
     response.status_code = code
     return response
 
@@ -64,5 +64,5 @@ def main() -> None:
     CONFIG.load_file(cli_args.configuration)
     CONFIG.build_model()
     initialize_for_running(CONFIG.model.output, CONFIG.model.tf_manager, None)
-    APP.config['args'] = CONFIG.model
+    APP.config["args"] = CONFIG.model
     APP.run(port=cli_args.port, host=cli_args.host)

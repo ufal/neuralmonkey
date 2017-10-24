@@ -48,7 +48,7 @@ def _is_special_token(word: str) -> bool:
 
 
 # pylint: disable=unused-argument
-def from_file(*args, **kwargs) -> 'Vocabulary':
+def from_file(*args, **kwargs) -> "Vocabulary":
     raise NotImplementedError("Use loading by from_wordlist")
 # pylint: enable=unused-argument
 
@@ -56,7 +56,7 @@ def from_file(*args, **kwargs) -> 'Vocabulary':
 def from_wordlist(path: str,
                   encoding: str = "utf-8",
                   contains_header: bool = True,
-                  contains_frequencies: bool = True) -> 'Vocabulary':
+                  contains_frequencies: bool = True) -> "Vocabulary":
     """Load a vocabulary from a wordlist.
 
     The file can contain either list of words with no header.
@@ -80,18 +80,18 @@ def from_wordlist(path: str,
             next(wordlist)
 
         for line in wordlist:
-            line = line.rstrip('\r\n')
+            line = line.rstrip("\r\n")
             # check if line is empty
             if not line:
                 continue
 
             if contains_frequencies:
-                info = line.split('\t')
+                info = line.split("\t")
                 if len(info) != 2:
                     raise ValueError("Vocabulary file do not have two columns")
                 vocabulary.add_word(info[0], int(info[1]))
             else:
-                if '\t' in line:
+                if "\t" in line:
                     warn("The vocabulary contains a tabulator")
                 vocabulary.add_word(line)
 
@@ -106,7 +106,7 @@ def from_wordlist(path: str,
 def from_dataset(datasets: List[Dataset], series_ids: List[str], max_size: int,
                  save_file: str = None, overwrite: bool = False,
                  min_freq: Optional[int] = None,
-                 unk_sample_prob: float = 0.5) -> 'Vocabulary':
+                 unk_sample_prob: float = 0.5) -> "Vocabulary":
     """Load a vocabulary from a dataset with an option to save it.
 
     Arguments:
@@ -163,7 +163,7 @@ def from_dataset(datasets: List[Dataset], series_ids: List[str], max_size: int,
     return vocabulary
 
 
-def from_bpe(path: str, encoding: str = "utf-8") -> 'Vocabulary':
+def from_bpe(path: str, encoding: str = "utf-8") -> "Vocabulary":
     """Load a vocabulary from Byte-pair encoding merge list.
 
     NOTE: The frequencies of words in this vocabulary are not computed from
@@ -205,7 +205,7 @@ def from_bpe(path: str, encoding: str = "utf-8") -> 'Vocabulary':
 def initialize_vocabulary(directory: str, name: str,
                           datasets: List[Dataset] = None,
                           series_ids: List[str] = None,
-                          max_size: int = None) -> 'Vocabulary':
+                          max_size: int = None) -> "Vocabulary":
     """Initialize a vocabulary.
 
     This function is supposed to initialize vocabulary when called from
@@ -238,7 +238,7 @@ def initialize_vocabulary(directory: str, name: str,
         return from_wordlist(file_name)
 
     if datasets is None or series_ids is None or max_size is None:
-        raise Exception("Vocabulary does not exist in \"{}\"," +
+        raise Exception("Vocabulary does not exist in '{}', "
                         "neither dataset and series_id were provided.")
 
     return from_dataset(datasets, series_ids, max_size,
@@ -520,7 +520,7 @@ class Vocabulary(collections.Sized):
             raise FileExistsError("Cannot save vocabulary: File exists and "
                                   "overwrite is disabled. {}".format(path))
 
-        with open(path, 'w', encoding=encoding) as output_file:
+        with open(path, "w", encoding=encoding) as output_file:
             if save_frequencies and self.correct_counts:
                 # this header is important for the TensorBoard to properly
                 # handle the frequencies.

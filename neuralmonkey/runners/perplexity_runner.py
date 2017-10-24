@@ -19,11 +19,11 @@ class PerplexityExecutable(Executable):
 
     def next_to_execute(self) -> NextExecute:
         """Get the feedables and tensors to run."""
-        return self._all_coders, {'xents': self._xent_op}, {}
+        return self._all_coders, {"xents": self._xent_op}, {}
 
     def collect_results(self, results: List[Dict]) -> None:
-        perplexities = np.mean([2 ** res['xents'] for res in results], axis=0)
-        xent = float(np.mean([res['xents'] for res in results]))
+        perplexities = np.mean([2 ** res["xents"] for res in results], axis=0)
+        xent = float(np.mean([res["xents"] for res in results]))
         self.result = ExecutionResult(
             outputs=perplexities.tolist(),
             losses=[xent],

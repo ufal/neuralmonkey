@@ -29,7 +29,7 @@ class Logging(object):
     @staticmethod
     def set_log_file(path: str) -> None:
         """Set up the file where the logging will be done."""
-        Logging.log_file = codecs.open(path, 'w', 'utf-8', buffering=0)
+        Logging.log_file = codecs.open(path, "w", "utf-8", buffering=0)
 
     @staticmethod
     def log_print(text: str) -> None:
@@ -43,7 +43,7 @@ class Logging(object):
         print(text, file=sys.stderr)
 
     @staticmethod
-    def log(message: str, color: str = 'yellow') -> None:
+    def log(message: str, color: str = "yellow") -> None:
         """Log a message with a colored timestamp."""
         log_print("{}: {}".format(colored(
             Logging._get_time(), color), message))
@@ -52,13 +52,13 @@ class Logging(object):
     def notice(message: str) -> None:
         """Log a notice with a colored timestamp."""
         log_print("{}: {}".format(colored(
-            Logging._get_time(), 'red'), message))
+            Logging._get_time(), "red"), message))
 
     @staticmethod
     def warn(message: str) -> None:
         """Log a warning."""
         log_print(colored("{}: Warning! {}".format(
-            Logging._get_time(), message), color='red'))
+            Logging._get_time(), message), color="red"))
         if Logging.strict_mode:
             raise Exception(
                 "Encountered a warning in strict mode: " + message)
@@ -66,9 +66,9 @@ class Logging(object):
     @staticmethod
     def print_header(title: str, path: str) -> None:
         """Print the title of the experiment and a set of arguments it uses."""
-        log_print(colored("".join("=" for _ in range(80)), 'green'))
-        log_print(colored(title.upper(), 'green'))
-        log_print(colored("".join("=" for _ in range(80)), 'green'))
+        log_print(colored("".join("=" for _ in range(80)), "green"))
+        log_print(colored(title.upper(), "green"))
+        log_print(colored("".join("=" for _ in range(80)), "green"))
         log_print("Launched at {}".format(Logging._get_time()))
         log_print("Experiment directory: {}".format(path))
 
@@ -76,11 +76,11 @@ class Logging(object):
 
     @staticmethod
     def debug(message: str, label: Optional[str] = None):
-        if 'none' in Logging.debug_enabled:
+        if "none" in Logging.debug_enabled:
             return
 
         if (label not in Logging.debug_enabled and
-                'all' not in Logging.debug_enabled):
+                "all" not in Logging.debug_enabled):
             return
 
         if label in Logging.debug_disabled:

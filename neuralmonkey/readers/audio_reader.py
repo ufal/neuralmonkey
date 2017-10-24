@@ -11,7 +11,7 @@ from scipy.io import wavfile
 
 
 # pylint: disable=invalid-name
-Audio = NamedTuple("Audio", [('rate', int), ('data', np.ndarray)])
+Audio = NamedTuple("Audio", [("rate", int), ("data", np.ndarray)])
 
 
 def audio_reader(prefix: str = "",
@@ -51,7 +51,7 @@ def _load_wav(path: str) -> Audio:
 
 def _load_sph(path: str) -> Audio:
     """Read a NIST Sphere audio file using the sph2pipe utility."""
-    process = subprocess.Popen(['sph2pipe', '-f', 'wav', path],
+    process = subprocess.Popen(["sph2pipe", "-f", "wav", path],
                                stdout=subprocess.PIPE,
                                stderr=sys.stderr)
     data = io.BytesIO(process.stdout.read())

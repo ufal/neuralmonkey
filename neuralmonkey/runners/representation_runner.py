@@ -29,7 +29,7 @@ class RepresentationExecutable(Executable):
                               "TensorFlow session ({}).").format(
                                   self._used_session, len(results)))
 
-        vectors = results[self._used_session]['encoded']
+        vectors = results[self._used_session]["encoded"]
 
         self.result = ExecutionResult(
             outputs=vectors.tolist(),

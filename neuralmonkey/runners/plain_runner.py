@@ -58,8 +58,8 @@ class PlainExecutable(Executable):
 
     def collect_results(self, results: List[Dict]) -> None:
         if len(results) != 1:
-            raise ValueError('PlainRunner needs exactly 1 execution result, '
-                             'got {}'.format(len(results)))
+            raise ValueError("PlainRunner needs exactly 1 execution result, "
+                             "got {}".format(len(results)))
 
         train_loss = results[0]["train_loss"]
         runtime_loss = results[0]["runtime_loss"]

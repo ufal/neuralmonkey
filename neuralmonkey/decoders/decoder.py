@@ -79,7 +79,7 @@ class Decoder(ModelPart):
                  attentions: List[BaseAttention] = None,
                  embeddings_source: EmbeddedSequence = None,
                  attention_on_input: bool = True,
-                 rnn_cell: str = 'GRU',
+                 rnn_cell: str = "GRU",
                  conditional_gru: bool = False,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None) -> None:
@@ -403,7 +403,7 @@ class Decoder(ModelPart):
 
                 # Run the RNN.
                 cell = self._get_rnn_cell()
-                if self._rnn_cell_str == 'GRU':
+                if self._rnn_cell_str == "GRU":
                     cell_output, state = cell(rnn_input,
                                               loop_state.prev_rnn_output)
                     next_state = state
@@ -423,7 +423,7 @@ class Decoder(ModelPart):
                         cond_input = tf.concat(contexts, -1)
                         cell_output, state = cell_cond(cond_input, state,
                                                        scope="cond_gru_2_cell")
-                elif self._rnn_cell_str == 'LSTM':
+                elif self._rnn_cell_str == "LSTM":
                     prev_state = tf.contrib.rnn.LSTMStateTuple(
                         loop_state.prev_rnn_state, loop_state.prev_rnn_output)
                     cell_output, state = cell(rnn_input, prev_state)

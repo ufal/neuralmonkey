@@ -133,7 +133,7 @@ class Dataset(collections.Sized):
         if buf:
             yield buf
 
-    def batch_dataset(self, batch_size: int) -> Iterable['Dataset']:
+    def batch_dataset(self, batch_size: int) -> Iterable["Dataset"]:
         """Split the dataset into a list of batched datasets.
 
         Arguments:

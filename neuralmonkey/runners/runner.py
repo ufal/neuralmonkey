@@ -38,7 +38,7 @@ class GreedyRunner(BaseRunner):
         fetches["decoded_logprobs"] = self._decoder.runtime_logprobs
 
         if summaries and self.image_summaries is not None:
-            fetches['image_summaries'] = self.image_summaries
+            fetches["image_summaries"] = self.image_summaries
 
         return GreedyRunExecutable(self.all_coders, fetches,
                                    self._decoder.vocabulary,
@@ -84,7 +84,7 @@ class GreedyRunExecutable(Executable):
         if self._postprocess is not None:
             decoded_tokens = self._postprocess(decoded_tokens)
 
-        image_summaries = results[0].get('image_summaries')
+        image_summaries = results[0].get("image_summaries")
 
         self.result = ExecutionResult(
             outputs=decoded_tokens,

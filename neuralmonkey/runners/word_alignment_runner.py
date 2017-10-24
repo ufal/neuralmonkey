@@ -23,7 +23,7 @@ class WordAlignmentRunner(BaseRunner):
                                                         train_mode=False)
         alignment = tf.transpose(
             tf.stack(att_object.attentions_in_time), perm=[1, 2, 0])
-        fetches = {'alignment': alignment}
+        fetches = {"alignment": alignment}
 
         return WordAlignmentRunnerExecutable(self.all_coders, fetches)
 
@@ -46,7 +46,7 @@ class WordAlignmentRunnerExecutable(Executable):
 
     def collect_results(self, results: List[Dict]) -> None:
         self.result = ExecutionResult(
-            outputs=results[0]['alignment'],
+            outputs=results[0]["alignment"],
             losses=[],
             scalar_summaries=None,
             histogram_summaries=None,

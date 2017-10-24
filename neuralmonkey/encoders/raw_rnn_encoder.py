@@ -14,26 +14,26 @@ from neuralmonkey.dataset import Dataset
 
 
 # pylint: disable=invalid-name
-RNNSpec = NamedTuple('RNNSpec', [('size', int),
-                                 ('direction', str),
-                                 ('cell_type', str)])
+RNNSpec = NamedTuple("RNNSpec", [("size", int),
+                                 ("direction", str),
+                                 ("cell_type", str)])
 
 RNNSpecTuple = Union[Tuple[int], Tuple[int, str], Tuple[int, str, str]]
 # pylint: enable=invalid-name
 
 
 def _make_rnn_spec(size: int,
-                   direction: str = 'both',
-                   cell_type: str = 'GRU') -> RNNSpec:
+                   direction: str = "both",
+                   cell_type: str = "GRU") -> RNNSpec:
     return RNNSpec(size, direction, cell_type)
 
 
 def _make_rnn_cell(spec: RNNSpec) -> Callable[[], RNNCell]:
     """Return the graph template for creating RNN cells."""
-    if spec.cell_type == 'GRU':
+    if spec.cell_type == "GRU":
         def cell():
             return OrthoGRUCell(spec.size)
-    elif spec.cell_type == 'LSTM':
+    elif spec.cell_type == "LSTM":
         def cell():
             return tf.contrib.rnn.LSTMCell(spec.size)
     else:
@@ -98,9 +98,9 @@ class RawRNNEncoder(ModelPart, TemporalStatefulWithOutput):
                 states_reversed = not states_reversed
 
             for i, layer in enumerate(self._rnn_layers):
-                with tf.variable_scope('rnn_{}_{}'.format(i, layer.direction)):
+                with tf.variable_scope("rnn_{}_{}".format(i, layer.direction)):
                     cell = _make_rnn_cell(layer)
-                    if layer.direction == 'both':
+                    if layer.direction == "both":
                         outputs_tup, encoded_tup = (
                             tf.nn.bidirectional_dynamic_rnn(
                                 cell(), cell(), states, self._input_lengths,
@@ -115,8 +115,8 @@ class RawRNNEncoder(ModelPart, TemporalStatefulWithOutput):
 
                         states = tf.concat(outputs_tup, 2)
                         encoded = tf.concat(encoded_tup, 1)
-                    elif layer.direction in ['forward', 'backward']:
-                        should_be_reversed = (layer.direction == 'backward')
+                    elif layer.direction in ["forward", "backward"]:
+                        should_be_reversed = (layer.direction == "backward")
                         if states_reversed != should_be_reversed:
                             reverse_states()
 

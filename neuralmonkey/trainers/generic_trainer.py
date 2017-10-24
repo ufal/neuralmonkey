@@ -11,14 +11,14 @@ from neuralmonkey.runners.base_runner import (
 # pylint: disable=invalid-name
 Gradients = List[Tuple[tf.Tensor, tf.Variable]]
 ObjectiveWeight = Union[tf.Tensor, float, None]
-Objective = NamedTuple('Objective',
-                       [('name', str),
-                        ('decoder', ModelPart),
-                        ('loss', tf.Tensor),
-                        ('gradients', Optional[Gradients]),
-                        ('weight', ObjectiveWeight)])
+Objective = NamedTuple("Objective",
+                       [("name", str),
+                        ("decoder", ModelPart),
+                        ("loss", tf.Tensor),
+                        ("gradients", Optional[Gradients]),
+                        ("weight", ObjectiveWeight)])
 
-BIAS_REGEX = re.compile(r'[Bb]ias')
+BIAS_REGEX = re.compile(r"[Bb]ias")
 
 
 # pylint: disable=too-few-public-methods,too-many-locals,too-many-arguments
@@ -42,7 +42,7 @@ class GenericTrainer(object):
         with tf.name_scope("trainer"):
             self.optimizer = optimizer or tf.train.AdamOptimizer(1e-4)
 
-            with tf.name_scope('regularization'):
+            with tf.name_scope("regularization"):
                 regularizable = [v for v in tf.trainable_variables()
                                  if not BIAS_REGEX.findall(v.name)
                                  and not v.name.startswith("vgg")
@@ -56,14 +56,14 @@ class GenericTrainer(object):
 
             # unweighted losses for fetching
             self.losses = [o.loss for o in objectives] + [l1_value, l2_value]
-            tf.summary.scalar('train_l1', l1_value,
+            tf.summary.scalar("train_l1", l1_value,
                               collections=["summary_train"])
-            tf.summary.scalar('train_l2', l2_value,
+            tf.summary.scalar("train_l2", l2_value,
                               collections=["summary_train"])
 
             # if the objective does not have its own gradients,
             # just use TF to do the derivative
-            with tf.name_scope('gradient_collection'):
+            with tf.name_scope("gradient_collection"):
                 differentiable_loss_sum = sum(
                     (o.weight if o.weight is not None else 1) * o.loss
                     for o in objectives
@@ -93,7 +93,7 @@ class GenericTrainer(object):
 
             if global_step is None:
                 global_step = tf.Variable(
-                    0, trainable=False, name='global_step')
+                    0, trainable=False, name="global_step")
             self.global_step = global_step
 
             self.train_op = self.optimizer.apply_gradients(
@@ -102,7 +102,7 @@ class GenericTrainer(object):
             for grad, var in gradients:
                 if grad is not None:
                     tf.summary.histogram(
-                        'gr_' + var.name,
+                        "gr_" + var.name,
                         grad, collections=["summary_gradients"])
 
             self.histogram_summaries = tf.summary.merge(
@@ -163,11 +163,11 @@ class TrainExecutable(Executable):
         self.result = None
 
     def next_to_execute(self) -> NextExecute:
-        fetches = {'train_op': self.train_op}
+        fetches = {"train_op": self.train_op}
         if self.scalar_summaries is not None:
-            fetches['scalar_summaries'] = self.scalar_summaries
-            fetches['histogram_summaries'] = self.histogram_summaries
-        fetches['losses'] = self.losses
+            fetches["scalar_summaries"] = self.scalar_summaries
+            fetches["histogram_summaries"] = self.histogram_summaries
+        fetches["losses"] = self.losses
 
         return self.all_coders, fetches, {}
 
@@ -177,14 +177,14 @@ class TrainExecutable(Executable):
             histogram_summaries = None
         else:
             # TODO collect summaries from different sessions
-            scalar_summaries = results[0]['scalar_summaries']
-            histogram_summaries = results[0]['histogram_summaries']
+            scalar_summaries = results[0]["scalar_summaries"]
+            histogram_summaries = results[0]["histogram_summaries"]
 
         losses_sum = [0. for _ in self.losses]
         for session_result in results:
             for i in range(len(self.losses)):
                 # from the end, losses are last ones
-                losses_sum[i] += session_result['losses'][i]
+                losses_sum[i] += session_result["losses"][i]
         avg_losses = [s / len(results) for s in losses_sum]
 
         self.result = ExecutionResult(

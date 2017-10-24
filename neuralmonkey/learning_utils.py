@@ -151,7 +151,7 @@ def training_loop(tf_manager: TensorFlowManager,
     try:
         for epoch_n in range(1, epochs + 1):
             log_print("")
-            log("Epoch {} starts".format(epoch_n), color='red')
+            log("Epoch {} starts".format(epoch_n), color="red")
 
             train_dataset.shuffle()
             train_batched_datasets = train_dataset.batch_dataset(batch_size)
@@ -212,13 +212,13 @@ def training_loop(tf_manager: TensorFlowManager,
 
                         valheader = ("Validation (epoch {}, batch number {}):"
                                      .format(epoch_n, batch_n))
-                        log(valheader, color='blue')
+                        log(valheader, color="blue")
                         _print_examples(
                             valset, val_outputs, val_preview_input_series,
                             val_preview_output_series,
                             val_preview_num_examples)
                         log_print("")
-                        log(valheader, color='blue')
+                        log(valheader, color="blue")
 
                         # The last validation set is selected to be the main
                         if val_id == len(val_datasets) - 1:
@@ -229,7 +229,7 @@ def training_loop(tf_manager: TensorFlowManager,
                             if this_score == tf_manager.best_score:
                                 best_score_str = colored(
                                     "{:.4g}".format(tf_manager.best_score),
-                                    attrs=['bold'])
+                                    attrs=["bold"])
 
                                 # store also graph parts
                                 all_coders = set.union(
@@ -248,7 +248,7 @@ def training_loop(tf_manager: TensorFlowManager,
                                 .format(main_metric, best_score_str,
                                         tf_manager.best_score_epoch,
                                         tf_manager.best_score_batch),
-                                color='blue')
+                                color="blue")
 
                         if len(val_datasets) > 1:
                             valset_name = valset.name
@@ -313,8 +313,8 @@ def _resolve_period(period):
         return period, None
     else:
         regex = re.compile(
-            r'((?P<days>\d+?)d)?((?P<hours>\d+?)h)?((?P<minutes>\d+?)m)?'
-            r'((?P<seconds>\d+?)s)?')
+            r"((?P<days>\d+?)d)?((?P<hours>\d+?)h)?((?P<minutes>\d+?)m)?"
+            r"((?P<seconds>\d+?)s)?")
         parts = regex.match(period)
 
         if not parts:
@@ -399,7 +399,7 @@ def run_on_dataset(tf_manager: TensorFlowManager,
     if postprocess is not None:
         for series_name, postprocessor in postprocess:
             postprocessed = postprocessor(dataset, result_data)
-            if not hasattr(postprocessed, '__len__'):
+            if not hasattr(postprocessed, "__len__"):
                 postprocessed = list(postprocessed)
 
             result_data[series_name] = postprocessed
@@ -417,15 +417,15 @@ def run_on_dataset(tf_manager: TensorFlowManager,
                 path = dataset.series_outputs[series_id]
                 if isinstance(data, np.ndarray):
                     np.save(path, data)
-                    log('Result saved as numpy array to "{}"'.format(path))
+                    log("Result saved as numpy array to '{}'".format(path))
                 else:
-                    with open(path, 'w', encoding='utf-8') as f_out:
+                    with open(path, "w", encoding="utf-8") as f_out:
                         f_out.writelines(
                             [" ".join(sent) + "\n" for sent in data])
-                    log("Result saved as plain text \"{}\"".format(path))
+                    log("Result saved as plain text '{}'".format(path))
             else:
                 log("There is no output file for dataset: {}"
-                    .format(dataset.name), color='red')
+                    .format(dataset.name), color="red")
 
     return all_results, result_data
 
@@ -519,7 +519,7 @@ def _format_evaluation_line(evaluation_res: Evaluation,
     eval_string += colored(
         "    {}: {:.4g}".format(main_metric,
                                 evaluation_res[main_metric]),
-        attrs=['bold'])
+        attrs=["bold"])
 
     return eval_string
 
@@ -527,7 +527,7 @@ def _format_evaluation_line(evaluation_res: Evaluation,
 def print_final_evaluation(name: str, eval_result: Evaluation) -> None:
     """Print final evaluation from a test dataset."""
     line_len = 22
-    log("Evaluating model on \"{}\"".format(name))
+    log("Evaluating model on '{}'".format(name))
 
     for eval_name, value in eval_result.items():
         space = "".join([" " for _ in range(line_len - len(eval_name))])
@@ -661,8 +661,8 @@ def _log_model_variables(var_list: List[tf.Variable] = None) -> None:
 
     logstr = "The model has {} trainable variables{}:\n\n".format(
         len(trainable_vars),
-        ' ({} {})'.format(len(fixed_vars), colored('fixed', on_color='on_red'))
-        if fixed_vars else '')
+        " ({} {})".format(len(fixed_vars), colored("fixed", on_color="on_red"))
+        if fixed_vars else "")
 
     logstr += colored(
         "{: ^80}{: ^20}{: ^10}\n".format("Variable name", "Shape", "Size"),
@@ -676,7 +676,7 @@ def _log_model_variables(var_list: List[tf.Variable] = None) -> None:
 
         name = var.name
         if var not in var_list:
-            name = colored(name, on_color='on_red')
+            name = colored(name, on_color="on_red")
         # Pad and compensate for control characters:
         name = name.ljust(80 + (len(name) - len(var.name)))
         log_entry = "{}{: <20}{: >10}".format(name, str(shape), params_in_var)

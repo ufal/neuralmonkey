@@ -38,9 +38,9 @@ class WordAlignmentPreprocessor(object):
         result = np.zeros((self._target_len, self._source_len), self._dtype)
 
         for ali in sentence:
-            ids, _, str_weight = ali.partition('/')
+            ids, _, str_weight = ali.partition("/")
             i, j = map(int, ID_SEP.split(ids))
-            weight = float(str_weight) if str_weight != '' else 1.
+            weight = float(str_weight) if str_weight != "" else 1.
 
             if not self._zero_based:
                 i -= 1
@@ -50,7 +50,7 @@ class WordAlignmentPreprocessor(object):
                 result[j][i] = weight
 
         if self._normalize:
-            with np.errstate(divide='ignore', invalid='ignore'):
+            with np.errstate(divide="ignore", invalid="ignore"):
                 result /= result.sum(axis=1, keepdims=True)
                 result[np.isnan(result)] = 0
 

@@ -11,7 +11,7 @@ import tensorflow as tf
 
 from neuralmonkey.logging import warn
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 def deprecated(func: Callable[..., T]) -> Callable[..., T]:
@@ -19,7 +19,7 @@ def deprecated(func: Callable[..., T]) -> Callable[..., T]:
         warn("Use of deprecated function from "
              + "'neuralmonkey.config.utils'. " +
              "Use '{}' instead.".format(func.__module__[13:]
-                                        + '.' + func.__name__))
+                                        + "." + func.__name__))
         return func(*args, **kwargs)
     return dep_func
 

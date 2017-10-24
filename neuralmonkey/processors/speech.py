@@ -7,7 +7,7 @@ from neuralmonkey.readers.audio_reader import Audio
 
 
 # pylint: disable=invalid-name
-def SpeechFeaturesPreprocessor(feature_type: str = 'mfcc',
+def SpeechFeaturesPreprocessor(feature_type: str = "mfcc",
                                delta_order: int = 0,
                                delta_window: int = 2,
                                **kwargs) -> Callable:
@@ -35,7 +35,7 @@ def SpeechFeaturesPreprocessor(feature_type: str = 'mfcc',
 
     if feature_type not in FEATURE_TYPES:
         raise ValueError(
-            'Unknown speech feature type "{}"'.format(feature_type))
+            "Unknown speech feature type '{}'".format(feature_type))
 
     def preprocess(audio: Audio) -> np.ndarray:
         features = [FEATURE_TYPES[feature_type](
@@ -54,7 +54,7 @@ def _fbank(*args, **kwargs) -> np.ndarray:
     return feat
 
 
-FEATURE_TYPES = {'mfcc': mfcc,
-                 'fbank': _fbank,
-                 'logfbank': logfbank,
-                 'ssc': ssc}
+FEATURE_TYPES = {"mfcc": mfcc,
+                 "fbank": _fbank,
+                 "logfbank": logfbank,
+                 "ssc": ssc}
