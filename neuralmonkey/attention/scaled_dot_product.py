@@ -24,6 +24,36 @@ MultiHeadLoopStateTA = NamedTuple("MultiHeadLoopStateTA",
 # pylint: enable=invalid-name
 
 
+def split_for_heads(x: tf.Tensor, n_heads: int, head_dim: int) -> tf.Tensor:
+    """Split last dimension of 3D vector of shape (batch, time, dim) and return
+    a 4D vector with shape (batch, n_heads, time, dim/n_heads)"""
+    x_shape = tf.shape(x)
+    x_4d = tf.reshape(tf.expand_dims(x, 2),
+                      [x_shape[0], x_shape[1], n_heads, head_dim])
+
+    return tf.transpose(x_4d, perm=[0, 2, 1, 3])
+
+
+def mask_weights(weights_4d: tf.Tensor, mask: tf.Tensor) -> tf.Tensor:
+    """Apply mask to softmax weights and renormalize"""
+    # attention mask shape: batch, time(k)
+    # weights_all shape: batch, head, time(q), time(k)
+    weights_all = weights_4d * tf.expand_dims(tf.expand_dims(mask, 1), 1)
+
+    # normalization along time(k)
+    # norm shape: batch, head, time(q), 1
+    norm = tf.reduce_sum(weights_all, 3, keep_dims=True) + 1e-8
+    return weights_all / norm
+
+
+def mask_future(energies: tf.Tensor) -> tf.Tensor:
+    """Mask energies of keys to the right of the query"""
+    triangular_mask = tf.matrix_band_part(tf.ones_like(energies), -1, 0)
+    mask_area = tf.equal(triangular_mask, 1)
+    masked_value = tf.fill(tf.shape(energies), -np.inf)
+    return tf.where(mask_area, energies, masked_value)
+
+
 class MultiHeadAttention(BaseAttention):
 
     def __init__(self,
@@ -72,11 +102,14 @@ class MultiHeadAttention(BaseAttention):
 
         # transform (batch, query_size) to (batch, 1, query_size)
         # context is (batch, 1, value_size)
-        # weights is a list of (batch, 1, time(keys))
-        context_3d, weights_3d = self.attention_3d(tf.expand_dims(query, 1))
+        # weights is (batch, head, 1, time(keys))
+        context_3d, weights_4d = self.attention_4d(tf.expand_dims(query, 1))
+
+        # head_weights_3d is HEAD-wise list of (batch, 1, 1, time(keys))
+        head_weights_3d = tf.split(weights_4d, self.n_heads, axis=1)
 
         context = tf.squeeze(context_3d, axis=1)
-        head_weights = [tf.squeeze(w, axis=1) for w in weights_3d]
+        head_weights = [tf.squeeze(w, axis=[1, 2]) for w in head_weights_3d]
 
         next_contexts = loop_state.contexts.write(step, context)
         next_head_weights = [loop_state.head_weights[i].write(step,
@@ -89,14 +122,9 @@ class MultiHeadAttention(BaseAttention):
 
         return context, next_loop_state
 
-    def attention_3d(self, query_3d: tf.Tensor,
+    def attention_4d(self, query_3d: tf.Tensor,
                      masked: bool = False) -> tf.Tensor:
-
-        if self.n_heads == 1:
-            query_heads = [query_3d]
-            keys_heads = [self.attention_keys]
-            vals_heads = [self.attention_values]
-        else:
+        if self.n_heads > 1:
             # Linearly project queries, keys and vals, then split
             # query_proj of shape batch, time(q), self._dimension (=q_channels)
             query_proj = tf.layers.dense(
@@ -106,34 +134,11 @@ class MultiHeadAttention(BaseAttention):
             vals_proj = tf.layers.dense(
                 self.attention_values, self._dimension, name="vals_proj")
 
-            query_heads = tf.split(query_proj, self.n_heads, axis=2)
-            keys_heads = tf.split(keys_proj, self.n_heads, axis=2)
-            vals_heads = tf.split(vals_proj, self.n_heads, axis=2)
+        else:
+            query_proj = query_3d
+            keys_proj = self.attention_keys
+            vals_proj = self.attention_values
 
-        # head_contexts_3d, head_weights_3d = zip(*[
-        head_contexts_3d, head_weights_3d = zip(*[
-            self.attention_single_head_3d(q, k, v, masked=masked)
-            for q, k, v in zip(query_heads, keys_heads, vals_heads)])
-
-        context_3d = tf.layers.dense(tf.concat(head_contexts_3d, -1),
-                                     self._dimension, name="output_proj")
-
-        # next_contexts = loop_state.contexts.write(step, context_3d)
-        # next_head_weights = [
-        #     loop_state.head_weights[i].write(step, head_weights_3d[i])
-        #     for i in range(self.n_heads)]
-
-        # next_loop_state = MultiHeadLoopState3DTA(
-        #     contexts=next_contexts,
-        #     head_weights=next_head_weights)
-
-        return context_3d, head_weights_3d
-
-    def attention_single_head_3d(self, query: tf.Tensor,
-                                 keys: tf.Tensor,
-                                 values: tf.Tensor,
-                                 masked: bool = False) -> Tuple[tf.Tensor,
-                                                                tf.Tensor]:
         # Shapes:
         # query:  batch, time(q), k_channels
         # keys:   batch, time(k), k_channels
@@ -143,50 +148,52 @@ class MultiHeadAttention(BaseAttention):
         # weights: batch, time(q), time(k)
 
         # Scale first:
-        query_scaled = query * self._scaling_factor
+        query_scaled = query_proj * self._scaling_factor
+
+        # Reshape the k_channels dimension to the number of heads
+        query = split_for_heads(query_scaled, self.n_heads, self._head_dim)
+        keys = split_for_heads(keys_proj, self.n_heads, self._head_dim)
+        values = split_for_heads(vals_proj, self.n_heads, self._head_dim)
 
         # For dot-product, we use matrix multiplication
-        # shape: batch, time(q), time(k) (k_channels is the matmul axis)
-        energies = tf.matmul(query_scaled, keys, transpose_b=True)
+        # shape: batch, head, time(q), time(k) (k_channels is the matmul axis)
+        energies = tf.matmul(query, keys, transpose_b=True)
 
         # To protect the attention from looking ahead of time, we must
         # replace the energies of future keys with negative infinity
         # We use lower triangular matrix and basic tf where tricks
         if masked:
-            triangular_mask = tf.matrix_band_part(
-                tf.ones_like(energies), -1, 0)
-            energies = tf.where(
-                tf.equal(triangular_mask, 1),
-                energies, tf.fill(energies.shape, -np.inf))
+            energies = mask_future(energies)
 
         # Softmax along the last axis
-        # shape: batch, time(q), time(k)
-        weights_3d = tf.nn.softmax(energies)
+        # shape: batch, head, time(q), time(k)
+        weights_4d = tf.nn.softmax(energies)
 
         if self.attention_mask is not None:
-            # attention mask shape: batch, time(k)
-            # weights_all shape: batch, time(q), time(k)
-            weights_all = weights_3d * tf.expand_dims(self.attention_mask, 1)
-            # normalization along time(k)
-            # norm shape: batch, time(q), 1
-            norm = tf.reduce_sum(weights_all, 2, keep_dims=True) + 1e-8
-            weights_3d = weights_all / norm
+            weights_4d = mask_weights(weights_4d, self.attention_mask)
 
         # apply dropout to the weights (Attention Dropout)
-        weights_3d = dropout(
-            weights_3d, self.dropout_keep_prob, self.train_mode)
+        weights_4d = dropout(
+            weights_4d, self.dropout_keep_prob, self.train_mode)
 
-        # sum up along the time(k) axis, weigh values along the v_channels axis
-
-        # 1. expand weights_3d to shape batch, time(q), time(k), 1
-        # 2. expand values to shape     batch, 1, time(k), v_channels
+        # 1. expand weights_4d to shape batch, head, time(q), time(k), 1
+        # 2. expand values to shape batch, head, 1, time(k), head_dim
         # 3. element-wise multiplication broadcasts that to
-        #    shape: batch, time(q), time(k), v_channels
+        #    shape: batch, head, time(q), time(k), head_dim
         # 4. sum along the time(k) axis
-        context_3d = tf.reduce_sum(
-            tf.expand_dims(weights_3d, 3) * tf.expand_dims(values, 1), 2)
+        context_4d = tf.reduce_sum(
+            tf.expand_dims(weights_4d, 4) * tf.expand_dims(values, 2), 3)
 
-        return context_3d, weights_3d
+        # transpose and reshape to shape [batch, time(q), v_channels]
+        context_shape = tf.shape(context_4d)
+        context_3d = tf.reshape(
+            tf.transpose(context_4d, perm=[0, 2, 1, 3]),
+            [context_shape[0], context_shape[2], self._dimension])
+
+        context_3d = tf.layers.dense(
+            context_3d, self._dimension, name="output_proj")
+
+        return context_3d, weights_4d
 
     def initial_loop_state(self) -> MultiHeadLoopStateTA:
         return MultiHeadLoopStateTA(
