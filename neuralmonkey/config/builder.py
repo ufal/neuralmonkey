@@ -35,7 +35,11 @@ class ClassSymbol(object):
                     # Due to the architecture of TensorFlow, it must be
                     # imported this way.
                     tensorflow = importlib.import_module("tensorflow")
-                    module = getattr(tensorflow, ".".join(class_parts[1:-1]))
+                    if len(class_parts) <= 2:
+                        module = tensorflow
+                    else:
+                        module = getattr(
+                            tensorflow, ".".join(class_parts[1:-1]))
                 else:
                     module_name = ".".join(["neuralmonkey"] + class_parts[:-1])
                     module = importlib.import_module(module_name)
