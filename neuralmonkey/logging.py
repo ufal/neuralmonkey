@@ -29,6 +29,8 @@ class Logging(object):
     @staticmethod
     def set_log_file(path: str) -> None:
         """Set up the file where the logging will be done."""
+        if Logging.log_file is not None and not Logging.log_file.closed:
+            Logging.log_file.close()
         Logging.log_file = codecs.open(path, "w", "utf-8", buffering=0)
 
     @staticmethod
