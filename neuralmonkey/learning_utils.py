@@ -279,9 +279,9 @@ def training_loop(tf_manager: TensorFlowManager,
                     log_print("")
                     last_val_time = time.process_time()
 
-    except KeyboardInterrupt as e:
+    except KeyboardInterrupt as ex:
         log("Training interrupted by user.")
-        interrupt = e
+        interrupt = ex
 
     log("Training finished. Maximum {} on validation data: {:.4g}, epoch {}"
         .format(main_metric, tf_manager.best_score,
@@ -302,8 +302,8 @@ def training_loop(tf_manager: TensorFlowManager,
 
     log("Finished.")
 
-    if interrupt:
-        raise interrupt
+    if interrupt is not None:
+        raise interrupt  # pylint: disable=raising-bad-type
 
 
 def _is_logging_time(step: int, logging_period_batch: int,
