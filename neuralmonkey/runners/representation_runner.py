@@ -32,7 +32,7 @@ class RepresentationExecutable(Executable):
         vectors = results[self._used_session]["encoded"]
 
         self.result = ExecutionResult(
-            outputs=vectors.tolist(),
+            outputs=vectors,
             losses=[],
             scalar_summaries=None,
             histogram_summaries=None,
