@@ -1,5 +1,4 @@
 import time
-import codecs
 import sys
 import os
 
@@ -31,7 +30,7 @@ class Logging(object):
         """Set up the file where the logging will be done."""
         if Logging.log_file is not None and not Logging.log_file.closed:
             Logging.log_file.close()
-        Logging.log_file = codecs.open(path, "w", "utf-8", buffering=0)
+        Logging.log_file = open(path, "w", encoding="utf-8", buffering=0)
 
     @staticmethod
     def log_print(text: str) -> None:
