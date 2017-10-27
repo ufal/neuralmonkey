@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+import collections
 import glob
 import os
 import sys
@@ -7,7 +8,7 @@ import shutil
 import tempfile
 
 import tensorflow as tf
-from typing import Any, Callable
+from typing import Any, Callable, Dict
 
 from neuralmonkey.config.configuration import Configuration
 from neuralmonkey.config.builder import ClassSymbol
@@ -66,8 +67,12 @@ class DummyEncoder(ModelPart, TemporalStatefulWithOutput):
         return {}
 
 
-def make_class_symbol(clazz) -> ClassSymbol:
-    return ClassSymbol('{}.{}'.format(clazz.__module__, clazz.__qualname__))
+def make_class_dict(clazz: Callable, **kwargs) -> Dict:
+    return collections.OrderedDict([
+        ('class', ClassSymbol('{}.{}'.format(clazz.__module__,
+                                             clazz.__qualname__))),
+        *kwargs.items()
+    ])
 
 
 def make_model_config() -> Configuration:
@@ -137,35 +142,32 @@ def main():
     num_repeat = config.model.num_repeat
     orig_encoder_name = (model_dict[config.model.decoder_name]['encoders'][0]
                          .replace('object:', ''))
-    model_dict['dummy_encoder'] = {
-        'class': make_class_symbol(DummyEncoder),
-        'name': 'dummy_encoder',
-        'output_size': config.model.encoder_output_size,
-        'batch_size': num_repeat,
-        'initializer': config.model.initializer,
-        'data_id': model_dict[orig_encoder_name]['data_id'],
-    }
-    model_dict[config.model.decoder_name].update({
-        'load_checkpoint': os.path.join(model_dir, 'variables.data'),
-        'encoders': ['object:dummy_encoder'],
-        'dropout_keep_prob':  1.,
-    })
+    model_dict['dummy_encoder'] = make_class_dict(
+        DummyEncoder, name='dummy_encoder',
+        output_size=config.model.encoder_output_size,
+        batch_size=num_repeat,
+        initializer=config.model.initializer,
+        data_id=model_dict[orig_encoder_name]['data_id'])
+    model_dict[config.model.decoder_name].update(dict(
+        load_checkpoint=os.path.join(model_dir, 'variables.data'),
+        encoders=['object:dummy_encoder'],
+        dropout_keep_prob=1.,
+    ))
 
     # Disable regularization and decoder training
     trainer_name = model_dict['main']['trainer'].replace('object:', '')
-    model_dict[trainer_name].update({
-        'l1_weight': 0.,
-        'l2_weight': 0.,
-        'var_scopes': ['dummy_encoder'],
-    })
+    model_dict[trainer_name].update(dict(
+        l1_weight=0.,
+        l2_weight=0.,
+        var_scopes=['dummy_encoder'],
+    ))
 
     # Add a runner that writes the learned representation to a file
     model_dict['main']['runners'].append('object:representation_runner')
-    model_dict['representation_runner'] = {
-        'class': make_class_symbol(RepresentationRunner),
-        'output_series': 'encoded',
-        'encoder': 'object:dummy_encoder',
-    }
+    model_dict['representation_runner'] = make_class_dict(
+        RepresentationRunner,
+        output_series='encoded',
+        encoder='object:dummy_encoder')
 
     with tempfile.TemporaryDirectory(prefix='reverse_decoder') as tmp_dir:
         tmp_output_dir = os.path.join(tmp_dir, 'output')
