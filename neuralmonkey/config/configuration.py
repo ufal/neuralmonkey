@@ -97,7 +97,7 @@ class Configuration(object):
         """Check whether there are unexpected or missing fields."""
         expected_missing = []
         for name in self.names:
-            if name not in self.defaults:
+            if name not in self.args.__dict__:
                 expected_missing.append(name)
         if expected_missing:
             raise Exception("Missing mandatory fields: {}"
