@@ -223,6 +223,8 @@ def main():
                     postprocess=model_config.model.postprocess,
                     initial_variables=model_config.model.initial_variables)
             finally:
+                for fname in glob.glob(os.path.join(tmp_output_dir, 'variables.data*')):
+                    os.remove(fname)
                 output_dir = os.path.join(config.model.output, 's{:08}'.format(i))
                 shutil.copytree(tmp_output_dir, output_dir)
 
