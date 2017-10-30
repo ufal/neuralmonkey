@@ -280,7 +280,6 @@ def training_loop(tf_manager: TensorFlowManager,
                     last_val_time = time.process_time()
 
     except KeyboardInterrupt as ex:
-        log("Training interrupted by user.")
         interrupt = ex
 
     log("Training finished. Maximum {} on validation data: {:.4g}, epoch {}"

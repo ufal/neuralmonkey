@@ -53,7 +53,7 @@ def create_config() -> Configuration:
 
 
 # pylint: disable=too-many-statements, too-many-locals, too-many-branches
-def main() -> None:
+def _main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("config", metavar="INI-FILE",
                         help="the configuration file for the experiment")
@@ -224,3 +224,11 @@ def main() -> None:
         train_start_offset=cfg.model.train_start_offset,
         runners_batch_size=cfg.model.runners_batch_size,
         initial_variables=cfg.model.initial_variables)
+
+
+def main() -> None:
+    try:
+        _main()
+    except KeyboardInterrupt:
+        log("Training interrupted by user.")
+        exit(1)
