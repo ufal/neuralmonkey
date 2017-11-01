@@ -75,25 +75,34 @@ def from_wordlist(path: str,
     vocabulary = Vocabulary()
 
     with open(path, encoding=encoding) as wordlist:
+        line_number = 1
         if contains_header:
             # skip the header
+            line_number += 1
             next(wordlist)
 
         for line in wordlist:
             line = line.rstrip("\r\n")
             # check if line is empty
             if not line:
+                warn("Vocabulary file {}:{}: line empty"
+                     .format(path, line_number))
+                line_number += 1
                 continue
 
             if contains_frequencies:
                 info = line.split("\t")
                 if len(info) != 2:
-                    raise ValueError("Vocabulary file do not have two columns")
+                    raise ValueError(
+                        "Vocabulary file {}:{}: line does not have two columns"
+                        .format(path, line_number))
                 vocabulary.add_word(info[0], int(info[1]))
             else:
                 if "\t" in line:
-                    warn("The vocabulary contains a tabulator")
+                    warn("Vocabulary file {}:{}: line contains a tabulator"
+                         .format(path, line_number))
                 vocabulary.add_word(line)
+            line_number += 1
 
     log("Vocabulary from wordlist loaded, containing {} words"
         .format(len(vocabulary)))
