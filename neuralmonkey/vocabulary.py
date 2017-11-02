@@ -379,8 +379,13 @@ class Vocabulary(collections.Sized):
                                key=lambda w: self.word_count[w])
 
         # keep the least frequent words which are not special symbols
-        words_to_delete = [w for w in words_by_freq[:-size]
-                           if not _is_special_token(w)]
+        deleted_size = self.__len__() - size
+        words_to_delete = []
+        for word in words_by_freq:
+            if not _is_special_token(word):
+                words_to_delete.append(word)
+            if len(words_to_delete) == deleted_size:
+                break
 
         # sort by index ... bigger indices needs to be removed first
         # to keep the lists propertly shaped
@@ -404,8 +409,10 @@ class Vocabulary(collections.Sized):
         """
         if min_freq > 1:
             # count how many words there are with frequency < min_freq
+            # ignoring special tokens
             infreq_word_count = sum([1 for w in self.word_count
-                                     if self.word_count[w] < min_freq])
+                                     if self.word_count[w] < min_freq
+                                     and not _is_special_token(w)])
             log("Removing {} infrequent (<{}) words from vocabulary".format(
                 infreq_word_count, min_freq))
             new_size = len(self) - infreq_word_count
