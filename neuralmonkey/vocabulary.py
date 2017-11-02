@@ -82,7 +82,7 @@ def from_wordlist(path: str,
             next(wordlist)
 
         for line in wordlist:
-            line = line.rstrip("\n")
+            line = line.strip("\n")
             # check if line is empty
             if not line:
                 warn("Vocabulary file {}:{}: line empty"
