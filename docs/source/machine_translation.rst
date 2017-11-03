@@ -265,11 +265,29 @@ As for the main configuration section do not forget to add BPE postprocessing:
 Part III. - Running and Evaluation of the Experiment
 ----------------------------------------------------
 
+1 - Training 
+*********************
+
 The training can be run as simply as:
 
 .. code-block:: bash
 
   bin/neuralmonkey-train exp-nm-mt/translation.ini
+  
+2 - Resuming Training
+*********************
+
+If training stopped and you want to resume it, you can load pre-trained parameters by specifying the ``initial_variables`` of the model in the [main] section:
+
+.. code-block:: ini
+  
+  [main]
+  initial_variables=/path/to/variables.data
+
+Note there is actually no file called ``variables.data``, but three files with this common prefix. The ``initial_variables`` config value should correspond to this prefix.
+
+3 - Evaluation
+*********************
 
 As for the evaluation, you need to create ``translation_run.ini``:
 
