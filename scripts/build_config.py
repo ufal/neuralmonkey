@@ -23,5 +23,5 @@ def main() -> None:
     build_config(config_dict, ignore_names=set())
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
