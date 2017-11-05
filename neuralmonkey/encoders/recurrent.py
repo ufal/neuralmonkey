@@ -142,6 +142,7 @@ class SentenceEncoder(RecurrentEncoder):
                  max_input_len: int = None,
                  dropout_keep_prob: float = 1.0,
                  rnn_cell: str = "GRU",
+                 output_size: int = None,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None) -> None:
         """Create a new instance of the sentence encoder."""
@@ -172,6 +173,7 @@ class SentenceEncoder(RecurrentEncoder):
             rnn_size=rnn_size,
             dropout_keep_prob=dropout_keep_prob,
             rnn_cell=rnn_cell,
+            output_size=output_size,
             save_checkpoint=save_checkpoint,
             load_checkpoint=load_checkpoint)
     # pylint: enable=too-many-arguments,too-many-locals
@@ -188,6 +190,7 @@ class FactoredEncoder(RecurrentEncoder):
                  max_input_len: int = None,
                  dropout_keep_prob: float = 1.0,
                  rnn_cell: str = "GRU",
+                 output_size: int = None,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None) -> None:
         """Create a new instance of the sentence encoder."""
@@ -210,6 +213,7 @@ class FactoredEncoder(RecurrentEncoder):
             rnn_size=rnn_size,
             dropout_keep_prob=dropout_keep_prob,
             rnn_cell=rnn_cell,
+            output_size=output_size,
             save_checkpoint=save_checkpoint,
             load_checkpoint=load_checkpoint)
     # pylint: enable=too-many-arguments,too-many-locals
