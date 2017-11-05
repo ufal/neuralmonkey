@@ -19,6 +19,7 @@ from neuralmonkey.model.model_part import ModelPart, FeedDict
 from neuralmonkey.model.stateful import TemporalStatefulWithOutput
 from neuralmonkey.processors.german import GermanPreprocessor
 from neuralmonkey.runners.representation_runner import RepresentationRunner
+from neuralmonkey.tf_manager import TensorFlowManager
 from neuralmonkey import logging
 
 
@@ -175,7 +176,6 @@ def main():
         os.mkdir(tmp_output_dir)
 
         model_config.build_model()
-        init_op = tf.global_variables_initializer()
 
         full_dataset = config.model.dataset
 
@@ -187,7 +187,9 @@ def main():
 
             logging.Logging.set_log_file(
                 os.path.join(tmp_output_dir, 'experiment.log'))
-            model_config.model.tf_manager.init_saving(
+
+            tf_manager = TensorFlowManager(num_sessions=1, num_threads=4)
+            tf_manager.init_saving(
                 os.path.join(tmp_output_dir, 'variables.data'))
 
             # Get i-th sentence from dataset and repeat it num_repeat times
@@ -197,14 +199,10 @@ def main():
                                for key in dataset.series_ids},
                               dataset.series_outputs)
 
-            # Initialize variables
-            for sess in model_config.model.tf_manager.sessions:
-                sess.run(init_op)
-
             # Train and evaluate
             try:
                 training_loop(
-                    tf_manager=model_config.model.tf_manager,
+                    tf_manager=tf_manager,
                     epochs=config.model.num_iterations,
                     trainer=model_config.model.trainer,
                     batch_size=num_repeat,
@@ -223,6 +221,7 @@ def main():
                     postprocess=model_config.model.postprocess,
                     initial_variables=model_config.model.initial_variables)
             finally:
+                tf_manager.sessions[0].close()
                 for fname in glob.glob(os.path.join(tmp_output_dir, 'variables.data*')):
                     os.remove(fname)
                 output_dir = os.path.join(config.model.output, 's{:08}'.format(i))
