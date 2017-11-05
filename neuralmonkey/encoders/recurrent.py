@@ -44,7 +44,6 @@ class RecurrentEncoder(ModelPart, TemporalStatefulWithOutput):
         self.rnn_size = rnn_size
         self.dropout_keep_prob = dropout_keep_prob
         self.rnn_cell_str = rnn_cell
-        self.output_size = output_size
 
         if self.rnn_size <= 0:
             raise ValueError("RNN size must be a positive integer.")
@@ -55,8 +54,15 @@ class RecurrentEncoder(ModelPart, TemporalStatefulWithOutput):
         if self.rnn_cell_str not in RNN_CELL_TYPES:
             raise ValueError("RNN cell must be a either 'GRU' or 'LSTM'")
 
-        if self.output_size is not None and self.output_size <= 0:
-            raise ValueError("Output size must be a positive integer or None.")
+        if output_size is not None:
+            if output_size <= 0:
+                raise ValueError("Output size must be a positive integer or None.")
+            self._project_final_state = True
+            self.output_size = output_size
+        else:
+            self._project_final_state = False
+            self.output_size = 2 * rnn_size
+
     # pylint: enable=too-many-arguments
 
     # pylint: disable=no-self-use
@@ -98,7 +104,7 @@ class RecurrentEncoder(ModelPart, TemporalStatefulWithOutput):
             output = tf.concat(final_states, 1)
         # pylint: enable=unsubscriptable-object
 
-        if self.output_size is not None:
+        if self._project_final_state:
             output = tf.layers.dense(output, self.output_size,
                                      name="final_state_projection")
 
