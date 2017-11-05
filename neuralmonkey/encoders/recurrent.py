@@ -56,7 +56,8 @@ class RecurrentEncoder(ModelPart, TemporalStatefulWithOutput):
 
         if output_size is not None:
             if output_size <= 0:
-                raise ValueError("Output size must be a positive integer or None.")
+                raise ValueError(
+                    "Output size must be a positive integer or None.")
             self._project_final_state = True
             self.output_size = output_size
         else:
