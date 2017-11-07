@@ -6,6 +6,7 @@ can be used to obtain a Vocabulary instance.
 # pylint: disable=too-many-lines
 
 import collections
+import json
 import os
 import random
 
@@ -107,6 +108,24 @@ def from_wordlist(path: str,
     log("Vocabulary from wordlist loaded, containing {} words"
         .format(len(vocabulary)))
     vocabulary.log_sample()
+    return vocabulary
+
+
+def from_nematus_json(path: str, max_size: int = None) -> Vocabulary:
+    """Load vocabulary from Nematus JSON format.
+
+    Args:
+        path: Path to the file.
+        max_size: Maximum vocabulary size including 'unk' and 'eos' symbols,
+            but not including <pad> and <s> symbol.
+    """
+    with open(path, "r", encoding="utf-8") as f_json:
+        contents = json.load(f_json)
+
+    vocabulary = Vocabulary()
+    for word in sorted(contents.keys(), key=lambda x: contents[x])[2:max_size]:
+        vocabulary.add_word(word)
+
     return vocabulary
 
 
