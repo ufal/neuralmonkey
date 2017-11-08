@@ -57,6 +57,7 @@ def emb_fix(variables: List[np.ndarray], dim: int = 0) -> np.ndarray:
 
     return variable
 
+
 def sum_vars(variables: List[np.ndarray]) -> np.ndarray:
     return sum(variables)
 
@@ -221,6 +222,7 @@ embedding_size={}
 rnn_size={}
 max_output_len={}
 encoders=[<encoder>]
+encoder_projection=decoders.encoder_projection.nematus_projection
 attentions=[<attention>]
 attention_on_input=False
 conditional_gru=True

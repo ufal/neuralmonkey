@@ -9,7 +9,7 @@ from typing import List, Optional, Callable
 
 import tensorflow as tf
 
-from neuralmonkey.model.stateful import Stateful
+from neuralmonkey.model.stateful import TemporalStateful
 from neuralmonkey.nn.utils import dropout
 from neuralmonkey.logging import log
 
@@ -18,7 +18,7 @@ from neuralmonkey.logging import log
 # The function must conform the API
 def empty_initial_state(train_mode: tf.Tensor,
                         rnn_size: Optional[int],
-                        encoders: List[Stateful] = None) -> tf.Tensor:
+                        encoders: List[TemporalStateful] = None) -> tf.Tensor:
     """Return an empty vector.
 
     Arguments:
@@ -34,7 +34,7 @@ def empty_initial_state(train_mode: tf.Tensor,
 
 def linear_encoder_projection(
         dropout_keep_prob: float) -> Callable[
-            [tf.Tensor, Optional[int], Optional[List[Stateful]]],
+            [tf.Tensor, Optional[int], Optional[List[TemporalStateful]]],
             tf.Tensor]:
     """Return a linear encoder projection.
 
@@ -47,7 +47,7 @@ def linear_encoder_projection(
     """
     def func(train_mode: tf.Tensor,
              rnn_size: Optional[int] = None,
-             encoders: Optional[List[Stateful]] = None) -> tf.Tensor:
+             encoders: Optional[List[TemporalStateful]] = None) -> tf.Tensor:
         """Linearly project encoders' encoded value.
 
         Linearly project encoders' encoded value to rnn_size
@@ -79,7 +79,7 @@ def linear_encoder_projection(
 def concat_encoder_projection(
         train_mode: tf.Tensor,
         rnn_size: Optional[int] = None,
-        encoders: Optional[List[Stateful]] = None) -> tf.Tensor:
+        encoders: Optional[List[TemporalStateful]] = None) -> tf.Tensor:
     """Create the initial state by concatenating the encoders' encoded values.
 
     Arguments:
@@ -103,3 +103,31 @@ def concat_encoder_projection(
     # pylint: enable=no-member
 
     return encoded_concat
+
+
+def nematus_projection(
+        train_mode: tf.Tensor,
+        rnn_size: Optional[int] = None,
+        encoders: Optional[List[TemporalStateful]] = None) -> tf.Tensor:
+    """Create the initial state by concatenating the encoders' encoded values.
+
+    Arguments:
+        train_mode: tf 0-D bool Tensor specifying the training mode (not used)
+        rnn_size: The size of the resulting vector (not used)
+        encoders: The list of encoders
+    """
+    if encoders is None or not encoders:
+        raise ValueError("There must be at least one encoder for this type "
+                         "of encoder projection")
+
+    if rnn_size is not None:
+        assert rnn_size == sum(e.output.get_shape()[1].value
+                               for e in encoders)
+
+    encoded_concat = tf.concat([tf.reduce_sum(e.temporal_states, axis=1) /
+                                tf.reduce_sum(e.temporal_mask, 1)
+                               for e in encoders], 1)
+
+    return tf.layers.dense(encoded_concat, rnn_size,
+                           activation=tf.tanh,
+                           name="encoders_projection")
