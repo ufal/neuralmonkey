@@ -380,12 +380,13 @@ class Vocabulary(collections.Sized):
 
         # keep the least frequent words which are not special symbols
         deleted_size = self.__len__() - size
-        words_to_delete = []
+        deleted_size = 0 if deleted_size < 0 else deleted_size
+        words_to_delete = []  # type: List[str]
         for word in words_by_freq:
-            if not _is_special_token(word):
-                words_to_delete.append(word)
             if len(words_to_delete) == deleted_size:
                 break
+            if not _is_special_token(word):
+                words_to_delete.append(word)
 
         # sort by index ... bigger indices needs to be removed first
         # to keep the lists propertly shaped
