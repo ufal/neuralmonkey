@@ -379,11 +379,14 @@ class Vocabulary(collections.Sized):
                                key=lambda w: self.word_count[w])
 
         # keep the least frequent words which are not special symbols
-        deleted_size = self.__len__() - size
-        deleted_size = 0 if deleted_size < 0 else deleted_size
+        to_delete = len(self) - size
+        if to_delete < 0:
+            to_delete = 0
+            warn("Actual vocabulary size ({}) is smaller than max_size ({})"
+                 .format(len(self), size))
         words_to_delete = []  # type: List[str]
         for word in words_by_freq:
-            if len(words_to_delete) == deleted_size:
+            if len(words_to_delete) == to_delete:
                 break
             if not _is_special_token(word):
                 words_to_delete.append(word)
