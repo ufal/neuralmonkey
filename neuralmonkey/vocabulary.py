@@ -111,7 +111,8 @@ def from_wordlist(path: str,
     return vocabulary
 
 
-def from_nematus_json(path: str, max_size: int = None) -> Vocabulary:
+def from_nematus_json(path: str, max_size: int = None,
+                      pad_to_max_size: bool = False) -> "Vocabulary":
     """Load vocabulary from Nematus JSON format.
 
     Args:
@@ -125,6 +126,12 @@ def from_nematus_json(path: str, max_size: int = None) -> Vocabulary:
     vocabulary = Vocabulary()
     for word in sorted(contents.keys(), key=lambda x: contents[x])[2:max_size]:
         vocabulary.add_word(word)
+
+    if pad_to_max_size:
+        current_length = len(vocabulary)
+        for i in range(max_size - current_length + 2):  # the "2" is ugly HACK
+            word = "<pad_{}>".format(i)
+            vocabulary.add_word(word)
 
     return vocabulary
 
