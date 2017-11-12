@@ -6,6 +6,7 @@ specified by the experiment configuration.
 
 import collections
 import importlib
+from argparse import Namespace
 from inspect import signature, isclass, isfunction
 from typing import Any, Dict, Set
 
@@ -203,6 +204,7 @@ def build_config(config_dicts: Dict[str, Any],
     existing_objects = collections.OrderedDict()  # type: Dict[str, Any]
 
     main_config = config_dicts["main"]
+    existing_objects["main"] = Namespace(**main_config)
 
     configuration = collections.OrderedDict()  # type: Dict[str, Any]
     # TODO ensure tf_manager goes last in a better way
