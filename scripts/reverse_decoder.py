@@ -14,6 +14,7 @@ from neuralmonkey.config.configuration import Configuration
 from neuralmonkey.config.builder import ClassSymbol
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.decorators import tensor
+from neuralmonkey.evaluators.accuracy import AccuracySeqLevel
 from neuralmonkey.learning_utils import training_loop
 from neuralmonkey.model.model_part import ModelPart, FeedDict
 from neuralmonkey.model.stateful import TemporalStatefulWithOutput
@@ -207,7 +208,7 @@ def main():
                     batch_size=num_repeat,
                     runners_batch_size=num_repeat,
                     log_directory=model_config.model.output,
-                    evaluators=model_config.model.evaluation,
+                    evaluators=[('target', AccuracySeqLevel)] + model_config.model.evaluation,
                     runners=model_config.model.runners,
                     train_dataset=dataset,
                     val_dataset=dataset,
