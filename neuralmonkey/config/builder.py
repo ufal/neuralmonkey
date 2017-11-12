@@ -64,16 +64,16 @@ class ClassSymbol(object):
 class ObjectRef(object):
     """Represents a named object or its attribute in configuration."""
 
-    def __init__(self, expression: str):
-        self.name, *self.attr_chain = expression.split('.')
-        self.obj_ = None
+    def __init__(self, expression: str) -> None:
+        self.name, *self.attr_chain = expression.split(".")
+        self._obj = None
 
     def bind(self, value: Any):
-        self.obj_ = value
+        self._obj = value
 
     @property
     def target(self) -> Any:
-        value = self.obj_
+        value = self._obj
         for attr in self.attr_chain:
             value = getattr(value, attr)
         return value
