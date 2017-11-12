@@ -148,6 +148,7 @@ def training_loop(tf_manager: TensorFlowManager,
     log("Starting training")
     last_log_time = time.process_time()
     last_val_time = time.process_time()
+    interrupt = None
     try:
         for epoch_n in range(1, epochs + 1):
             log_print("")
@@ -278,8 +279,8 @@ def training_loop(tf_manager: TensorFlowManager,
                     log_print("")
                     last_val_time = time.process_time()
 
-    except KeyboardInterrupt:
-        log("Training interrupted by user.")
+    except KeyboardInterrupt as ex:
+        interrupt = ex
 
     log("Training finished. Maximum {} on validation data: {:.4g}, epoch {}"
         .format(main_metric, tf_manager.best_score,
@@ -299,6 +300,9 @@ def training_loop(tf_manager: TensorFlowManager,
         print_final_evaluation(dataset.name, eval_result)
 
     log("Finished.")
+
+    if interrupt is not None:
+        raise interrupt  # pylint: disable=raising-bad-type
 
 
 def _is_logging_time(step: int, logging_period_batch: int,

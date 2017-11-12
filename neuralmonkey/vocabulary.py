@@ -75,25 +75,34 @@ def from_wordlist(path: str,
     vocabulary = Vocabulary()
 
     with open(path, encoding=encoding) as wordlist:
+        line_number = 1
         if contains_header:
             # skip the header
+            line_number += 1
             next(wordlist)
 
         for line in wordlist:
-            line = line.rstrip("\r\n")
+            line = line.strip()
             # check if line is empty
             if not line:
+                warn("Vocabulary file {}:{}: line empty"
+                     .format(path, line_number))
+                line_number += 1
                 continue
 
             if contains_frequencies:
                 info = line.split("\t")
                 if len(info) != 2:
-                    raise ValueError("Vocabulary file do not have two columns")
+                    raise ValueError(
+                        "Vocabulary file {}:{}: line does not have two columns"
+                        .format(path, line_number))
                 vocabulary.add_word(info[0], int(info[1]))
             else:
                 if "\t" in line:
-                    warn("The vocabulary contains a tabulator")
+                    warn("Vocabulary file {}:{}: line contains a tabulator"
+                         .format(path, line_number))
                 vocabulary.add_word(line)
+            line_number += 1
 
     log("Vocabulary from wordlist loaded, containing {} words"
         .format(len(vocabulary)))
@@ -370,8 +379,13 @@ class Vocabulary(collections.Sized):
                                key=lambda w: self.word_count[w])
 
         # keep the least frequent words which are not special symbols
-        words_to_delete = [w for w in words_by_freq[:-size]
-                           if not _is_special_token(w)]
+        deleted_size = self.__len__() - size
+        words_to_delete = []
+        for word in words_by_freq:
+            if not _is_special_token(word):
+                words_to_delete.append(word)
+            if len(words_to_delete) == deleted_size:
+                break
 
         # sort by index ... bigger indices needs to be removed first
         # to keep the lists propertly shaped
@@ -395,8 +409,10 @@ class Vocabulary(collections.Sized):
         """
         if min_freq > 1:
             # count how many words there are with frequency < min_freq
+            # ignoring special tokens
             infreq_word_count = sum([1 for w in self.word_count
-                                     if self.word_count[w] < min_freq])
+                                     if self.word_count[w] < min_freq
+                                     and not _is_special_token(w)])
             log("Removing {} infrequent (<{}) words from vocabulary".format(
                 infreq_word_count, min_freq))
             new_size = len(self) - infreq_word_count

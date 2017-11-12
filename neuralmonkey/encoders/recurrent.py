@@ -32,6 +32,7 @@ class RecurrentEncoder(ModelPart, TemporalStatefulWithOutput):
                  rnn_size: int,
                  dropout_keep_prob: float = 1.0,
                  rnn_cell: str = "GRU",
+                 output_size: int = None,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None) -> None:
         """Create a new instance of a recurrent encoder."""
@@ -52,6 +53,17 @@ class RecurrentEncoder(ModelPart, TemporalStatefulWithOutput):
 
         if self.rnn_cell_str not in RNN_CELL_TYPES:
             raise ValueError("RNN cell must be a either 'GRU' or 'LSTM'")
+
+        if output_size is not None:
+            if output_size <= 0:
+                raise ValueError(
+                    "Output size must be a positive integer or None.")
+            self._project_final_state = True
+            self.output_size = output_size
+        else:
+            self._project_final_state = False
+            self.output_size = 2 * rnn_size
+
     # pylint: enable=too-many-arguments
 
     # pylint: disable=no-self-use
@@ -86,12 +98,18 @@ class RecurrentEncoder(ModelPart, TemporalStatefulWithOutput):
     def output(self) -> tf.Tensor:
         # pylint: disable=unsubscriptable-object
         if self.rnn_cell_str == "GRU":
-            return tf.concat(self.bidirectional_rnn[1], 1)
+            output = tf.concat(self.bidirectional_rnn[1], 1)
         elif self.rnn_cell_str == "LSTM":
             # TODO is "h" what we want?
             final_states = [state.h for state in self.bidirectional_rnn[1]]
-            return tf.concat(final_states, 1)
+            output = tf.concat(final_states, 1)
         # pylint: enable=unsubscriptable-object
+
+        if self._project_final_state:
+            output = tf.layers.dense(output, self.output_size,
+                                     name="final_state_projection")
+
+        return output
 
     @tensor
     def temporal_mask(self) -> tf.Tensor:
@@ -124,6 +142,7 @@ class SentenceEncoder(RecurrentEncoder):
                  max_input_len: int = None,
                  dropout_keep_prob: float = 1.0,
                  rnn_cell: str = "GRU",
+                 output_size: int = None,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None) -> None:
         """Create a new instance of the sentence encoder."""
@@ -154,6 +173,7 @@ class SentenceEncoder(RecurrentEncoder):
             rnn_size=rnn_size,
             dropout_keep_prob=dropout_keep_prob,
             rnn_cell=rnn_cell,
+            output_size=output_size,
             save_checkpoint=save_checkpoint,
             load_checkpoint=load_checkpoint)
     # pylint: enable=too-many-arguments,too-many-locals
@@ -170,6 +190,7 @@ class FactoredEncoder(RecurrentEncoder):
                  max_input_len: int = None,
                  dropout_keep_prob: float = 1.0,
                  rnn_cell: str = "GRU",
+                 output_size: int = None,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None) -> None:
         """Create a new instance of the sentence encoder."""
@@ -192,6 +213,7 @@ class FactoredEncoder(RecurrentEncoder):
             rnn_size=rnn_size,
             dropout_keep_prob=dropout_keep_prob,
             rnn_cell=rnn_cell,
+            output_size=output_size,
             save_checkpoint=save_checkpoint,
             load_checkpoint=load_checkpoint)
     # pylint: enable=too-many-arguments,too-many-locals

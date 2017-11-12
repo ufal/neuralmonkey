@@ -6,18 +6,18 @@ import os
 import sys
 import shutil
 import tempfile
+from typing import Callable, Dict
 
 import tensorflow as tf
-from typing import Any, Callable, Dict
 
 from neuralmonkey.config.configuration import Configuration
 from neuralmonkey.config.builder import ClassSymbol
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.decorators import tensor
+from neuralmonkey.evaluators.accuracy import AccuracySeqLevel
 from neuralmonkey.learning_utils import training_loop
 from neuralmonkey.model.model_part import ModelPart, FeedDict
 from neuralmonkey.model.stateful import TemporalStatefulWithOutput
-from neuralmonkey.processors.german import GermanPreprocessor
 from neuralmonkey.runners.representation_runner import RepresentationRunner
 from neuralmonkey.tf_manager import TensorFlowManager
 from neuralmonkey import logging
@@ -208,7 +208,7 @@ def main():
                     batch_size=num_repeat,
                     runners_batch_size=num_repeat,
                     log_directory=model_config.model.output,
-                    evaluators=model_config.model.evaluation,
+                    evaluators=[('target', AccuracySeqLevel)] + model_config.model.evaluation,
                     runners=model_config.model.runners,
                     train_dataset=dataset,
                     val_dataset=dataset,
@@ -222,9 +222,11 @@ def main():
                     initial_variables=model_config.model.initial_variables)
             finally:
                 tf_manager.sessions[0].close()
-                for fname in glob.glob(os.path.join(tmp_output_dir, 'variables.data*')):
+                for fname in glob.glob(os.path.join(tmp_output_dir,
+                                                    'variables.data*')):
                     os.remove(fname)
-                output_dir = os.path.join(config.model.output, 's{:08}'.format(i))
+                output_dir = os.path.join(config.model.output,
+                                          's{:08}'.format(i))
                 shutil.copytree(tmp_output_dir, output_dir)
 
 if __name__ == '__main__':
