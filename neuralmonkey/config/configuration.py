@@ -1,5 +1,6 @@
 import traceback
 from argparse import Namespace
+from collections import OrderedDict
 from typing import Any, Callable, List, Optional
 
 from neuralmonkey.logging import log
@@ -19,10 +20,10 @@ class Configuration(object):
         self.defaults = {}
         self.conditions = {}
         self.ignored = set()
-        self.raw_config = {}
-        self.config_dict = {}
-        self.args = {}
-        self.model = {}
+        self.raw_config = OrderedDict()
+        self.config_dict = OrderedDict()
+        self.args = None
+        self.model = None
 
     # pylint: disable=too-many-arguments
     def add_argument(self,
@@ -68,17 +69,19 @@ class Configuration(object):
 
         try:
             with open(path, "r", encoding="utf-8") as file:
-                self.raw_config, self.config_dict = parse_file(file, changes)
+                raw_config, config_dict = parse_file(file, changes)
             log("INI file is parsed.")
 
-            arguments = self.make_namespace(self.config_dict["main"])
+            self.raw_config.update(raw_config)
+            self.config_dict.update(config_dict)
         # pylint: disable=broad-except
         except Exception as exc:
             log("Failed to load INI file: {}".format(exc), color="red")
             traceback.print_exc()
             exit(1)
 
-        self.args = arguments
+        if "main" in self.config_dict:
+            self.args = self.make_namespace(self.config_dict["main"])
 
     def build_model(self, warn_unused=False) -> None:
         log("Building model based on the config.")
