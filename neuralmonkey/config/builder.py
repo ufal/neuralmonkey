@@ -60,6 +60,24 @@ class ClassSymbol(object):
         return clazz
 
 
+class ObjectRef(object):
+    """Represents a named object or its attribute in configuration."""
+
+    def __init__(self, expression: str):
+        self.name, *self.attr_chain = expression.split('.')
+        self.obj_ = None
+
+    def bind(self, value: Any):
+        self.obj_ = value
+
+    @property
+    def target(self) -> Any:
+        value = self.obj_
+        for attr in self.attr_chain:
+            value = getattr(value, attr)
+        return value
+
+
 # pylint: disable=too-many-return-statements
 def build_object(value: str,
                  all_dicts: Dict[str, Any],
@@ -99,20 +117,15 @@ def build_object(value: str,
         return [build_object(val, all_dicts, existing_objects, depth + 1)
                 for val in value]
 
-    if value in existing_objects:
-        debug("Skipping already initialized value: {}".format(value),
-              "configBuild")
-
-        return existing_objects[value]
-
-    if isinstance(value, str):
-        # either a string or a reference to an object
-        if not value.startswith("object:"):
-            return value
-
-        obj = instantiate_class(value[7:], all_dicts, existing_objects, depth)
-        existing_objects[value] = obj
-        return obj
+    if isinstance(value, ObjectRef):
+        if value.name in existing_objects:
+            debug("Skipping already initialized object: {}".format(value.name),
+                  "configBuild")
+        else:
+            existing_objects[value.name] = instantiate_class(
+                value.name, all_dicts, existing_objects, depth)
+        value.bind(existing_objects[value.name])
+        return value.target
 
     if isinstance(value, ClassSymbol):
         return value.create()
@@ -204,7 +217,7 @@ def build_config(config_dicts: Dict[str, Any],
                 raise ConfigBuildException(key, exc) from None
 
     if warn_unused:
-        existing_names = {x[7:] for x in existing_objects.keys()} | {"main"}
+        existing_names = set(existing_objects.keys()) | {"main"}
         unused = config_dicts.keys() - existing_names
         if unused:
             warn("Configuration contains unused sections: "
