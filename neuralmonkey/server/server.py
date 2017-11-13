@@ -25,7 +25,7 @@ def get_file(filename):  # pragma: no cover
     return open(src).read()
 
 
-def translate(data):  # pragma: no cover
+def run(data):  # pragma: no cover
     args = APP.config["args"]
     dataset = Dataset("request", data, {})
     # TODO check the dataset
@@ -43,7 +43,7 @@ def index():
     if request.method == "POST":
         source_text = request.form["source"]
         data = {"source": [source_text.split()]}
-        translation_response = translate(data)
+        translation_response = run(data)
         translation = " ".join(translation_response["target"][0])
     else:
         source_text = "enter tokenized soruce language text here ."
@@ -53,7 +53,7 @@ def index():
         "server.html", translation=translation, source=source_text)
 
 
-@APP.route("/translate", methods=["POST"])
+@APP.route("/run", methods=["POST"])
 def post_request():
     start_time = datetime.datetime.now()
     request_data = request.get_json()
@@ -63,7 +63,7 @@ def post_request():
         code = 400
     else:
         try:
-            response_data = translate(request_data)
+            response_data = run(request_data)
             code = 200
         # pylint: disable=broad-except
         except Exception as exc:

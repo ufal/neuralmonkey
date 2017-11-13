@@ -26,7 +26,7 @@ bin/neuralmonkey-server --configuration=tests/small.ini --port=5000 &
 SERVER_PID=$!
 sleep 20
 
-curl 127.0.0.1:5000 -H "Content-Type: application/json" -X POST -d '{"source": ["I am the eggman.", "I am the walrus ."]}'
+curl 127.0.0.1:5000/run -H "Content-Type: application/json" -X POST -d '{"source": ["I am the eggman.", "I am the walrus ."]}'
 kill $SERVER_PID
 
 bin/neuralmonkey-train tests/str.ini
