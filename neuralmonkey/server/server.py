@@ -42,12 +42,12 @@ def translate(data):  # pragma: no cover
 def index():
     if request.method == "POST":
         source_text = request.form["source"]
-        data = {"source_bpe": [source_text.split()]}
+        data = {"source": [source_text.split()]}
         translation_response = translate(data)
         translation = " ".join(translation_response["target"][0])
     else:
-        source_text="enter tokenized soruce language text here ."
-        translation=""
+        source_text = "enter tokenized soruce language text here ."
+        translation = ""
 
     return render_template(
         "server.html", translation=translation, source=source_text)
