@@ -76,34 +76,6 @@ def make_class_dict(clazz: Callable, **kwargs) -> Dict:
     ])
 
 
-def make_model_config() -> Configuration:
-    config = Configuration()
-    config.ignore_argument('name')
-    config.ignore_argument('train_dataset')
-    config.ignore_argument('val_dataset')
-    config.ignore_argument('test_datasets')
-    config.ignore_argument('logging_period')
-    config.ignore_argument('validation_period')
-    config.ignore_argument('epochs')
-    config.ignore_argument('val_preview_input_series')
-    config.ignore_argument('val_preview_output_series')
-    config.ignore_argument('val_preview_num_examples')
-    config.ignore_argument('visualize_embeddings')
-    config.ignore_argument('minimize')
-    config.ignore_argument('random_seed')
-    config.ignore_argument('save_n_best')
-    config.ignore_argument('overwrite_output_dir')
-    config.ignore_argument('batch_size')
-    config.add_argument('evaluation')
-    config.add_argument('runners')
-    config.add_argument('output')
-    config.add_argument('initial_variables')
-    config.add_argument('tf_manager')
-    config.add_argument('trainer')
-    config.add_argument('postprocess')
-    return config
-
-
 def make_config() -> Configuration:
     config = Configuration()
     config.add_argument('output', required=True)
@@ -111,11 +83,15 @@ def make_config() -> Configuration:
     config.add_argument('num_repeat', default=4)
     config.add_argument('encoder_output_size', required=True)
     config.add_argument('num_iterations', default=500)
-    config.add_argument('decoder_name', default='decoder')
+    config.add_argument('decoder', required=True)
     config.add_argument('logging_period', default=5)
     config.add_argument('validation_period', default=15)
     config.add_argument('preview_series')
     config.add_argument('initializer')
+    config.add_argument('trainer')
+    config.add_argument('runners')
+    config.add_argument('postprocess')
+    config.add_argument('evaluation')
     return config
 
 
@@ -128,54 +104,39 @@ def main():
     args = parser.parse_args()
 
     config = make_config()
+    config.load_file(args.model_config)
+
+    model_dir = config.args.output
+
     config.load_file(args.config)
-    config.build_model()
+    cfg_dict = config.config_dict
 
-    os.makedirs(config.model.output)
-
-    model_config = make_model_config()
-    model_config.load_file(args.model_config)
-    model_dict = model_config.config_dict
-
-    model_dir = model_dict['main']['output']
+    output_dir = config.args.output
+    os.makedirs(output_dir)
 
     # Replace original encoder with our dummy encoder
-    num_repeat = config.model.num_repeat
-    orig_encoder_name = (model_dict[config.model.decoder_name]['encoders'][0]
+    num_repeat = config.args.num_repeat
+    decoder_name = config.args.decoder.replace('object:', '')
+    orig_encoder_name = (cfg_dict[decoder_name]['encoders'][0]
                          .replace('object:', ''))
-    model_dict['dummy_encoder'] = make_class_dict(
+    cfg_dict['dummy_encoder'] = make_class_dict(
         DummyEncoder, name='dummy_encoder',
-        output_size=config.model.encoder_output_size,
+        output_size=config.args.encoder_output_size,
         batch_size=num_repeat,
-        initializer=config.model.initializer,
-        data_id=model_dict[orig_encoder_name]['data_id'])
-    model_dict[config.model.decoder_name].update(dict(
+        initializer=config.args.initializer,
+        data_id=cfg_dict[orig_encoder_name]['data_id'])
+    cfg_dict[decoder_name].update(dict(
         load_checkpoint=os.path.join(model_dir, 'variables.data'),
         encoders=['object:dummy_encoder'],
         dropout_keep_prob=1.,
     ))
 
-    # Disable regularization and decoder training
-    trainer_name = model_dict['main']['trainer'].replace('object:', '')
-    model_dict[trainer_name].update(dict(
-        l1_weight=0.,
-        l2_weight=0.,
-        var_scopes=['dummy_encoder'],
-    ))
-
-    # Add a runner that writes the learned representation to a file
-    model_dict['main']['runners'].append('object:representation_runner')
-    model_dict['representation_runner'] = make_class_dict(
-        RepresentationRunner,
-        output_series='encoded',
-        encoder='object:dummy_encoder')
-
     with tempfile.TemporaryDirectory(prefix='reverse_decoder') as tmp_dir:
         tmp_output_dir = os.path.join(tmp_dir, 'output')
-        model_dict['main']['output'] = tmp_output_dir
+        cfg_dict['main']['output'] = tmp_output_dir
         os.mkdir(tmp_output_dir)
 
-        model_config.build_model()
+        config.build_model()
 
         full_dataset = config.model.dataset
 
@@ -183,7 +144,7 @@ def main():
             # Clean up output directory
             shutil.rmtree(tmp_output_dir)
             os.mkdir(tmp_output_dir)
-            shutil.copymode(config.model.output, tmp_output_dir)
+            shutil.copymode(output_dir, tmp_output_dir)
 
             logging.Logging.set_log_file(
                 os.path.join(tmp_output_dir, 'experiment.log'))
@@ -204,12 +165,12 @@ def main():
                 training_loop(
                     tf_manager=tf_manager,
                     epochs=config.model.num_iterations,
-                    trainer=model_config.model.trainer,
+                    trainer=config.model.trainer,
                     batch_size=num_repeat,
                     runners_batch_size=num_repeat,
-                    log_directory=model_config.model.output,
-                    evaluators=[('target', AccuracySeqLevel)] + model_config.model.evaluation,
-                    runners=model_config.model.runners,
+                    log_directory=config.model.output,
+                    evaluators=config.model.evaluation,
+                    runners=config.model.runners,
                     train_dataset=dataset,
                     val_dataset=dataset,
                     test_datasets=[dataset],
@@ -218,16 +179,15 @@ def main():
                     val_preview_output_series=config.model.preview_series,
                     val_preview_input_series=config.model.preview_series,
                     val_preview_num_examples=num_repeat,
-                    postprocess=model_config.model.postprocess,
-                    initial_variables=model_config.model.initial_variables)
+                    postprocess=config.model.postprocess)
             finally:
                 tf_manager.sessions[0].close()
                 for fname in glob.glob(os.path.join(tmp_output_dir,
                                                     'variables.data*')):
                     os.remove(fname)
-                output_dir = os.path.join(config.model.output,
-                                          's{:08}'.format(i))
-                shutil.copytree(tmp_output_dir, output_dir)
+                sentence_output_dir = os.path.join(output_dir,
+                                                   's{:08}'.format(i))
+                shutil.copytree(tmp_output_dir, sentence_output_dir)
 
 if __name__ == '__main__':
     sys.exit(main())
