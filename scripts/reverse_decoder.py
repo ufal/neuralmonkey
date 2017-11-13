@@ -41,12 +41,22 @@ class DummyEncoder(ModelPart, TemporalStatefulWithOutput):
         self.batch_size = batch_size
         self.initializer = initializer
         self.data_id = data_id  # needed for RepresentationRunner
+        self.init_value = None
 
     @tensor
     def output(self) -> tf.Tensor:
         return tf.get_variable('encoder_output',
                                [self.batch_size, self.output_size],
                                initializer=self.initializer)
+
+    @tensor
+    def init_placeholder(self) -> tf.Tensor:
+        return tf.placeholder(dtype=self.output.dtype,
+                              shape=self.output.shape)
+
+    @tensor
+    def init_op(self) -> tf.Tensor:
+        return tf.assign(self.output, self.init_placeholder)
 
     @tensor
     def temporal_states(self) -> tf.Tensor:
@@ -57,15 +67,14 @@ class DummyEncoder(ModelPart, TemporalStatefulWithOutput):
         return TemporalStatefulWithOutput.temporal_mask(self)
 
     def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
-        """Populate the feed dictionary for the encoder object.
-
-        Arguments:
-            dataset: The dataset to use for the decoder.
-            train: Boolean flag, telling whether this is a training run.
-        """
         del dataset
         del train
         return {}
+
+    def load(self, session: tf.Session) -> None:
+        super().load(session)
+        if self.init_value is not None:
+            session.run(self.init_op, {self.init_placeholder: self.init_value})
 
 
 def make_class_dict(clazz: Callable, **kwargs) -> Dict:
@@ -88,6 +97,7 @@ def make_config() -> Configuration:
     config.add_argument('logging_period', default=5)
     config.add_argument('validation_period', default=15)
     config.add_argument('preview_series')
+    config.add_argument('init_with_series')
     config.add_argument('initializer')
     config.add_argument('trainer')
     config.add_argument('runners')
@@ -125,9 +135,10 @@ def main():
         batch_size=num_repeat,
         initializer=config.args.initializer,
         data_id=cfg_dict[orig_encoder_name]['data_id'])
+    dummy_encoder_ref = ObjectRef('dummy_encoder')
     cfg_dict[decoder_name].update(dict(
         load_checkpoint=os.path.join(model_dir, 'variables.data'),
-        encoders=[ObjectRef('dummy_encoder')],
+        encoders=[dummy_encoder_ref],
         dropout_keep_prob=1.,
     ))
 
@@ -139,6 +150,7 @@ def main():
         config.build_model()
 
         full_dataset = config.model.dataset
+        dummy_encoder = dummy_encoder_ref.target
 
         for i in range(len(full_dataset)):
             # Clean up output directory
@@ -159,6 +171,10 @@ def main():
                               {key: dataset.get_series(key) * num_repeat
                                for key in dataset.series_ids},
                               dataset.series_outputs)
+
+            if config.model.init_with_series:
+                dummy_encoder.init_value = dataset.get_series(
+                    config.model.init_with_series)
 
             # Train and evaluate
             try:
