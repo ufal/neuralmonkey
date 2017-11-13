@@ -45,7 +45,7 @@ class DummyEncoder(ModelPart, TemporalStatefulWithOutput):
 
     @tensor
     def output(self) -> tf.Tensor:
-        return tf.get_variable('encoder_output',
+        return tf.get_variable("encoder_output",
                                [self.batch_size, self.output_size],
                                initializer=self.initializer)
 
@@ -79,7 +79,7 @@ class DummyEncoder(ModelPart, TemporalStatefulWithOutput):
 
 def make_class_dict(clazz: Callable, **kwargs) -> Dict:
     return collections.OrderedDict([
-        ('class', ClassSymbol('{}.{}'.format(clazz.__module__,
+        ("class", ClassSymbol("{}.{}".format(clazz.__module__,
                                              clazz.__qualname__))),
         *kwargs.items()
     ])
@@ -87,31 +87,31 @@ def make_class_dict(clazz: Callable, **kwargs) -> Dict:
 
 def make_config() -> Configuration:
     config = Configuration()
-    config.add_argument('output', required=True)
-    config.add_argument('dataset', required=True)
-    config.add_argument('num_repeat', default=4)
-    config.add_argument('encoder_output_size', required=True)
-    config.add_argument('num_iterations', default=500)
-    config.add_argument('decoder', required=True)
-    config.add_argument('encoder', required=True)
-    config.add_argument('logging_period', default=5)
-    config.add_argument('validation_period', default=15)
-    config.add_argument('preview_series')
-    config.add_argument('init_with_series')
-    config.add_argument('initializer')
-    config.add_argument('trainer')
-    config.add_argument('runners')
-    config.add_argument('postprocess')
-    config.add_argument('evaluation')
+    config.add_argument("output", required=True)
+    config.add_argument("dataset", required=True)
+    config.add_argument("num_repeat", default=4)
+    config.add_argument("encoder_output_size", required=True)
+    config.add_argument("num_iterations", default=500)
+    config.add_argument("decoder", required=True)
+    config.add_argument("encoder", required=True)
+    config.add_argument("logging_period", default=5)
+    config.add_argument("validation_period", default=15)
+    config.add_argument("preview_series")
+    config.add_argument("init_with_series")
+    config.add_argument("initializer")
+    config.add_argument("trainer")
+    config.add_argument("runners")
+    config.add_argument("postprocess")
+    config.add_argument("evaluation")
     return config
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('model_config', metavar='MODEL-INI-FILE',
-                        help='the configuration file of the model')
-    parser.add_argument('config', metavar='INI-FILE',
-                        help='the configuration file for the reverse decoder')
+    parser.add_argument("model_config", metavar="MODEL-INI-FILE",
+                        help="the configuration file of the model")
+    parser.add_argument("config", metavar="INI-FILE",
+                        help="the configuration file for the reverse decoder")
     args = parser.parse_args()
 
     config = make_config()
@@ -129,22 +129,22 @@ def main():
     num_repeat = config.args.num_repeat
     decoder_name = config.args.decoder.name
     orig_encoder_name = config.args.encoder.name
-    cfg_dict['dummy_encoder'] = make_class_dict(
-        DummyEncoder, name='dummy_encoder',
+    cfg_dict["dummy_encoder"] = make_class_dict(
+        DummyEncoder, name="dummy_encoder",
         output_size=config.args.encoder_output_size,
         batch_size=num_repeat,
         initializer=config.args.initializer,
-        data_id=cfg_dict[orig_encoder_name]['data_id'])
-    dummy_encoder_ref = ObjectRef('dummy_encoder')
+        data_id=cfg_dict[orig_encoder_name]["data_id"])
+    dummy_encoder_ref = ObjectRef("dummy_encoder")
     cfg_dict[decoder_name].update(dict(
-        load_checkpoint=os.path.join(model_dir, 'variables.data'),
+        load_checkpoint=os.path.join(model_dir, "variables.data"),
         encoders=[dummy_encoder_ref],
         dropout_keep_prob=1.,
     ))
 
-    with tempfile.TemporaryDirectory(prefix='reverse_decoder') as tmp_dir:
-        tmp_output_dir = os.path.join(tmp_dir, 'output')
-        cfg_dict['main']['output'] = tmp_output_dir
+    with tempfile.TemporaryDirectory(prefix="reverse_decoder") as tmp_dir:
+        tmp_output_dir = os.path.join(tmp_dir, "output")
+        cfg_dict["main"]["output"] = tmp_output_dir
         os.mkdir(tmp_output_dir)
 
         config.build_model()
@@ -159,15 +159,15 @@ def main():
             shutil.copymode(output_dir, tmp_output_dir)
 
             logging.Logging.set_log_file(
-                os.path.join(tmp_output_dir, 'experiment.log'))
+                os.path.join(tmp_output_dir, "experiment.log"))
 
             tf_manager = TensorFlowManager(num_sessions=1, num_threads=4)
             tf_manager.init_saving(
-                os.path.join(tmp_output_dir, 'variables.data'))
+                os.path.join(tmp_output_dir, "variables.data"))
 
             # Get i-th sentence from dataset and repeat it num_repeat times
             dataset = full_dataset.subset(i, 1)
-            dataset = Dataset('{}x{}'.format(dataset.name, num_repeat),
+            dataset = Dataset("{}x{}".format(dataset.name, num_repeat),
                               {key: dataset.get_series(key) * num_repeat
                                for key in dataset.series_ids},
                               dataset.series_outputs)
@@ -199,11 +199,11 @@ def main():
             finally:
                 tf_manager.sessions[0].close()
                 for fname in glob.glob(os.path.join(tmp_output_dir,
-                                                    'variables.data*')):
+                                                    "variables.data*")):
                     os.remove(fname)
                 sentence_output_dir = os.path.join(output_dir,
-                                                   's{:08}'.format(i))
+                                                   "s{:08}".format(i))
                 shutil.copytree(tmp_output_dir, sentence_output_dir)
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(main())
