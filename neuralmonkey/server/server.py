@@ -1,9 +1,10 @@
 import argparse
+import os
 import json
 import datetime
 
 import flask
-from flask import Flask, request
+from flask import Flask, request, Response
 
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.learning_utils import run_on_dataset
@@ -15,7 +16,43 @@ APP.config.from_object(__name__)
 APP.config["args"] = None
 
 
+def root_dir():  # pragma: no cover
+    return os.path.abspath(os.path.dirname(__file__))
+
+
+def get_file(filename):  # pragma: no cover
+    src = os.path.join(root_dir(), filename)
+    return open(src).read()
+
+
+def translate(data):  # pragma: no cover
+
+
+    import pudb;pu.db
+    args = APP.config["args"]
+    dataset = Dataset("request", data, {})
+    # TODO check the dataset
+    # check_dataset_and_coders(dataset, args.encoders)
+
+    _, response_data = run_on_dataset(
+        args.tf_manager, args.runners,
+        dataset, args.postprocess, write_out=False)
+
+
 @APP.route("/", methods=["GET", "POST"])
+def index():
+
+    if request.method == "POST":
+        source_text = request.form["source"]
+        data = {"source_bpe": [source_text.split()]}
+        translation_response = translate(data)
+        print(translation_response)
+
+    content = get_file("server.html")
+    return Response(content, mimetype="text/html")
+
+
+@APP.route("/translate", methods=["POST"])
 def post_request():
     start_time = datetime.datetime.now()
     request_data = request.get_json()
@@ -24,16 +61,8 @@ def post_request():
         response_data = {"error": "No data were provided."}
         code = 400
     else:
-        args = APP.config["args"]
-
         try:
-            dataset = Dataset("request", request_data, {})
-            # TODO check the dataset
-            # check_dataset_and_coders(dataset, args.encoders)
-
-            _, response_data = run_on_dataset(
-                args.tf_manager, args.runners,
-                dataset, args.postprocess, write_out=False)
+            response_data = translate(request_data)
             code = 200
         # pylint: disable=broad-except
         except Exception as exc:
@@ -55,7 +84,7 @@ def main() -> None:
         description="Runs Neural Monkey as a web server.")
     parser.add_argument("--port", type=int, default=5000)
     parser.add_argument("--host", type=str, default="127.0.0.1")
-    parser.add_argument("--configuration", type=str)
+    parser.add_argument("--configuration", type=str, required=True)
     cli_args = parser.parse_args()
 
     print("")
