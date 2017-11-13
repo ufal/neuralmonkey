@@ -6,6 +6,7 @@ specified by the experiment configuration.
 
 import collections
 import importlib
+from argparse import Namespace
 from inspect import signature, isclass, isfunction
 from typing import Any, Dict, Set
 
@@ -60,6 +61,24 @@ class ClassSymbol(object):
         return clazz
 
 
+class ObjectRef(object):
+    """Represents a named object or its attribute in configuration."""
+
+    def __init__(self, expression: str) -> None:
+        self.name, *self.attr_chain = expression.split(".")
+        self._obj = None
+
+    def bind(self, value: Any):
+        self._obj = value
+
+    @property
+    def target(self) -> Any:
+        value = self._obj
+        for attr in self.attr_chain:
+            value = getattr(value, attr)
+        return value
+
+
 # pylint: disable=too-many-return-statements
 def build_object(value: str,
                  all_dicts: Dict[str, Any],
@@ -99,20 +118,15 @@ def build_object(value: str,
         return [build_object(val, all_dicts, existing_objects, depth + 1)
                 for val in value]
 
-    if value in existing_objects:
-        debug("Skipping already initialized value: {}".format(value),
-              "configBuild")
-
-        return existing_objects[value]
-
-    if isinstance(value, str):
-        # either a string or a reference to an object
-        if not value.startswith("object:"):
-            return value
-
-        obj = instantiate_class(value[7:], all_dicts, existing_objects, depth)
-        existing_objects[value] = obj
-        return obj
+    if isinstance(value, ObjectRef):
+        if value.name in existing_objects:
+            debug("Skipping already initialized object: {}".format(value.name),
+                  "configBuild")
+        else:
+            existing_objects[value.name] = instantiate_class(
+                value.name, all_dicts, existing_objects, depth)
+        value.bind(existing_objects[value.name])
+        return value.target
 
     if isinstance(value, ClassSymbol):
         return value.create()
@@ -190,6 +204,7 @@ def build_config(config_dicts: Dict[str, Any],
     existing_objects = collections.OrderedDict()  # type: Dict[str, Any]
 
     main_config = config_dicts["main"]
+    existing_objects["main"] = Namespace(**main_config)
 
     configuration = collections.OrderedDict()  # type: Dict[str, Any]
     # TODO ensure tf_manager goes last in a better way
@@ -204,7 +219,7 @@ def build_config(config_dicts: Dict[str, Any],
                 raise ConfigBuildException(key, exc) from None
 
     if warn_unused:
-        existing_names = {x[7:] for x in existing_objects.keys()} | {"main"}
+        existing_names = set(existing_objects.keys()) | {"main"}
         unused = config_dicts.keys() - existing_names
         if unused:
             warn("Configuration contains unused sections: "

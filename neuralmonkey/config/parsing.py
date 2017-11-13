@@ -8,18 +8,19 @@ import time
 from typing import Any, Dict, Callable, Iterable, IO, List, Tuple, Optional
 # pylint: enable=unused-import
 
-from neuralmonkey.config.builder import ClassSymbol
+from neuralmonkey.config.builder import ClassSymbol, ObjectRef
 from neuralmonkey.config.exceptions import IniError
 from neuralmonkey.logging import log
 
 LINE_NUM = re.compile(r"^(.*) ([0-9]+)$")
 
-OBJECT_REF = re.compile(r"^<([a-zA-Z][a-zA-Z0-9_]*)>$")
 INTEGER = re.compile(r"^[0-9]+$")
 FLOAT = re.compile(r"^[0-9]*\.[0-9]*(e[+-]?[0-9]+)?$")
 LIST = re.compile(r"\[([^]]*)\]")
 TUPLE = re.compile(r"\(([^]]+)\)")
 STRING = re.compile(r'^"(.*)"$')
+OBJECT_REF = re.compile(
+    r"^<([a-zA-Z][a-zA-Z0-9_]*(\.[a-zA-Z][a-zA-Z0-9_]*)*)>$")
 CLASS_NAME = re.compile(
     r"^_*[a-zA-Z][a-zA-Z0-9_]*(\._*[a-zA-Z][a-zA-Z0-9_]*)+$")
 
@@ -39,7 +40,7 @@ def _keyval_parser_dict() -> Dict[Any, Callable]:
         FLOAT: float,
         STRING: lambda x: STRING.match(x).group(1),
         CLASS_NAME: _parse_class_name,
-        OBJECT_REF: lambda x: "object:" + OBJECT_REF.match(x).group(1),
+        OBJECT_REF: lambda x: ObjectRef(OBJECT_REF.match(x).group(1)),
         LIST: _parse_list,
         TUPLE: _parse_tuple
     }
