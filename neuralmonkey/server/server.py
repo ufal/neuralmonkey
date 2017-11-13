@@ -4,7 +4,7 @@ import json
 import datetime
 
 import flask
-from flask import Flask, request, Response
+from flask import Flask, request, Response, render_template
 
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.learning_utils import run_on_dataset
@@ -26,9 +26,6 @@ def get_file(filename):  # pragma: no cover
 
 
 def translate(data):  # pragma: no cover
-
-
-    import pudb;pu.db
     args = APP.config["args"]
     dataset = Dataset("request", data, {})
     # TODO check the dataset
@@ -38,18 +35,20 @@ def translate(data):  # pragma: no cover
         args.tf_manager, args.runners,
         dataset, args.postprocess, write_out=False)
 
+    return response_data
+
 
 @APP.route("/", methods=["GET", "POST"])
 def index():
-
     if request.method == "POST":
         source_text = request.form["source"]
         data = {"source_bpe": [source_text.split()]}
         translation_response = translate(data)
-        print(translation_response)
+        translation = " ".join(translation_response["target"][0])
+    else:
+        translation=""
 
-    content = get_file("server.html")
-    return Response(content, mimetype="text/html")
+    return render_template("server.html", translation=translation)
 
 
 @APP.route("/translate", methods=["POST"])
