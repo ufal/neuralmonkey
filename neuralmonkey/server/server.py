@@ -46,9 +46,11 @@ def index():
         translation_response = translate(data)
         translation = " ".join(translation_response["target"][0])
     else:
+        source_text="enter tokenized soruce language text here ."
         translation=""
 
-    return render_template("server.html", translation=translation)
+    return render_template(
+        "server.html", translation=translation, source=source_text)
 
 
 @APP.route("/translate", methods=["POST"])

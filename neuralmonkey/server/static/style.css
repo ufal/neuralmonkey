@@ -1,0 +1,476 @@
+body {
+  padding-top: 30px;
+  padding-bottom: 40px;
+  background-color: #ddd;
+  line-height: 1.25em;
+  margin: 0px;
+  font-size: 16px;
+}
+
+.container {
+  margin-right: auto;
+  margin-left: auto;
+  width: 1170px;
+}
+
+.spacer {
+  height: 1px;
+  width: 1px;
+}
+
+.paper-sheet {
+  background-color: white;
+  box-shadow: 0px 0px 100px -60px #888 inset;
+  -webkit-box-shadow: inset 0px 0px 170px -60px #888;
+  -moz-box-shadow: inset 0px 0px 100px -60px #888;
+  border: 2px solid white;
+  position: relative;
+  padding: 30px 45px 45px 45px;
+}
+
+.site-header h1 {
+  font-size: 29px;
+  line-height: normal;
+  
+}
+
+.site-header h2 {
+  font-size: 18px;
+  line-height: 28px;
+  display: inline;
+  color: #777;
+}
+
+.site-header h2 a {
+  color: #777;
+  text-decoration: none;
+  float: left;
+  margin: 0px;
+}
+
+.contfield h3 {
+  margin-bottom: 0px;
+}
+
+.site-header a {
+  float: right;
+  margin: 10px;
+}
+
+.site-header a.ufal {
+  float: left;
+  margin-right: 45px;
+  margin-bottom: 31px;
+}
+
+.cl {
+  clear: both;
+}
+
+.navbar {
+  overflow: visible;
+  margin-bottom: 20px;
+}
+
+.navbar-inverse .navbar-inner {
+  background-color: #1b1b1b;
+  background-image: -moz-linear-gradient(top, #222222, #111111);
+  background-image: -webkit-gradient(linear, 0 0, 0 100%, from(#222222), to(#111111));
+  background-image: -webkit-linear-gradient(top, #222222, #111111);
+  background-image: -o-linear-gradient(top, #222222, #111111);
+  background-image: linear-gradient(to bottom, #222222, #111111);
+  background-repeat: repeat-x;
+  filter: progid:DXImageTransform.Microsoft.gradient(startColorstr='#ff222222', endColorstr='#ff111111', GradientType=0);
+  border-color: #252525;
+}
+
+.navbar-inner {
+  min-height: 40px;
+  padding-left: 20px;
+  padding-right: 20px;
+  background-color: #fafafa;
+  background-image: -moz-linear-gradient(top, #ffffff, #f2f2f2);
+  background-image: -webkit-gradient(linear, 0 0, 0 100%, from(#ffffff), to(#f2f2f2));
+  background-image: -webkit-linear-gradient(top, #ffffff, #f2f2f2);
+  background-image: -o-linear-gradient(top, #ffffff, #f2f2f2);
+  background-image: linear-gradient(to bottom, #ffffff, #f2f2f2);
+  background-repeat: repeat-x;
+  filter: progid:DXImageTransform.Microsoft.gradient(startColorstr='#ffffffff', endColorstr='#fff2f2f2', GradientType=0);
+  border: 1px solid #d4d4d4;
+  -webkit-border-radius: 4px;
+  -moz-border-radius: 4px;
+  border-radius: 4px;
+  -webkit-box-shadow: 0 1px 4px rgba(0, 0, 0, 0.065);
+  -moz-box-shadow: 0 1px 4px rgba(0, 0, 0, 0.065);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.065);
+}
+
+
+.navbar .nav>li {
+  float: left;
+}
+
+.navbar .nav > li > a {
+  text-transform: uppercase;
+  font-weight: bold;
+  display: block;
+  margin-top: -16px;
+}
+
+.navbar-inverse .brand, .navbar-inverse .nav>li>a {
+  color: #999999;
+  text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.25);
+}
+
+.navbar .nav>li>a {
+  float: none;
+  padding: 10px 15px 10px;
+  text-decoration: none;
+  font-family: "Helvetica Neue",Helvetica,Arial,sans-serif;
+  font-size: 14px;
+}
+
+
+ul li.collapsed, ul li.expanded, ul li.leaf {
+  list-style: none;
+  list-style-image: none;
+}
+
+.navbar ul {
+  padding-left: 0px;
+}
+
+inverse .nav>li>a:focus, .navbar-inverse .nav>li>a:hover {
+  background-color: transparent;
+  color: #ffffff;
+}
+
+.navbar-inverse .brand:hover, .navbar-inverse .nav>li>a:hover, .navbar-inverse .brand:focus, .navbar-inverse .nav>li>a:focus {
+  color: #ffffff;
+}
+
+.navbar .nav>li>a:focus, .navbar .nav>li>a:hover {
+  background-color: transparent;
+  color: #ffffff;
+  text-decoration: none;
+}
+
+.navbar .nav>li.cat {
+  float: right;
+  margin-left: -20px;
+}
+
+.navbar .nav>li.cat a {
+  font-size: 12px;
+}
+
+.arrow {
+  margin-right: 10px;
+}
+
+.recrow, .subrecrow, .subsubrecrow, .subsubsubrecrow, .subsubsubsubrecrow, .adding {
+  background: url('img/videoFldIcon.png') no-repeat top left;
+  background-size: contain;
+  padding-left: 37px;
+  line-height: 25px;
+  display: inline-block;
+  vertical-align: middle;
+  margin: 15px 0px 5px 0px;
+}
+
+.subrecrow, .subsubrecrow, .subsubsubrecrow, .subsubsubsubrecrow {
+  margin-left: 37px;
+  margin-bottom: 2px;
+  margin-top: 0px;
+  line-height: 23px;
+}
+
+.subsubrecrow {
+  margin-left: 74px;
+}
+
+.subsubsubrecrow {
+  margin-left: 111px;
+}
+
+.subsubsubsubrecrow {
+  margin-left: 148px;
+}
+
+.recrow a, .subrecrow a, .subsubrecrow a, .subsubsubrecrow a, .subsubsubsubrecrow a {
+  color: black;
+}
+
+.item {
+  background: url('img/recIcon.png') no-repeat top left;
+  background-size: 23px;
+  margin-right: 20px;
+}
+
+.adding {
+  background: url('img/addIcon.png') no-repeat top left;
+  background-size: contain;
+  line-height: 23px;
+  margin-bottom: 15px;
+}
+
+.spacer {
+  width: 100%;
+  height: 15px;
+}
+
+.recdate {
+  font-style: italic;
+  margin-right: 10px;
+}
+
+.title {
+  margin-bottom: 15px;
+  text-align: center;
+}
+
+.caption {
+  font-style: italic;
+  float: left;
+  margin-right: 15px;
+}
+
+.speaker, .abstract, .length, .date {
+  float: right;
+  width: 90%;
+  margin-bottom: 5px;
+}
+
+.abstract {
+  text-align: justify;
+}
+
+.views {
+  text-align: right;
+  font-size: 14px;
+  font-style: italic;
+  font-weight: bold;
+  margin-top: -20px;
+}
+
+.preimg {
+  float: left;
+  margin: 5px 10px 0px 0px;
+}
+
+.preimg img {
+  height: 100px;
+}
+
+.bigimg {
+  display: none;
+  position: absolute;
+  top: 25%;
+  left: 12%;
+  z-index: 500000;
+}
+
+.bordered {
+  border: 2px solid #F47B20;
+}
+
+.attachCaption {
+  font-weight: bold;
+  margin-top: 15px;
+}
+
+.leftAttach {
+  float: left;
+}
+
+.rightAttach {
+  float: right;
+  width: 50%;
+}
+
+.attachmp3, .attachmp4, .attachxvid, .attachtheora, .attachflash, .attachimage, .attachpdf, .attachpowerpoint, .attachSize, .attachViews {
+  float: left;
+  margin: 7px 15px 0px 0px;
+  padding-left: 30px;
+  width: 40%;
+}
+
+.attachmp3 {
+  background: url('img/mp3Icon.ico') no-repeat top left;
+  background-size: contain;
+}
+
+.attachmp4 {
+  background: url('img/mp4Icon.png') no-repeat top left;
+  background-size: contain;
+}
+
+.attachxvid {
+  background: url('img/xvidIcon.png') no-repeat top left;
+  background-size: contain;
+}
+
+.attachtheora {
+  background: url('img/theoraIcon.png') no-repeat top left;
+  background-size: contain;
+}
+
+.attachflash {
+  background: url('img/flashIcon.png') no-repeat top left;
+  background-size: contain;
+}
+
+.attachimage {
+  background: url('img/imageIcon.png') no-repeat top left;
+  background-size: contain;
+}
+
+.attachpdf {
+  background: url('img/pdfIcon.png') no-repeat top left;
+  background-size: contain;
+}
+
+.attachpowerpoint {
+  background: url('img/powerpointIcon.png') no-repeat top left;
+  background-size: contain;
+}
+
+.attachSize {
+  width: 10%;
+}
+
+.attachViews {
+  width: 20%;
+}
+
+.small {
+  font-size: 12px;
+}
+
+.question {
+  font-style: italic;
+  margin: 15px 0px 5px 0px;
+}
+
+.answer {
+  margin-left: 16px;
+}
+
+form {
+  margin-left: 15px;
+  margin-top: 15px;
+}
+
+label {
+  float: left;
+  display; block;
+  line-height: 24px;
+  text-align: center;
+}
+
+input {
+  display: block;
+  float: right;
+}
+
+.logForm {
+  width: 260px;
+}
+
+.logFormElem {
+  width: 145px;
+}
+
+.admin {
+  float: right;
+}
+
+.admin a {
+  font-size: 11px;
+  color: grey;
+  text-decoration: none;
+}
+
+.addForm, .addCatForm {
+  width: 600px;
+}
+
+.addForm label {
+  width: 51px;
+}
+
+.addCatForm label {
+  width: 90px;
+}
+
+.addFormElem {
+  width: 520px;
+}
+
+.addCatForm .addFormElem {
+  width: 480px;
+}
+
+.txt {
+  width: 81%;
+  height: 150px;
+  margin-left: 11px;
+}
+
+.tl {
+  background: #f47b20;
+  margin-top: 10px;
+}
+
+#typeDropdown {
+  width: 524px;
+  float: right;
+}
+
+.editdel {
+  float: right;
+}
+
+.editCont {
+  display: inline-block;
+}
+
+.icon {
+  width: 20px;
+  height: 20px;
+  margin-left: 10px;
+}
+
+.indexCont .editdel {
+  margin: 15px 0px 5px 0px;
+}
+
+.attachMod {
+  background: url('img/modifyIcon.png') no-repeat top left;
+  background-size: contain;
+  padding-left: 37px;
+  line-height: 20px;
+  vertical-align: middle;
+  margin: 0px 0px 25px 0px;
+}
+
+.err, .mesg {
+  color: red;
+  text-align: center;
+}
+
+.bi {
+  font-weight: bold;
+  font-style: italic;
+  color: black;
+}
+
+.bi a {
+  color: black;
+}
+
+@-moz-document url-prefix() {
+    .contfield {
+      font-size: 14px;
+    }
+}
