@@ -11,7 +11,7 @@ from typing import Callable, Dict
 import tensorflow as tf
 
 from neuralmonkey.config.configuration import Configuration
-from neuralmonkey.config.builder import ClassSymbol
+from neuralmonkey.config.builder import ClassSymbol, ObjectRef
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.decorators import tensor
 from neuralmonkey.evaluators.accuracy import AccuracySeqLevel
@@ -84,6 +84,7 @@ def make_config() -> Configuration:
     config.add_argument('encoder_output_size', required=True)
     config.add_argument('num_iterations', default=500)
     config.add_argument('decoder', required=True)
+    config.add_argument('encoder', required=True)
     config.add_argument('logging_period', default=5)
     config.add_argument('validation_period', default=15)
     config.add_argument('preview_series')
@@ -116,9 +117,8 @@ def main():
 
     # Replace original encoder with our dummy encoder
     num_repeat = config.args.num_repeat
-    decoder_name = config.args.decoder.replace('object:', '')
-    orig_encoder_name = (cfg_dict[decoder_name]['encoders'][0]
-                         .replace('object:', ''))
+    decoder_name = config.args.decoder.name
+    orig_encoder_name = config.args.encoder.name
     cfg_dict['dummy_encoder'] = make_class_dict(
         DummyEncoder, name='dummy_encoder',
         output_size=config.args.encoder_output_size,
@@ -127,7 +127,7 @@ def main():
         data_id=cfg_dict[orig_encoder_name]['data_id'])
     cfg_dict[decoder_name].update(dict(
         load_checkpoint=os.path.join(model_dir, 'variables.data'),
-        encoders=['object:dummy_encoder'],
+        encoders=[ObjectRef('dummy_encoder')],
         dropout_keep_prob=1.,
     ))
 
