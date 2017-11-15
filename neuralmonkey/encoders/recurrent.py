@@ -5,7 +5,7 @@ from typeguard import check_argument_types
 
 from neuralmonkey.model.stateful import TemporalStatefulWithOutput
 from neuralmonkey.model.model_part import ModelPart, FeedDict
-from neuralmonkey.nn.ortho_gru_cell import OrthoGRUCell
+from neuralmonkey.nn.ortho_gru_cell import OrthoGRUCell, NematusGRUCell
 from neuralmonkey.nn.utils import dropout
 from neuralmonkey.vocabulary import Vocabulary
 from neuralmonkey.dataset import Dataset
@@ -18,6 +18,7 @@ RNNCellTuple = Tuple[tf.contrib.rnn.RNNCell, tf.contrib.rnn.RNNCell]
 # pylint: enable=invalid-name
 
 RNN_CELL_TYPES = {
+    "NematusGRU": NematusGRUCell,
     "GRU": OrthoGRUCell,
     "LSTM": tf.contrib.rnn.LSTMCell
 }
@@ -52,7 +53,8 @@ class RecurrentEncoder(ModelPart, TemporalStatefulWithOutput):
             raise ValueError("Dropout keep prob must be inside (0,1].")
 
         if self.rnn_cell_str not in RNN_CELL_TYPES:
-            raise ValueError("RNN cell must be a either 'GRU' or 'LSTM'")
+            raise ValueError("RNN cell must be a either 'GRU', 'LSTM', or "
+                             "'NematusGRU'. Not {}".format(self.rnn_cell_str))
 
         if output_size is not None:
             if output_size <= 0:
@@ -63,7 +65,6 @@ class RecurrentEncoder(ModelPart, TemporalStatefulWithOutput):
         else:
             self._project_final_state = False
             self.output_size = 2 * rnn_size
-
     # pylint: enable=too-many-arguments
 
     # pylint: disable=no-self-use
@@ -97,7 +98,7 @@ class RecurrentEncoder(ModelPart, TemporalStatefulWithOutput):
     @tensor
     def output(self) -> tf.Tensor:
         # pylint: disable=unsubscriptable-object
-        if self.rnn_cell_str == "GRU":
+        if self.rnn_cell_str in ["GRU", "NematusGRU"]:
             output = tf.concat(self.bidirectional_rnn[1], 1)
         elif self.rnn_cell_str == "LSTM":
             # TODO is "h" what we want?

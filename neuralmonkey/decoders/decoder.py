@@ -16,7 +16,7 @@ from neuralmonkey.model.sequence import EmbeddedSequence
 from neuralmonkey.model.stateful import (TemporalStatefulWithOutput,
                                          SpatialStatefulWithOutput)
 from neuralmonkey.logging import log, warn
-from neuralmonkey.nn.ortho_gru_cell import OrthoGRUCell
+from neuralmonkey.nn.ortho_gru_cell import OrthoGRUCell, NematusGRUCell
 from neuralmonkey.nn.utils import dropout
 from neuralmonkey.decoders.encoder_projection import (
     linear_encoder_projection, concat_encoder_projection, empty_initial_state)
@@ -26,6 +26,7 @@ from neuralmonkey.decorators import tensor
 
 
 RNN_CELL_TYPES = {
+    "NematusGRU": NematusGRUCell,
     "GRU": OrthoGRUCell,
     "LSTM": tf.contrib.rnn.LSTMCell
 }
@@ -164,7 +165,8 @@ class Decoder(ModelPart):
         assert self.rnn_size is not None
 
         if self._rnn_cell_str not in RNN_CELL_TYPES:
-            raise ValueError("RNN cell must be a either 'GRU' or 'LSTM'")
+            raise ValueError("RNN cell must be a either 'GRU', 'LSTM', or "
+                             "'NematusGRU'. Not {}".format(self._rnn_cell_str))
 
         if self.output_projection_spec is None:
             log("No output projection specified - using tanh projection")
@@ -365,7 +367,7 @@ class Decoder(ModelPart):
         return RNN_CELL_TYPES[self._rnn_cell_str](self.rnn_size)
 
     def _get_conditional_gru_cell(self) -> tf.contrib.rnn.GRUCell:
-        return tf.contrib.rnn.GRUCell(self.rnn_size)
+        return RNN_CELL_TYPES[self._rnn_cell_str](self.rnn_size)
 
     def embed_input_symbol(self, *args) -> tf.Tensor:
         loop_state = LoopState(*args)
@@ -403,7 +405,7 @@ class Decoder(ModelPart):
 
                 # Run the RNN.
                 cell = self._get_rnn_cell()
-                if self._rnn_cell_str == "GRU":
+                if self._rnn_cell_str in ["GRU", "NematusGRU"]:
                     cell_output, state = cell(rnn_input,
                                               loop_state.prev_rnn_output)
                     next_state = state
