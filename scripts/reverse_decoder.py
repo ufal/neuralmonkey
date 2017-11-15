@@ -50,15 +50,6 @@ class DummyEncoder(ModelPart, TemporalStatefulWithOutput):
                                initializer=self.initializer)
 
     @tensor
-    def init_placeholder(self) -> tf.Tensor:
-        return tf.placeholder(dtype=self.output.dtype,
-                              shape=self.output.shape)
-
-    @tensor
-    def init_op(self) -> tf.Tensor:
-        return tf.assign(self.output, self.init_placeholder)
-
-    @tensor
     def temporal_states(self) -> tf.Tensor:
         return TemporalStatefulWithOutput.temporal_states(self)
 
@@ -70,11 +61,6 @@ class DummyEncoder(ModelPart, TemporalStatefulWithOutput):
         del dataset
         del train
         return {}
-
-    def load(self, session: tf.Session) -> None:
-        super().load(session)
-        if self.init_value is not None:
-            session.run(self.init_op, {self.init_placeholder: self.init_value})
 
 
 def make_class_dict(clazz: Callable, **kwargs) -> Dict:
@@ -151,6 +137,9 @@ def main():
 
         full_dataset = config.model.dataset
         dummy_encoder = dummy_encoder_ref.target
+        init_value = tf.placeholder(shape=dummy_encoder.output.shape,
+                                    dtype=dummy_encoder.output.dtype)
+        init_op = tf.assign(dummy_encoder.output, init_value)
 
         for i in range(len(full_dataset)):
             # Clean up output directory
@@ -173,8 +162,9 @@ def main():
                               dataset.series_outputs)
 
             if config.model.init_with_series:
-                dummy_encoder.init_value = dataset.get_series(
-                    config.model.init_with_series)
+                init_data = dataset.get_series(config.model.init_with_series)
+                tf_manager.sessions[0].run(init_op,
+                                           feed_dict={init_value: init_data})
 
             # Train and evaluate
             try:
