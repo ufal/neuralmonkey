@@ -1,0 +1,58 @@
+<!doctype html>
+<title>Neural Monkey Server</title>
+<link rel="stylesheet" type="text/css" href="{{url_for('static', filename='style.css') }}">
+<link rel="stylesheet" type="text/css" href="{{url_for('static', filename='server.css') }}">
+
+<div class="container">
+  <div class="paper-sheet">
+
+    <div class="site-header clearfix" style="font-family: 'Anaheim', sans-serif;">
+      <a class="cuni" href="http://www.cuni.cz/">
+	<img src="https://ufal.mff.cuni.cz/sites/all/themes/drufal/css/logo/logo-uk-red.png" alt="Logo UK" title="Charles University in Prague">
+      </a>
+      <a href="http://www.mff.cuni.cz/">
+	<img src="https://ufal.mff.cuni.cz/sites/all/themes/drufal/css/logo/logo_mff_103.png" alt="Logo MFF" title="Faculty of Mathematics and Physics">
+      </a>
+      <a class="ufal" href="http://lectures.ms.mff.cuni.cz/">
+	<img src="http://ufal.mff.cuni.cz/sites/all/themes/drufal/css/logo/logo_ufal_110.png" height="88" alt="Logo UFAL" title="Institute of Formal and Applied Linguistics">
+      </a>
+      <div class="spacer"></div>
+      <h1>Neural Monkey Server</h1>
+      <h2><a href="http://ufal.mff.cuni.cz">Institute of Formal and Applied&nbsp;Linguistics</a></h2>
+    </div>
+
+    <div class="cl"></div>
+
+    <div class="navbar">
+      <div class="navbar-inverse">
+	<div class="navbar-inner">
+	  <ul class="menu nav">
+	    <li class="first leaf"><a href="{{ url_for('index') }}">Translate</a></li>
+	  </ul>
+	</div>
+      </div>
+    </div>
+
+    <div class="contfield">
+    <form id="translation-form" method="POST">
+
+      <div class="label">
+	<label for="source">Source text:</label>
+      </div>
+      <div class="control">
+	<textarea name="source" id="source">{{ source }}</textarea>
+      </div>
+
+      <div class="control" id="submit-div">
+	<input type="submit" value="Submit"/>
+      </div>
+    </form>
+
+    <div class="clear"></div>
+    <div class="translation">
+      <p>{{ translation }}</p>
+    </div>
+    </div>
+  </div>
+
+</div>

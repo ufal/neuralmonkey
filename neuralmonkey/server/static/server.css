@@ -1,0 +1,43 @@
+.label {
+    height: 20px;
+    margin-bottom: 15px;
+}
+
+.label  label {
+    font-size: 1.5em;
+    clear: both;
+}
+
+.control {
+    clear: both;
+}
+
+.clear {
+    clear: both;
+}
+
+#submit-div {
+    text-align: left;
+}
+
+#submit-div input {
+    width: 100px;
+    height: 40px;
+    font-size: 1.5em;
+}
+
+textarea {
+    width: 98%;
+    height: 200px;
+    font-size: 1.5em;
+    font-weight: bold;
+}
+
+.translation {
+    width: 98%;
+}
+
+.translation p {
+    font-size: 1.5em;
+    text-align: center;
+}
