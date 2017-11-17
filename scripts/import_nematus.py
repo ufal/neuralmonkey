@@ -12,9 +12,11 @@ import tensorflow as tf
 from neuralmonkey.config.parsing import parse_file
 from neuralmonkey.config.builder import build_config
 from neuralmonkey.attention.feed_forward import Attention
-from neuralmonkey.encoders.recurrent import SentenceEncoder
+from neuralmonkey.encoders.recurrent import RecurrentEncoder
 from neuralmonkey.decoders.decoder import Decoder
-from neuralmonkey.decoders.output_projection import nonlinear_output
+from neuralmonkey.decoders.encoder_projection import nematus_projection
+from neuralmonkey.decoders.output_projection import nematus_output
+from neuralmonkey.model.sequence import EmbeddedSequence
 from neuralmonkey.vocabulary import from_nematus_json
 from neuralmonkey.logging import log as _log
 
@@ -47,8 +49,9 @@ def emb_fix(variables: List[np.ndarray], dim: int = 0) -> np.ndarray:
     variable = variables[0]
     shape = variable.shape
 
-    # insert start token (hack from nematus - last from vocab - does it work?)
-    to_insert = np.squeeze(variable[-1] if dim == 0 else variable[:, -1])
+    # insert start token (hack from nematus - last from vocab - does it work? NO)
+    # to_insert = np.squeeze(variable[-1] if dim == 0 else variable[:, -1])
+    to_insert = np.zeros(shape[1 - dim]) if len(shape) > 1 else 0.
     variable = np.insert(variable, 0, to_insert, axis=dim)
 
     # insert padding token
@@ -79,31 +82,44 @@ VARIABLE_MAP = {
     "decoder/word_embeddings": (["Wemb_dec"], emb_fix),
     "decoder/state_to_word_W": (["ff_logit_W"], emb_fix_dim1),
     "decoder/state_to_word_b": (["ff_logit_b"], emb_fix_flat),
-    "encoder/bidirectional_rnn/fw/OrthoGRUCell/gates/kernel": (["encoder_W", "encoder_U"], concat_vars),
-    "encoder/bidirectional_rnn/fw/OrthoGRUCell/gates/bias": (["encoder_b"], None),
-    "encoder/bidirectional_rnn/fw/OrthoGRUCell/candidate/kernel": (["encoder_Wx", "encoder_Ux"], concat_vars),
-    "encoder/bidirectional_rnn/fw/OrthoGRUCell/candidate/bias": (["encoder_bx"], None),
-    "encoder/bidirectional_rnn/bw/OrthoGRUCell/gates/kernel": (["encoder_r_W", "encoder_r_U"], concat_vars),
-    "encoder/bidirectional_rnn/bw/OrthoGRUCell/gates/bias": (["encoder_r_b"], None),
-    "encoder/bidirectional_rnn/bw/OrthoGRUCell/candidate/kernel": (["encoder_r_Wx", "encoder_r_Ux"], concat_vars),
-    "encoder/bidirectional_rnn/bw/OrthoGRUCell/candidate/bias": (["encoder_r_bx"], None),
+    "encoder/bidirectional_rnn/fw/nematus_gru_cell/gates/state_proj/kernel": (["encoder_U"], None),
+    "encoder/bidirectional_rnn/fw/nematus_gru_cell/gates/input_proj/kernel": (["encoder_W"], None),
+    "encoder/bidirectional_rnn/fw/nematus_gru_cell/gates/input_proj/bias": (["encoder_b"], None),
+    "encoder/bidirectional_rnn/fw/nematus_gru_cell/candidate/state_proj/kernel": (["encoder_Ux"], None),
+    "encoder/bidirectional_rnn/fw/nematus_gru_cell/candidate/input_proj/kernel": (["encoder_Wx"], None),
+    "encoder/bidirectional_rnn/fw/nematus_gru_cell/candidate/input_proj/bias": (["encoder_bx"], None),
+    "encoder/bidirectional_rnn/bw/nematus_gru_cell/gates/state_proj/kernel": (["encoder_r_U"], None),
+    "encoder/bidirectional_rnn/bw/nematus_gru_cell/gates/input_proj/kernel": (["encoder_r_W"], None),
+    "encoder/bidirectional_rnn/bw/nematus_gru_cell/gates/input_proj/bias": (["encoder_r_b"], None),
+    "encoder/bidirectional_rnn/bw/nematus_gru_cell/candidate/state_proj/kernel": (["encoder_r_Ux"], None),
+    "encoder/bidirectional_rnn/bw/nematus_gru_cell/candidate/input_proj/kernel": (["encoder_r_Wx"], None),
+    "encoder/bidirectional_rnn/bw/nematus_gru_cell/candidate/input_proj/bias": (["encoder_r_bx"], None),
     "decoder/initial_state/encoders_projection/kernel": (["ff_state_W"], None),
     "decoder/initial_state/encoders_projection/bias": (["ff_state_b"], None),
-    "decoder/attention_decoder/OrthoGRUCell/gates/kernel": (["decoder_W", "decoder_U"], concat_vars),
-    "decoder/attention_decoder/OrthoGRUCell/gates/bias": (["decoder_b"], None),
-    "decoder/attention_decoder/OrthoGRUCell/candidate/kernel": (["decoder_Wx", "decoder_Ux"], concat_vars),
-    "decoder/attention_decoder/OrthoGRUCell/candidate/bias": (["decoder_bx"], None),
+    "decoder/attention_decoder/nematus_gru_cell/gates/state_proj/kernel": (["decoder_U"], None),
+    "decoder/attention_decoder/nematus_gru_cell/gates/input_proj/kernel": (["decoder_W"], None),
+    "decoder/attention_decoder/nematus_gru_cell/gates/input_proj/bias": (["decoder_b"], None),
+    "decoder/attention_decoder/nematus_gru_cell/candidate/state_proj/kernel": (["decoder_Ux"], None),
+    "decoder/attention_decoder/nematus_gru_cell/candidate/input_proj/kernel": (["decoder_Wx"], None),
+    "decoder/attention_decoder/nematus_gru_cell/candidate/input_proj/bias": (["decoder_bx"], None),
     "attention/attn_key_projection": (["decoder_Wc_att"], None),
     "attention/attn_projection_bias": (["decoder_b_att"], None),
     "attention/Attention/attn_query_projection": (["decoder_W_comb_att"], None),
     "attention/attn_similarity_v": (["decoder_U_att"], squeeze),
     "attention/attn_bias": (["decoder_c_tt"], squeeze),
-    "decoder/attention_decoder/cond_gru_2_cell/gates/kernel": (["decoder_Wc", "decoder_U_nl"], concat_vars),
-    "decoder/attention_decoder/cond_gru_2_cell/gates/bias": (["decoder_b_nl"], None),
-    "decoder/attention_decoder/cond_gru_2_cell/candidate/kernel": (["decoder_Wcx", "decoder_Ux_nl"], concat_vars),
-    "decoder/attention_decoder/cond_gru_2_cell/candidate/bias": (["decoder_bx_nl"], None),
-    "decoder/attention_decoder/dense/kernel": (["ff_logit_lstm_W", "ff_logit_prev_W", "ff_logit_ctx_W"], concat_vars),
-    "decoder/attention_decoder/dense/bias": (["ff_logit_lstm_b", "ff_logit_prev_b", "ff_logit_ctx_b"], sum_vars)
+    "decoder/attention_decoder/cond_gru_2_cell/gates/state_proj/kernel": (["decoder_U_nl"], None),
+    "decoder/attention_decoder/cond_gru_2_cell/gates/input_proj/kernel": (["decoder_Wc"], None),
+    "decoder/attention_decoder/cond_gru_2_cell/gates/state_proj/bias": (["decoder_b_nl"], None),
+    "decoder/attention_decoder/cond_gru_2_cell/candidate/state_proj/kernel": (["decoder_Ux_nl"], None),
+    "decoder/attention_decoder/cond_gru_2_cell/candidate/input_proj/kernel": (["decoder_Wcx"], None),
+    "decoder/attention_decoder/cond_gru_2_cell/candidate/state_proj/bias": (["decoder_bx_nl"], None),
+
+    "decoder/attention_decoder/rnn_state/kernel": (["ff_logit_lstm_W"], None),
+    "decoder/attention_decoder/rnn_state/bias": (["ff_logit_lstm_b"], None),
+    "decoder/attention_decoder/prev_out/kernel": (["ff_logit_prev_W"], None),
+    "decoder/attention_decoder/prev_out/bias": (["ff_logit_prev_b"], None),
+    "decoder/attention_decoder/context/kernel": (["ff_logit_ctx_W"], None),
+    "decoder/attention_decoder/context/bias": (["ff_logit_ctx_b"], None)
 }
 # pylint: enable=line-too-long
 
@@ -161,17 +177,25 @@ pad_to_max_size=True
 
 ENCODER_TEMPLATE = """\
 [encoder]
-class=encoders.SentenceEncoder
+class=encoders.RecurrentEncoder
+name="{}"
+input_sequence=<input_sequence>
+rnn_size={}
+rnn_cell="NematusGRU"
+dropout_keep_prob=1.0
+
+[input_sequence]
+class=model.sequence.EmbeddedSequence
 name="{}"
 vocabulary=<vocabulary_src>
 data_id="source"
 embedding_size={}
-rnn_size={}
-max_input_len={}
+max_length={}
+add_end_symbol=True
 """
 
 
-def build_encoder(config: Dict) -> Tuple[SentenceEncoder, str]:
+def build_encoder(config: Dict) -> Tuple[RecurrentEncoder, str]:
     vocabulary = from_nematus_json(
         config["src_vocabulary"], max_size=config["n_words_src"],
         pad_to_max_size=True)
@@ -179,16 +203,22 @@ def build_encoder(config: Dict) -> Tuple[SentenceEncoder, str]:
     vocabulary_ini = VOCABULARY_TEMPLATE.format(
         "src", config["src_vocabulary"], config["n_words_src"])
 
-    encoder = SentenceEncoder(
-        name=ENCODER_NAME,
+    inp_seq_name = "{}_input".format(ENCODER_NAME)
+    inp_seq = EmbeddedSequence(
+        name=inp_seq_name,
         vocabulary=vocabulary,
         data_id="source",
-        embedding_size=config["embedding_size"],
-        rnn_size=config["rnn_size"])
+        embedding_size=config["embedding_size"])
+
+    encoder = RecurrentEncoder(
+        name=ENCODER_NAME,
+        input_sequence=inp_seq,
+        rnn_size=config["rnn_size"],
+        rnn_cell="NematusGRU")
 
     encoder_ini = ENCODER_TEMPLATE.format(
-        ENCODER_NAME, config["embedding_size"],
-        config["rnn_size"], config["max_length"])
+        ENCODER_NAME, config["rnn_size"],
+        inp_seq_name, config["embedding_size"], config["max_length"])
 
     return encoder, "\n".join([vocabulary_ini, encoder_ini])
 
@@ -198,11 +228,12 @@ ATTENTION_TEMPLATE = """\
 class=attention.Attention
 name="{}"
 encoder=<encoder>
+dropout_keep_prob=1.0
 """
 
 
 def build_attention(config: Dict,
-                    encoder: SentenceEncoder) -> Tuple[Attention, str]:
+                    encoder: RecurrentEncoder) -> Tuple[Attention, str]:
     attention = Attention(
         name=ATTENTION_NAME,
         encoder=encoder)
@@ -222,21 +253,28 @@ embedding_size={}
 rnn_size={}
 max_output_len={}
 encoders=[<encoder>]
-encoder_projection=decoders.encoder_projection.nematus_projection
+encoder_projection=<nematus_mean>
 attentions=[<attention>]
 attention_on_input=False
 conditional_gru=True
-output_projection=<nonlinear>
+output_projection=<nematus_nonlinear>
+rnn_cell="NematusGRU"
+dropout_keep_prob=1.0
 
-[nonlinear]
-class=decoders.output_projection.nonlinear_output
+[nematus_nonlinear]
+class=decoders.output_projection.nematus_output
 output_size={}
+dropout_keep_prob=1.0
+
+[nematus_mean]
+class=decoders.encoder_projection.nematus_projection
+dropout_keep_prob=1.0
 """
 
 
 def build_decoder(config: Dict,
                   attention: Attention,
-                  encoder: SentenceEncoder) -> Tuple[Decoder, str]:
+                  encoder: RecurrentEncoder) -> Tuple[Decoder, str]:
     vocabulary = from_nematus_json(
         config["tgt_vocabulary"],
         max_size=config["n_words_tgt"],
@@ -256,7 +294,9 @@ def build_decoder(config: Dict,
         attentions=[attention],
         attention_on_input=False,
         conditional_gru=True,
-        output_projection=nonlinear_output(config["embedding_size"]))
+        encoder_projection=nematus_projection(dropout_keep_prob=1.0),
+        output_projection=nematus_output(config["embedding_size"]),
+        rnn_cell="NematusGRU")
 
     decoder_ini = DECODER_TEMPLATE.format(
         DECODER_NAME, config["embedding_size"], config["rnn_size"],
@@ -266,7 +306,7 @@ def build_decoder(config: Dict,
 
 
 def build_model(config: Dict) -> Tuple[
-        SentenceEncoder, Attention, Decoder, str]:
+        RecurrentEncoder, Attention, Decoder, str]:
     encoder, encoder_cfg = build_encoder(config)
     attention, attention_cfg = build_attention(config, encoder)
     decoder, decoder_cfg = build_decoder(config, attention, encoder)

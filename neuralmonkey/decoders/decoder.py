@@ -1,7 +1,7 @@
 # pylint: disable=too-many-lines
 import math
-from typing import (cast, Iterable, List, Callable, Optional,
-                    Any, Tuple, NamedTuple, Union)
+from typing import (cast, Iterable, List, Callable, Optional, Any, Tuple,
+                    NamedTuple)
 
 import numpy as np
 import tensorflow as tf
@@ -13,13 +13,13 @@ from neuralmonkey.vocabulary import (Vocabulary, START_TOKEN, END_TOKEN_INDEX,
                                      PAD_TOKEN_INDEX)
 from neuralmonkey.model.model_part import ModelPart, FeedDict
 from neuralmonkey.model.sequence import EmbeddedSequence
-from neuralmonkey.model.stateful import (TemporalStatefulWithOutput,
-                                         SpatialStatefulWithOutput)
+from neuralmonkey.model.stateful import Stateful
 from neuralmonkey.logging import log, warn
 from neuralmonkey.nn.ortho_gru_cell import OrthoGRUCell, NematusGRUCell
 from neuralmonkey.nn.utils import dropout
 from neuralmonkey.decoders.encoder_projection import (
-    linear_encoder_projection, concat_encoder_projection, empty_initial_state)
+    linear_encoder_projection, concat_encoder_projection, empty_initial_state,
+    EncoderProjection)
 from neuralmonkey.decoders.output_projection import (OutputProjectionSpec,
                                                      nonlinear_output)
 from neuralmonkey.decorators import tensor
@@ -63,9 +63,7 @@ class Decoder(ModelPart):
     # pylint: disable=too-many-locals
     # pylint: disable=too-many-arguments,too-many-branches,too-many-statements
     def __init__(self,
-                 # TODO only stateful, attention will need temporal or spat.
-                 encoders: List[Union[TemporalStatefulWithOutput,
-                                      SpatialStatefulWithOutput]],
+                 encoders: List[Stateful],
                  vocabulary: Vocabulary,
                  data_id: str,
                  name: str,
@@ -74,9 +72,7 @@ class Decoder(ModelPart):
                  rnn_size: int = None,
                  embedding_size: int = None,
                  output_projection: OutputProjectionSpec = None,
-                 encoder_projection: Callable[
-                     [tf.Tensor, Optional[int], Optional[List[Any]]],
-                     tf.Tensor]=None,
+                 encoder_projection: EncoderProjection = None,
                  attentions: List[BaseAttention] = None,
                  embeddings_source: EmbeddedSequence = None,
                  attention_on_input: bool = True,
@@ -367,6 +363,10 @@ class Decoder(ModelPart):
         return RNN_CELL_TYPES[self._rnn_cell_str](self.rnn_size)
 
     def _get_conditional_gru_cell(self) -> tf.contrib.rnn.GRUCell:
+        if self._rnn_cell_str == "NematusGRU":
+            return NematusGRUCell(
+                self.rnn_size, use_state_bias=True, use_input_bias=False)
+
         return RNN_CELL_TYPES[self._rnn_cell_str](self.rnn_size)
 
     def embed_input_symbol(self, *args) -> tf.Tensor:
@@ -406,15 +406,16 @@ class Decoder(ModelPart):
                 # Run the RNN.
                 cell = self._get_rnn_cell()
                 if self._rnn_cell_str in ["GRU", "NematusGRU"]:
-                    cell_output, state = cell(rnn_input,
-                                              loop_state.prev_rnn_output)
-                    next_state = state
+                    cell_output, next_state = cell(
+                        rnn_input, loop_state.prev_rnn_output)
+
                     attns = [
                         a.attention(cell_output, loop_state.prev_rnn_output,
                                     rnn_input, att_loop_state, loop_state.step)
                         for a, att_loop_state in zip(
                             self.attentions,
                             loop_state.attention_loop_states)]
+
                     if self.attentions:
                         contexts, att_loop_states = zip(*attns)
                     else:
@@ -423,8 +424,9 @@ class Decoder(ModelPart):
                     if self._conditional_gru:
                         cell_cond = self._get_conditional_gru_cell()
                         cond_input = tf.concat(contexts, -1)
-                        cell_output, state = cell_cond(cond_input, state,
-                                                       scope="cond_gru_2_cell")
+                        cell_output, next_state = cell_cond(
+                            cond_input, next_state, scope="cond_gru_2_cell")
+
                 elif self._rnn_cell_str == "LSTM":
                     prev_state = tf.contrib.rnn.LSTMStateTuple(
                         loop_state.prev_rnn_state, loop_state.prev_rnn_output)

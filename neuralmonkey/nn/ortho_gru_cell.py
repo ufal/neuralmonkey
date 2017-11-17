@@ -18,18 +18,26 @@ class OrthoGRUCell(tf.contrib.rnn.GRUCell):
         return tf.contrib.rnn.GRUCell.__call__(self, inputs, state, scope)
 
 
+# Note that tensorflow does not like when the typing annotations are present.
 class NematusGRUCell(tf.contrib.rnn.GRUCell):
+
+    def __init__(self, rnn_size, use_state_bias=False, use_input_bias=True):
+        self.use_state_bias = use_state_bias
+        self.use_input_bias = use_input_bias
+
+        tf.contrib.rnn.GRUCell.__init__(self, rnn_size)
 
     def call(self, inputs, state):
         """Gated recurrent unit (GRU) with nunits cells."""
         with tf.variable_scope("gates"):
             input_to_gates = tf.layers.dense(
-                inputs, 2 * self._num_units, name="input_proj")
+                inputs, 2 * self._num_units, name="input_proj",
+                use_bias=self.use_input_bias)
 
             # Nematus does the orthogonal initialization probably differently
             state_to_gates = tf.layers.dense(
                 state, 2 * self._num_units,
-                use_bias=False,
+                use_bias=self.use_state_bias,
                 kernel_initializer=tf.orthogonal_initializer(),
                 name="state_proj")
 
@@ -39,10 +47,12 @@ class NematusGRUCell(tf.contrib.rnn.GRUCell):
 
         with tf.variable_scope("candidate"):
             input_to_candidate = tf.layers.dense(
-                inputs, self._num_units, name="input_proj")
+                inputs, self._num_units, use_bias=self.use_input_bias,
+                name="input_proj")
 
             state_to_candidate = tf.layers.dense(
-                state, self._num_units, use_bias=False, name="state_proj")
+                state, self._num_units, use_bias=self.use_state_bias,
+                name="state_proj")
 
             candidate = self._activation(
                 state_to_candidate * reset + input_to_candidate)

@@ -5,6 +5,7 @@ import tensorflow as tf
 from typeguard import check_argument_types
 
 from neuralmonkey.nn.projection import multilayer_projection, maxout
+from neuralmonkey.nn.utils import dropout
 
 
 # pylint: disable=invalid-name
@@ -53,6 +54,35 @@ def _legacy_relu(output_size: int) -> Tuple[OutputProjection, int]:
                                activation=tf.nn.relu,
                                name="AttnOutputProjection")
     # pylint: enable=unused-argument
+
+    return _projection, output_size
+
+
+def nematus_output(
+        output_size: int,
+        dropout_keep_prob: float = 1.0) -> Tuple[OutputProjection, int]:
+    """Apply nonlinear one-hidden-layer deep output.
+
+    Implementation consistent with Nematus.
+    Can be used instead of nonlinear_output.
+
+    Projects the RNN state, embedding of the previously outputted word, and
+    concatenation of all context vectors into a shared vector space, sums them
+    up and apply a hyperbolic tangent activation function.
+    """
+    check_argument_types()
+
+    def _projection(prev_state, prev_output, ctx_tensors, train_mode):
+        prev_state = dropout(prev_state, dropout_keep_prob, train_mode)
+        prev_output = dropout(prev_output, dropout_keep_prob, train_mode)
+        ctx_concat = tf.concat(ctx_tensors, 1)
+        ctx = dropout(ctx_concat, dropout_keep_prob, train_mode)
+
+        logit_rnn = tf.layers.dense(prev_state, output_size, name="rnn_state")
+        logit_emb = tf.layers.dense(prev_output, output_size, name="prev_out")
+        logit_ctx = tf.layers.dense(ctx, output_size, name="context")
+
+        return tf.tanh(logit_rnn + logit_emb + logit_ctx)
 
     return _projection, output_size
 

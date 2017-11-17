@@ -3,22 +3,27 @@
 This module contains different variants of projection of encoders into the
 initial state of the decoder.
 """
-
-
-from typing import List, Optional, Callable
+from typing import List, Callable, cast
 
 import tensorflow as tf
+from typeguard import check_argument_types
 
-from neuralmonkey.model.stateful import TemporalStateful
+from neuralmonkey.model.stateful import Stateful, TemporalStatefulWithOutput
 from neuralmonkey.nn.utils import dropout
 from neuralmonkey.logging import log
+
+
+# pylint: disable=invalid-name
+EncoderProjection = Callable[
+    [tf.Tensor, int, List[Stateful]], tf.Tensor]
+# pylint: enable=invalid-name
 
 
 # pylint: disable=unused-argument
 # The function must conform the API
 def empty_initial_state(train_mode: tf.Tensor,
-                        rnn_size: Optional[int],
-                        encoders: List[TemporalStateful] = None) -> tf.Tensor:
+                        rnn_size: int,
+                        encoders: List[Stateful] = None) -> tf.Tensor:
     """Return an empty vector.
 
     Arguments:
@@ -32,10 +37,7 @@ def empty_initial_state(train_mode: tf.Tensor,
     return tf.zeros([rnn_size])
 
 
-def linear_encoder_projection(
-        dropout_keep_prob: float) -> Callable[
-            [tf.Tensor, Optional[int], Optional[List[TemporalStateful]]],
-            tf.Tensor]:
+def linear_encoder_projection(dropout_keep_prob: float) -> EncoderProjection:
     """Return a linear encoder projection.
 
     Return a projection function which applies dropout on concatenated
@@ -46,8 +48,8 @@ def linear_encoder_projection(
         dropout_keep_prob: The dropout keep probability
     """
     def func(train_mode: tf.Tensor,
-             rnn_size: Optional[int] = None,
-             encoders: Optional[List[TemporalStateful]] = None) -> tf.Tensor:
+             rnn_size: int,
+             encoders: List[Stateful]) -> tf.Tensor:
         """Linearly project encoders' encoded value.
 
         Linearly project encoders' encoded value to rnn_size
@@ -62,7 +64,7 @@ def linear_encoder_projection(
             raise ValueError("You must supply rnn_size for this type of "
                              "encoder projection")
 
-        if encoders is None or not encoders:
+        if not encoders:
             raise ValueError("There must be at least one encoder for this type"
                              " of encoder projection")
 
@@ -78,8 +80,8 @@ def linear_encoder_projection(
 
 def concat_encoder_projection(
         train_mode: tf.Tensor,
-        rnn_size: Optional[int] = None,
-        encoders: Optional[List[TemporalStateful]] = None) -> tf.Tensor:
+        rnn_size: int = None,
+        encoders: List[Stateful] = None) -> tf.Tensor:
     """Create the initial state by concatenating the encoders' encoded values.
 
     Arguments:
@@ -105,29 +107,45 @@ def concat_encoder_projection(
     return encoded_concat
 
 
-def nematus_projection(
-        train_mode: tf.Tensor,
-        rnn_size: Optional[int] = None,
-        encoders: Optional[List[TemporalStateful]] = None) -> tf.Tensor:
-    """Create the initial state by concatenating the encoders' encoded values.
+def nematus_projection(dropout_keep_prob: float = 1.0) -> EncoderProjection:
+    """Return a nematus-like encoder projection.
 
     Arguments:
-        train_mode: tf 0-D bool Tensor specifying the training mode (not used)
-        rnn_size: The size of the resulting vector (not used)
-        encoders: The list of encoders
+        dropout_keep_prob: The dropout keep probability.
     """
-    if encoders is None or not encoders:
-        raise ValueError("There must be at least one encoder for this type "
-                         "of encoder projection")
+    check_argument_types()
 
-    if rnn_size is not None:
-        assert rnn_size == sum(e.output.get_shape()[1].value
-                               for e in encoders)
+    def func(
+            train_mode: tf.Tensor,
+            rnn_size: int,
+            encoders: List[TemporalStatefulWithOutput]) -> tf.Tensor:
+        """Create the initial state by averaging the encoder's encoded values.
 
-    encoded_concat = tf.concat([tf.reduce_sum(e.temporal_states, axis=1) /
-                                tf.reduce_sum(e.temporal_mask, 1)
-                               for e in encoders], 1)
+        This projection is used in Nematus models.
 
-    return tf.layers.dense(encoded_concat, rnn_size,
-                           activation=tf.tanh,
-                           name="encoders_projection")
+        Arguments:
+            train_mode: tf 0-D bool Tensor specifying the training mode.
+            rnn_size: The size of the resulting vector.
+            encoders: The list of encoders. Must have length 1.
+        """
+        if len(encoders) != 1:
+            raise ValueError("Exactly one encoder required for this type of "
+                             "projection. {} given.".format(len(encoders)))
+        encoder = encoders[0]
+
+        # shape (batch, time)
+        masked_sum = tf.reduce_sum(
+            encoder.temporal_states
+            * tf.expand_dims(encoder.temporal_mask, 2), 1)
+
+        # shape (batch, 1)
+        lengths = tf.reduce_sum(encoder.temporal_mask, 1, keep_dims=True)
+
+        means = masked_sum / lengths
+        means = dropout(means, dropout_keep_prob, train_mode)
+
+        return tf.layers.dense(means, rnn_size,
+                               activation=tf.tanh,
+                               name="encoders_projection")
+
+    return cast(EncoderProjection, func)
