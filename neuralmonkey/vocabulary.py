@@ -115,6 +115,9 @@ def from_nematus_json(path: str, max_size: int = None,
                       pad_to_max_size: bool = False) -> "Vocabulary":
     """Load vocabulary from Nematus JSON format.
 
+    The JSON format is a flat dictionary that maps words to their index in the
+    vocabulary.
+
     Args:
         path: Path to the file.
         max_size: Maximum vocabulary size including 'unk' and 'eos' symbols,

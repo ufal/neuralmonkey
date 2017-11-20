@@ -18,14 +18,21 @@ class OrthoGRUCell(tf.contrib.rnn.GRUCell):
         return tf.contrib.rnn.GRUCell.__call__(self, inputs, state, scope)
 
 
-# Note that tensorflow does not like when the typing annotations are present.
-class NematusGRUCell(tf.contrib.rnn.GRUCell):
+# Note that tensorflow does not like when the type annotations are present.
+class NematusGRUCell(OrthoGRUCell):
+    """Nematus implementation of gated recurrent unit cell.
 
+    The main difference is the order in which the gating functions and linear
+    projections are applied to the hidden state.
+
+    The math is equivalent, in practice there are differences due to float
+    precision errors.
+    """
     def __init__(self, rnn_size, use_state_bias=False, use_input_bias=True):
         self.use_state_bias = use_state_bias
         self.use_input_bias = use_input_bias
 
-        tf.contrib.rnn.GRUCell.__init__(self, rnn_size)
+        OrthoGRUCell.__init__(self, rnn_size)
 
     def call(self, inputs, state):
         """Gated recurrent unit (GRU) with nunits cells."""

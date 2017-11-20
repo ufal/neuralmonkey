@@ -30,15 +30,23 @@ def check_shape(var1_tf: tf.Variable, var2_np: np.ndarray):
         log("Shapes do not match! Exception will follow.", color="red")
 
 
-def emb_fix_flat(variables: List[np.ndarray]) -> np.ndarray:
-    return emb_fix(variables)
-
-
+# Here come a few functions that fiddle with the Nematus parameters in order to
+# fit them to Neural Monkey parameter shapes.
 def emb_fix_dim1(variables: List[np.ndarray]) -> np.ndarray:
     return emb_fix(variables, dim=1)
 
 
 def emb_fix(variables: List[np.ndarray], dim: int = 0) -> np.ndarray:
+    """Process nematus tensors with vocabulary dimension.
+
+    Nematus uses only two special symbols, eos and UNK. For embeddings of start
+    and pad tokens, we use zero vectors, inserted to the correct position in
+    the parameter matrix.
+
+    Arguments:
+        variables: the list of variables. Must be of length 1.
+        dim: The vocabulary dimension.
+    """
     if len(variables) != 1:
         raise ValueError("VocabFix only works with single vars. {} given."
                          .format(len(variables)))
@@ -81,7 +89,7 @@ VARIABLE_MAP = {
     "encoder_input/embedding_matrix_0": (["Wemb"], emb_fix),
     "decoder/word_embeddings": (["Wemb_dec"], emb_fix),
     "decoder/state_to_word_W": (["ff_logit_W"], emb_fix_dim1),
-    "decoder/state_to_word_b": (["ff_logit_b"], emb_fix_flat),
+    "decoder/state_to_word_b": (["ff_logit_b"], emb_fix),
     "encoder/bidirectional_rnn/fw/nematus_gru_cell/gates/state_proj/kernel": (["encoder_U"], None),
     "encoder/bidirectional_rnn/fw/nematus_gru_cell/gates/input_proj/kernel": (["encoder_W"], None),
     "encoder/bidirectional_rnn/fw/nematus_gru_cell/gates/input_proj/bias": (["encoder_b"], None),
@@ -113,7 +121,6 @@ VARIABLE_MAP = {
     "decoder/attention_decoder/cond_gru_2_cell/candidate/state_proj/kernel": (["decoder_Ux_nl"], None),
     "decoder/attention_decoder/cond_gru_2_cell/candidate/input_proj/kernel": (["decoder_Wcx"], None),
     "decoder/attention_decoder/cond_gru_2_cell/candidate/state_proj/bias": (["decoder_bx_nl"], None),
-
     "decoder/attention_decoder/rnn_state/kernel": (["ff_logit_lstm_W"], None),
     "decoder/attention_decoder/rnn_state/bias": (["ff_logit_lstm_b"], None),
     "decoder/attention_decoder/prev_out/kernel": (["ff_logit_prev_W"], None),

@@ -1,5 +1,19 @@
-"""Module with different variants of projection functions for RNN outputs."""
+"""Output Projection Module.
 
+This module contains different variants of projection functions of decoder
+outputs into the logit function inputs.
+
+Output projections are specified in the configuration file. Each output
+projection function has a unified type ``OutputProjection``, which is a
+callable that takes four arguments and returns a tensor:
+
+1. ``prev_state`` -- the hidden state of the decoder.
+2. ``prev_output`` -- embedding of the previously decoded word (or train input)
+3. ``ctx_tensots`` -- a list of context vectors (for each attention object)
+
+To enable further parameterization of output projection functions, one can
+use higher-order functions.
+"""
 from typing import Union, Tuple, List, Callable
 import tensorflow as tf
 from typeguard import check_argument_types
@@ -64,7 +78,7 @@ def nematus_output(
     """Apply nonlinear one-hidden-layer deep output.
 
     Implementation consistent with Nematus.
-    Can be used instead of nonlinear_output.
+    Can be used instead of (and is in theory equivalent to) nonlinear_output.
 
     Projects the RNN state, embedding of the previously outputted word, and
     concatenation of all context vectors into a shared vector space, sums them
