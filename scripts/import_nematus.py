@@ -435,7 +435,7 @@ def main() -> None:
                         help="nematus json file")
     parser.add_argument("nematus_variables", metavar="NEMATUS-FILE",
                         help="nematus variable file")
-    parser.add_argument("output_dir", metavar="INI-FILE",
+    parser.add_argument("output_dir", metavar="OUTPUT-DIR",
                         help="output directory")
     args = parser.parse_args()
 
