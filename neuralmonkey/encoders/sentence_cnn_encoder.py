@@ -115,10 +115,10 @@ class SentenceCNNEncoder(ModelPart, TemporalStatefulWithOutput):
                                 num_filters]
                 w_filter = tf.get_variable(
                     "conv_W", filter_shape,
-                    initializer=tf.random_uniform_initializer(-0.5, 0.5))
+                    initializer=tf.glorot_uniform_initializer())
                 b_filter = tf.get_variable(
                     "conv_bias", [num_filters],
-                    initializer=tf.constant_initializer(0.0))
+                    initializer=tf.zeros_initializer())
                 conv = tf.nn.conv1d(
                     dropped_inputs,
                     w_filter,

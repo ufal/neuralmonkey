@@ -80,7 +80,7 @@ class SentenceEncoder(ModelPart, TemporalStatefulWithOutput):
             return tf.get_variable(
                 "order_embeddings", [self.input_sequence.max_length,
                                      self.input_sequence.embedding_sizes[0]],
-                initializer=tf.random_normal_initializer(stddev=0.1))
+                initializer=tf.glorot_normal_initializer())
 
     @tensor
     def ordered_embedded_inputs(self) -> tf.Tensor:
@@ -93,7 +93,8 @@ class SentenceEncoder(ModelPart, TemporalStatefulWithOutput):
 
     def _residual_conv(self, input_signals: tf.Tensor, name: str):
         with tf.variable_scope(name):
-            # initialized as described in the paper
+            # Initialized as described in the paper.
+            # Note: this should be equivalent to tf.glorot_normal_initializer
             init_deviat = np.sqrt(4 / self.conv_features)
             convolution_filters = tf.get_variable(
                 "convolution_filters",

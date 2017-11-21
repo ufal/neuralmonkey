@@ -131,7 +131,7 @@ def nematus_projection(dropout_keep_prob: float = 1.0) -> EncoderProjection:
 
         kernel_initializer = orthogonal_initializer()
         if encoder_rnn_size != rnn_size:
-            kernel_initializer = None
+            kernel_initializer = tf.glorot_normal_initializer()
             warn("Using nematus projection on nonequal encoder and decoder "
                  "state sizes ({} vs {})".format(encoder_rnn_size, rnn_size))
 

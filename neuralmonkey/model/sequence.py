@@ -195,7 +195,7 @@ class EmbeddedFactorSequence(Sequence):
             tf.get_variable(
                 name="embedding_matrix_{}".format(i),
                 shape=[vocab_size, emb_size],
-                initializer=tf.random_normal_initializer(stddev=0.01))
+                initializer=tf.glorot_uniform_initializer())
             for i, (data_id, vocab_size, emb_size) in enumerate(zip(
                 self.data_ids, self.vocabulary_sizes, self.embedding_sizes))]
 

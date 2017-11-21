@@ -95,17 +95,17 @@ def nematus_output(
 
         logit_rnn = tf.layers.dense(
             prev_state, output_size,
-            kernel_initializer=tf.random_normal_initializer(stddev=0.01),
+            kernel_initializer=tf.glorot_normal_initializer(),
             name="rnn_state")
 
         logit_emb = tf.layers.dense(
             prev_output, output_size,
-            kernel_initializer=tf.random_normal_initializer(stddev=0.01),
+            kernel_initializer=tf.glorot_normal_initializer(),
             name="prev_out")
 
         logit_ctx = tf.layers.dense(
             ctx, output_size,
-            kernel_initializer=tf.random_normal_initializer(stddev=0.01),
+            kernel_initializer=tf.glorot_normal_initializer(),
             name="context")
 
         return activation_fn(logit_rnn + logit_emb + logit_ctx)

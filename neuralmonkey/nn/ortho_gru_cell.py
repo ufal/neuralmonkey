@@ -16,6 +16,7 @@ def orthogonal_initializer():
     initializer API.
     """
 
+    # pylint: disable=unused-argument
     def func(shape, dtype, partition_info=None):
         if len(shape) != 2:
             raise ValueError(
@@ -30,10 +31,12 @@ def orthogonal_initializer():
 
         orthogonals = []
         for _ in range(mult):
-            matrix = tf.random_normal([dim, dim], dtype, partition_info)
+            matrix = tf.random_normal([dim, dim], dtype=dtype)
             orthogonals.append(tf.svd(matrix)[1])
 
         return tf.concat(orthogonals, 1)
+    # pylint: enable=unused-argument
+
     return func
 
 
@@ -72,7 +75,7 @@ class NematusGRUCell(tf.contrib.rnn.GRUCell):
         with tf.variable_scope("gates"):
             input_to_gates = tf.layers.dense(
                 inputs, 2 * self._num_units, name="input_proj",
-                kernel_initializer=tf.random_normal_initializer(stddev=0.01),
+                kernel_initializer=tf.glorot_normal_initializer(),
                 use_bias=self.use_input_bias)
 
             # Nematus does the orthogonal initialization probably differently
@@ -89,7 +92,7 @@ class NematusGRUCell(tf.contrib.rnn.GRUCell):
         with tf.variable_scope("candidate"):
             input_to_candidate = tf.layers.dense(
                 inputs, self._num_units, use_bias=self.use_input_bias,
-                kernel_initializer=tf.random_normal_initializer(stddev=0.01),
+                kernel_initializer=tf.glorot_normal_initializer(),
                 name="input_proj")
 
             state_to_candidate = tf.layers.dense(

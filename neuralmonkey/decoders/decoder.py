@@ -259,7 +259,7 @@ class Decoder(ModelPart):
         return tf.get_variable(
             name="word_embeddings",
             shape=[len(self.vocabulary), self.embedding_size],
-            initializer=tf.random_normal_initializer(stddev=0.01))
+            initializer=tf.glorot_uniform_initializer())
 
     @tensor
     def decoding_w(self) -> tf.Variable:
@@ -267,7 +267,7 @@ class Decoder(ModelPart):
             return tf.get_variable(
                 name="state_to_word_W",
                 shape=[self.output_projection_size, len(self.vocabulary)],
-                initializer=tf.random_normal_initializer(stddev=0.01))
+                initializer=tf.glorot_normal_initializer())
 
     @tensor
     def decoding_b(self) -> tf.Variable:
