@@ -86,12 +86,15 @@ class Sequence(ModelPart):
 class EmbeddedFactorSequence(Sequence):
     """A `Sequence` that stores one or more embedded inputs (factors)."""
 
+    # pylint: disable=too-many-arguments
     def __init__(self,
                  name: str,
                  vocabularies: List[Vocabulary],
                  data_ids: List[str],
                  embedding_sizes: List[int],
                  max_length: int = None,
+                 add_start_symbol: bool = False,
+                 add_end_symbol: bool = False,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None) -> None:
         """Construct a new instance of `EmbeddedFactorSequence`.
@@ -109,6 +112,8 @@ class EmbeddedFactorSequence(Sequence):
             embedding_sizes: A list of integers specifying the size of the
                 embedding vector for each factor
             max_length: The maximum length of the sequences
+            add_start_symbol: Includes <s> in the sequence
+            add_end_symbol: Includes </s> in the sequence
             save_checkpoint: The save_checkpoint parameter for `ModelPart`
             load_checkpoint: The load_checkpoint parameter for `ModelPart`
         """
@@ -120,6 +125,8 @@ class EmbeddedFactorSequence(Sequence):
         self.vocabulary_sizes = [len(vocab) for vocab in self.vocabularies]
         self.data_ids = data_ids
         self.embedding_sizes = embedding_sizes
+        self.add_start_symbol = add_start_symbol
+        self.add_end_symbol = add_end_symbol
 
         if not (len(self.data_ids)
                 == len(self.vocabularies)
@@ -129,6 +136,7 @@ class EmbeddedFactorSequence(Sequence):
 
         if any([esize <= 0 for esize in self.embedding_sizes]):
             raise ValueError("Embedding size must be a positive integer.")
+    # pylint: enable=too-many-arguments
 
     # TODO this should be placed into the abstract embedding class
     def tb_embedding_visualization(self, logdir: str,
@@ -234,7 +242,8 @@ class EmbeddedFactorSequence(Sequence):
             factors = dataset.get_series(name)
             vectors, paddings = vocabulary.sentences_to_tensor(
                 list(factors), self.max_length, pad_to_max_len=False,
-                train_mode=train)
+                train_mode=train, add_start_symbol=self.add_start_symbol,
+                add_end_symbol=self.add_end_symbol)
 
             fd[factor_plc] = list(zip(*vectors))
 
@@ -252,12 +261,15 @@ class EmbeddedFactorSequence(Sequence):
 class EmbeddedSequence(EmbeddedFactorSequence):
     """A sequence of embedded inputs (for a single factor)."""
 
+    # pylint: disable=too-many-arguments
     def __init__(self,
                  name: str,
                  vocabulary: Vocabulary,
                  data_id: str,
                  embedding_size: int,
                  max_length: int = None,
+                 add_start_symbol: bool = False,
+                 add_end_symbol: bool = False,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None) -> None:
         """Construct a new instance of `EmbeddedSequence`.
@@ -270,6 +282,8 @@ class EmbeddedSequence(EmbeddedFactorSequence):
             embedding_sizes: An integer that specifies the size of the
                 embedding vector for the sequence data
             max_length: The maximum length of the sequences
+            add_start_symbol: Includes <s> in the sequence
+            add_end_symbol: Includes </s> in the sequence
             save_checkpoint: The save_checkpoint parameter for `ModelPart`
             load_checkpoint: The load_checkpoint parameter for `ModelPart`
         """
@@ -280,8 +294,11 @@ class EmbeddedSequence(EmbeddedFactorSequence):
             data_ids=[data_id],
             embedding_sizes=[embedding_size],
             max_length=max_length,
+            add_start_symbol=add_start_symbol,
+            add_end_symbol=add_end_symbol,
             save_checkpoint=save_checkpoint,
             load_checkpoint=load_checkpoint)
+    # pylint: enable=too-many-arguments
 
     # pylint: disable=unsubscriptable-object
     @property
