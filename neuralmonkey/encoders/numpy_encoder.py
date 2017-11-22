@@ -87,7 +87,7 @@ class PostCNNImageEncoder(ModelPart, SpatialStatefulWithOutput):
             self.project_w = tf.get_variable(
                 name="img_init_proj_W",
                 shape=[input_shape[2], output_shape],
-                initializer=tf.random_normal_initializer())
+                initializer=tf.glorot_normal_initializer())
             self.project_b = tf.get_variable(
                 name="img_init_b", shape=[output_shape],
                 initializer=tf.zeros_initializer())

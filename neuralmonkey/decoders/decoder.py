@@ -1,5 +1,4 @@
 # pylint: disable=too-many-lines
-import math
 from typing import (cast, Iterable, List, Callable, Optional, Any, Tuple,
                     NamedTuple)
 
@@ -257,26 +256,26 @@ class Decoder(ModelPart):
         if self.embeddings_source is not None:
             return self.embeddings_source.embedding_matrix
 
-        # TODO better initialization
         return tf.get_variable(
-            "word_embeddings", [len(self.vocabulary), self.embedding_size],
-            initializer=tf.random_uniform_initializer(-0.5, 0.5))
+            name="word_embeddings",
+            shape=[len(self.vocabulary), self.embedding_size],
+            initializer=tf.glorot_uniform_initializer())
 
     @tensor
     def decoding_w(self) -> tf.Variable:
         with tf.name_scope("output_projection"):
             return tf.get_variable(
-                "state_to_word_W",
-                [self.output_projection_size, len(self.vocabulary)],
-                initializer=tf.random_uniform_initializer(-0.5, 0.5))
+                name="state_to_word_W",
+                shape=[self.output_projection_size, len(self.vocabulary)],
+                initializer=tf.glorot_normal_initializer())
 
     @tensor
     def decoding_b(self) -> tf.Variable:
         with tf.name_scope("output_projection"):
             return tf.get_variable(
-                "state_to_word_b", [len(self.vocabulary)],
-                initializer=tf.constant_initializer(
-                    - math.log(len(self.vocabulary))))
+                name="state_to_word_b",
+                shape=[len(self.vocabulary)],
+                initializer=tf.zeros_initializer())
 
     @tensor
     def train_logits(self) -> tf.Tensor:

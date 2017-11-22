@@ -37,7 +37,7 @@ def highway(inputs, activation=tf.nn.relu, scope="HighwayNetwork"):
         W_H = tf.get_variable(
             "weight_H",
             shape=W_shape,
-            initializer=tf.random_normal_initializer(stddev=0.1))
+            initializer=tf.glorot_normal_initializer())
         b_H = tf.get_variable(
             "bias_H",
             shape=b_shape,
@@ -46,7 +46,7 @@ def highway(inputs, activation=tf.nn.relu, scope="HighwayNetwork"):
         W_T = tf.get_variable(
             "weight_T",
             shape=W_shape,
-            initializer=tf.random_normal_initializer(stddev=0.1))
+            initializer=tf.glorot_normal_initializer())
         b_T = tf.get_variable(
             "bias_T",
             shape=b_shape,

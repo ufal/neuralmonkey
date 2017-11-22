@@ -186,14 +186,16 @@ class EmbeddedFactorSequence(Sequence):
     @tensor
     def embedding_matrices(self) -> List[tf.Tensor]:
         """Return a list of embedding matrices for each factor."""
-        # TODO better initialization
-        # embedding matrices are numbered rather than named by the data id so
-        # the data_id string does not need to be the same across experiments
+
+        # Note: Embedding matrices are numbered rather than named by the data
+        # id so the data_id string does not need to be the same across
+        # experiments
+
         return [
             tf.get_variable(
                 name="embedding_matrix_{}".format(i),
                 shape=[vocab_size, emb_size],
-                initializer=tf.random_normal_initializer(stddev=0.01))
+                initializer=tf.glorot_uniform_initializer())
             for i, (data_id, vocab_size, emb_size) in enumerate(zip(
                 self.data_ids, self.vocabulary_sizes, self.embedding_sizes))]
 

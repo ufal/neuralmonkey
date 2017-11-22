@@ -1,18 +1,53 @@
 import tensorflow as tf
 
 
+def orthogonal_initializer():
+    """Return an orthogonal initializer.
+
+    Random orthogonal matrix is byproduct of singular value decomposition
+    applied on a matrix initialized with normal distribution.
+
+    The initializer works with 2D square matrices and matrices that can be
+    splitted along axis 1 to several 2D matrices. In the latter case, each
+    submatrix is initialized independently and the resulting orthogonal
+    matrices are concatenated along axis 1.
+
+    Note this is a higher order function in order to mimic the tensorflow
+    initializer API.
+    """
+
+    # pylint: disable=unused-argument
+    def func(shape, dtype, partition_info=None):
+        if len(shape) != 2:
+            raise ValueError(
+                "Orthogonal initializer only works with 2D matrices.")
+
+        if shape[1] % shape[0] != 0:
+            raise ValueError("Shape {} is not compatible with orthogonal "
+                             "initializer.".format(str(shape)))
+
+        mult = int(shape[1] / shape[0])
+        dim = shape[0]
+
+        orthogonals = []
+        for _ in range(mult):
+            matrix = tf.random_normal([dim, dim], dtype=dtype)
+            orthogonals.append(tf.svd(matrix)[1])
+
+        return tf.concat(orthogonals, 1)
+    # pylint: enable=unused-argument
+
+    return func
+
+
 # pylint: disable=too-few-public-methods
 class OrthoGRUCell(tf.contrib.rnn.GRUCell):
     """Classic GRU cell but initialized using random orthogonal matrices."""
 
-    def __init__(self,
-                 num_units,
-                 activation=None,
-                 reuse=None,
-                 bias_initializer=None):
+    def __init__(self, num_units, activation=None, reuse=None):
         tf.contrib.rnn.GRUCell.__init__(
-            self, num_units, activation, reuse, tf.orthogonal_initializer(),
-            bias_initializer)
+            self, num_units, activation, reuse,
+            kernel_initializer=tf.orthogonal_initializer())
 
     def __call__(self, inputs, state, scope="OrthoGRUCell"):
         return tf.contrib.rnn.GRUCell.__call__(self, inputs, state, scope)
@@ -40,13 +75,14 @@ class NematusGRUCell(tf.contrib.rnn.GRUCell):
         with tf.variable_scope("gates"):
             input_to_gates = tf.layers.dense(
                 inputs, 2 * self._num_units, name="input_proj",
+                kernel_initializer=tf.glorot_normal_initializer(),
                 use_bias=self.use_input_bias)
 
             # Nematus does the orthogonal initialization probably differently
             state_to_gates = tf.layers.dense(
                 state, 2 * self._num_units,
                 use_bias=self.use_state_bias,
-                kernel_initializer=tf.orthogonal_initializer(),
+                kernel_initializer=orthogonal_initializer(),
                 name="state_proj")
 
             gates_input = state_to_gates + input_to_gates
@@ -56,10 +92,12 @@ class NematusGRUCell(tf.contrib.rnn.GRUCell):
         with tf.variable_scope("candidate"):
             input_to_candidate = tf.layers.dense(
                 inputs, self._num_units, use_bias=self.use_input_bias,
+                kernel_initializer=tf.glorot_normal_initializer(),
                 name="input_proj")
 
             state_to_candidate = tf.layers.dense(
                 state, self._num_units, use_bias=self.use_state_bias,
+                kernel_initializer=orthogonal_initializer(),
                 name="state_proj")
 
             candidate = self._activation(

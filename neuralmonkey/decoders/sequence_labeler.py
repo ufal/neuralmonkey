@@ -90,7 +90,7 @@ class SequenceLabeler(ModelPart):
         weights = tf.get_variable(
             name="state_to_word_W",
             shape=[self.rnn_size, vocabulary_size],
-            initializer=tf.random_uniform_initializer(-0.5, 0.5))
+            initializer=tf.glorot_normal_initializer())
 
         biases = tf.get_variable(
             name="state_to_word_b",
@@ -100,7 +100,7 @@ class SequenceLabeler(ModelPart):
         weights_direct = tf.get_variable(
             name="emb_to_word_W",
             shape=[self.encoder.input_sequence.dimension, vocabulary_size],
-            initializer=tf.random_uniform_initializer(-0.5, 0.5))
+            initializer=tf.glorot_normal_initializer())
 
         # To multiply 3-D matrix (encoder hidden states) by a 2-D matrix
         # (weights), we use 1-by-1 convolution (similar trick can be found in

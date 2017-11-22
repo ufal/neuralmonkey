@@ -46,7 +46,7 @@ class MultiAttention(BaseAttention):
         with self.use_scope():
             self.attn_v = tf.get_variable(
                 "attn_v", [1, 1, self.attention_state_size],
-                initializer=tf.random_normal_initializer(stddev=.001))
+                initializer=tf.glorot_normal_initializer())
     # pylint: enable=unused-argument
 
     def attention(self,
@@ -73,7 +73,7 @@ class MultiAttention(BaseAttention):
         with tf.variable_scope("{}_logit".format(scope)):
             vector_bias = tf.get_variable(
                 "vector_bias", [],
-                initializer=tf.constant_initializer(0.0))
+                initializer=tf.zeros_initializer())
 
             proj_vector_for_logit = tf.expand_dims(
                 tf.layers.dense(vector_value, self.attention_state_size,
@@ -145,7 +145,7 @@ class FlatMultiAttention(MultiAttention):
             self.encoder_attn_biases = [
                 tf.get_variable(name="attn_bias_{}".format(i),
                                 shape=[],
-                                initializer=tf.constant_initializer(0.))
+                                initializer=tf.zeros_initializer())
                 for i in range(len(self._encoders_tensors))]
 
             if self._share_projections:
@@ -174,7 +174,7 @@ class FlatMultiAttention(MultiAttention):
                 proj_matrix = tf.get_variable(
                     "proj_matrix_{}".format(i),
                     [encoder_state_size, self.attention_state_size],
-                    initializer=tf.random_normal_initializer(stddev=0.001))
+                    initializer=tf.glorot_normal_initializer())
 
                 proj_bias = tf.get_variable(
                     "proj_bias_{}".format(i),

@@ -76,7 +76,7 @@ class SequenceCNNEncoder(ModelPart, Stateful):
             embedding_matrix = tf.get_variable(
                 "word_embeddings",
                 [len(self.vocabulary), self.embedding_size],
-                initializer=tf.random_normal_initializer(stddev=0.01))
+                initializer=tf.glorot_uniform_initializer())
             return dropout(
                 tf.nn.embedding_lookup(embedding_matrix, self.inputs),
                 self.dropout_keep_prob,
@@ -91,10 +91,10 @@ class SequenceCNNEncoder(ModelPart, Stateful):
                 filter_shape = [filter_size, self.embedding_size, num_filters]
                 w_filter = tf.get_variable(
                     "conv_W", filter_shape,
-                    initializer=tf.random_uniform_initializer(-0.5, 0.5))
+                    initializer=tf.glorot_uniform_initializer())
                 b_filter = tf.get_variable(
                     "conv_bias", [num_filters],
-                    initializer=tf.constant_initializer(0.0))
+                    initializer=tf.zeros_initializer())
                 conv = tf.nn.conv1d(
                     self.embedded_inputs,
                     w_filter,

@@ -21,7 +21,8 @@ from typeguard import check_argument_types
 
 from neuralmonkey.model.stateful import Stateful, TemporalStatefulWithOutput
 from neuralmonkey.nn.utils import dropout
-from neuralmonkey.logging import log
+from neuralmonkey.nn.ortho_gru_cell import orthogonal_initializer
+from neuralmonkey.logging import log, warn
 
 
 # pylint: disable=invalid-name
@@ -126,8 +127,17 @@ def nematus_projection(dropout_keep_prob: float = 1.0) -> EncoderProjection:
         means = masked_sum / lengths
         means = dropout(means, dropout_keep_prob, train_mode)
 
+        encoder_rnn_size = means.get_shape()[1].value
+
+        kernel_initializer = orthogonal_initializer()
+        if encoder_rnn_size != rnn_size:
+            kernel_initializer = tf.glorot_normal_initializer()
+            warn("Using nematus projection on nonequal encoder and decoder "
+                 "state sizes ({} vs {})".format(encoder_rnn_size, rnn_size))
+
         return tf.layers.dense(means, rnn_size,
                                activation=tf.tanh,
+                               kernel_initializer=kernel_initializer,
                                name="encoders_projection")
 
     return cast(EncoderProjection, func)

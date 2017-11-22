@@ -95,7 +95,7 @@ class CTCDecoder(ModelPart):
         weights = tf.get_variable(
             name="state_to_word_W",
             shape=[encoder_states.shape[2], vocabulary_size + 1],
-            initializer=tf.random_uniform_initializer(-0.5, 0.5))
+            initializer=tf.glorot_uniform_initializer())
 
         biases = tf.get_variable(
             name="state_to_word_b",

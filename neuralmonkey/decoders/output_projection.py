@@ -74,6 +74,7 @@ def _legacy_relu(output_size: int) -> Tuple[OutputProjection, int]:
 
 def nematus_output(
         output_size: int,
+        activation_fn: Callable[[tf.Tensor], tf.Tensor] = tf.tanh,
         dropout_keep_prob: float = 1.0) -> Tuple[OutputProjection, int]:
     """Apply nonlinear one-hidden-layer deep output.
 
@@ -92,11 +93,22 @@ def nematus_output(
         ctx_concat = tf.concat(ctx_tensors, 1)
         ctx = dropout(ctx_concat, dropout_keep_prob, train_mode)
 
-        logit_rnn = tf.layers.dense(prev_state, output_size, name="rnn_state")
-        logit_emb = tf.layers.dense(prev_output, output_size, name="prev_out")
-        logit_ctx = tf.layers.dense(ctx, output_size, name="context")
+        logit_rnn = tf.layers.dense(
+            prev_state, output_size,
+            kernel_initializer=tf.glorot_normal_initializer(),
+            name="rnn_state")
 
-        return tf.tanh(logit_rnn + logit_emb + logit_ctx)
+        logit_emb = tf.layers.dense(
+            prev_output, output_size,
+            kernel_initializer=tf.glorot_normal_initializer(),
+            name="prev_out")
+
+        logit_ctx = tf.layers.dense(
+            ctx, output_size,
+            kernel_initializer=tf.glorot_normal_initializer(),
+            name="context")
+
+        return activation_fn(logit_rnn + logit_emb + logit_ctx)
 
     return _projection, output_size
 
