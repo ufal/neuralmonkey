@@ -22,7 +22,7 @@ class PerplexityExecutable(Executable):
     def next_to_execute(self) -> NextExecute:
         """Get the feedables and tensors to run."""
         return (self._all_coders,
-                {'xents': self._xent_op},
+                {"xents": self._xent_op},
                 [{} for _ in range(self._num_sessions)])
 
     def collect_results(self, results: List[Dict]) -> None:

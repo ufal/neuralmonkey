@@ -1,4 +1,4 @@
-from typing import List, Callable, Optional, Any, Union, Tuple
+from typing import List, Callable, Union, Tuple
 
 import tensorflow as tf
 from typeguard import check_argument_types
@@ -45,9 +45,7 @@ RNNHistories = extend_namedtuple(
 
 # pylint: disable=too-many-instance-attributes
 class Decoder(SequenceDecoder):
-    """A class that manages parts of the computation graph that are
-    used for the decoding.
-    """
+    """A class managing parts of the computation graph used during decoding."""
 
     # pylint: disable=too-many-locals
     # pylint: disable=too-many-arguments,too-many-branches,too-many-statements

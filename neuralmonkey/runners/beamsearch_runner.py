@@ -47,7 +47,7 @@ class BeamSearchExecutable(Executable):
 
     def next_to_execute(self) -> NextExecute:
         return (self._all_encoders,
-                {'bs_outputs': self._decoder.outputs},
+                {"bs_outputs": self._decoder.outputs},
                 self._next_feed)
 
     # pylint: disable=too-many-locals

@@ -1,5 +1,6 @@
-"""Abstract class for decoding sequences left-to-right. Either for the
-recurrent decoder, or for the transformer decoder.
+"""Abstract class for decoding sequences left-to-right.
+
+Either for the recurrent decoder, or for the transformer decoder.
 
 The sequence decoder uses the while loop to get the outputs. Descendants should
 only specify the initial state and the while loop body.
@@ -225,7 +226,7 @@ class SequenceDecoder(ModelPart):
         return logits, decoder_outputs, mask, decoded
 
     def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
-        """Populate the feed dictionary for the decoder object
+        """Populate the feed dictionary for the decoder object.
 
         Arguments:
             dataset: The dataset to use for the decoder.
