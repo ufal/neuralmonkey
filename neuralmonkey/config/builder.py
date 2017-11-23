@@ -65,6 +65,7 @@ class ObjectRef(object):
     """Represents a named object or its attribute in configuration."""
 
     def __init__(self, expression: str) -> None:
+        self.expression = expression
         self.name, *self.attr_chain = expression.split(".")
         self._obj = None
 
