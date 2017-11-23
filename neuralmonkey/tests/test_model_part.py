@@ -24,13 +24,14 @@ class Test(unittest.TestCase):
         checkpoint_file.close()
 
         encoder = SentenceEncoder(
-            "enc", Vocabulary(), "data_id", 10, 20, 30,
+            name="enc", vocabulary=Vocabulary(), data_id="data_id",
+            embedding_size=10, rnn_size=20, max_input_len=30,
             save_checkpoint=checkpoint_file.name,
             load_checkpoint=checkpoint_file.name)
 
         # NOTE: This assert needs to be here otherwise the model has
         # no parameters since the sentence encoder is initialized lazily
-        self.assertIsInstance(encoder.states, tf.Tensor)
+        self.assertIsInstance(encoder.temporal_states, tf.Tensor)
 
         encoders_variables = tf.get_collection(
             tf.GraphKeys.GLOBAL_VARIABLES, scope="enc")
