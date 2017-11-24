@@ -51,6 +51,15 @@ class TemporalStateful(metaclass=ABCMeta):
         """
         raise NotImplementedError("Abstract property")
 
+    @property
+    def lengths(self) -> tf.Tensor:
+        """Return the sequence lengths.
+
+        A 1D `Tensor` of type `int32` that stores the lengths of the
+        state sequences in the batch.
+        """
+        return tf.to_int32(tf.reduce_sum(self.temporal_mask, 1))
+
 
 class SpatialStateful(metaclass=ABCMeta):
     @property

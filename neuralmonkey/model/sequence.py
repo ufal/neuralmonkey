@@ -8,12 +8,15 @@ from tensorflow.contrib.tensorboard.plugins import projector
 from typeguard import check_argument_types
 
 from neuralmonkey.model.model_part import ModelPart, FeedDict
+from neuralmonkey.model.stateful import TemporalStateful
 from neuralmonkey.vocabulary import Vocabulary
 from neuralmonkey.decorators import tensor
 from neuralmonkey.dataset import Dataset
+from neuralmonkey.logging import warn
 
 
-class Sequence(ModelPart):
+# pylint: disable=abstract-method
+class Sequence(ModelPart, TemporalStateful):
     """Base class for a data sequence.
 
     This class represents a batch of sequences of Tensors of possibly
@@ -42,49 +45,23 @@ class Sequence(ModelPart):
 
     @property
     def data(self) -> tf.Tensor:
-        """Return the sequence data.
-
-        A `Tensor` representing the data in the sequence. The first and
-        second dimension correspond to batch size and time respectively.
-        """
-        raise NotImplementedError("Accessing abstract property")
+        warn("data attribute of Sequence class is deprecated")
+        return self.temporal_states
 
     @property
     def mask(self) -> tf.Tensor:
-        """Return the sequence mask.
-
-        A 2D `Tensor` of type `float32` and shape (batch size, time) that
-        masks the sequences in the batch.
-        """
-        raise NotImplementedError("Accessing abstract property")
-
-    @property
-    def dimension(self) -> int:
-        """Return the sequence dimension.
-
-        The dimension of the sequence. For 3D sequences, this is the size
-        of the last dimension of the `data` tensor.
-        """
-        # TODO make this work for higher dimensional tensors
-        raise NotImplementedError("Accessing abstract property")
+        warn("mask attribute of Sequence class is deprecated")
+        return self.temporal_mask
 
     @property
     def max_length(self) -> int:
-        """Return the maximum length of sequences in the `data` tensor."""
+        """Return the maximum length of the data sequences."""
         return self._max_length
-
-    @tensor
-    def lengths(self) -> tf.Tensor:
-        """Return the sequence lengths.
-
-        A 1D `Tensor` of type `int32` that stores the lengths of the
-        sequences in the batch.
-        """
-        return tf.to_int32(tf.reduce_sum(self.mask, 1))
+# pylint: enable=abstract-method
 
 
 class EmbeddedFactorSequence(Sequence):
-    """A `Sequence` that stores one or more embedded inputs (factors)."""
+    """A sequence that stores one or more embedded inputs (factors)."""
 
     # pylint: disable=too-many-arguments
     def __init__(self,
@@ -175,7 +152,7 @@ class EmbeddedFactorSequence(Sequence):
 
     # pylint: disable=no-self-use
     @tensor
-    def mask(self) -> tf.Tensor:
+    def temporal_mask(self) -> tf.Tensor:
         """Return a 2D placeholder for the sequence mask.
 
         This is shared across factors and must be the same for each of them.
@@ -200,7 +177,7 @@ class EmbeddedFactorSequence(Sequence):
                 self.data_ids, self.vocabulary_sizes, self.embedding_sizes))]
 
     @tensor
-    def data(self) -> tf.Tensor:
+    def temporal_states(self) -> tf.Tensor:
         """Return the sequence data.
 
         A 3D Tensor of shape (batch, time, dimension),
