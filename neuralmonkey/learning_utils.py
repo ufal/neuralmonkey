@@ -282,6 +282,9 @@ def training_loop(tf_manager: TensorFlowManager,
                     log_print("")
                     last_val_time = time.process_time()
 
+                if tf_manager.should_stop:
+                    break
+
     except KeyboardInterrupt as ex:
         interrupt = ex
 

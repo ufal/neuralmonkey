@@ -41,6 +41,7 @@ class TensorFlowManager(object):
                  num_threads: int,
                  save_n_best: int = 1,
                  minimize_metric: bool = False,
+                 patience: int = None,
                  variable_files: Optional[List[str]] = None,
                  gpu_allow_growth: bool = True,
                  per_process_gpu_memory_fraction: float = 1.0,
@@ -58,6 +59,8 @@ class TensorFlowManager(object):
             save_n_best: How many best models to keep
             minimize_metric: Whether the best model is the one with the lowest
                 or the highest score
+            patience: The minimum number of batches to wait for improvement
+                before stopping the training, or None to disable early stopping.
             variable_files: List of variable files.
             gpu_allow_growth: TF to allocate incrementally, not all at once.
             per_process_gpu_memory_fraction: Limit TF memory use.
@@ -80,6 +83,7 @@ class TensorFlowManager(object):
             raise Exception("save_n_best parameter must be greater than zero")
         self.saver_max_to_keep = save_n_best
         self.minimize_metric = minimize_metric
+        self.patience = patience
 
         self.sessions = [tf.Session(config=session_cfg)
                          for _ in range(num_sessions)]
@@ -109,6 +113,8 @@ class TensorFlowManager(object):
         init_score = np.inf if self.minimize_metric else -np.inf
         self.saved_scores = [init_score for _ in range(self.saver_max_to_keep)]
         self.best_score = init_score
+
+        self.should_stop = False
 
         self.variables_files = []  # type: List[str]
         self.best_vars_file = None  # type: str
@@ -148,6 +154,12 @@ class TensorFlowManager(object):
             self.best_score = score
             self.best_score_epoch = epoch
             self.best_score_batch = batch
+
+        if (self.patience is not None and
+            batch - self.best_score_batch > self.patience):
+            log("No improvement for {} batches; stopping training".format(
+                batch - self.best_score_batch))
+            self.should_stop = True
 
         worst_index = self._argworst(self.saved_scores)
         worst_score = self.saved_scores[worst_index]
