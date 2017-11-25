@@ -35,7 +35,7 @@ class TensorFlowManager(object):
         sessions: List of active Tensorflow sessions.
     """
 
-    # pylint: disable=too-many-arguments
+    # pylint: disable=too-many-arguments, too-many-instance-attributes
     def __init__(self,
                  num_sessions: int,
                  num_threads: int,
@@ -60,7 +60,8 @@ class TensorFlowManager(object):
             minimize_metric: Whether the best model is the one with the lowest
                 or the highest score
             patience: The minimum number of batches to wait for improvement
-                before stopping the training, or None to disable early stopping.
+                before stopping the training, or None to disable early
+                stopping.
             variable_files: List of variable files.
             gpu_allow_growth: TF to allocate incrementally, not all at once.
             per_process_gpu_memory_fraction: Limit TF memory use.
@@ -156,7 +157,7 @@ class TensorFlowManager(object):
             self.best_score_batch = batch
 
         if (self.patience is not None and
-            batch - self.best_score_batch > self.patience):
+                batch - self.best_score_batch > self.patience):
             log("No improvement for {} batches; stopping training".format(
                 batch - self.best_score_batch))
             self.should_stop = True
