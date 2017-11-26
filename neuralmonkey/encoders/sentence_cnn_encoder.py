@@ -105,7 +105,7 @@ class SentenceCNNEncoder(ModelPart, TemporalStatefulWithOutput):
     @tensor
     def cnn_encoded(self) -> tf.Tensor:
         """1D convolution with max-pool that processing characters."""
-        dropped_inputs = dropout(self.input_sequence.data,
+        dropped_inputs = dropout(self.input_sequence.temporal_states,
                                  self.dropout_keep_prob, self.train_mode)
 
         pooled_outputs = []
@@ -187,7 +187,7 @@ class SentenceCNNEncoder(ModelPart, TemporalStatefulWithOutput):
     @tensor
     def temporal_mask(self) -> tf.Tensor:
         expanded = tf.expand_dims(
-            tf.expand_dims(self.input_sequence.mask, -1),
+            tf.expand_dims(self.input_sequence.temporal_mask, -1),
             -1)
         pooled = tf.nn.max_pool(
             expanded,

@@ -57,6 +57,46 @@ def _make_rnn_cell(spec: RNNSpec) -> Callable[[], tf.nn.rnn_cell.RNNCell]:
     return RNN_CELL_TYPES[spec.cell_type](spec.size)
 
 
+def rnn_layer(rnn_input: tf.Tensor, lengths: tf.Tensor,
+              rnn_spec: RNNSpec) -> Tuple[tf.Tensor, tf.Tensor]:
+    """Construct a RNN layer given its inputs and specs.
+
+    Arguments:
+        rnn_inputs: The input sequence to the RNN.
+        lengths: Lengths of input sequences.
+        rnn_spec: A valid RNNSpec tuple specifying the network architecture.
+    """
+    if rnn_spec.direction == "both":
+        fw_cell = _make_rnn_cell(rnn_spec)
+        bw_cell = _make_rnn_cell(rnn_spec)
+
+        outputs_tup, states_tup = tf.nn.bidirectional_dynamic_rnn(
+            fw_cell, bw_cell, rnn_input, sequence_length=lengths,
+            dtype=tf.float32)
+
+        outputs = tf.concat(outputs_tup, 2)
+
+        if rnn_spec.cell_type == "LSTM":
+            states_tup = (state.h for state in states_tup)
+
+        final_state = tf.concat(list(states_tup), 1)
+    else:
+        if rnn_spec.direction == "backward":
+            rnn_input = tf.reverse_sequence(rnn_input, lengths, seq_axis=1)
+
+        cell = _make_rnn_cell(rnn_spec)
+        outputs, final_state = tf.nn.dynamic_rnn(
+            cell, rnn_input, sequence_length=lengths, dtype=tf.float32)
+
+        if rnn_spec.direction == "backward":
+            outputs = tf.reverse_sequence(outputs, lengths, seq_axis=1)
+
+        if rnn_spec.cell_type == "LSTM":
+            final_state = final_state.h
+
+    return outputs, final_state
+
+
 class RecurrentEncoder(ModelPart, TemporalStatefulWithOutput):
 
     # pylint: disable=too-many-arguments
@@ -92,40 +132,8 @@ class RecurrentEncoder(ModelPart, TemporalStatefulWithOutput):
 
     @tensor
     def rnn(self) -> Tuple[tf.Tensor, tf.Tensor]:
-        if self.rnn_spec.direction == "both":
-            fw_cell = _make_rnn_cell(self.rnn_spec)
-            bw_cell = _make_rnn_cell(self.rnn_spec)
-
-            outputs_tup, states_tup = tf.nn.bidirectional_dynamic_rnn(
-                fw_cell, bw_cell, self.rnn_input,
-                sequence_length=self.input_sequence.lengths,
-                dtype=tf.float32)
-
-            outputs = tf.concat(outputs_tup, 2)
-
-            if self.rnn_spec.cell_type == "LSTM":
-                states_tup = (state.h for state in states_tup)
-
-            final_state = tf.concat(list(states_tup), 1)
-        else:
-            rnn_input = self.rnn_input
-            if self.rnn_spec.direction == "backward":
-                rnn_input = tf.reverse_sequence(
-                    self.rnn_input, self.input_sequence.lengths, seq_axis=1)
-
-            cell = _make_rnn_cell(self.rnn_spec)
-            outputs, final_state = tf.nn.dynamic_rnn(
-                cell, rnn_input, sequence_length=self.input_sequence.lengths,
-                dtype=tf.float32)
-
-            if self.rnn_spec.direction == "backward":
-                outputs = tf.reverse_sequence(
-                    outputs, self.input_sequence.lengths, seq_axis=1)
-
-            if self.rnn_spec.cell_type == "LSTM":
-                final_state = final_state.h
-
-        return outputs, final_state
+        return rnn_layer(
+            self.rnn_input, self.input_sequence.lengths, self.rnn_spec)
 
     @tensor
     def temporal_states(self) -> tf.Tensor:
@@ -246,7 +254,7 @@ class FactoredEncoder(RecurrentEncoder):
     # pylint: enable=too-many-arguments,too-many-locals
 
 
-class DeepSentenceEncoder(RecurrentEncoder):
+class DeepSentenceEncoder(SentenceEncoder):
     # pylint: disable=too-many-arguments,too-many-locals
     def __init__(self,
                  name: str,
@@ -266,51 +274,42 @@ class DeepSentenceEncoder(RecurrentEncoder):
         if len(rnn_sizes) != len(rnn_directions):
             raise ValueError("Different number of rnn sizes and directions.")
 
-        # TODO Think this through.
-        s_ckp = "input_{}".format(save_checkpoint) if save_checkpoint else None
-        l_ckp = "input_{}".format(load_checkpoint) if load_checkpoint else None
+        self.rnn_sizes = rnn_sizes
+        self.rnn_directions = rnn_directions
+        self.rnn_cell = rnn_cell
 
-        # TODO! Representation runner needs this. It is not simple to do it in
-        # recurrent encoder since there may be more source data series. The
-        # best way could be to enter the data_id parameter manually to the
-        # representation runner
-        self.data_id = data_id
-
-        prev_layer = EmbeddedSequence(
-            name="{}_input".format(name),
+        SentenceEncoder.__init__(
+            self,
+            name=name,
             vocabulary=vocabulary,
             data_id=data_id,
             embedding_size=embedding_size,
-            max_length=max_input_len,
-            save_checkpoint=s_ckp,
-            load_checkpoint=l_ckp)
-
-        for level, (rnn_size, rnn_direction) in enumerate(
-                zip(rnn_sizes[:-1], rnn_directions)):
-
-            s_ckp = "{}_layer_{}".format(
-                save_checkpoint, level) if save_checkpoint else None
-            l_ckp = "{}_layer_{}".format(
-                load_checkpoint, level) if load_checkpoint else None
-
-            prev_layer = RecurrentEncoder(
-                name="{}_layer_{}".format(name, level),
-                input_sequence=prev_layer,
-                rnn_size=rnn_size,
-                rnn_cell=rnn_cell,
-                rnn_direction=rnn_direction,
-                dropout_keep_prob=dropout_keep_prob,
-                save_checkpoint=s_ckp,
-                load_checkpoint=l_ckp)
-
-        RecurrentEncoder.__init__(
-            self,
-            name=name,
-            input_sequence=prev_layer,
             rnn_size=rnn_sizes[-1],
-            rnn_cell=rnn_cell,
             rnn_direction=rnn_directions[-1],
+            rnn_cell=rnn_cell,
+            max_input_len=max_input_len,
             dropout_keep_prob=dropout_keep_prob,
             save_checkpoint=save_checkpoint,
             load_checkpoint=load_checkpoint)
-    # pylint: enable=too-many-arguments,too-many-locals
+
+    @tensor
+    def rnn(self) -> Tuple[tf.Tensor, tf.Tensor]:
+        """Run stacked RNN given sizes and directions.
+
+        Inputs of the first RNN are the RNN inputs to the encoder. Outputs from
+        each layer are used as inputs to the next one. As a final state of the
+        stacked RNN, the final state of the final layer is used.
+        """
+        rnn_input_local = self.rnn_input
+
+        for level, (rnn_size, rnn_dir) in enumerate(
+                zip(self.rnn_sizes, self.rnn_directions)):
+            rnn_spec = _make_rnn_spec(rnn_size, rnn_dir, self.rnn_cell)
+
+            with tf.variable_scope("layer_{}".format(level)):
+                outputs, state = rnn_layer(
+                    rnn_input_local, self.input_sequence.lengths, rnn_spec)
+
+            rnn_input_local = outputs
+
+        return outputs, state

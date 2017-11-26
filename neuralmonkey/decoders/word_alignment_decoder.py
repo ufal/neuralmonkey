@@ -1,3 +1,5 @@
+from typing import cast
+
 import numpy as np
 import tensorflow as tf
 
@@ -6,6 +8,7 @@ from neuralmonkey.encoders.recurrent import RecurrentEncoder
 from neuralmonkey.decoders.decoder import Decoder
 from neuralmonkey.logging import warn
 from neuralmonkey.model.model_part import ModelPart, FeedDict
+from neuralmonkey.model.sequence import Sequence
 from neuralmonkey.decorators import tensor
 
 
@@ -26,6 +29,11 @@ class WordAlignmentDecoder(ModelPart):
         self.decoder = decoder
         self.data_id = data_id
 
+        if not isinstance(self.encoder.input_sequence, Sequence):
+            raise TypeError("Expected Sequence type in encoder.input_sequence")
+
+        self.enc_input = cast(Sequence, self.encoder.input_sequence)
+
         # TODO this is here to call the lazy properties which create
         # the list of attention distribbutions
         # pylint: disable=pointless-statement
@@ -41,10 +49,11 @@ class WordAlignmentDecoder(ModelPart):
 
     @tensor
     def ref_alignment(self) -> tf.Tensor:
+        # TODO dynamic shape?
         return tf.placeholder(
             dtype=tf.float32,
             shape=[None, self.decoder.max_output_len,
-                   self.encoder.input_sequence.max_length],
+                   self.enc_input.max_length],
             name="ref_alignment")
 
     @tensor
@@ -91,7 +100,7 @@ class WordAlignmentDecoder(ModelPart):
 
             alignment = np.zeros((len(dataset),
                                   self.decoder.max_output_len,
-                                  self.encoder.input_sequence.max_length),
+                                  self.enc_input.max_length),
                                  np.float32)
 
         fd[self.ref_alignment] = alignment

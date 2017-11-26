@@ -60,6 +60,11 @@ class TemporalStateful(metaclass=ABCMeta):
         """
         return tf.to_int32(tf.reduce_sum(self.temporal_mask, 1))
 
+    @property
+    def dimension(self) -> tf.Tensor:
+        """Return the dimension of the states."""
+        return tf.shape(self.temporal_states)[-1]
+
 
 class SpatialStateful(metaclass=ABCMeta):
     @property
@@ -81,6 +86,11 @@ class SpatialStateful(metaclass=ABCMeta):
         The mask should only contain ones or zeros.
         """
         raise NotImplementedError("Abstract property")
+
+    @property
+    def dimension(self) -> tf.Tensor:
+        """Return the dimension of the states."""
+        return tf.shape(self.spatial_states)[-1]
 
 
 # pylint: disable=abstract-method

@@ -12,15 +12,18 @@ from neuralmonkey.model.stateful import TemporalStateful
 from neuralmonkey.vocabulary import Vocabulary
 from neuralmonkey.decorators import tensor
 from neuralmonkey.dataset import Dataset
-from neuralmonkey.logging import warn
 
 
 # pylint: disable=abstract-method
 class Sequence(ModelPart, TemporalStateful):
     """Base class for a data sequence.
 
-    This class represents a batch of sequences of Tensors of possibly
+    This abstract class represents a batch of sequences of Tensors of possibly
     different lengths.
+
+    Sequence is essentialy a temporal stateful object whose states and mask
+    are fed, or computed from fed values. It is also a ModelPart, and
+    therefore, it can store variables such as embedding matrices.
     """
 
     def __init__(self,
@@ -37,26 +40,10 @@ class Sequence(ModelPart, TemporalStateful):
             load_checkpoint: The load_checkpoint parameter for `ModelPart`
         """
         ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
-        check_argument_types()
 
-        self._max_length = max_length
-        if self._max_length is not None and self._max_length <= 0:
+        self.max_length = max_length
+        if self.max_length is not None and self.max_length <= 0:
             raise ValueError("Max sequence length must be a positive integer.")
-
-    @property
-    def data(self) -> tf.Tensor:
-        warn("data attribute of Sequence class is deprecated")
-        return self.temporal_states
-
-    @property
-    def mask(self) -> tf.Tensor:
-        warn("mask attribute of Sequence class is deprecated")
-        return self.temporal_mask
-
-    @property
-    def max_length(self) -> int:
-        """Return the maximum length of the data sequences."""
-        return self._max_length
 # pylint: enable=abstract-method
 
 
@@ -94,9 +81,9 @@ class EmbeddedFactorSequence(Sequence):
             save_checkpoint: The save_checkpoint parameter for `ModelPart`
             load_checkpoint: The load_checkpoint parameter for `ModelPart`
         """
-        Sequence.__init__(self, name, max_length,
-                          save_checkpoint, load_checkpoint)
         check_argument_types()
+        Sequence.__init__(
+            self, name, max_length, save_checkpoint, load_checkpoint)
 
         self.vocabularies = vocabularies
         self.vocabulary_sizes = [len(vocab) for vocab in self.vocabularies]
@@ -113,6 +100,12 @@ class EmbeddedFactorSequence(Sequence):
 
         if any([esize <= 0 for esize in self.embedding_sizes]):
             raise ValueError("Embedding size must be a positive integer.")
+
+        with self.use_scope():
+            self.mask = tf.placeholder(tf.float32, [None, None], "mask")
+            self.input_factors = [
+                tf.placeholder(tf.int32, [None, None], "factor_{}".format(did))
+                for did in self.data_ids]
     # pylint: enable=too-many-arguments
 
     # TODO this should be placed into the abstract embedding class
@@ -139,28 +132,6 @@ class EmbeddedFactorSequence(Sequence):
             embedding.metadata_path = wordlist
 
     @tensor
-    def input_factors(self) -> List[tf.Tensor]:
-        """Return a list of 2D placeholders for each factor.
-
-        Each placeholder has shape (batch size, time).
-        """
-        plc_names = ["sequence_data_{}".format(data_id)
-                     for data_id in self.data_ids]
-
-        return [tf.placeholder(tf.int32, [None, None], name)
-                for name in plc_names]
-
-    # pylint: disable=no-self-use
-    @tensor
-    def temporal_mask(self) -> tf.Tensor:
-        """Return a 2D placeholder for the sequence mask.
-
-        This is shared across factors and must be the same for each of them.
-        """
-        return tf.placeholder(tf.float32, [None, None], "sequence_mask")
-    # pylint: enable=no-self-use
-
-    @tensor
     def embedding_matrices(self) -> List[tf.Tensor]:
         """Return a list of embedding matrices for each factor."""
 
@@ -178,7 +149,7 @@ class EmbeddedFactorSequence(Sequence):
 
     @tensor
     def temporal_states(self) -> tf.Tensor:
-        """Return the sequence data.
+        """Return the embedded factors.
 
         A 3D Tensor of shape (batch, time, dimension),
         where dimension is the sum of the embedding sizes supplied to the
@@ -191,13 +162,9 @@ class EmbeddedFactorSequence(Sequence):
 
         return tf.concat(embedded_factors, 2)
 
-    @property
-    def dimension(self) -> int:
-        """Return the sequence dimension.
-
-        The sum of the embedding sizes supplied to the constructor.
-        """
-        return sum(self.embedding_sizes)
+    @tensor
+    def temporal_mask(self) -> tf.Tensor:
+        return self.mask
 
     def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
         """Feed the placholders with the data.
@@ -279,12 +246,12 @@ class EmbeddedSequence(EmbeddedFactorSequence):
             load_checkpoint=load_checkpoint)
     # pylint: enable=too-many-arguments
 
-    # pylint: disable=unsubscriptable-object
     @property
     def inputs(self) -> tf.Tensor:
         """Return a 2D placeholder for the sequence inputs."""
         return self.input_factors[0]
 
+    # pylint: disable=unsubscriptable-object
     @property
     def embedding_matrix(self) -> tf.Tensor:
         """Return the embedding matrix for the sequence."""

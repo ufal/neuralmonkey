@@ -29,7 +29,6 @@ class SequenceLabeler(ModelPart):
         self.dropout_keep_prob = dropout_keep_prob
 
         self.rnn_size = int(encoder.temporal_states.get_shape()[-1])
-        self.max_output_len = self.encoder.input_sequence.max_length
 
     # pylint: disable=no-self-use
     @tensor
@@ -117,7 +116,8 @@ class SequenceLabeler(ModelPart):
 
         biases_3d = tf.expand_dims(tf.expand_dims(biases, 0), 0)
 
-        embedded_inputs = tf.expand_dims(self.encoder.input_sequence.data, 2)
+        embedded_inputs = tf.expand_dims(
+            self.encoder.input_sequence.temporal_states, 2)
         dweights_4d = tf.expand_dims(tf.expand_dims(weights_direct, 0), 0)
 
         dmultiplication = tf.nn.conv2d(
@@ -137,8 +137,7 @@ class SequenceLabeler(ModelPart):
 
         if sentences is not None:
             vectors, paddings = self.vocabulary.sentences_to_tensor(
-                list(sentences), self.max_output_len, pad_to_max_len=False,
-                train_mode=train)
+                list(sentences), pad_to_max_len=False, train_mode=train)
 
             fd[self.train_targets] = vectors.T
             fd[self.train_weights] = paddings.T

@@ -71,7 +71,7 @@ class SentenceEncoder(ModelPart, TemporalStatefulWithOutput):
 
     @tensor
     def temporal_mask(self) -> tf.Tensor:
-        return self.input_sequence.mask
+        return self.input_sequence.temporal_mask
 
     @tensor
     def order_embeddings(self) -> tf.Tensor:
@@ -86,10 +86,10 @@ class SentenceEncoder(ModelPart, TemporalStatefulWithOutput):
     def ordered_embedded_inputs(self) -> tf.Tensor:
         # shape (batch, time, embedding size)
         ordering_additive = tf.expand_dims(self.order_embeddings, 0)
-        batch_max_len = tf.shape(self.input_sequence.data)[1]
+        batch_max_len = tf.shape(self.input_sequence.temporal_states)[1]
         clipped_ordering_embed = ordering_additive[:, :batch_max_len, :]
 
-        return self.input_sequence.data + clipped_ordering_embed
+        return self.input_sequence.temporal_states + clipped_ordering_embed
 
     def _residual_conv(self, input_signals: tf.Tensor, name: str):
         with tf.variable_scope(name):
