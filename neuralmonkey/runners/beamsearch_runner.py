@@ -11,7 +11,7 @@ from neuralmonkey.runners.base_runner import (BaseRunner, Executable,
 # pylint: disable=unused-import
 from neuralmonkey.runners.base_runner import FeedDict
 # pylint: enable=unused-import
-from neuralmonkey.vocabulary import END_TOKEN
+from neuralmonkey.vocabulary import PAD_TOKEN_INDEX, END_TOKEN, PAD_TOKEN
 
 
 class BeamSearchExecutable(Executable):
@@ -88,8 +88,6 @@ class BeamSearchExecutable(Executable):
 
         # Prepare the next feed_dict (in ensembles)
         self._next_feed = []
-        finished = True
-
         for result in results:
             bs_outputs = result["bs_outputs"]
 
@@ -100,7 +98,6 @@ class BeamSearchExecutable(Executable):
                   self._decoder.search_state: search_state}
 
             dec_feedables = bs_outputs.last_dec_loop_state
-            finished = finished and np.all(dec_feedables.finished)
 
             # Due to the arrays in DecoderState (prev_contexts),
             # we have to create feed for each value separately.
@@ -118,12 +115,17 @@ class BeamSearchExecutable(Executable):
 
             self._next_feed.append(fd)
 
-        if finished:
+        if self.token_ids.size == 0:
+            return
+
+        # We assume that we can stop decoding when all tokens
+        # in the last step were <pad>
+        if np.all(np.equal(self.token_ids[-1], PAD_TOKEN_INDEX)):
             self.prepare_results()
     # pylint: enable=too-many-locals
 
     def prepare_results(self):
-        max_time = self.scores.shape[0] - 1
+        max_time = self.step
 
         output_tokens = []
         hyp_idx = np.argpartition(
@@ -141,7 +143,10 @@ class BeamSearchExecutable(Executable):
         for tok in output_tokens:
             if tok == END_TOKEN:
                 break
-            before_eos_tokens.append(tok)
+            # TODO: investigate why the decoder can start generating
+            # padding before generating the END_TOKEN
+            if tok != PAD_TOKEN:
+                before_eos_tokens.append(tok)
 
         if self._postprocess is not None:
             decoded_tokens = self._postprocess([before_eos_tokens])
