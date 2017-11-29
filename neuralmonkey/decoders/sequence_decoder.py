@@ -1,16 +1,16 @@
-"""Abstract class for decoding sequences left-to-right.
+"""Abstract class for autoregressive decoding.
 
 Either for the recurrent decoder, or for the transformer decoder.
 
 The sequence decoder uses the while loop to get the outputs. Descendants should
 only specify the initial state and the while loop body.
 """
-import math
 from typing import (NamedTuple, Union, Callable, Tuple, cast, Iterable, Type,
                     List, Optional, Any)
 
 import numpy as np
 import tensorflow as tf
+from typeguard import check_argument_types
 
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.decorators import tensor
@@ -28,6 +28,13 @@ def extend_namedtuple(name: str, parent: Type,
     # pylint: enable=protected-access
     return cast(Type, NamedTuple(name, ext_fields))
 
+
+LoopState = NamedTuple(
+    "LoopState",
+    [("histories", Any),
+     ("constants", Any),
+     ("feedables", Any)])
+# pylint: enable=invalid-name
 
 # The LoopState is a structure that works with the tf.while_loop function
 # the decoder loop state stores all the information that is not invariant
@@ -51,16 +58,8 @@ DecoderFeedables = NamedTuple(
      ("input_symbol", tf.Tensor),
      ("prev_logits", tf.Tensor)])
 
-LoopState = NamedTuple(
-    "LoopState",
-    [("histories", Any),
-     ("constants", Any),
-     ("feedables", Any)])
-# pylint: enable=invalid-name
-
 
 # pylint: disable=too-many-public-methods
-# TODO More refactoring needed.. (?)
 class SequenceDecoder(ModelPart):
 
     def __init__(self,
@@ -71,15 +70,25 @@ class SequenceDecoder(ModelPart):
                  dropout_keep_prob: float = 1.0,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None) -> None:
+        """Initialize parameters common for all autoregressive decoders.
+
+        Arguments:
+            name: Name of the decoder. Should be unique accross all Neural
+                Monkey objects.
+            vocabulary: Target vocabulary.
+            data_id: Target data series.
+            max_output_len: Maximum length of an output sequence.
+            dropout_keep_prob: Probability of keeping a value during dropout.
+        """
         ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
+        check_argument_types()
+
         log("Initializing decoder, name: '{}'".format(name))
 
         self.vocabulary = vocabulary
         self.data_id = data_id
         self.max_output_len = max_output_len
         self.dropout_keep_prob = dropout_keep_prob
-
-        # TODO check the values of the parameters (vocab, ...)
 
         with self.use_scope():
             self.train_mode = tf.placeholder(tf.bool, [], "train_mode")
@@ -100,17 +109,17 @@ class SequenceDecoder(ModelPart):
             return tf.get_variable(
                 "logit_matrix",
                 [self.output_dimension, len(self.vocabulary)],
-                initializer=tf.random_uniform_initializer(-0.5, 0.5))
+                initializer=tf.glorot_uniform_initializer())
 
     @tensor
     def decoding_b(self) -> tf.Variable:
         with tf.name_scope("output_projection"):
             return tf.get_variable(
                 "logit_bias", [len(self.vocabulary)],
-                initializer=tf.constant_initializer(
-                    - math.log(len(self.vocabulary))))
+                initializer=tf.zeros_initializer())
 
     def get_logits(self, state: tf.Tensor) -> tf.Tensor:
+        """Project the decoder's output layer to logits over the vocabulary."""
         state = dropout(state, self.dropout_keep_prob, self.train_mode)
         return tf.matmul(state, self.decoding_w) + self.decoding_b
 
@@ -162,6 +171,12 @@ class SequenceDecoder(ModelPart):
 
     @tensor
     def decoded(self) -> tf.Tensor:
+        # We disable generating of <pad> tokens at index 0
+        # (self.runtime_logits[:, :, 1:]). This shifts the indices
+        # of the decoded tokens (therefore, we add +1 to the decoded
+        # output indices).
+
+        # self.runtime_logits is of size [batch, sentence_len, vocabulary_size]
         return tf.argmax(self.runtime_logits[:, :, 1:], -1) + 1
 
     @tensor
@@ -171,7 +186,7 @@ class SequenceDecoder(ModelPart):
         min_time = tf.minimum(tf.shape(train_targets)[1],
                               tf.shape(batch_major_logits)[1])
 
-        # TODO if done properly, there should be padding of the shorter
+        # NOTE if done properly, there should be padding of the shorter
         # sequence instead of cropping to the length of the shorter one
 
         return tf.contrib.seq2seq.sequence_loss(
@@ -191,6 +206,12 @@ class SequenceDecoder(ModelPart):
         raise NotImplementedError("Abstract method")
 
     def loop_continue_criterion(self, *args) -> tf.Tensor:
+        """Decide whether to break out of the while loop.
+
+        Arguments:
+            loop_state: ``LoopState`` instance (see the docs for this module).
+                Represents current decoder loop state.
+        """
         loop_state = LoopState(*args)
         finished = loop_state.feedables.finished
         not_all_done = tf.logical_not(tf.reduce_all(finished))
@@ -199,15 +220,39 @@ class SequenceDecoder(ModelPart):
         return tf.logical_and(not_all_done, before_max_len)
 
     def get_body(self, train_mode: bool, sample: bool = False) -> Callable:
+        """Return the while loop body function."""
         raise NotImplementedError("Abstract method")
 
     def finalize_loop(self, final_loop_state: LoopState,
                       train_mode: bool) -> None:
-        pass
+        """Execute post-while loop operations.
+
+        Arguments:
+            final_loop_state: Decoder loop state at the end
+                of the decoding loop.
+            train_mode: Boolean flag, telling whether this is
+                a training run.
+        """
 
     def decoding_loop(self, train_mode: bool, sample: bool = False) -> Tuple[
             tf.Tensor, tf.Tensor, tf.Tensor, tf.Tensor]:
+        """Run the decoding while loop.
 
+        Calls get_initial_loop_state and constructs tf.while_loop
+        with the continuation criterion returned from loop_continue_criterion,
+        and body function returned from get_body.
+
+        After finishing the tf.while_loop, it calls finalize_loop
+        to further postprocess the final decoder loop state (usually
+        by stacking TensorArrays containing decoding histories).
+
+        Arguments:
+            train_mode: Boolean flag, telling whether this is
+                a training run.
+            sample: Boolean flag, telling whether we should sample
+                the output symbols from the output distribution instead
+                of using argmax or gold data.
+        """
         initial_loop_state = self.get_initial_loop_state()
         final_loop_state = tf.while_loop(
             self.loop_continue_criterion,
@@ -230,7 +275,7 @@ class SequenceDecoder(ModelPart):
 
         Arguments:
             dataset: The dataset to use for the decoder.
-            train: Boolean flag, telling whether this is a training run
+            train: Boolean flag, telling whether this is a training run.
         """
         sentences = cast(Iterable[List[str]],
                          dataset.get_series(self.data_id, allow_none=True))
