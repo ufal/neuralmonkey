@@ -10,7 +10,6 @@ from typing import (NamedTuple, Union, Callable, Tuple, cast, Iterable, Type,
 
 import numpy as np
 import tensorflow as tf
-from typeguard import check_argument_types
 
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.decorators import tensor
@@ -81,7 +80,6 @@ class SequenceDecoder(ModelPart):
             dropout_keep_prob: Probability of keeping a value during dropout.
         """
         ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
-        check_argument_types()
 
         log("Initializing decoder, name: '{}'".format(name))
 
@@ -89,6 +87,15 @@ class SequenceDecoder(ModelPart):
         self.data_id = data_id
         self.max_output_len = max_output_len
         self.dropout_keep_prob = dropout_keep_prob
+
+        # check the values of the parameters (max_output_len, ...)
+        if max_output_len <= 0:
+            raise ValueError("Maximum sequence length must be "
+                             "a positive integer.")
+
+        if dropout_keep_prob < 0.0 or dropout_keep_prob > 1.0:
+            raise ValueError("Dropout keep probability must be"
+                             "a real number in the interval [0,1].")
 
         with self.use_scope():
             self.train_mode = tf.placeholder(tf.bool, [], "train_mode")
