@@ -28,7 +28,7 @@ class SequenceLabeler(ModelPart):
         self.data_id = data_id
         self.dropout_keep_prob = dropout_keep_prob
 
-        self.rnn_size = int(encoder.temporal_states.get_shape()[-1])
+        self.rnn_size = int(self.encoder.temporal_states.get_shape()[-1])
 
     # pylint: disable=no-self-use
     @tensor
@@ -45,42 +45,6 @@ class SequenceLabeler(ModelPart):
     def train_mode(self) -> tf.Tensor:
         return tf.placeholder(tf.bool, name="train_mode")
     # pylint: enable=no-self-use
-
-    @property
-    def train_loss(self) -> tf.Tensor:
-        return self.cost
-
-    @property
-    def runtime_loss(self) -> tf.Tensor:
-        return self.cost
-
-    @tensor
-    def cost(self) -> tf.Tensor:
-        loss = tf.nn.sparse_softmax_cross_entropy_with_logits(
-            labels=self.train_targets, logits=self.logits)
-
-        # loss is now of shape [batch, time]. Need to mask it now by
-        # element-wise multiplication with weights placeholder
-        weighted_loss = loss * self.train_weights
-        return tf.reduce_sum(weighted_loss)
-
-    @tensor
-    def decoded(self) -> tf.Tensor:
-        # [:, :, 1:] -- bans generating the PAD symbol (index 0 in
-        #            the vocabulary;
-        #
-        # tf.argmax(l[:, :, 1:], 2) -- argmax along the vocabulary dim
-        #
-        # +1 -- because the [:, :, 1:] removed a symbol from argmax
-        #       consideration, we need to compensate for the shortened array.
-
-        # pylint: disable=unsubscriptable-object
-        return tf.argmax(self.logits[:, :, 1:], 2) + 1
-        # pylint: enable=unsubscriptable-object
-
-    @tensor
-    def logprobs(self) -> tf.Tensor:
-        return tf.nn.log_softmax(self.logits)
 
     @tensor
     def logits(self) -> tf.Tensor:
@@ -126,6 +90,32 @@ class SequenceLabeler(ModelPart):
 
         logits = multiplication_3d + dmultiplication_3d + biases_3d
         return logits
+
+    @tensor
+    def logprobs(self) -> tf.Tensor:
+        return tf.nn.log_softmax(self.logits)
+
+    @tensor
+    def decoded(self) -> tf.Tensor:
+        return tf.argmax(self.logits, 2)
+
+    @tensor
+    def cost(self) -> tf.Tensor:
+        loss = tf.nn.sparse_softmax_cross_entropy_with_logits(
+            labels=self.train_targets, logits=self.logits)
+
+        # loss is now of shape [batch, time]. Need to mask it now by
+        # element-wise multiplication with weights placeholder
+        weighted_loss = loss * self.train_weights
+        return tf.reduce_sum(weighted_loss)
+
+    @property
+    def train_loss(self) -> tf.Tensor:
+        return self.cost
+
+    @property
+    def runtime_loss(self) -> tf.Tensor:
+        return self.cost
 
     def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
         fd = {}  # type: FeedDict
