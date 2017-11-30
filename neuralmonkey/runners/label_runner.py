@@ -21,9 +21,9 @@ class LabelRunner(BaseRunner):
         log("Decoder output tensor: {}".format(decoder.decoded))
 
     def get_executable(self,
-                       compute_losses=False,
-                       summaries=True,
-                       num_sessions=1):
+                       compute_losses: bool = False,
+                       summaries: bool = True,
+                       num_sessions: int = 1):
         if compute_losses:
             fetches = {"loss": self._decoder.cost}
         else:
@@ -32,7 +32,8 @@ class LabelRunner(BaseRunner):
         fetches["label_logprobs"] = self._decoder.logprobs
         fetches["input_mask"] = self._decoder.encoder.input_sequence.mask
 
-        return LabelRunExecutable(self.all_coders, fetches,
+        return LabelRunExecutable(self.all_coders,
+                                  fetches,
                                   num_sessions,
                                   self._decoder.vocabulary,
                                   self._postprocess)
@@ -45,11 +46,11 @@ class LabelRunner(BaseRunner):
 class LabelRunExecutable(Executable):
 
     def __init__(self,
-                 all_coders,
-                 fetches,
-                 num_sessions,
-                 vocabulary,
-                 postprocess):
+                 all_coders: Set[ModelPart],
+                 fetches: FeedDict,
+                 num_sessions: int,
+                 vocabulary: Vocabulary,
+                 postprocess: Optional[Callable]) -> None:
         self.all_coders = all_coders
         self._fetches = fetches
         self._num_sessions = num_sessions

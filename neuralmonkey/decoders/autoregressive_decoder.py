@@ -2,7 +2,7 @@
 
 Either for the recurrent decoder, or for the transformer decoder.
 
-The sequence decoder uses the while loop to get the outputs. Descendants should
+The autoregressive decoder uses the while loop to get the outputs. Descendants should
 only specify the initial state and the while loop body.
 """
 from typing import (NamedTuple, Union, Callable, Tuple, cast, Iterable, Type,
@@ -59,7 +59,7 @@ DecoderFeedables = NamedTuple(
 
 
 # pylint: disable=too-many-public-methods
-class SequenceDecoder(ModelPart):
+class AutoregressiveDecoder(ModelPart):
 
     def __init__(self,
                  name: str,

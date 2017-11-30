@@ -13,7 +13,7 @@ class RepresentationExecutable(Executable):
 
     def __init__(self, prev_coders: Set[ModelPart],
                  encoded: tf.Tensor,
-                 num_sessions,
+                 num_sessions: int,
                  used_session: int) -> None:
         self._prev_coders = prev_coders
         self._encoded = encoded

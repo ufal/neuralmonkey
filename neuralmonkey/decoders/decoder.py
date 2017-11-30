@@ -3,8 +3,8 @@ from typing import List, Callable, Union, Tuple
 import tensorflow as tf
 from typeguard import check_argument_types
 
-from neuralmonkey.decoders.sequence_decoder import (
-    SequenceDecoder, LoopState, extend_namedtuple, DecoderHistories,
+from neuralmonkey.decoders.autoregressive_decoder import (
+    AutoregressiveDecoder, LoopState, extend_namedtuple, DecoderHistories,
     DecoderFeedables, DecoderConstants)
 from neuralmonkey.attention.base_attention import BaseAttention
 from neuralmonkey.vocabulary import (Vocabulary, END_TOKEN_INDEX,
@@ -44,7 +44,7 @@ RNNHistories = extend_namedtuple(
 
 
 # pylint: disable=too-many-instance-attributes
-class Decoder(SequenceDecoder):
+class Decoder(AutoregressiveDecoder):
     """A class managing parts of the computation graph used during decoding."""
 
     # pylint: disable=too-many-locals
@@ -94,7 +94,7 @@ class Decoder(SequenceDecoder):
                 step should be combined with the input in the next step.
         """
         check_argument_types()
-        SequenceDecoder.__init__(
+        AutoregressiveDecoder.__init__(
             self,
             name=name,
             vocabulary=vocabulary,

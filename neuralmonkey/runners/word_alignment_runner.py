@@ -18,8 +18,10 @@ class WordAlignmentRunner(BaseRunner):
 
         self._encoder = encoder
 
-    def get_executable(self, compute_losses=False, summaries=True,
-                       num_sessions=1):
+    def get_executable(self,
+                       compute_losses: bool = False,
+                       summaries: bool = True,
+                       num_sessions: int = 1) -> WordAlignmentRunnerExecutable:
         att_object = self._decoder.get_attention_object(self._encoder,
                                                         train_mode=False)
         alignment = tf.transpose(
@@ -37,7 +39,10 @@ class WordAlignmentRunner(BaseRunner):
 
 class WordAlignmentRunnerExecutable(Executable):
 
-    def __init__(self, all_coders, fetches, num_sessions):
+    def __init__(self,
+                 all_coders: Set[ModelPart],
+                 fetches: FeedDict,
+                 num_sessions: int) -> None:
         self.all_coders = all_coders
         self._fetches = fetches
         self._num_sessions = num_sessions

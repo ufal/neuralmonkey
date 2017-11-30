@@ -17,28 +17,32 @@ from neuralmonkey.vocabulary import PAD_TOKEN_INDEX, END_TOKEN, PAD_TOKEN
 class BeamSearchExecutable(Executable):
     def __init__(self,
                  rank: int,
-                 all_encoders: Set[ModelPart],
+                 all_coders: Set[ModelPart],
                  num_sessions: int,
                  decoder: BeamSearchDecoder,
                  postprocess: Optional[Callable]) -> None:
+        """TODO: docstring describing the whole knowhow."""
 
         self._rank = rank
         self._num_sessions = num_sessions
-        self._all_encoders = all_encoders
+        self._all_coders = all_coders
         self._decoder = decoder
         self._postprocess = postprocess
 
-        self.step = 0
-        self.scores = np.empty([0, decoder.beam_size], dtype=float)
-        self.parent_ids = np.empty([0, decoder.beam_size], dtype=int)
-        self.token_ids = np.empty([0, decoder.beam_size], dtype=int)
+        # Length of the currently sequence decoded so far
+        self._step = 0
+
+        self._scores = []
+        self._parent_ids = []
+        self._token_ids = []
 
         self._next_feed = [{} for _ in range(self._num_sessions)] \
             # type: List[FeedDict]
 
-        # If we are ensembling, we run only one step at a time
-        # Note, that in the first iteration, we only want to generate
-        # logprobs for ensembling, therefore we set max_steps = 0
+        # During ensembling, we execute only on decoder step per session.run
+        # In the first step we do not generate any symbols only logprobs to be
+        # ensembled together with initialization of the decoder itself,
+        # therefore decoder.max_steps is set to 0
         if self._num_sessions > 1:
             for fd in self._next_feed:
                 fd.update({self._decoder.max_steps: 0})
@@ -46,7 +50,7 @@ class BeamSearchExecutable(Executable):
         self.result = None  # type: ExecutionResult
 
     def next_to_execute(self) -> NextExecute:
-        return (self._all_encoders,
+        return (self._all_coders,
                 {"bs_outputs": self._decoder.outputs},
                 self._next_feed)
 
@@ -61,32 +65,37 @@ class BeamSearchExecutable(Executable):
         ens_logprobs = (scipy.misc.logsumexp(prev_logprobs, 0)
                         - np.log(self._num_sessions))
 
-        # The last score is computed
+        # Now we update the scores, parent_ids, token_ids based on the last
+        # session.run of the beamsearch_decoder
         bs_outputs = results[0]["bs_outputs"]
-        step = bs_outputs.last_dec_loop_state.step - 1
 
-        self.step += step
-        self.scores = np.append(
-            self.scores,
-            bs_outputs.last_search_step_output.scores[0:step],
+        # step_size varies between single model run and ensembling
+        # single model: step_size == max_sequence_len
+        # ensembles: step_size == 1
+        step_size = bs_outputs.last_dec_loop_state.step - 1
+
+        self._step += step_size
+        self._scores = np.append(
+            self._scores,
+            bs_outputs.last_search_step_output.scores[0:step_size],
             axis=0)
 
-        self.parent_ids = np.append(
-            self.parent_ids,
-            bs_outputs.last_search_step_output.parent_ids[0:step],
+        self._parent_ids = np.append(
+            self._parent_ids,
+            bs_outputs.last_search_step_output.parent_ids[0:step_size],
             axis=0)
 
-        self.token_ids = np.append(
-            self.token_ids,
-            bs_outputs.last_search_step_output.token_ids[0:step],
+        self._token_ids = np.append(
+            self._token_ids,
+            bs_outputs.last_search_step_output.token_ids[0:step_size],
             axis=0)
 
         if (self._decoder.max_output_len is not None and
-                self.step > self._decoder.max_output_len):
+                self._step > self._decoder.max_output_len):
             self.prepare_results()
             return
 
-        # Prepare the next feed_dict (in ensembles)
+        # Prepare the next feed_dict (required for ensembles)
         self._next_feed = []
         for result in results:
             bs_outputs = result["bs_outputs"]
@@ -94,12 +103,15 @@ class BeamSearchExecutable(Executable):
             search_state = bs_outputs.last_search_state._replace(
                 prev_logprobs=ens_logprobs)
 
+            # in the next iteration, we want to generate one new symbol
+            # based on the ensembled logprobs (and then use this symbol
+            # to get new set of logprobs for ensembling)
             fd = {self._decoder.max_steps: 1,
                   self._decoder.search_state: search_state}
 
             dec_feedables = bs_outputs.last_dec_loop_state
 
-            # Due to the arrays in DecoderState (prev_contexts),
+            # NOTE Due to the arrays in DecoderState (prev_contexts),
             # we have to create feed for each value separately.
             for field in self._decoder.decoder_state._fields:
                 # We do not feed the step
@@ -115,27 +127,28 @@ class BeamSearchExecutable(Executable):
 
             self._next_feed.append(fd)
 
-        if self.token_ids.size == 0:
+        if self._token_ids.size == 0:
             return
 
         # We assume that we can stop decoding when all tokens
         # in the last step were <pad>
-        if np.all(np.equal(self.token_ids[-1], PAD_TOKEN_INDEX)):
+        # TODO: investigate this and fix this if necessary
+        if np.all(np.equal(self._token_ids[-1], PAD_TOKEN_INDEX)):
             self.prepare_results()
     # pylint: enable=too-many-locals
 
     def prepare_results(self):
-        max_time = self.step
+        max_time = self._step
 
         output_tokens = []
         hyp_idx = np.argpartition(
-            -self.scores[-1], self._rank - 1)[self._rank - 1]
-        bs_score = self.scores[-1][hyp_idx]
+            -self._scores[-1], self._rank - 1)[self._rank - 1]
+        bs_score = self._scores[-1][hyp_idx]
         for time in reversed(range(max_time)):
-            token_id = self.token_ids[time][hyp_idx]
+            token_id = self._token_ids[time][hyp_idx]
             token = self._decoder.vocabulary.index_to_word[token_id]
             output_tokens.append(token)
-            hyp_idx = self.parent_ids[time][hyp_idx]
+            hyp_idx = self._parent_ids[time][hyp_idx]
 
         output_tokens.reverse()
 
@@ -153,7 +166,7 @@ class BeamSearchExecutable(Executable):
         else:
             decoded_tokens = [before_eos_tokens]
 
-        # TODO: provide better summaries in case
+        # TODO: provide better summaries in case (issue #599)
         # we want to use the runner during training.
         self.result = ExecutionResult(
             outputs=decoded_tokens,

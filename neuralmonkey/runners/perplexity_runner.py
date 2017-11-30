@@ -11,7 +11,8 @@ from neuralmonkey.runners.base_runner import (BaseRunner, Executable,
 
 
 class PerplexityExecutable(Executable):
-    def __init__(self, all_coders: Set[ModelPart],
+    def __init__(self,
+                 all_coders: Set[ModelPart],
                  xent_op: tf.Tensor,
                  num_sessions: int) -> None:
         self._all_coders = all_coders
@@ -45,9 +46,10 @@ class PerplexityRunner(BaseRunner):
 
         self._decoder_xent = cast(Decoder, self._decoder).train_xents
 
-    def get_executable(self, compute_losses=False,
-                       summaries=True,
-                       num_sessions=1) -> PerplexityExecutable:
+    def get_executable(self,
+                       compute_losses: bool = False,
+                       summaries: bool = True,
+                       num_sessions: int = 1) -> PerplexityExecutable:
         return PerplexityExecutable(self.all_coders,
                                     self._decoder_xent,
                                     num_sessions)

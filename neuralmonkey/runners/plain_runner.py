@@ -22,8 +22,10 @@ class PlainRunner(BaseRunner):
         super(PlainRunner, self).__init__(output_series, decoder)
         self._postprocess = postprocess
 
-    def get_executable(self, compute_losses=False, summaries=True,
-                       num_sessions=1):
+    def get_executable(self,
+                       compute_losses: bool = False,
+                       summaries: bool = True,
+                       num_sessions: int = 1):
         if compute_losses:
             fetches = {"train_loss": self._decoder.train_loss,
                        "runtime_loss": self._decoder.runtime_loss}
@@ -45,8 +47,12 @@ class PlainRunner(BaseRunner):
 
 class PlainExecutable(Executable):
 
-    def __init__(self, all_coders, fetches,
-                 num_sessions, vocabulary, postprocess) -> None:
+    def __init__(self,
+                 all_coders: Set[ModelPart],
+                 fetches: FeedDict,
+                 num_sessions: int,
+                 vocabulary: Vocabulary,
+                 postprocess: Optional[Callable]) -> None:
         self.all_coders = all_coders
         self._fetches = fetches
         self._num_sessions = num_sessions

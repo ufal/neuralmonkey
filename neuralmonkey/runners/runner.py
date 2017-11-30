@@ -27,8 +27,10 @@ class GreedyRunner(BaseRunner):
         else:
             self.image_summaries = None
 
-    def get_executable(self, compute_losses=False, summaries=True,
-                       num_sessions=1):
+    def get_executable(self,
+                       compute_losses: bool = False,
+                       summaries: bool = True,
+                       num_sessions: int = 1) -> GreedyRunnerExecutable:
         if compute_losses:
             fetches = {"train_xent": self._decoder.train_loss,
                        "runtime_xent": self._decoder.runtime_loss}
@@ -53,8 +55,12 @@ class GreedyRunner(BaseRunner):
 
 class GreedyRunExecutable(Executable):
 
-    def __init__(self, all_coders, fetches,
-                 num_sessions, vocabulary, postprocess) -> None:
+    def __init__(self,
+                 all_coders: Set[ModelPart],
+                 fetches: FeedDict,
+                 num_sessions: int,
+                 vocabulary: Vocabulary,
+                 postprocess: Optional[Callable]) -> None:
         self.all_coders = all_coders
         self._fetches = fetches
         self._num_sessions = num_sessions
