@@ -139,7 +139,7 @@ def training_loop(tf_manager: TensorFlowManager,
     else:
         try:
             tf_manager.restore(initial_variables)
-        except tf.errors.NotFoundError as err:
+        except tf.errors.NotFoundError:
             warn("Some variables were not found in checkpoint.)")
 
     if log_directory:

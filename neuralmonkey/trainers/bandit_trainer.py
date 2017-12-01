@@ -81,8 +81,8 @@ def expected_loss_objective(decoder: Decoder,
     def _score_with_reward_function(references: np.array,
                                     hypotheses: np.array) -> np.array:
         """Score (time, batch) arrays with sentence-based reward function.
-        
-        Parts of the sentence after generated <pad> or </s> are ignored.
+
+	Parts of the sentence after generated <pad> or </s> are ignored.
         BPE-postprocessing is also included.
 
         :param references: array of indices of references, shape (time, batch)
