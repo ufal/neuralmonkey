@@ -1,6 +1,7 @@
 # pylint: disable=too-many-lines
-from typing import (cast, Iterable, List, Callable, Optional, Any, Tuple,
-                    NamedTuple)
+import math
+from typing import (cast, Iterable, List, Callable, Optional,
+                    Any, Tuple, NamedTuple, Union)
 
 import numpy as np
 import tensorflow as tf
@@ -12,20 +13,19 @@ from neuralmonkey.vocabulary import (Vocabulary, START_TOKEN, END_TOKEN_INDEX,
                                      PAD_TOKEN_INDEX)
 from neuralmonkey.model.model_part import ModelPart, FeedDict
 from neuralmonkey.model.sequence import EmbeddedSequence
-from neuralmonkey.model.stateful import Stateful
+from neuralmonkey.model.stateful import (TemporalStatefulWithOutput,
+                                         SpatialStatefulWithOutput)
 from neuralmonkey.logging import log, warn
-from neuralmonkey.nn.ortho_gru_cell import OrthoGRUCell, NematusGRUCell
+from neuralmonkey.nn.ortho_gru_cell import OrthoGRUCell
 from neuralmonkey.nn.utils import dropout
 from neuralmonkey.decoders.encoder_projection import (
-    linear_encoder_projection, concat_encoder_projection, empty_initial_state,
-    EncoderProjection)
+    linear_encoder_projection, concat_encoder_projection, empty_initial_state)
 from neuralmonkey.decoders.output_projection import (OutputProjectionSpec,
                                                      nonlinear_output)
 from neuralmonkey.decorators import tensor
 
 
 RNN_CELL_TYPES = {
-    "NematusGRU": NematusGRUCell,
     "GRU": OrthoGRUCell,
     "LSTM": tf.contrib.rnn.LSTMCell
 }
@@ -41,6 +41,7 @@ LoopState = NamedTuple("LoopState",
                         ("prev_rnn_state", tf.Tensor),
                         ("prev_rnn_output", tf.Tensor),
                         ("rnn_outputs", tf.TensorArray),
+                        ("outputs", tf.TensorArray),
                         ("prev_logits", tf.Tensor),
                         ("logits", tf.TensorArray),
                         ("prev_contexts", List[tf.Tensor]),
@@ -62,7 +63,9 @@ class Decoder(ModelPart):
     # pylint: disable=too-many-locals
     # pylint: disable=too-many-arguments,too-many-branches,too-many-statements
     def __init__(self,
-                 encoders: List[Stateful],
+                 # TODO only stateful, attention will need temporal or spat.
+                 encoders: List[Union[TemporalStatefulWithOutput,
+                                      SpatialStatefulWithOutput]],
                  vocabulary: Vocabulary,
                  data_id: str,
                  name: str,
@@ -71,7 +74,9 @@ class Decoder(ModelPart):
                  rnn_size: int = None,
                  embedding_size: int = None,
                  output_projection: OutputProjectionSpec = None,
-                 encoder_projection: EncoderProjection = None,
+                 encoder_projection: Callable[
+                     [tf.Tensor, Optional[int], Optional[List[Any]]],
+                     tf.Tensor]=None,
                  attentions: List[BaseAttention] = None,
                  embeddings_source: EmbeddedSequence = None,
                  attention_on_input: bool = True,
@@ -160,8 +165,7 @@ class Decoder(ModelPart):
         assert self.rnn_size is not None
 
         if self._rnn_cell_str not in RNN_CELL_TYPES:
-            raise ValueError("RNN cell must be a either 'GRU', 'LSTM', or "
-                             "'NematusGRU'. Not {}".format(self._rnn_cell_str))
+            raise ValueError("RNN cell must be a either 'GRU' or 'LSTM'")
 
         if self.output_projection_spec is None:
             log("No output projection specified - using tanh projection")
@@ -256,37 +260,37 @@ class Decoder(ModelPart):
         if self.embeddings_source is not None:
             return self.embeddings_source.embedding_matrix
 
+        # TODO better initialization
         return tf.get_variable(
-            name="word_embeddings",
-            shape=[len(self.vocabulary), self.embedding_size],
-            initializer=tf.glorot_uniform_initializer())
+            "word_embeddings", [len(self.vocabulary), self.embedding_size],
+            initializer=tf.random_uniform_initializer(-0.5, 0.5))
 
     @tensor
     def decoding_w(self) -> tf.Variable:
         with tf.name_scope("output_projection"):
             return tf.get_variable(
-                name="state_to_word_W",
-                shape=[self.output_projection_size, len(self.vocabulary)],
-                initializer=tf.glorot_normal_initializer())
+                "state_to_word_W",
+                [self.output_projection_size, len(self.vocabulary)],
+                initializer=tf.random_uniform_initializer(-0.5, 0.5))
 
     @tensor
     def decoding_b(self) -> tf.Variable:
         with tf.name_scope("output_projection"):
             return tf.get_variable(
-                name="state_to_word_b",
-                shape=[len(self.vocabulary)],
-                initializer=tf.zeros_initializer())
+                "state_to_word_b", [len(self.vocabulary)],
+                initializer=tf.constant_initializer(
+                    - math.log(len(self.vocabulary))))
 
     @tensor
     def train_logits(self) -> tf.Tensor:
         # THE LAST TRAIN INPUT IS NOT USED IN DECODING FUNCTION
         # (just as a target)
-        logits, _, _ = self._decoding_loop(train_mode=True)
+        logits, _, _, _ = self._decoding_loop(train_mode=True)
 
         return logits
 
     @tensor
-    def runtime_loop_result(self) -> Tuple[tf.Tensor, tf.Tensor, tf.Tensor]:
+    def runtime_loop_result(self) -> Tuple[tf.Tensor, tf.Tensor, tf.Tensor, tf.Tensor]:
         return self._decoding_loop(train_mode=False)
 
     @tensor
@@ -362,11 +366,7 @@ class Decoder(ModelPart):
         return RNN_CELL_TYPES[self._rnn_cell_str](self.rnn_size)
 
     def _get_conditional_gru_cell(self) -> tf.contrib.rnn.GRUCell:
-        if self._rnn_cell_str == "NematusGRU":
-            return NematusGRUCell(
-                self.rnn_size, use_state_bias=True, use_input_bias=False)
-
-        return RNN_CELL_TYPES[self._rnn_cell_str](self.rnn_size)
+        return tf.contrib.rnn.GRUCell(self.rnn_size)
 
     def embed_input_symbol(self, *args) -> tf.Tensor:
         loop_state = LoopState(*args)
@@ -404,17 +404,16 @@ class Decoder(ModelPart):
 
                 # Run the RNN.
                 cell = self._get_rnn_cell()
-                if self._rnn_cell_str in ["GRU", "NematusGRU"]:
-                    cell_output, next_state = cell(
-                        rnn_input, loop_state.prev_rnn_output)
-
+                if self._rnn_cell_str == "GRU":
+                    cell_output, state = cell(rnn_input,
+                                              loop_state.prev_rnn_output)
+                    next_state = state
                     attns = [
                         a.attention(cell_output, loop_state.prev_rnn_output,
                                     rnn_input, att_loop_state, loop_state.step)
                         for a, att_loop_state in zip(
                             self.attentions,
                             loop_state.attention_loop_states)]
-
                     if self.attentions:
                         contexts, att_loop_states = zip(*attns)
                     else:
@@ -423,9 +422,8 @@ class Decoder(ModelPart):
                     if self._conditional_gru:
                         cell_cond = self._get_conditional_gru_cell()
                         cond_input = tf.concat(contexts, -1)
-                        cell_output, next_state = cell_cond(
-                            cond_input, next_state, scope="cond_gru_2_cell")
-
+                        cell_output, state = cell_cond(cond_input, state,
+                                                       scope="cond_gru_2_cell")
                 elif self._rnn_cell_str == "LSTM":
                     prev_state = tf.contrib.rnn.LSTMStateTuple(
                         loop_state.prev_rnn_state, loop_state.prev_rnn_output)
@@ -448,6 +446,8 @@ class Decoder(ModelPart):
                     embedded_input = tf.nn.embedding_lookup(
                         self.embedding_matrix, loop_state.input_symbol)
 
+                    # TODO Fix: loop_state.inout_symbol
+
                     output = self.output_projection(
                         cell_output, embedded_input, list(contexts),
                         self.train_mode)
@@ -457,7 +457,8 @@ class Decoder(ModelPart):
             self.step_scope.reuse_variables()
 
             if sample:
-                next_symbols = tf.multinomial(logits, num_samples=1)
+                next_symbols = tf.to_int32(
+                    tf.squeeze(tf.multinomial(logits, num_samples=1), axis=1))
             elif train_mode:
                 next_symbols = loop_state.train_inputs[step]
             else:
@@ -477,6 +478,7 @@ class Decoder(ModelPart):
             new_loop_state = LoopState(
                 step=step + 1,
                 input_symbol=next_symbols,
+                outputs=loop_state.outputs.write(step, next_symbols),
                 train_inputs=loop_state.train_inputs,
                 prev_rnn_state=next_state,
                 prev_rnn_output=cell_output,
@@ -502,6 +504,9 @@ class Decoder(ModelPart):
         logit_ta = tf.TensorArray(dtype=tf.float32, dynamic_size=True,
                                   size=0, name="logits")
 
+        outputs_ta = tf.TensorArray(dtype=tf.int32, dynamic_size=True,
+                                    size=0, name="outputs")
+
         contexts = [tf.zeros([self.batch_size, a.context_vector_size])
                     for a in self.attentions]
 
@@ -515,6 +520,7 @@ class Decoder(ModelPart):
             step=0,
             input_symbol=self.go_symbols,
             train_inputs=self.train_inputs,
+            outputs=outputs_ta,
             prev_rnn_state=self.initial_state,
             prev_rnn_output=self.initial_state,
             rnn_outputs=rnn_output_ta,
@@ -534,7 +540,7 @@ class Decoder(ModelPart):
         return tf.logical_and(not_all_done, before_max_len)
 
     def _decoding_loop(self, train_mode: bool, sample: bool = False)-> Tuple[
-            tf.Tensor, tf.Tensor, tf.Tensor]:
+            tf.Tensor, tf.Tensor, tf.Tensor, tf.Tensor]:
 
         final_loop_state = tf.while_loop(
             self.loop_continue_criterion,
@@ -554,11 +560,12 @@ class Decoder(ModelPart):
 
         logits = final_loop_state.logits.stack()
         rnn_outputs = final_loop_state.rnn_outputs.stack()
+        decoded = final_loop_state.outputs.stack()
 
         # TODO mask should include also the end symbol
         mask = final_loop_state.mask.stack()
 
-        return logits, rnn_outputs, mask
+        return logits, rnn_outputs, mask, decoded
 
     def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
         """Populate the feed dictionary for the decoder object.
