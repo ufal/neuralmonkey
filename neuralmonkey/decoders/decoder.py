@@ -283,11 +283,11 @@ class Decoder(ModelPart):
         # THE LAST TRAIN INPUT IS NOT USED IN DECODING FUNCTION
         # (just as a target)
         logits, _, _, _ = self._decoding_loop(train_mode=True)
-
         return logits
 
     @tensor
-    def runtime_loop_result(self) -> Tuple[tf.Tensor, tf.Tensor, tf.Tensor, tf.Tensor]:
+    def runtime_loop_result(self) -> Tuple[tf.Tensor, tf.Tensor, tf.Tensor, 
+                                           tf.Tensor]:
         return self._decoding_loop(train_mode=False)
 
     @tensor
