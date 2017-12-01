@@ -66,6 +66,7 @@ class GreedyRunExecutable(Executable):
             histogram_summaries=None,
             image_summaries=image_summaries)
 
+
 class GreedyRunner(BaseRunner):
 
     def __init__(self,

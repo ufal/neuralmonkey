@@ -168,7 +168,49 @@ class TensorFlowManager(object):
                 self.saved_scores))
 
     # pylint: disable=too-many-locals
-    # pylint: disable=too-many-branches
+    def _run_executables(self,
+                         batch,
+                         executables,
+                         train) -> None:
+        all_feedables = set()  # type: Set[Any]
+        all_tensors_to_execute = {}
+
+        # We might want to feed different values to each session
+        # E.g. when executing only step at a time during ensembling
+        feed_dicts = [{} for _ in range(len(self.sessions))] \
+            # type: List[FeedDict]
+
+        tensor_list_lengths = []  # type: List[int]
+
+        for executable in executables:
+            if executable.result is None:
+                (feedables,
+                 tensors_to_execute,
+                 add_feed_dicts) = executable.next_to_execute()
+                all_feedables = all_feedables.union(feedables)
+                all_tensors_to_execute[executable] = tensors_to_execute
+                if add_feed_dicts:
+                    for fdict, add_fd in zip(feed_dicts, add_feed_dicts):
+                        fdict.update(add_fd)
+                tensor_list_lengths.append(len(tensors_to_execute))
+            else:
+                tensor_list_lengths.append(0)
+
+        feed_dict = _feed_dicts(batch, all_feedables, train=train)
+
+        for fdict in feed_dicts:
+            fdict.update(feed_dict)
+
+        session_results = [sess.run(all_tensors_to_execute,
+                                    feed_dict=fd)
+                           for sess, fd in zip(self.sessions, feed_dicts)]
+
+        for executable in executables:
+            if executable.result is None:
+                executable.collect_results(
+                    [res[executable] for res in session_results])
+
+    # pylint: disable=too-many-locals
     def execute(self,
                 dataset: Dataset,
                 execution_scripts,
@@ -193,47 +235,9 @@ class TensorFlowManager(object):
                                             summaries=summaries,
                                             num_sessions=len(self.sessions))
                            for s in execution_scripts]
-            # TODO: put this into separate function for better readibility
+
             while not all(ex.result is not None for ex in executables):
-                all_feedables = set()  # type: Set[Any]
-                all_tensors_to_execute = {}
-
-                # We might want to feed different values to each session
-                # E.g. when executing only step at a time during ensembling
-                feed_dicts = [{} for _ in range(len(self.sessions))] \
-                    # type: List[FeedDict]
-
-                tensor_list_lengths = []  # type: List[int]
-
-                for executable in executables:
-                    if executable.result is None:
-                        (feedables,
-                         tensors_to_execute,
-                         add_feed_dicts) = executable.next_to_execute()
-                        all_feedables = all_feedables.union(feedables)
-                        all_tensors_to_execute[executable] = tensors_to_execute
-                        if add_feed_dicts:
-                            for fdict, add_fd in zip(feed_dicts,
-                                                     add_feed_dicts):
-                                fdict.update(add_fd)
-                        tensor_list_lengths.append(len(tensors_to_execute))
-                    else:
-                        tensor_list_lengths.append(0)
-
-                feed_dict = _feed_dicts(batch, all_feedables, train=train)
-
-                for fdict in feed_dicts:
-                    fdict.update(feed_dict)
-
-                session_results = [
-                    sess.run(all_tensors_to_execute,
-                             feed_dict=fd)
-                    for sess, fd in zip(self.sessions, feed_dicts)]
-
-                for executable in executables:
-                    if executable.result is None:
-                        executable.collect_results(
-                            [res[executable] for res in session_results])
+                self._run_executables(batch, executables, train)
 
             for script_list, executable in zip(batch_results, executables):
                 script_list.append(executable.result)

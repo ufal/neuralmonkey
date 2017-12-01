@@ -10,6 +10,7 @@ from neuralmonkey.model.model_part import ModelPart
 from neuralmonkey.runners.base_runner import (
     BaseRunner, Executable, FeedDict, ExecutionResult, NextExecute)
 
+
 class WordAlignmentRunnerExecutable(Executable):
 
     def __init__(self,
@@ -35,6 +36,7 @@ class WordAlignmentRunnerExecutable(Executable):
             scalar_summaries=None,
             histogram_summaries=None,
             image_summaries=None)
+
 
 class WordAlignmentRunner(BaseRunner):
 

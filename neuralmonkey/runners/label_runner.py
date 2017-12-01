@@ -61,6 +61,7 @@ class LabelRunExecutable(Executable):
             histogram_summaries=None,
             image_summaries=None)
 
+
 class LabelRunner(BaseRunner):
 
     def __init__(self,

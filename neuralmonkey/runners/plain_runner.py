@@ -58,6 +58,7 @@ class PlainExecutable(Executable):
             histogram_summaries=None,
             image_summaries=None)
 
+
 class PlainRunner(BaseRunner):
     """A runner which takes the output from decoder.decoded."""
 

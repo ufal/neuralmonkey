@@ -34,8 +34,8 @@ class BeamSearchExecutable(Executable):
 
         # We need to define the np.empty arrays here due to the usage
         # of np.append later
-        self._scores = np.empty([0, decoder.beam_size], dtype=float),
-        self._parent_ids = np.empty([0, decoder.beam_size], dtype=int),
+        self._scores = np.empty([0, decoder.beam_size], dtype=float)
+        self._parent_ids = np.empty([0, decoder.beam_size], dtype=int)
         self._token_ids = np.empty([0, decoder.beam_size], dtype=int)
 
         self._next_feed = [{} for _ in range(self._num_sessions)] \
