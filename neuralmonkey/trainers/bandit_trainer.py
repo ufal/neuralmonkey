@@ -1,5 +1,4 @@
-"""Training objective for expected loss training.
-"""
+"""Training objective for expected loss training."""
 
 from typing import Callable
 
@@ -20,8 +19,7 @@ def reinforce_score(reward: tf.Tensor,
                     baseline: tf.Tensor,
                     decoded: tf.Tensor,
                     logits: tf.Tensor) -> tf.Tensor:
-    """
-    Cost function whose derivative is the REINFORCE equation.
+    """Cost function whose derivative is the REINFORCE equation.
 
     This implements the primitive function to the central equation of the
     REINFORCE algorithm that estimates the gradients of the loss with respect
@@ -29,7 +27,8 @@ def reinforce_score(reward: tf.Tensor,
 
     The second term of the product is the derivative of the log likelihood of
     the decoded word. The reward function and the optional baseline are however
-    treated as a constant, so they influence the derivate only multiplicatively.
+    treated as a constant, so they influence the derivate
+    only multiplicatively.
 
     :param reward: reward for the selected sample
     :param baseline: baseline to subtract from the reward
@@ -60,9 +59,9 @@ def reinforce_score(reward: tf.Tensor,
 def expected_loss_objective(decoder: Decoder,
                             reward_function: RewardFunction,
                             control_variate: str=None) -> Objective:
-    """
-    Expected loss objective for training with bandit feedback
-    from 'Bandit Structured Prediction for Neural Sequence-to-Sequence Learning'
+    """Construct Expected Loss objective for training with bandit feedback.
+
+    'Bandit Structured Prediction for Neural Sequence-to-Sequence Learning'
     Details: http://www.aclweb.org/anthology/P17-1138
 
     :param decoder: a recurrent decoder to sample from
@@ -81,8 +80,8 @@ def expected_loss_objective(decoder: Decoder,
 
     def _score_with_reward_function(references: np.array,
                                     hypotheses: np.array) -> np.array:
-        """
-        Score (time, batch) arrays with sentence-based reward function.
+        """Score (time, batch) arrays with sentence-based reward function.
+        
         Parts of the sentence after generated <pad> or </s> are ignored.
         BPE-postprocessing is also included.
 
@@ -119,15 +118,16 @@ def expected_loss_objective(decoder: Decoder,
     baseline = None
 
     reward_counter = tf.Variable(0.0, trainable=False,
-                                      name="reward_counter")
+                                 name="reward_counter")
     reward_sum = tf.Variable(0.0, trainable=False, name="reward_sum")
 
-    if control_variate == 'baseline':
+    if control_variate == "baseline":
         # increment the cumulative reward in the decoder
-        reward_counter = tf.assign_add(reward_counter, tf.to_float(decoder.batch_size))
+        reward_counter = tf.assign_add(reward_counter,
+                                       tf.to_float(decoder.batch_size))
         reward_sum = tf.assign_add(reward_sum, tf.reduce_sum(sample_reward))
         baseline = tf.div(reward_sum,
-                              tf.maximum(reward_counter, 1.0))
+                          tf.maximum(reward_counter, 1.0))
 
     tf.summary.scalar(
         "sample_{}/reward".format(decoder.data_id),
