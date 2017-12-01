@@ -43,6 +43,7 @@ def reinforce_score(reward: tf.Tensor,
         reward -= baseline
 
     # runtime probabilities, shape (time, batch, vocab)
+    # pylint: disable=invalid-unary-operand-type
     word_logprobs = -tf.nn.sparse_softmax_cross_entropy_with_logits(
         labels=decoded, logits=logits)
 
@@ -57,7 +58,7 @@ def reinforce_score(reward: tf.Tensor,
 
 def expected_loss_objective(decoder: Decoder,
                             reward_function: RewardFunction,
-                            control_variate: str=None) -> Objective:
+                            control_variate: str = None) -> Objective:
     """Construct Expected Loss objective for training with bandit feedback.
 
     'Bandit Structured Prediction for Neural Sequence-to-Sequence Learning'
