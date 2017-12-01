@@ -15,6 +15,7 @@ from neuralmonkey.vocabulary import END_TOKEN, PAD_TOKEN
 RewardFunction = Callable[[np.ndarray, np.ndarray], np.ndarray]
 # pylint: enable=invalid-name
 
+
 def reinforce_score(reward: tf.Tensor,
                     baseline: tf.Tensor,
                     decoded: tf.Tensor,
@@ -41,11 +42,9 @@ def reinforce_score(reward: tf.Tensor,
     if baseline is not None:
         reward -= baseline
 
-
     # runtime probabilities, shape (time, batch, vocab)
     word_logprobs = -tf.nn.sparse_softmax_cross_entropy_with_logits(
         labels=decoded, logits=logits)
-
 
     # sum word log prob to sentence log prob
     # no masking here, since otherwise shorter sentences are preferred
@@ -80,7 +79,7 @@ def expected_loss_objective(decoder: Decoder,
 
     def _score_with_reward_function(references: np.array,
                                     hypotheses: np.array) -> np.array:
-        """Score (time, batch) arrays with sentence-based reward function.
+        """Score (time, batch) arrays with sentence-based reward function
         
         Parts of the sentence after generated <pad> or </s> are ignored.
         BPE-postprocessing is also included.
