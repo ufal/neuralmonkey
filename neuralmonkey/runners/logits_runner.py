@@ -6,9 +6,8 @@ from typeguard import check_argument_types
 import numpy as np
 import tensorflow as tf
 
-from neuralmonkey.runners.base_runner import (BaseRunner, Executable,
-                                              FeedDict, ExecutionResult,
-                                              NextExecute)
+from neuralmonkey.runners.base_runner import (
+    BaseRunner, Executable, FeedDict, ExecutionResult, NextExecute)
 from neuralmonkey.model.model_part import ModelPart
 from neuralmonkey.vocabulary import Vocabulary
 
@@ -36,7 +35,7 @@ class LogitsExecutable(Executable):
         """Get the feedables and tensors to run."""
         return (self.all_coders,
                 self._fetches,
-                [{} for _ in range(self._num_sessions)])
+                None)
 
     def collect_results(self, results: List[Dict]) -> None:
         if len(results) != 1:

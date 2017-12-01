@@ -193,6 +193,7 @@ class TensorFlowManager(object):
                                             summaries=summaries,
                                             num_sessions=len(self.sessions))
                            for s in execution_scripts]
+            # TODO: put this into separate function for better readibility
             while not all(ex.result is not None for ex in executables):
                 all_feedables = set()  # type: Set[Any]
                 all_tensors_to_execute = {}
@@ -211,8 +212,10 @@ class TensorFlowManager(object):
                          add_feed_dicts) = executable.next_to_execute()
                         all_feedables = all_feedables.union(feedables)
                         all_tensors_to_execute[executable] = tensors_to_execute
-                        for fdict, add_fd in zip(feed_dicts, add_feed_dicts):
-                            fdict.update(add_fd)
+                        if add_feed_dicts:
+                            for fdict, add_fd in zip(feed_dicts,
+                                                     add_feed_dicts):
+                                fdict.update(add_fd)
                         tensor_list_lengths.append(len(tensors_to_execute))
                     else:
                         tensor_list_lengths.append(0)

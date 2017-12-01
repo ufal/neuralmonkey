@@ -6,8 +6,8 @@ import numpy as np
 
 from neuralmonkey.model.model_part import ModelPart
 from neuralmonkey.decoders.decoder import Decoder
-from neuralmonkey.runners.base_runner import (BaseRunner, Executable,
-                                              ExecutionResult, NextExecute)
+from neuralmonkey.runners.base_runner import (
+    BaseRunner, Executable, ExecutionResult, NextExecute)
 
 
 class PerplexityExecutable(Executable):
@@ -24,7 +24,7 @@ class PerplexityExecutable(Executable):
         """Get the feedables and tensors to run."""
         return (self._all_coders,
                 {"xents": self._xent_op},
-                [{} for _ in range(self._num_sessions)])
+                None)
 
     def collect_results(self, results: List[Dict]) -> None:
         perplexities = np.mean([2 ** res["xents"] for res in results], axis=0)

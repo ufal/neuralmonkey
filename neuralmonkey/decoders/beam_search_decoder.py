@@ -32,7 +32,7 @@ from typeguard import check_argument_types
 
 from neuralmonkey.model.model_part import ModelPart, FeedDict
 from neuralmonkey.dataset import Dataset
-from neuralmonkey.decoders.sequence_decoder import LoopState
+from neuralmonkey.decoders.autoregressive_decoder import LoopState
 from neuralmonkey.decoders.decoder import Decoder
 from neuralmonkey.vocabulary import (END_TOKEN_INDEX, PAD_TOKEN_INDEX)
 from neuralmonkey.decorators import tensor

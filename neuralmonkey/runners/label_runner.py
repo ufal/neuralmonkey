@@ -1,46 +1,11 @@
-from typing import Any, List, Callable, Dict
+from typing import Any, List, Callable, Dict, Set, Optional
 import numpy as np
 
 from neuralmonkey.logging import log
-from neuralmonkey.vocabulary import END_TOKEN_INDEX
-from neuralmonkey.runners.base_runner import (BaseRunner, Executable,
-                                              ExecutionResult, NextExecute)
-
-
-class LabelRunner(BaseRunner):
-
-    def __init__(self,
-                 output_series: str,
-                 decoder: Any,
-                 postprocess: Callable[[List[str]], List[str]] = None
-                ) -> None:
-        super(LabelRunner, self).__init__(output_series, decoder)
-        self._postprocess = postprocess
-
-        # make sure the lazy decoder creates its output tensor
-        log("Decoder output tensor: {}".format(decoder.decoded))
-
-    def get_executable(self,
-                       compute_losses: bool = False,
-                       summaries: bool = True,
-                       num_sessions: int = 1):
-        if compute_losses:
-            fetches = {"loss": self._decoder.cost}
-        else:
-            fetches = {}
-
-        fetches["label_logprobs"] = self._decoder.logprobs
-        fetches["input_mask"] = self._decoder.encoder.input_sequence.mask
-
-        return LabelRunExecutable(self.all_coders,
-                                  fetches,
-                                  num_sessions,
-                                  self._decoder.vocabulary,
-                                  self._postprocess)
-
-    @property
-    def loss_names(self) -> List[str]:
-        return ["loss"]
+from neuralmonkey.model.model_part import ModelPart
+from neuralmonkey.vocabulary import Vocabulary, END_TOKEN_INDEX
+from neuralmonkey.runners.base_runner import (
+    BaseRunner, Executable, FeedDict, ExecutionResult, NextExecute)
 
 
 class LabelRunExecutable(Executable):
@@ -57,14 +22,13 @@ class LabelRunExecutable(Executable):
         self._vocabulary = vocabulary
         self._postprocess = postprocess
 
-        self.decoded_labels = []
-        self.result = None  # type: Option[ExecutionResult]
+        self.result = None  # type: Optional[ExecutionResult]
 
     def next_to_execute(self) -> NextExecute:
         """Get the feedables and tensors to run."""
         return (self.all_coders,
                 self._fetches,
-                [{} for _ in range(self._num_sessions)])
+                None)
 
     def collect_results(self, results: List[Dict]) -> None:
         loss = results[0].get("loss", 0.)
@@ -96,3 +60,50 @@ class LabelRunExecutable(Executable):
             scalar_summaries=None,
             histogram_summaries=None,
             image_summaries=None)
+
+class LabelRunner(BaseRunner):
+
+    def __init__(self,
+                 output_series: str,
+                 decoder: Any,
+                 postprocess: Callable[[List[str]], List[str]] = None
+                ) -> None:
+        super(LabelRunner, self).__init__(output_series, decoder)
+        self._postprocess = postprocess
+
+        # make sure the lazy decoder creates its output tensor
+        log("Decoder output tensor: {}".format(decoder.decoded))
+
+    def get_executable(self,
+                       compute_losses: bool = False,
+                       summaries: bool = True,
+                       num_sessions: int = 1) -> LabelRunExecutable:
+        if compute_losses:
+            if not hasattr(self._decoder, "cost"):
+                raise TypeError("Decoder should have the 'cost' attribute")
+            fetches = {"loss": getattr(self._decoder, "cost")}
+        else:
+            fetches = {}
+
+        if not hasattr(self._decoder, "logprobs"):
+            raise TypeError("Decoder should have the 'logprobs' attribute")
+
+        if not hasattr(self._decoder, "encoder"):
+            raise TypeError("Decoder should have the 'encoder' attribute")
+
+        if not hasattr(self._decoder, "vocabulary"):
+            raise TypeError("Decoder should have the 'vocabulary' attribute")
+
+        fetches["label_logprobs"] = getattr(self._decoder, "logprobs")
+        fetches["input_mask"] = getattr(self._decoder,
+                                        "encoder").input_sequence.mask
+
+        return LabelRunExecutable(self.all_coders,
+                                  fetches,
+                                  num_sessions,
+                                  getattr(self._decoder, "vocabulary"),
+                                  self._postprocess)
+
+    @property
+    def loss_names(self) -> List[str]:
+        return ["loss"]

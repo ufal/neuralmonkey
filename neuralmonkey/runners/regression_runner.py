@@ -6,8 +6,8 @@ import tensorflow as tf
 from typeguard import check_argument_types
 from neuralmonkey.decoders.sequence_regressor import SequenceRegressor
 from neuralmonkey.model.model_part import ModelPart
-from neuralmonkey.runners.base_runner import (BaseRunner, Executable,
-                                              ExecutionResult, NextExecute)
+from neuralmonkey.runners.base_runner import (
+    BaseRunner, Executable, ExecutionResult, NextExecute)
 # pylint: disable=too-few-public-methods
 
 
@@ -62,7 +62,7 @@ class RegressionRunExecutable(Executable):
         """Get the feedables and tensors to run."""
         return (self.all_coders,
                 self._fetches,
-                [{} for _ in range(self._num_sessions)])
+                None)
 
     def collect_results(self, results: List[Dict]) -> None:
         predictions_sum = np.zeros_like(results[0]["prediction"])

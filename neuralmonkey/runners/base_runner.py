@@ -3,7 +3,6 @@ import numpy as np
 import tensorflow as tf
 
 from neuralmonkey.model.model_part import ModelPart
-
 # pylint: disable=invalid-name
 FeedDict = Dict[tf.Tensor, Union[int, float, np.ndarray]]
 NextExecute = Tuple[Set[ModelPart], Union[Dict, List], List[FeedDict]]
@@ -24,7 +23,9 @@ class Executable(object):
 
 
 class BaseRunner(object):
-    def __init__(self, output_series: str, decoder: ModelPart) -> None:
+    def __init__(self,
+                 output_series: str,
+                 decoder: ModelPart) -> None:
         self.output_series = output_series
         self._decoder = decoder
         self.all_coders = decoder.get_dependencies()

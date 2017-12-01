@@ -6,8 +6,8 @@ from typeguard import check_argument_types
 
 from neuralmonkey.model.model_part import ModelPart
 from neuralmonkey.decoders.beam_search_decoder import BeamSearchDecoder
-from neuralmonkey.runners.base_runner import (BaseRunner, Executable,
-                                              ExecutionResult, NextExecute)
+from neuralmonkey.runners.base_runner import (
+    BaseRunner, Executable, ExecutionResult, NextExecute)
 # pylint: disable=unused-import
 from neuralmonkey.runners.base_runner import FeedDict
 # pylint: enable=unused-import
@@ -32,9 +32,11 @@ class BeamSearchExecutable(Executable):
         # Length of the currently sequence decoded so far
         self._step = 0
 
-        self._scores = []
-        self._parent_ids = []
-        self._token_ids = []
+        # We need to define the np.empty arrays here due to the usage
+        # of np.append later
+        self._scores = np.empty([0, decoder.beam_size], dtype=float),
+        self._parent_ids = np.empty([0, decoder.beam_size], dtype=int),
+        self._token_ids = np.empty([0, decoder.beam_size], dtype=int)
 
         self._next_feed = [{} for _ in range(self._num_sessions)] \
             # type: List[FeedDict]

@@ -2,8 +2,8 @@
 
 Either for the recurrent decoder, or for the transformer decoder.
 
-The autoregressive decoder uses the while loop to get the outputs. Descendants should
-only specify the initial state and the while loop body.
+The autoregressive decoder uses the while loop to get the outputs.
+Descendants should only specify the initial state and the while loop body.
 """
 from typing import (NamedTuple, Union, Callable, Tuple, cast, Iterable, Type,
                     List, Optional, Any)

@@ -7,8 +7,8 @@ from neuralmonkey.decoders.autoregressive_decoder import (
     AutoregressiveDecoder, LoopState, extend_namedtuple, DecoderHistories,
     DecoderFeedables, DecoderConstants)
 from neuralmonkey.attention.base_attention import BaseAttention
-from neuralmonkey.vocabulary import (Vocabulary, END_TOKEN_INDEX,
-                                     PAD_TOKEN_INDEX)
+from neuralmonkey.vocabulary import (
+    Vocabulary, END_TOKEN_INDEX, PAD_TOKEN_INDEX)
 from neuralmonkey.model.sequence import EmbeddedSequence
 from neuralmonkey.model.stateful import Stateful
 from neuralmonkey.logging import log, warn
@@ -17,8 +17,8 @@ from neuralmonkey.nn.utils import dropout
 from neuralmonkey.decoders.encoder_projection import (
     linear_encoder_projection, concat_encoder_projection, empty_initial_state,
     EncoderProjection)
-from neuralmonkey.decoders.output_projection import (OutputProjectionSpec,
-                                                     nonlinear_output)
+from neuralmonkey.decoders.output_projection import (
+    OutputProjectionSpec, nonlinear_output)
 from neuralmonkey.decorators import tensor
 
 

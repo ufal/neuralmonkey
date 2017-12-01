@@ -5,8 +5,8 @@ import tensorflow as tf
 
 from neuralmonkey.model.model_part import ModelPart
 from neuralmonkey.model.stateful import Stateful
-from neuralmonkey.runners.base_runner import (BaseRunner, Executable,
-                                              ExecutionResult, NextExecute)
+from neuralmonkey.runners.base_runner import (
+    BaseRunner, Executable, ExecutionResult, NextExecute)
 
 
 class RepresentationExecutable(Executable):
@@ -25,7 +25,7 @@ class RepresentationExecutable(Executable):
     def next_to_execute(self) -> NextExecute:
         return (self._prev_coders,
                 {"encoded": self._encoded},
-                [{} for _ in range(self._num_sessions)])
+                None)
 
     def collect_results(self, results: List[Dict]) -> None:
         if self._used_session > len(results):
