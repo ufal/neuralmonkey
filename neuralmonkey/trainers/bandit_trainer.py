@@ -78,7 +78,7 @@ def expected_loss_objective(decoder: Decoder,
     sample_decoded = sample_loop_result[3]
 
     reference = decoder.train_inputs
-    
+
     def _score_with_reward_function(references: np.array,
                                     hypotheses: np.array) -> np.array:
         """Score (time, batch) arrays with sentence-based reward function.
