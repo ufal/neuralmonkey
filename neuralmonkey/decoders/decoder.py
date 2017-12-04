@@ -351,19 +351,20 @@ class Decoder(AutoregressiveDecoder):
 
             # pylint: disable=not-callable
             new_feedables = RNNFeedables(
-                prev_rnn_state=next_state,
-                prev_rnn_output=cell_output,
-                prev_contexts=list(contexts),
                 step=step + 1,
                 finished=has_finished,
                 input_symbol=next_symbols,
-                prev_logits=logits)
+                prev_logits=logits,
+                prev_rnn_state=next_state,
+                prev_rnn_output=cell_output,
+                prev_contexts=list(contexts))
 
             new_histories = RNNHistories(
                 attention_histories=list(att_loop_states),
                 logits=loop_state.histories.logits.write(step, logits),
                 decoder_outputs=loop_state.histories.decoder_outputs.write(
                     step + 1, cell_output),
+                outputs=loop_state.histories.outputs.write(step, next_symbols),
                 mask=loop_state.histories.mask.write(step, not_finished))
             # pylint: enable=not-callable
 
@@ -414,6 +415,7 @@ class Decoder(AutoregressiveDecoder):
             # general:
             logits=logit_ta,
             decoder_outputs=rnn_output_ta,
+            outputs=outputs_ta,
             mask=mask_ta)
         # pylint: enable=not-callable
 

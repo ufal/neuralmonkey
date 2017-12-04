@@ -73,7 +73,7 @@ def expected_loss_objective(decoder: Decoder,
 
     # decoded, shape (time, batch)
     # pylint: disable=protected-access
-    sample_loop_result = decoder._decoding_loop(train_mode=False, sample=True)
+    sample_loop_result = decoder.decoding_loop(train_mode=False, sample=True)
     sample_logits = sample_loop_result[0]
     sample_decoded = sample_loop_result[3]
 
