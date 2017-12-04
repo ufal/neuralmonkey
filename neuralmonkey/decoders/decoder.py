@@ -41,6 +41,7 @@ LoopState = NamedTuple("LoopState",
                         ("prev_rnn_state", tf.Tensor),
                         ("prev_rnn_output", tf.Tensor),
                         ("rnn_outputs", tf.TensorArray),
+                        ("outputs", tf.TensorArray),
                         ("prev_logits", tf.Tensor),
                         ("logits", tf.TensorArray),
                         ("prev_contexts", List[tf.Tensor]),
@@ -281,12 +282,12 @@ class Decoder(ModelPart):
     def train_logits(self) -> tf.Tensor:
         # THE LAST TRAIN INPUT IS NOT USED IN DECODING FUNCTION
         # (just as a target)
-        logits, _, _ = self._decoding_loop(train_mode=True)
-
+        logits, _, _, _ = self._decoding_loop(train_mode=True)
         return logits
 
     @tensor
-    def runtime_loop_result(self) -> Tuple[tf.Tensor, tf.Tensor, tf.Tensor]:
+    def runtime_loop_result(self) -> Tuple[tf.Tensor, tf.Tensor, tf.Tensor,
+                                           tf.Tensor]:
         return self._decoding_loop(train_mode=False)
 
     @tensor
@@ -457,7 +458,8 @@ class Decoder(ModelPart):
             self.step_scope.reuse_variables()
 
             if sample:
-                next_symbols = tf.multinomial(logits, num_samples=1)
+                next_symbols = tf.to_int32(
+                    tf.squeeze(tf.multinomial(logits, num_samples=1), axis=1))
             elif train_mode:
                 next_symbols = loop_state.train_inputs[step]
             else:
@@ -477,6 +479,7 @@ class Decoder(ModelPart):
             new_loop_state = LoopState(
                 step=step + 1,
                 input_symbol=next_symbols,
+                outputs=loop_state.outputs.write(step, next_symbols),
                 train_inputs=loop_state.train_inputs,
                 prev_rnn_state=next_state,
                 prev_rnn_output=cell_output,
@@ -502,6 +505,9 @@ class Decoder(ModelPart):
         logit_ta = tf.TensorArray(dtype=tf.float32, dynamic_size=True,
                                   size=0, name="logits")
 
+        outputs_ta = tf.TensorArray(dtype=tf.int32, dynamic_size=True,
+                                    size=0, name="outputs")
+
         contexts = [tf.zeros([self.batch_size, a.context_vector_size])
                     for a in self.attentions]
 
@@ -515,6 +521,7 @@ class Decoder(ModelPart):
             step=0,
             input_symbol=self.go_symbols,
             train_inputs=self.train_inputs,
+            outputs=outputs_ta,
             prev_rnn_state=self.initial_state,
             prev_rnn_output=self.initial_state,
             rnn_outputs=rnn_output_ta,
@@ -534,7 +541,7 @@ class Decoder(ModelPart):
         return tf.logical_and(not_all_done, before_max_len)
 
     def _decoding_loop(self, train_mode: bool, sample: bool = False)-> Tuple[
-            tf.Tensor, tf.Tensor, tf.Tensor]:
+            tf.Tensor, tf.Tensor, tf.Tensor, tf.Tensor]:
 
         final_loop_state = tf.while_loop(
             self.loop_continue_criterion,
@@ -554,11 +561,12 @@ class Decoder(ModelPart):
 
         logits = final_loop_state.logits.stack()
         rnn_outputs = final_loop_state.rnn_outputs.stack()
+        decoded = final_loop_state.outputs.stack()
 
         # TODO mask should include also the end symbol
         mask = final_loop_state.mask.stack()
 
-        return logits, rnn_outputs, mask
+        return logits, rnn_outputs, mask, decoded
 
     def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
         """Populate the feed dictionary for the decoder object.

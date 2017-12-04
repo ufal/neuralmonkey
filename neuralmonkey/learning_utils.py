@@ -137,7 +137,10 @@ def training_loop(tf_manager: TensorFlowManager,
         tf_manager.initialize_model_parts(
             runners + [trainer], save=True)  # type: ignore
     else:
-        tf_manager.restore(initial_variables)
+        try:
+            tf_manager.restore(initial_variables)
+        except tf.errors.NotFoundError:
+            warn("Some variables were not found in checkpoint.)")
 
     if log_directory:
         log("Initializing TensorBoard summary writer.")
