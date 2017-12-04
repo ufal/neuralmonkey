@@ -1,4 +1,4 @@
-from typing import Dict, List, Set, Optional, Callable
+from typing import Dict, List, Set, Optional, Callable, Union
 
 import numpy as np
 import tensorflow as tf
@@ -9,8 +9,10 @@ from neuralmonkey.runners.base_runner import (
 from neuralmonkey.model.model_part import ModelPart
 from neuralmonkey.vocabulary import Vocabulary
 from neuralmonkey.decoders.autoregressive_decoder import AutoregressiveDecoder
+from neuralmonkey.decoders.classifier import Classifier
 
 # pylint: disable=invalid-name
+SupportedDecoder = Union[AutoregressiveDecoder, Classifier]
 Postprocessor = Callable[[List[List[str]]], List[List[str]]]
 # pylint: enable=invalid-name
 
@@ -63,11 +65,11 @@ class GreedyRunExecutable(Executable):
             image_summaries=image_summaries)
 
 
-class GreedyRunner(BaseRunner[AutoregressiveDecoder]):
+class GreedyRunner(BaseRunner[SupportedDecoder]):
 
     def __init__(self,
                  output_series: str,
-                 decoder: AutoregressiveDecoder,
+                 decoder: SupportedDecoder,
                  postprocess: Postprocessor = None) -> None:
         check_argument_types()
         BaseRunner[AutoregressiveDecoder].__init__(

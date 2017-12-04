@@ -34,11 +34,6 @@ class BaseRunner(Generic[MP]):
         self._decoder = decoder
         self.all_coders = decoder.get_dependencies()
 
-        if not hasattr(self._decoder, "data_id"):
-            raise ValueError(
-                "Top-level decoder {} does not have the 'data_id' attribute"
-                .format(self._decoder.name))
-
     def get_executable(self,
                        compute_losses: bool,
                        summaries: bool,
@@ -47,6 +42,11 @@ class BaseRunner(Generic[MP]):
 
     @property
     def decoder_data_id(self) -> str:
+        if not hasattr(self._decoder, "data_id"):
+            raise ValueError(
+                "Top-level decoder {} does not have the 'data_id' attribute"
+                .format(self._decoder.name))
+
         return getattr(self._decoder, "data_id")
 
     @property
