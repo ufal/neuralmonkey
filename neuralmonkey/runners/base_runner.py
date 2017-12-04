@@ -1,4 +1,5 @@
-from typing import Any, Dict, Tuple, List, NamedTuple, Union, Set
+from typing import (Any, Dict, Tuple, List, NamedTuple, Union, Set, TypeVar,
+                    Generic)
 import numpy as np
 import tensorflow as tf
 
@@ -13,6 +14,9 @@ ExecutionResult = NamedTuple("ExecutionResult",
                               ("histogram_summaries", tf.Summary),
                               ("image_summaries", tf.Summary)])
 
+MP = TypeVar("MP", bound=ModelPart)
+# pylint: enable=invalid-name
+
 
 class Executable(object):
     def next_to_execute(self) -> NextExecute:
@@ -22,27 +26,27 @@ class Executable(object):
         raise NotImplementedError()
 
 
-class BaseRunner(object):
+class BaseRunner(Generic[MP]):
     def __init__(self,
                  output_series: str,
-                 decoder: ModelPart) -> None:
+                 decoder: MP) -> None:
         self.output_series = output_series
         self._decoder = decoder
         self.all_coders = decoder.get_dependencies()
 
-    def get_executable(self,
-                       compute_losses: bool = False,
-                       summaries: bool = True,
-                       num_sessions: int = 1) -> Executable:
-        raise NotImplementedError()
-
-    @property
-    def decoder_data_id(self) -> str:
         if not hasattr(self._decoder, "data_id"):
             raise ValueError(
                 "Top-level decoder {} does not have the 'data_id' attribute"
                 .format(self._decoder.name))
 
+    def get_executable(self,
+                       compute_losses: bool,
+                       summaries: bool,
+                       num_sessions: int) -> Executable:
+        raise NotImplementedError()
+
+    @property
+    def decoder_data_id(self) -> str:
         return getattr(self._decoder, "data_id")
 
     @property

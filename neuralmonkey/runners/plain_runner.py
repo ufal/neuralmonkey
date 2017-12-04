@@ -1,17 +1,22 @@
-from typing import Callable, Dict, List, Any, Set
-# pylint: disable=unused-import
-from typing import Optional
-# pylint: enable=unused-import
+from typing import Dict, List, Set, Union, Callable
 
 import tensorflow as tf
+from typeguard import check_argument_types
 
+from neuralmonkey.decoders.autoregressive_decoder import AutoregressiveDecoder
+from neuralmonkey.decoders.ctc_decoder import CTCDecoder
+from neuralmonkey.decoders.classifier import Classifier
+from neuralmonkey.decoders.sequence_labeler import SequenceLabeler
+from neuralmonkey.model.model_part import ModelPart
 from neuralmonkey.runners.base_runner import (
     BaseRunner, Executable, FeedDict, ExecutionResult, NextExecute)
-from neuralmonkey.model.model_part import ModelPart
 from neuralmonkey.vocabulary import Vocabulary
 
-
-# pylint: disable=too-few-public-methods
+# pylint: disable=invalid-name
+SupportedDecoder = Union[
+    AutoregressiveDecoder, CTCDecoder, Classifier, SequenceLabeler]
+Postprocessor = Callable[[List[List[str]]], List[List[str]]]
+# pylint: enable=invalid-name
 
 
 class PlainExecutable(Executable):
@@ -21,21 +26,18 @@ class PlainExecutable(Executable):
                  fetches: FeedDict,
                  num_sessions: int,
                  vocabulary: Vocabulary,
-                 postprocess: Optional[Callable]) -> None:
-        self.all_coders = all_coders
+                 postprocess: Postprocessor) -> None:
+        self._all_coders = all_coders
         self._fetches = fetches
         self._num_sessions = num_sessions
         self._vocabulary = vocabulary
         self._postprocess = postprocess
 
-        self.decoded_sentences = []  # type: List[List[str]]
-        self.result = None  # type: Optional[ExecutionResult]
+        self.result = None  # type: ExecutionResult
 
     def next_to_execute(self) -> NextExecute:
         """Get the feedables and tensors to run."""
-        return (self.all_coders,
-                self._fetches,
-                None)
+        return self._all_coders, self._fetches, None
 
     def collect_results(self, results: List[Dict]) -> None:
         if len(results) != 1:
@@ -59,47 +61,35 @@ class PlainExecutable(Executable):
             image_summaries=None)
 
 
-class PlainRunner(BaseRunner):
+class PlainRunner(BaseRunner[SupportedDecoder]):
     """A runner which takes the output from decoder.decoded."""
 
     def __init__(self,
                  output_series: str,
-                 decoder: Any,
-                 postprocess: Callable[[List[str]], List[str]] = None
-                ) -> None:
-        super(PlainRunner, self).__init__(output_series, decoder)
+                 decoder: SupportedDecoder,
+                 postprocess: Postprocessor = None) -> None:
+        check_argument_types()
+        BaseRunner[SupportedDecoder].__init__(self, output_series, decoder)
+
         self._postprocess = postprocess
 
+    # pylint: disable=unused-argument
     def get_executable(self,
-                       compute_losses: bool = False,
-                       summaries: bool = True,
-                       num_sessions: int = 1):
+                       compute_losses: bool,
+                       summaries: bool,
+                       num_sessions: int):
+        fetches = {"decoded": self._decoder.decoded,
+                   "train_loss": tf.zeros([]),
+                   "runtime_loss": tf.zeros([])}
+
         if compute_losses:
-            if not hasattr(self._decoder, "train_loss"):
-                raise TypeError("Decoder should have the 'train_loss' "
-                                "attribute")
+            fetches["train_loss"] = self._decoder.train_loss
+            fetches["runtime_loss"] = self._decoder.runtime_loss
 
-            if not hasattr(self._decoder, "runtime_loss"):
-                raise TypeError("Decoder should have the 'runtime_loss'"
-                                "attribute")
-            fetches = {"train_loss": getattr(self._decoder, "train_loss"),
-                       "runtime_loss": getattr(self._decoder, "runtime_loss")}
-        else:
-            fetches = {"train_loss": tf.zeros([]),
-                       "runtime_loss": tf.zeros([])}
-
-        if not hasattr(self._decoder, "decoded"):
-            raise TypeError("Decoder should have the 'decoded' attribute")
-
-        if not hasattr(self._decoder, "vocabulary"):
-            raise TypeError("Decoder should have the 'vocabulary' attribute")
-
-        fetches["decoded"] = getattr(self._decoder, "decoded")
-
-        return PlainExecutable(self.all_coders, fetches,
-                               num_sessions,
-                               getattr(self._decoder, "vocabulary"),
-                               self._postprocess)
+        return PlainExecutable(
+            self.all_coders, fetches, num_sessions, self._decoder.vocabulary,
+            self._postprocess)
+    # pylint: enable=unused-argument
 
     @property
     def loss_names(self) -> List[str]:

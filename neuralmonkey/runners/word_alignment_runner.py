@@ -1,10 +1,9 @@
 from typing import Dict, List, Set
-# pylint: disable=unused-import
-from typing import Optional
-# pylint: enable=unused-import
 
 import tensorflow as tf
+from typeguard import check_argument_types
 
+from neuralmonkey.attention.base_attention import BaseAttention
 from neuralmonkey.decoders.decoder import Decoder
 from neuralmonkey.model.model_part import ModelPart
 from neuralmonkey.runners.base_runner import (
@@ -15,19 +14,15 @@ class WordAlignmentRunnerExecutable(Executable):
 
     def __init__(self,
                  all_coders: Set[ModelPart],
-                 fetches: FeedDict,
-                 num_sessions: int) -> None:
-        self.all_coders = all_coders
+                 fetches: FeedDict) -> None:
+        self._all_coders = all_coders
         self._fetches = fetches
-        self._num_sessions = num_sessions
 
-        self.result = None  # type: Optional[ExecutionResult]
+        self.result = None  # type: ExecutionResult
 
     def next_to_execute(self) -> NextExecute:
         """Get the feedables and tensors to run."""
-        return (self.all_coders,
-                self._fetches,
-                None)
+        return self._all_coders, self._fetches, None
 
     def collect_results(self, results: List[Dict]) -> None:
         self.result = ExecutionResult(
@@ -38,35 +33,32 @@ class WordAlignmentRunnerExecutable(Executable):
             image_summaries=None)
 
 
-class WordAlignmentRunner(BaseRunner):
+class WordAlignmentRunner(BaseRunner[BaseAttention]):
 
     def __init__(self,
                  output_series: str,
-                 encoder: ModelPart,
+                 attention: BaseAttention,
                  decoder: Decoder) -> None:
-        super(WordAlignmentRunner, self).__init__(output_series, decoder)
+        check_argument_types()
+        BaseRunner[BaseAttention].__init__(self, output_series, attention)
 
-        self._encoder = encoder
+        self._key = "{}_run".format(decoder.name)
 
+    # pylint: disable=unused-argument
     def get_executable(self,
                        compute_losses: bool = False,
                        summaries: bool = True,
                        num_sessions: int = 1) -> WordAlignmentRunnerExecutable:
+        if self._key not in self._decoder.histories:
+            raise KeyError("Attention has no recorded histories under "
+                           "key '{}'".format(self._key))
 
-        if not hasattr(self._decoder, "get_attention_object"):
-            raise TypeError("Word alignment decoder should have"
-                            "the get_attention_object method")
-
-        att_object = getattr(self._decoder,
-                             "get_attention_object")(self._encoder,
-                                                     train_mode=False)
-        alignment = tf.transpose(
-            tf.stack(att_object.attentions_in_time), perm=[1, 2, 0])
+        att_histories = self._decoder.histories[self._key]
+        alignment = tf.transpose(att_histories, perm=[1, 2, 0])
         fetches = {"alignment": alignment}
 
-        return WordAlignmentRunnerExecutable(self.all_coders,
-                                             fetches,
-                                             num_sessions)
+        return WordAlignmentRunnerExecutable(self.all_coders, fetches)
+    # pylint: enable=unused-argument
 
     @property
     def loss_names(self) -> List[str]:

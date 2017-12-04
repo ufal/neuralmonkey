@@ -1,17 +1,18 @@
-from typing import Callable, Dict, List, Any, Set
-# pylint: disable=unused-import
-from typing import Optional
-# pylint: enable=unused-import
+from typing import Dict, List, Set, Optional, Callable
 
 import numpy as np
 import tensorflow as tf
+from typeguard import check_argument_types
 
 from neuralmonkey.runners.base_runner import (
     BaseRunner, Executable, FeedDict, ExecutionResult, NextExecute)
 from neuralmonkey.model.model_part import ModelPart
 from neuralmonkey.vocabulary import Vocabulary
+from neuralmonkey.decoders.autoregressive_decoder import AutoregressiveDecoder
 
-# pylint: disable=too-few-public-methods
+# pylint: disable=invalid-name
+Postprocessor = Callable[[List[List[str]]], List[List[str]]]
+# pylint: enable=invalid-name
 
 
 class GreedyRunExecutable(Executable):
@@ -19,23 +20,18 @@ class GreedyRunExecutable(Executable):
     def __init__(self,
                  all_coders: Set[ModelPart],
                  fetches: FeedDict,
-                 num_sessions: int,
                  vocabulary: Vocabulary,
-                 postprocess: Optional[Callable]) -> None:
-        self.all_coders = all_coders
+                 postprocess: Optional[Postprocessor]) -> None:
+        self._all_coders = all_coders
         self._fetches = fetches
-        self._num_sessions = num_sessions
         self._vocabulary = vocabulary
         self._postprocess = postprocess
 
-        self.decoded_sentences = []  # type: List[List[str]]
-        self.result = None  # type: Optional[ExecutionResult]
+        self.result = None  # type: ExecutionResult
 
     def next_to_execute(self) -> NextExecute:
         """Get the feedables and tensors to run."""
-        return (self.all_coders,
-                self._fetches,
-                None)
+        return self._all_coders, self._fetches, None
 
     def collect_results(self, results: List[Dict]) -> None:
         train_loss = 0.
@@ -67,56 +63,45 @@ class GreedyRunExecutable(Executable):
             image_summaries=image_summaries)
 
 
-class GreedyRunner(BaseRunner):
+class GreedyRunner(BaseRunner[AutoregressiveDecoder]):
 
     def __init__(self,
                  output_series: str,
-                 decoder: Any,
-                 postprocess: Callable[[List[str]], List[str]] = None) -> None:
-        super(GreedyRunner, self).__init__(output_series, decoder)
+                 decoder: AutoregressiveDecoder,
+                 postprocess: Postprocessor = None) -> None:
+        check_argument_types()
+        BaseRunner[AutoregressiveDecoder].__init__(
+            self, output_series, decoder)
+
         self._postprocess = postprocess
 
+        self.image_summaries = None
         att_plot_summaries = tf.get_collection("summary_att_plots")
         if att_plot_summaries:
             self.image_summaries = tf.summary.merge(att_plot_summaries)
-        else:
-            self.image_summaries = None
 
+    # pylint: disable=unused-argument
     def get_executable(self,
-                       compute_losses: bool = False,
-                       summaries: bool = True,
-                       num_sessions: int = 1) -> GreedyRunExecutable:
+                       compute_losses: bool,
+                       summaries: bool,
+                       num_sessions: int) -> GreedyRunExecutable:
+        fetches = {"decoded_logprobs": self._decoder.runtime_logprobs,
+                   "train_xent": tf.zeros([]),
+                   "runtime_xent": tf.zeros([])}
+
         if compute_losses:
-            if not hasattr(self._decoder, "train_loss"):
-                raise TypeError("Decoder should have the 'train_loss' "
-                                "attribute")
-
-            if not hasattr(self._decoder, "runtime_loss"):
-                raise TypeError("Decoder should have the 'runtime_loss' "
-                                "attribute")
-            fetches = {"train_xent": getattr(self._decoder, "train_loss"),
-                       "runtime_xent": getattr(self._decoder, "runtime_loss")}
-        else:
-            fetches = {"train_xent": tf.zeros([]),
-                       "runtime_xent": tf.zeros([])}
-
-        if not hasattr(self._decoder, "runtime_logprobs"):
-            raise TypeError("Decoder should have the 'runtime_logprobs' "
-                            "attribute")
-
-        fetches["decoded_logprobs"] = getattr(self._decoder,
-                                              "runtime_logprobs")
+            fetches["train_xent"] = self._decoder.train_loss
+            fetches["runtime_xent"] = self._decoder.runtime_loss
 
         if summaries and self.image_summaries is not None:
             fetches["image_summaries"] = self.image_summaries
 
-        if not hasattr(self._decoder, "vocabulary"):
-            raise TypeError("Decoder should have the 'vocabulary' attribute")
-
-        return GreedyRunExecutable(self.all_coders, fetches,
-                                   num_sessions,
-                                   getattr(self._decoder, "vocabulary"),
-                                   self._postprocess)
+        return GreedyRunExecutable(
+            self.all_coders,
+            fetches,
+            self._decoder.vocabulary,
+            self._postprocess)
+    # pylint: enable=unused-argument
 
     @property
     def loss_names(self) -> List[str]:

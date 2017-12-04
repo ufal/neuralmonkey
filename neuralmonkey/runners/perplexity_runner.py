@@ -1,11 +1,11 @@
-from typing import Dict, List, Set, cast
+from typing import Dict, List, Set
 
 from typeguard import check_argument_types
 import tensorflow as tf
 import numpy as np
 
 from neuralmonkey.model.model_part import ModelPart
-from neuralmonkey.decoders.decoder import Decoder
+from neuralmonkey.decoders.autoregressive_decoder import AutoregressiveDecoder
 from neuralmonkey.runners.base_runner import (
     BaseRunner, Executable, ExecutionResult, NextExecute)
 
@@ -13,18 +13,15 @@ from neuralmonkey.runners.base_runner import (
 class PerplexityExecutable(Executable):
     def __init__(self,
                  all_coders: Set[ModelPart],
-                 xent_op: tf.Tensor,
-                 num_sessions: int) -> None:
+                 xent_op: tf.Tensor) -> None:
         self._all_coders = all_coders
         self._xent_op = xent_op
-        self._num_sessions = num_sessions
+
         self.result = None  # type: ExecutionResult
 
     def next_to_execute(self) -> NextExecute:
         """Get the feedables and tensors to run."""
-        return (self._all_coders,
-                {"xents": self._xent_op},
-                None)
+        return self._all_coders, {"xents": self._xent_op}, None
 
     def collect_results(self, results: List[Dict]) -> None:
         perplexities = np.mean([2 ** res["xents"] for res in results], axis=0)
@@ -37,22 +34,23 @@ class PerplexityExecutable(Executable):
             image_summaries=None)
 
 
-class PerplexityRunner(BaseRunner):
+class PerplexityRunner(BaseRunner[AutoregressiveDecoder]):
     def __init__(self,
                  output_series: str,
-                 decoder: Decoder) -> None:
+                 decoder: AutoregressiveDecoder) -> None:
         check_argument_types()
-        BaseRunner.__init__(self, output_series, decoder)
+        BaseRunner[AutoregressiveDecoder].__init__(
+            self, output_series, decoder)
 
-        self._decoder_xent = cast(Decoder, self._decoder).train_xents
+        self._decoder_xent = self._decoder.train_xents
 
+    # pylint: disable=unused-argument
     def get_executable(self,
-                       compute_losses: bool = False,
-                       summaries: bool = True,
-                       num_sessions: int = 1) -> PerplexityExecutable:
-        return PerplexityExecutable(self.all_coders,
-                                    self._decoder_xent,
-                                    num_sessions)
+                       compute_losses: bool,
+                       summaries: bool,
+                       num_sessions: int) -> PerplexityExecutable:
+        return PerplexityExecutable(self.all_coders, self._decoder_xent)
+    # pylint: enable=unused-argument
 
     @property
     def loss_names(self) -> List[str]:

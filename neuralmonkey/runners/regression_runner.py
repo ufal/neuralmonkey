@@ -1,47 +1,17 @@
-from typing import Dict, List, Callable, Set, cast
+from typing import Dict, List, Set, Callable
 
 import numpy as np
 import tensorflow as tf
-
 from typeguard import check_argument_types
+
 from neuralmonkey.decoders.sequence_regressor import SequenceRegressor
 from neuralmonkey.model.model_part import ModelPart
 from neuralmonkey.runners.base_runner import (
     BaseRunner, Executable, ExecutionResult, NextExecute)
-# pylint: disable=too-few-public-methods
 
-
-class RegressionRunner(BaseRunner):
-
-    def __init__(self,
-                 output_series: str,
-                 decoder: SequenceRegressor,
-                 postprocess: Callable[[float], float] = None) -> None:
-        check_argument_types()
-        BaseRunner.__init__(self, output_series, decoder)
-
-        self._postprocess = postprocess
-
-    def get_executable(self,
-                       compute_losses: bool = False,
-                       summaries: bool = True,
-                       num_sessions: int = 1) -> Executable:
-        decoder = cast(SequenceRegressor, self._decoder)
-
-        if compute_losses:
-            fetches = {"mse": decoder.cost}
-        else:
-            fetches = {}
-
-        fetches["prediction"] = decoder.predictions
-
-        return RegressionRunExecutable(self.all_coders, fetches,
-                                       num_sessions,
-                                       self._postprocess)
-
-    @property
-    def loss_names(self) -> List[str]:
-        return ["mse"]
+# pylint: disable=invalid-name
+Postprocessor = Callable[[List[float]], List[float]]
+# pylint: enable=invalid-name
 
 
 class RegressionRunExecutable(Executable):
@@ -49,20 +19,16 @@ class RegressionRunExecutable(Executable):
     def __init__(self,
                  all_coders: Set[ModelPart],
                  fetches: Dict[str, tf.Tensor],
-                 num_sessions: int,
-                 postprocess: Callable[[float], float] = None) -> None:
-
-        self.all_coders = all_coders
+                 postprocess: Postprocessor) -> None:
+        self._all_coders = all_coders
         self._fetches = fetches
-        self._num_sessions = num_sessions
         self._postprocess = postprocess
+
         self.result = None  # type: ExecutionResult
 
     def next_to_execute(self) -> NextExecute:
         """Get the feedables and tensors to run."""
-        return (self.all_coders,
-                self._fetches,
-                None)
+        return self._all_coders, self._fetches, None
 
     def collect_results(self, results: List[Dict]) -> None:
         predictions_sum = np.zeros_like(results[0]["prediction"])
@@ -85,3 +51,33 @@ class RegressionRunExecutable(Executable):
             scalar_summaries=None,
             histogram_summaries=None,
             image_summaries=None)
+
+
+class RegressionRunner(BaseRunner[SequenceRegressor]):
+    """A runnner that takes the predictions of a sequence regressor."""
+
+    def __init__(self,
+                 output_series: str,
+                 decoder: SequenceRegressor,
+                 postprocess: Postprocessor = None) -> None:
+        check_argument_types()
+        BaseRunner[SequenceRegressor].__init__(self, output_series, decoder)
+
+        self._postprocess = postprocess
+
+    # pylint: disable=unused-argument
+    def get_executable(self,
+                       compute_losses: bool,
+                       summaries: bool,
+                       num_sessions: int) -> Executable:
+        fetches = {"prediction": self._decoder.predictions}
+        if compute_losses:
+            fetches["mse"] = self._decoder.cost
+
+        return RegressionRunExecutable(
+            self.all_coders, fetches, self._postprocess)
+    # pylint: enable=unused-argument
+
+    @property
+    def loss_names(self) -> List[str]:
+        return ["mse"]
