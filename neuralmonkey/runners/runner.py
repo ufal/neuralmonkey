@@ -1,68 +1,39 @@
-from typing import Callable, Dict, List, Any
-# pylint: disable=unused-import
-from typing import Optional
-# pylint: enable=unused-import
+from typing import Dict, List, Set, Optional, Callable, Union
 
 import numpy as np
 import tensorflow as tf
+from typeguard import check_argument_types
 
-from neuralmonkey.runners.base_runner import (BaseRunner, Executable,
-                                              ExecutionResult, NextExecute)
+from neuralmonkey.runners.base_runner import (
+    BaseRunner, Executable, FeedDict, ExecutionResult, NextExecute)
+from neuralmonkey.model.model_part import ModelPart
+from neuralmonkey.vocabulary import Vocabulary
+from neuralmonkey.decoders.autoregressive import AutoregressiveDecoder
+from neuralmonkey.decoders.classifier import Classifier
 
-# pylint: disable=too-few-public-methods
-
-
-class GreedyRunner(BaseRunner):
-
-    def __init__(self,
-                 output_series: str,
-                 decoder: Any,
-                 postprocess: Callable[[List[str]], List[str]] = None) -> None:
-        super(GreedyRunner, self).__init__(output_series, decoder)
-        self._postprocess = postprocess
-
-        att_plot_summaries = tf.get_collection("summary_att_plots")
-        if att_plot_summaries:
-            self.image_summaries = tf.summary.merge(att_plot_summaries)
-        else:
-            self.image_summaries = None
-
-    def get_executable(self, compute_losses=False, summaries=True):
-        if compute_losses:
-            fetches = {"train_xent": self._decoder.train_loss,
-                       "runtime_xent": self._decoder.runtime_loss}
-        else:
-            fetches = {"train_xent": tf.zeros([]),
-                       "runtime_xent": tf.zeros([])}
-
-        fetches["decoded_logprobs"] = self._decoder.runtime_logprobs
-
-        if summaries and self.image_summaries is not None:
-            fetches["image_summaries"] = self.image_summaries
-
-        return GreedyRunExecutable(self.all_coders, fetches,
-                                   self._decoder.vocabulary,
-                                   self._postprocess)
-
-    @property
-    def loss_names(self) -> List[str]:
-        return ["train_xent", "runtime_xent"]
+# pylint: disable=invalid-name
+SupportedDecoder = Union[AutoregressiveDecoder, Classifier]
+Postprocessor = Callable[[List[List[str]]], List[List[str]]]
+# pylint: enable=invalid-name
 
 
 class GreedyRunExecutable(Executable):
 
-    def __init__(self, all_coders, fetches, vocabulary, postprocess) -> None:
-        self.all_coders = all_coders
+    def __init__(self,
+                 all_coders: Set[ModelPart],
+                 fetches: FeedDict,
+                 vocabulary: Vocabulary,
+                 postprocess: Optional[Postprocessor]) -> None:
+        self._all_coders = all_coders
         self._fetches = fetches
         self._vocabulary = vocabulary
         self._postprocess = postprocess
 
-        self.decoded_sentences = []  # type: List[List[str]]
-        self.result = None  # type: Optional[ExecutionResult]
+        self.result = None  # type: ExecutionResult
 
     def next_to_execute(self) -> NextExecute:
         """Get the feedables and tensors to run."""
-        return self.all_coders, self._fetches, {}
+        return self._all_coders, self._fetches, None
 
     def collect_results(self, results: List[Dict]) -> None:
         train_loss = 0.
@@ -92,3 +63,48 @@ class GreedyRunExecutable(Executable):
             scalar_summaries=None,
             histogram_summaries=None,
             image_summaries=image_summaries)
+
+
+class GreedyRunner(BaseRunner[SupportedDecoder]):
+
+    def __init__(self,
+                 output_series: str,
+                 decoder: SupportedDecoder,
+                 postprocess: Postprocessor = None) -> None:
+        check_argument_types()
+        BaseRunner[AutoregressiveDecoder].__init__(
+            self, output_series, decoder)
+
+        self._postprocess = postprocess
+
+        self.image_summaries = None
+        att_plot_summaries = tf.get_collection("summary_att_plots")
+        if att_plot_summaries:
+            self.image_summaries = tf.summary.merge(att_plot_summaries)
+
+    # pylint: disable=unused-argument
+    def get_executable(self,
+                       compute_losses: bool,
+                       summaries: bool,
+                       num_sessions: int) -> GreedyRunExecutable:
+        fetches = {"decoded_logprobs": self._decoder.runtime_logprobs,
+                   "train_xent": tf.zeros([]),
+                   "runtime_xent": tf.zeros([])}
+
+        if compute_losses:
+            fetches["train_xent"] = self._decoder.train_loss
+            fetches["runtime_xent"] = self._decoder.runtime_loss
+
+        if summaries and self.image_summaries is not None:
+            fetches["image_summaries"] = self.image_summaries
+
+        return GreedyRunExecutable(
+            self.all_coders,
+            fetches,
+            self._decoder.vocabulary,
+            self._postprocess)
+    # pylint: enable=unused-argument
+
+    @property
+    def loss_names(self) -> List[str]:
+        return ["train_xent", "runtime_xent"]

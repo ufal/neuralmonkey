@@ -21,6 +21,9 @@ from typeguard import check_argument_types
 
 from neuralmonkey.logging import log
 from neuralmonkey.dataset import Dataset
+# pylint: disable=unused-import
+from neuralmonkey.runners.base_runner import FeedDict
+# pylint: enable=unused-import
 from neuralmonkey.runners.base_runner import (ExecutionResult,
                                               reduce_execution_results)
 
@@ -165,6 +168,49 @@ class TensorFlowManager(object):
                 self.saved_scores))
 
     # pylint: disable=too-many-locals
+    def _run_executables(self,
+                         batch,
+                         executables,
+                         train) -> None:
+        all_feedables = set()  # type: Set[Any]
+        all_tensors_to_execute = {}
+
+        # We might want to feed different values to each session
+        # E.g. when executing only step at a time during ensembling
+        feed_dicts = [{} for _ in range(len(self.sessions))] \
+            # type: List[FeedDict]
+
+        tensor_list_lengths = []  # type: List[int]
+
+        for executable in executables:
+            if executable.result is None:
+                (feedables,
+                 tensors_to_execute,
+                 add_feed_dicts) = executable.next_to_execute()
+                all_feedables = all_feedables.union(feedables)
+                all_tensors_to_execute[executable] = tensors_to_execute
+                if add_feed_dicts:
+                    for fdict, add_fd in zip(feed_dicts, add_feed_dicts):
+                        fdict.update(add_fd)
+                tensor_list_lengths.append(len(tensors_to_execute))
+            else:
+                tensor_list_lengths.append(0)
+
+        feed_dict = _feed_dicts(batch, all_feedables, train=train)
+
+        for fdict in feed_dicts:
+            fdict.update(feed_dict)
+
+        session_results = [sess.run(all_tensors_to_execute,
+                                    feed_dict=fd)
+                           for sess, fd in zip(self.sessions, feed_dicts)]
+
+        for executable in executables:
+            if executable.result is None:
+                executable.collect_results(
+                    [res[executable] for res in session_results])
+
+    # pylint: disable=too-many-locals
     def execute(self,
                 dataset: Dataset,
                 execution_scripts,
@@ -186,38 +232,12 @@ class TensorFlowManager(object):
                 log("Processed {} examples.".format(batch_id * batch_size))
                 last_log_time = time.process_time()
             executables = [s.get_executable(compute_losses=compute_losses,
-                                            summaries=summaries)
+                                            summaries=summaries,
+                                            num_sessions=len(self.sessions))
                            for s in execution_scripts]
+
             while not all(ex.result is not None for ex in executables):
-                all_feedables = set()  # type: Set[Any]
-                all_tensors_to_execute = {}
-                additional_feed_dicts = []
-                tensor_list_lengths = []  # type: List[int]
-
-                for executable in executables:
-                    if executable.result is None:
-                        (feedables,
-                         tensors_to_execute,
-                         add_feed_dict) = executable.next_to_execute()
-                        all_feedables = all_feedables.union(feedables)
-                        all_tensors_to_execute[executable] = tensors_to_execute
-                        additional_feed_dicts.append(add_feed_dict)
-                        tensor_list_lengths.append(len(tensors_to_execute))
-                    else:
-                        tensor_list_lengths.append(0)
-
-                feed_dict = _feed_dicts(batch, all_feedables, train=train)
-                for fdict in additional_feed_dicts:
-                    feed_dict.update(fdict)
-
-                session_results = [sess.run(all_tensors_to_execute,
-                                            feed_dict=feed_dict)
-                                   for sess in self.sessions]
-
-                for executable in executables:
-                    if executable.result is None:
-                        executable.collect_results(
-                            [res[executable] for res in session_results])
+                self._run_executables(batch, executables, train)
 
             for script_list, executable in zip(batch_results, executables):
                 script_list.append(executable.result)
@@ -239,7 +259,7 @@ class TensorFlowManager(object):
 
         if len(variable_files) != len(self.sessions):
             raise Exception(
-                "Provided {} files for restoring {} sessions.".format(
+                "Provided {} files for saving {} sessions.".format(
                     len(variable_files), len(self.sessions)))
 
         for sess, file_name in zip(self.sessions, variable_files):

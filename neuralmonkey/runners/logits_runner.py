@@ -1,14 +1,14 @@
 """A runner outputing logits or normalized distriution from a decoder."""
 
-from typing import Dict, List, Any, Set
+from typing import Dict, List, Set, Optional
 from typeguard import check_argument_types
 
 import numpy as np
 import tensorflow as tf
 
-from neuralmonkey.runners.base_runner import (BaseRunner, Executable,
-                                              FeedDict, ExecutionResult,
-                                              NextExecute)
+from neuralmonkey.decoders.classifier import Classifier
+from neuralmonkey.runners.base_runner import (
+    BaseRunner, Executable, FeedDict, ExecutionResult, NextExecute)
 from neuralmonkey.model.model_part import ModelPart
 from neuralmonkey.vocabulary import Vocabulary
 
@@ -19,20 +19,19 @@ class LogitsExecutable(Executable):
                  all_coders: Set[ModelPart],
                  fetches: FeedDict,
                  vocabulary: Vocabulary,
-                 normalize: bool = True,
-                 pick_index: int = None) -> None:
-        self.all_coders = all_coders
+                 normalize: bool,
+                 pick_index: Optional[int]) -> None:
+        self._all_coders = all_coders
         self._fetches = fetches
         self._vocabulary = vocabulary
         self._normalize = normalize
         self._pick_index = pick_index
 
-        self.decoded_sentences = []  # type: List[List[str]]
         self.result = None  # type: ExecutionResult
 
     def next_to_execute(self) -> NextExecute:
         """Get the feedables and tensors to run."""
-        return self.all_coders, self._fetches, {}
+        return self._all_coders, self._fetches, None
 
     def collect_results(self, results: List[Dict]) -> None:
         if len(results) != 1:
@@ -71,7 +70,7 @@ class LogitsExecutable(Executable):
 
 
 # pylint: disable=too-few-public-methods
-class LogitsRunner(BaseRunner):
+class LogitsRunner(BaseRunner[Classifier]):
     """A runner which takes the output from decoder.decoded_logits.
 
     The logits / normalized probabilities are outputted as tab-separates string
@@ -82,7 +81,7 @@ class LogitsRunner(BaseRunner):
 
     def __init__(self,
                  output_series: str,
-                 decoder: Any,
+                 decoder: Classifier,
                  normalize: bool = True,
                  pick_index: int = None,
                  pick_value: str = None) -> None:
@@ -99,29 +98,7 @@ class LogitsRunner(BaseRunner):
                 vocabulary whose logit or probability should be on output.
         """
         check_argument_types()
-        BaseRunner.__init__(self, output_series, decoder)
-
-        if not hasattr(self._decoder, "vocabulary"):
-            raise TypeError("Decoder for logits runner should have the "
-                            "'vocabulary' attribute")
-
-        if not hasattr(self._decoder, "decoded_logits"):
-            raise TypeError("Decoder for logits runner should have the "
-                            "'decoded_logits' attribute")
-
-        # TODO why these two?
-        if not hasattr(self._decoder, "train_loss"):
-            raise TypeError("Decoder for logits runner should have the "
-                            "'train_loss' attribute")
-
-        if not hasattr(self._decoder, "runtime_loss"):
-            raise TypeError("Decoder for logits runner should have the "
-                            "'runtime_loss' attribute")
-
-        self._decoder_vocab = getattr(self._decoder, "vocabulary")
-        self._decoder_train_loss = getattr(self._decoder, "train_loss")
-        self._decoder_runtime_loss = getattr(self._decoder, "runtime_loss")
-        self._decoder_logits = getattr(self._decoder, "decoded_logits")
+        BaseRunner[Classifier].__init__(self, output_series, decoder)
 
         if pick_index is not None and pick_value is not None:
             raise ValueError("Either a pick index or a vocabulary value can "
@@ -129,8 +106,8 @@ class LogitsRunner(BaseRunner):
 
         self._normalize = normalize
         if pick_value is not None:
-            if pick_value in self._decoder_vocab:
-                vocab_map = self._decoder_vocab.word_to_index
+            if pick_value in self._decoder.vocabulary:
+                vocab_map = self._decoder.vocabulary.word_to_index
                 self._pick_index = vocab_map[pick_value]
             else:
                 raise ValueError(
@@ -139,22 +116,23 @@ class LogitsRunner(BaseRunner):
         else:
             self._pick_index = pick_index
 
+    # pylint: disable=unused-argument
     def get_executable(self,
-                       compute_losses: bool = False,
-                       summaries: bool = True) -> LogitsExecutable:
+                       compute_losses: bool,
+                       summaries: bool,
+                       num_sessions: int) -> LogitsExecutable:
+        fetches = {"logits": self._decoder.decoded_logits,
+                   "train_loss": tf.zeros([]),
+                   "runtime_loss": tf.zeros([])}
+
         if compute_losses:
-            fetches = {"train_loss": self._decoder_train_loss,
-                       "runtime_loss": self._decoder_runtime_loss}
-        else:
-            fetches = {"train_loss": tf.zeros([]),
-                       "runtime_loss": tf.zeros([])}
+            fetches["train_loss"] = self._decoder.train_loss
+            fetches["runtime_loss"] = self._decoder.runtime_loss
 
-        fetches["logits"] = self._decoder_logits
-
-        return LogitsExecutable(self.all_coders, fetches,
-                                self._decoder_vocab,
-                                self._normalize,
-                                self._pick_index)
+        return LogitsExecutable(
+            self.all_coders, fetches, self._decoder.vocabulary,
+            self._normalize, self._pick_index)
+    # pylint: enable: unused-argument
 
     @property
     def loss_names(self) -> List[str]:

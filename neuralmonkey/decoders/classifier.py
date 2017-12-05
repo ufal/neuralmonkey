@@ -57,7 +57,7 @@ class Classifier(ModelPart):
         tf.summary.scalar(
             "train_optimization_cost",
             self.cost, collections=["summary_train"])
-# pylint: enable=too-many-arguments
+    # pylint: enable=too-many-arguments
 
     # pylint: disable=no-self-use
     @tensor

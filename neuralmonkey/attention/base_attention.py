@@ -9,7 +9,7 @@ Each attention object has the ``attention`` function which operates on the
 ``attention_states`` tensor.  The attention function receives the query tensor,
 the decoder previous state and input, and its inner state, which could bear an
 arbitrary structure of information. The default structure for this is the
-``AttentionLoopState``, which contains a growing array of attention
+``AttentionLoopStateTA``, which contains a growing array of attention
 distributions and context vectors in time. That's why there is the
 ``initial_loop_state`` function in the ``BaseAttention`` class.
 
@@ -33,13 +33,13 @@ from neuralmonkey.dataset import Dataset
 
 # pylint: disable=invalid-name
 Attendable = Union[TemporalStateful, SpatialStateful]
-AttentionLoopState = NamedTuple("AttentionLoopState",
-                                [("contexts", tf.TensorArray),
-                                 ("weights", tf.TensorArray)])
+AttentionLoopStateTA = NamedTuple("AttentionLoopStateTA",
+                                  [("contexts", tf.TensorArray),
+                                   ("weights", tf.TensorArray)])
 # pylint: enable=invalid-name
 
 
-def empty_attention_loop_state() -> AttentionLoopState:
+def empty_attention_loop_state() -> AttentionLoopStateTA:
     """Create an empty attention loop state.
 
     The attention loop state is a technical object for storing the attention
@@ -50,7 +50,7 @@ def empty_attention_loop_state() -> AttentionLoopState:
     two empty arrays, one for attention distributions in time, and one for
     the attention context vectors in time.
     """
-    return AttentionLoopState(
+    return AttentionLoopStateTA(
         contexts=tf.TensorArray(
             dtype=tf.float32, size=0, dynamic_size=True,
             name="contexts"),

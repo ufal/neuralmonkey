@@ -1,18 +1,21 @@
-from typing import Any, Dict, Tuple, List, NamedTuple, Union, Set
+from typing import (Any, Dict, Tuple, List, NamedTuple, Union, Set, TypeVar,
+                    Generic)
 import numpy as np
 import tensorflow as tf
 
 from neuralmonkey.model.model_part import ModelPart
-
 # pylint: disable=invalid-name
 FeedDict = Dict[tf.Tensor, Union[int, float, np.ndarray]]
-NextExecute = Tuple[Set[ModelPart], Union[Dict, List], FeedDict]
+NextExecute = Tuple[Set[ModelPart], Union[Dict, List], List[FeedDict]]
 ExecutionResult = NamedTuple("ExecutionResult",
                              [("outputs", List[Any]),
                               ("losses", List[float]),
                               ("scalar_summaries", tf.Summary),
                               ("histogram_summaries", tf.Summary),
                               ("image_summaries", tf.Summary)])
+
+MP = TypeVar("MP", bound=ModelPart)
+# pylint: enable=invalid-name
 
 
 class Executable(object):
@@ -23,15 +26,18 @@ class Executable(object):
         raise NotImplementedError()
 
 
-class BaseRunner(object):
-    def __init__(self, output_series: str, decoder: ModelPart) -> None:
+class BaseRunner(Generic[MP]):
+    def __init__(self,
+                 output_series: str,
+                 decoder: MP) -> None:
         self.output_series = output_series
         self._decoder = decoder
         self.all_coders = decoder.get_dependencies()
 
     def get_executable(self,
-                       compute_losses: bool = False,
-                       summaries: bool = True) -> Executable:
+                       compute_losses: bool,
+                       summaries: bool,
+                       num_sessions: int) -> Executable:
         raise NotImplementedError()
 
     @property
