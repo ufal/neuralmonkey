@@ -3,7 +3,7 @@ from typing import Dict, List, Set, Union, Callable
 import tensorflow as tf
 from typeguard import check_argument_types
 
-from neuralmonkey.decoders.autoregressive_decoder import AutoregressiveDecoder
+from neuralmonkey.decoders.autoregressive import AutoregressiveDecoder
 from neuralmonkey.decoders.ctc_decoder import CTCDecoder
 from neuralmonkey.decoders.classifier import Classifier
 from neuralmonkey.decoders.sequence_labeler import SequenceLabeler

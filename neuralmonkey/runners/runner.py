@@ -8,7 +8,7 @@ from neuralmonkey.runners.base_runner import (
     BaseRunner, Executable, FeedDict, ExecutionResult, NextExecute)
 from neuralmonkey.model.model_part import ModelPart
 from neuralmonkey.vocabulary import Vocabulary
-from neuralmonkey.decoders.autoregressive_decoder import AutoregressiveDecoder
+from neuralmonkey.decoders.autoregressive import AutoregressiveDecoder
 from neuralmonkey.decoders.classifier import Classifier
 
 # pylint: disable=invalid-name

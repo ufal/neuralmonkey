@@ -3,7 +3,7 @@ from typing import List, Callable, Union, Tuple
 import tensorflow as tf
 from typeguard import check_argument_types
 
-from neuralmonkey.decoders.autoregressive_decoder import (
+from neuralmonkey.decoders.autoregressive import (
     AutoregressiveDecoder, LoopState, extend_namedtuple, DecoderHistories,
     DecoderFeedables, DecoderConstants)
 from neuralmonkey.attention.base_attention import BaseAttention

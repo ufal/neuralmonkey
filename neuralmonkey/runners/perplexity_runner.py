@@ -5,7 +5,7 @@ import tensorflow as tf
 import numpy as np
 
 from neuralmonkey.model.model_part import ModelPart
-from neuralmonkey.decoders.autoregressive_decoder import AutoregressiveDecoder
+from neuralmonkey.decoders.autoregressive import AutoregressiveDecoder
 from neuralmonkey.runners.base_runner import (
     BaseRunner, Executable, ExecutionResult, NextExecute)
 
