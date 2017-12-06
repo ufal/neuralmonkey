@@ -20,7 +20,7 @@ RNN_CELL_TYPES = {
     "LSTM": tf.nn.rnn_cell.LSTMCell
 }
 
-RNN_DIRECTIONS = ["forward", "backward", "both"]
+RNN_DIRECTIONS = ["forward", "backward", "bidirectional"]
 
 
 # pylint: disable=invalid-name
@@ -35,7 +35,7 @@ RNNSpecTuple = Union[Tuple[int], Tuple[int, str], Tuple[int, str, str]]
 
 
 def _make_rnn_spec(size: int,
-                   direction: str = "both",
+                   direction: str = "bidirectional",
                    cell_type: str = "GRU") -> RNNSpec:
     if size <= 0:
         raise ValueError(
@@ -66,7 +66,7 @@ def rnn_layer(rnn_input: tf.Tensor, lengths: tf.Tensor,
         lengths: Lengths of input sequences.
         rnn_spec: A valid RNNSpec tuple specifying the network architecture.
     """
-    if rnn_spec.direction == "both":
+    if rnn_spec.direction == "bidirectional":
         fw_cell = _make_rnn_cell(rnn_spec)
         bw_cell = _make_rnn_cell(rnn_spec)
 
@@ -105,7 +105,7 @@ class RecurrentEncoder(ModelPart, TemporalStatefulWithOutput):
                  input_sequence: TemporalStateful,
                  rnn_size: int,
                  rnn_cell: str = "GRU",
-                 rnn_direction: str = "both",
+                 rnn_direction: str = "bidirectional",
                  dropout_keep_prob: float = 1.0,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None) -> None:
@@ -175,7 +175,7 @@ class SentenceEncoder(RecurrentEncoder):
                  embedding_size: int,
                  rnn_size: int,
                  rnn_cell: str = "GRU",
-                 rnn_direction: str = "both",
+                 rnn_direction: str = "bidirectional",
                  max_input_len: int = None,
                  dropout_keep_prob: float = 1.0,
                  save_checkpoint: str = None,
@@ -223,7 +223,7 @@ class FactoredEncoder(RecurrentEncoder):
                  embedding_sizes: List[int],
                  rnn_size: int,
                  rnn_cell: str = "GRU",
-                 rnn_direction: str = "both",
+                 rnn_direction: str = "bidirectional",
                  max_input_len: int = None,
                  dropout_keep_prob: float = 1.0,
                  save_checkpoint: str = None,

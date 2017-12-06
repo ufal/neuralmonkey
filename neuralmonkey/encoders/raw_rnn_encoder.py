@@ -23,7 +23,7 @@ RNNSpecTuple = Union[Tuple[int], Tuple[int, str], Tuple[int, str, str]]
 
 
 def _make_rnn_spec(size: int,
-                   direction: str = "both",
+                   direction: str = "bidirectional",
                    cell_type: str = "GRU") -> RNNSpec:
     return RNNSpec(size, direction, cell_type)
 
@@ -62,7 +62,7 @@ class RawRNNEncoder(ModelPart, TemporalStatefulWithOutput):
             data_id: Identifier of the data series fed to this encoder
             name: An unique identifier for this encoder
             rnn_layers: A list of tuples specifying the size and, optionally,
-                the direction ('forward', 'backward' or 'both') and cell type
+                the direction ('forward', 'backward' or 'bidirectional') and cell type
                 ('GRU' or 'LSTM') of each RNN layer.
 
         Keyword arguments:
@@ -100,7 +100,7 @@ class RawRNNEncoder(ModelPart, TemporalStatefulWithOutput):
             for i, layer in enumerate(self._rnn_layers):
                 with tf.variable_scope("rnn_{}_{}".format(i, layer.direction)):
                     cell = _make_rnn_cell(layer)
-                    if layer.direction == "both":
+                    if layer.direction == "bidirectional":
                         outputs_tup, encoded_tup = (
                             tf.nn.bidirectional_dynamic_rnn(
                                 cell(), cell(), states, self._input_lengths,
