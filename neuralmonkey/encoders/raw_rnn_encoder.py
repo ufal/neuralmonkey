@@ -62,8 +62,8 @@ class RawRNNEncoder(ModelPart, TemporalStatefulWithOutput):
             data_id: Identifier of the data series fed to this encoder
             name: An unique identifier for this encoder
             rnn_layers: A list of tuples specifying the size and, optionally,
-                the direction ('forward', 'backward' or 'bidirectional') and cell type
-                ('GRU' or 'LSTM') of each RNN layer.
+                the direction ('forward', 'backward' or 'bidirectional')
+                and cell type ('GRU' or 'LSTM') of each RNN layer.
 
         Keyword arguments:
             dropout_keep_prob: The dropout keep probability

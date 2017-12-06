@@ -109,10 +109,25 @@ class RecurrentEncoder(ModelPart, TemporalStatefulWithOutput):
                  dropout_keep_prob: float = 1.0,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None) -> None:
-        """Create a new instance of a recurrent encoder."""
+        """Create a new instance of a recurrent encoder.
+
+        Arguments:
+            name: ModelPart name.
+            input_seqeunce: The input sequence for the encoder.
+            rnn_size: The dimension of the RNN hidden state vector.
+            rnn_cell: One of "GRU", "NematusGRU", "LSTM". Which kind of memory
+                cell to use.
+            rnn_direction: One of "forward", "backward", "bidirectional". In
+                what order to process the input sequence. Note that choosing
+                "bidirectional" will double the resulting vector dimension as
+                well as the number of encoder parameters.
+            dropout_keep_prob: 1 - dropout probability.
+            save_checkpoint: ModelPart save checkpoint file.
+            load_checkpoint: ModelPart load checkpoint file.
+        """
+        check_argument_types()
         ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
         TemporalStatefulWithOutput.__init__(self)
-        check_argument_types()
 
         self.input_sequence = input_sequence
         self.dropout_keep_prob = dropout_keep_prob
@@ -180,9 +195,28 @@ class SentenceEncoder(RecurrentEncoder):
                  dropout_keep_prob: float = 1.0,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None) -> None:
-        """Create a new instance of the sentence encoder."""
+        """Create a new instance of the sentence encoder.
 
-        # TODO Think this through.
+        Arguments:
+            name: ModelPart name.
+            vocabulary: The input vocabulary.
+            data_id: The input sequence data ID.
+            embedding_size: The dimension of the embedding vectors in the input
+                sequence.
+            max_input_len: Maximum length of the input sequence (disregard
+                tokens after this position).
+            rnn_size: The dimension of the RNN hidden state vector.
+            rnn_cell: One of "GRU", "NematusGRU", "LSTM". Which kind of memory
+                cell to use.
+            rnn_direction: One of "forward", "backward", "bidirectional". In
+                what order to process the input sequence. Note that choosing
+                "bidirectional" will double the resulting vector dimension as
+                well as the number of encoder parameters.
+            dropout_keep_prob: 1 - dropout probability.
+            save_checkpoint: ModelPart save checkpoint file.
+            load_checkpoint: ModelPart load checkpoint file.
+        """
+        check_argument_types()
         s_ckp = "input_{}".format(save_checkpoint) if save_checkpoint else None
         l_ckp = "input_{}".format(load_checkpoint) if load_checkpoint else None
 
@@ -228,7 +262,28 @@ class FactoredEncoder(RecurrentEncoder):
                  dropout_keep_prob: float = 1.0,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None) -> None:
-        """Create a new instance of the sentence encoder."""
+        """Create a new instance of the factored encoder.
+
+        Arguments:
+            name: ModelPart name.
+            vocabularies: The vocabularies for each factor.
+            data_ids: The input sequence data ID for each factor.
+            embedding_sizes: The dimension of the embedding vectors in the
+                input sequence for each factor.
+            max_input_len: Maximum length of the input sequence (disregard
+                tokens after this position).
+            rnn_size: The dimension of the RNN hidden state vector.
+            rnn_cell: One of "GRU", "NematusGRU", "LSTM". Which kind of memory
+                cell to use.
+            rnn_direction: One of "forward", "backward", "bidirectional". In
+                what order to process the input sequence. Note that choosing
+                "bidirectional" will double the resulting vector dimension as
+                well as the number of encoder parameters.
+            dropout_keep_prob: 1 - dropout probability.
+            save_checkpoint: ModelPart save checkpoint file.
+            load_checkpoint: ModelPart load checkpoint file.
+        """
+        check_argument_types()
         s_ckp = "input_{}".format(save_checkpoint) if save_checkpoint else None
         l_ckp = "input_{}".format(load_checkpoint) if load_checkpoint else None
 
@@ -268,7 +323,30 @@ class DeepSentenceEncoder(SentenceEncoder):
                  dropout_keep_prob: float = 1.0,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None) -> None:
-        """Create a new instance of the sentence encoder."""
+        """Create a new instance of the deep sentence encoder.
+
+        Arguments:
+            name: ModelPart name.
+            vocabulary: The input vocabulary.
+            data_id: The input sequence data ID.
+            embedding_size: The dimension of the embedding vectors in the input
+                sequence.
+            max_input_len: Maximum length of the input sequence (disregard
+                tokens after this position).
+            rnn_sizes: The list of dimensions of the RNN hidden state vectors
+                in respective layers.
+            rnn_cell: One of "GRU", "NematusGRU", "LSTM". Which kind of memory
+                cell to use.
+            rnn_directions: The list of rnn directions in the respective
+                layers. Should be equally long as `rnn_sizes`. Each item must
+                be one of "forward", "backward", "bidirectional". Determines in
+                what order to process the input sequence. Note that choosing
+                "bidirectional" will double the resulting vector dimension as
+                well as the number of the parameters in the given layer.
+            dropout_keep_prob: 1 - dropout probability.
+            save_checkpoint: ModelPart save checkpoint file.
+            load_checkpoint: ModelPart load checkpoint file.
+        """
         check_argument_types()
 
         if len(rnn_sizes) != len(rnn_directions):
