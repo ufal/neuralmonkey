@@ -1,27 +1,100 @@
-from typing import Tuple, List
+from typing import Tuple, List, NamedTuple, Union, Callable, cast, Set
 
 import tensorflow as tf
 from typeguard import check_argument_types
 
-from neuralmonkey.model.stateful import TemporalStatefulWithOutput
+from neuralmonkey.model.stateful import (
+    TemporalStatefulWithOutput, TemporalStateful)
 from neuralmonkey.model.model_part import ModelPart, FeedDict
 from neuralmonkey.nn.ortho_gru_cell import OrthoGRUCell, NematusGRUCell
 from neuralmonkey.nn.utils import dropout
 from neuralmonkey.vocabulary import Vocabulary
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.decorators import tensor
-from neuralmonkey.model.sequence import (Sequence, EmbeddedSequence,
-                                         EmbeddedFactorSequence)
-
-# pylint: disable=invalid-name
-RNNCellTuple = Tuple[tf.contrib.rnn.RNNCell, tf.contrib.rnn.RNNCell]
-# pylint: enable=invalid-name
+from neuralmonkey.model.sequence import (
+    EmbeddedSequence, EmbeddedFactorSequence)
 
 RNN_CELL_TYPES = {
     "NematusGRU": NematusGRUCell,
     "GRU": OrthoGRUCell,
-    "LSTM": tf.contrib.rnn.LSTMCell
+    "LSTM": tf.nn.rnn_cell.LSTMCell
 }
+
+RNN_DIRECTIONS = ["forward", "backward", "bidirectional"]
+
+
+# pylint: disable=invalid-name
+RNNCellTuple = Tuple[tf.nn.rnn_cell.RNNCell, tf.nn.rnn_cell.RNNCell]
+
+RNNSpec = NamedTuple("RNNSpec", [("size", int),
+                                 ("direction", str),
+                                 ("cell_type", str)])
+
+RNNSpecTuple = Union[Tuple[int], Tuple[int, str], Tuple[int, str, str]]
+# pylint: enable=invalid-name
+
+
+def _make_rnn_spec(size: int,
+                   direction: str = "bidirectional",
+                   cell_type: str = "GRU") -> RNNSpec:
+    if size <= 0:
+        raise ValueError(
+            "RNN size must be a positive integer. {} given.".format(size))
+
+    if direction not in RNN_DIRECTIONS:
+        raise ValueError("RNN direction must be one of {}. {} given."
+                         .format(str(RNN_DIRECTIONS), direction))
+
+    if cell_type not in RNN_CELL_TYPES:
+        raise ValueError("RNN cell type must be one of {}. {} given."
+                         .format(str(RNN_CELL_TYPES), cell_type))
+
+    return RNNSpec(size, direction, cell_type)
+
+
+def _make_rnn_cell(spec: RNNSpec) -> Callable[[], tf.nn.rnn_cell.RNNCell]:
+    """Return the graph template for creating RNN cells."""
+    return RNN_CELL_TYPES[spec.cell_type](spec.size)
+
+
+def rnn_layer(rnn_input: tf.Tensor, lengths: tf.Tensor,
+              rnn_spec: RNNSpec) -> Tuple[tf.Tensor, tf.Tensor]:
+    """Construct a RNN layer given its inputs and specs.
+
+    Arguments:
+        rnn_inputs: The input sequence to the RNN.
+        lengths: Lengths of input sequences.
+        rnn_spec: A valid RNNSpec tuple specifying the network architecture.
+    """
+    if rnn_spec.direction == "bidirectional":
+        fw_cell = _make_rnn_cell(rnn_spec)
+        bw_cell = _make_rnn_cell(rnn_spec)
+
+        outputs_tup, states_tup = tf.nn.bidirectional_dynamic_rnn(
+            fw_cell, bw_cell, rnn_input, sequence_length=lengths,
+            dtype=tf.float32)
+
+        outputs = tf.concat(outputs_tup, 2)
+
+        if rnn_spec.cell_type == "LSTM":
+            states_tup = (state.h for state in states_tup)
+
+        final_state = tf.concat(list(states_tup), 1)
+    else:
+        if rnn_spec.direction == "backward":
+            rnn_input = tf.reverse_sequence(rnn_input, lengths, seq_axis=1)
+
+        cell = _make_rnn_cell(rnn_spec)
+        outputs, final_state = tf.nn.dynamic_rnn(
+            cell, rnn_input, sequence_length=lengths, dtype=tf.float32)
+
+        if rnn_spec.direction == "backward":
+            outputs = tf.reverse_sequence(outputs, lengths, seq_axis=1)
+
+        if rnn_spec.cell_type == "LSTM":
+            final_state = final_state.h
+
+    return outputs, final_state
 
 
 class RecurrentEncoder(ModelPart, TemporalStatefulWithOutput):
@@ -29,107 +102,83 @@ class RecurrentEncoder(ModelPart, TemporalStatefulWithOutput):
     # pylint: disable=too-many-arguments
     def __init__(self,
                  name: str,
-                 input_sequence: Sequence,
+                 input_sequence: TemporalStateful,
                  rnn_size: int,
-                 dropout_keep_prob: float = 1.0,
                  rnn_cell: str = "GRU",
-                 output_size: int = None,
+                 rnn_direction: str = "bidirectional",
+                 dropout_keep_prob: float = 1.0,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None) -> None:
-        """Create a new instance of a recurrent encoder."""
+        """Create a new instance of a recurrent encoder.
+
+        Arguments:
+            name: ModelPart name.
+            input_seqeunce: The input sequence for the encoder.
+            rnn_size: The dimension of the RNN hidden state vector.
+            rnn_cell: One of "GRU", "NematusGRU", "LSTM". Which kind of memory
+                cell to use.
+            rnn_direction: One of "forward", "backward", "bidirectional". In
+                what order to process the input sequence. Note that choosing
+                "bidirectional" will double the resulting vector dimension as
+                well as the number of encoder parameters.
+            dropout_keep_prob: 1 - dropout probability.
+            save_checkpoint: ModelPart save checkpoint file.
+            load_checkpoint: ModelPart load checkpoint file.
+        """
+        check_argument_types()
         ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
         TemporalStatefulWithOutput.__init__(self)
-        check_argument_types()
 
         self.input_sequence = input_sequence
-        self.rnn_size = rnn_size
         self.dropout_keep_prob = dropout_keep_prob
-        self.rnn_cell_str = rnn_cell
-
-        if self.rnn_size <= 0:
-            raise ValueError("RNN size must be a positive integer.")
+        self.rnn_spec = _make_rnn_spec(rnn_size, rnn_direction, rnn_cell)
 
         if self.dropout_keep_prob <= 0.0 or self.dropout_keep_prob > 1.0:
             raise ValueError("Dropout keep prob must be inside (0,1].")
 
-        if self.rnn_cell_str not in RNN_CELL_TYPES:
-            raise ValueError("RNN cell must be a either 'GRU', 'LSTM', or "
-                             "'NematusGRU'. Not {}".format(self.rnn_cell_str))
-
-        if output_size is not None:
-            if output_size <= 0:
-                raise ValueError(
-                    "Output size must be a positive integer or None.")
-            self._project_final_state = True
-            self.output_size = output_size
-        else:
-            self._project_final_state = False
-            self.output_size = 2 * rnn_size
+        with self.use_scope():
+            self.train_mode = tf.placeholder(tf.bool, [], "train_mode")
     # pylint: enable=too-many-arguments
 
-    # pylint: disable=no-self-use
     @tensor
-    def train_mode(self) -> tf.Tensor:
-        return tf.placeholder(tf.bool, [], "train_mode")
-    # pylint: enable=no-self-use
+    def rnn_input(self) -> tf.Tensor:
+        return dropout(self.input_sequence.temporal_states,
+                       self.dropout_keep_prob, self.train_mode)
 
     @tensor
-    def bidirectional_rnn(self) -> Tuple[Tuple[tf.Tensor, tf.Tensor],
-                                         Tuple[tf.Tensor, tf.Tensor]]:
-        embedded = dropout(self.input_sequence.data, self.dropout_keep_prob,
-                           self.train_mode)
-
-        fw_cell, bw_cell = self._rnn_cells()  # type: RNNCellTuple
-        return tf.nn.bidirectional_dynamic_rnn(
-            fw_cell, bw_cell, embedded,
-            sequence_length=self.input_sequence.lengths,
-            dtype=tf.float32)
-
-    @tensor
-    def states(self) -> tf.Tensor:
-        # pylint: disable=unsubscriptable-object
-        return tf.concat(self.bidirectional_rnn[0], 2)
-        # pylint: enable=unsubscriptable-object
+    def rnn(self) -> Tuple[tf.Tensor, tf.Tensor]:
+        return rnn_layer(
+            self.rnn_input, self.input_sequence.lengths, self.rnn_spec)
 
     @tensor
     def temporal_states(self) -> tf.Tensor:
-        return self.states
+        # pylint: disable=unsubscriptable-object
+        return self.rnn[0]
+        # pylint: enable=unsubscriptable-object
+
+    @tensor
+    def temporal_mask(self) -> tf.Tensor:
+        return self.input_sequence.temporal_mask
 
     @tensor
     def output(self) -> tf.Tensor:
         # pylint: disable=unsubscriptable-object
-        if self.rnn_cell_str in ["GRU", "NematusGRU"]:
-            output = tf.concat(self.bidirectional_rnn[1], 1)
-        elif self.rnn_cell_str == "LSTM":
-            # TODO is "h" what we want?
-            final_states = [state.h for state in self.bidirectional_rnn[1]]
-            output = tf.concat(final_states, 1)
+        return self.rnn[1]
         # pylint: enable=unsubscriptable-object
 
-        if self._project_final_state:
-            output = tf.layers.dense(output, self.output_size,
-                                     name="final_state_projection")
+    def get_dependencies(self) -> Set[ModelPart]:
+        """Collect recusively all encoders and decoders."""
+        deps = ModelPart.get_dependencies(self)
 
-        return output
+        # feed only if needed
+        if isinstance(self.input_sequence, ModelPart):
+            feedable = cast(ModelPart, self.input_sequence)
+            deps = deps.union(feedable.get_dependencies())
 
-    @tensor
-    def temporal_mask(self) -> tf.Tensor:
-        return self.input_sequence.mask
-
-    @tensor
-    def states_mask(self) -> tf.Tensor:
-        return self.input_sequence.mask
-
-    def _rnn_cells(self) -> RNNCellTuple:
-        """Return the graph template to for creating RNN memory cells."""
-        return(RNN_CELL_TYPES[self.rnn_cell_str](self.rnn_size),
-               RNN_CELL_TYPES[self.rnn_cell_str](self.rnn_size))
+        return deps
 
     def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
-        fd = self.input_sequence.feed_dict(dataset, train)
-        fd[self.train_mode] = train
-
-        return fd
+        return {self.train_mode: train}
 
 
 class SentenceEncoder(RecurrentEncoder):
@@ -140,15 +189,34 @@ class SentenceEncoder(RecurrentEncoder):
                  data_id: str,
                  embedding_size: int,
                  rnn_size: int,
+                 rnn_cell: str = "GRU",
+                 rnn_direction: str = "bidirectional",
                  max_input_len: int = None,
                  dropout_keep_prob: float = 1.0,
-                 rnn_cell: str = "GRU",
-                 output_size: int = None,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None) -> None:
-        """Create a new instance of the sentence encoder."""
+        """Create a new instance of the sentence encoder.
 
-        # TODO Think this through.
+        Arguments:
+            name: ModelPart name.
+            vocabulary: The input vocabulary.
+            data_id: The input sequence data ID.
+            embedding_size: The dimension of the embedding vectors in the input
+                sequence.
+            max_input_len: Maximum length of the input sequence (disregard
+                tokens after this position).
+            rnn_size: The dimension of the RNN hidden state vector.
+            rnn_cell: One of "GRU", "NematusGRU", "LSTM". Which kind of memory
+                cell to use.
+            rnn_direction: One of "forward", "backward", "bidirectional". In
+                what order to process the input sequence. Note that choosing
+                "bidirectional" will double the resulting vector dimension as
+                well as the number of encoder parameters.
+            dropout_keep_prob: 1 - dropout probability.
+            save_checkpoint: ModelPart save checkpoint file.
+            load_checkpoint: ModelPart load checkpoint file.
+        """
+        check_argument_types()
         s_ckp = "input_{}".format(save_checkpoint) if save_checkpoint else None
         l_ckp = "input_{}".format(load_checkpoint) if load_checkpoint else None
 
@@ -172,9 +240,9 @@ class SentenceEncoder(RecurrentEncoder):
             name=name,
             input_sequence=input_sequence,
             rnn_size=rnn_size,
-            dropout_keep_prob=dropout_keep_prob,
             rnn_cell=rnn_cell,
-            output_size=output_size,
+            rnn_direction=rnn_direction,
+            dropout_keep_prob=dropout_keep_prob,
             save_checkpoint=save_checkpoint,
             load_checkpoint=load_checkpoint)
     # pylint: enable=too-many-arguments,too-many-locals
@@ -188,13 +256,34 @@ class FactoredEncoder(RecurrentEncoder):
                  data_ids: List[str],
                  embedding_sizes: List[int],
                  rnn_size: int,
+                 rnn_cell: str = "GRU",
+                 rnn_direction: str = "bidirectional",
                  max_input_len: int = None,
                  dropout_keep_prob: float = 1.0,
-                 rnn_cell: str = "GRU",
-                 output_size: int = None,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None) -> None:
-        """Create a new instance of the sentence encoder."""
+        """Create a new instance of the factored encoder.
+
+        Arguments:
+            name: ModelPart name.
+            vocabularies: The vocabularies for each factor.
+            data_ids: The input sequence data ID for each factor.
+            embedding_sizes: The dimension of the embedding vectors in the
+                input sequence for each factor.
+            max_input_len: Maximum length of the input sequence (disregard
+                tokens after this position).
+            rnn_size: The dimension of the RNN hidden state vector.
+            rnn_cell: One of "GRU", "NematusGRU", "LSTM". Which kind of memory
+                cell to use.
+            rnn_direction: One of "forward", "backward", "bidirectional". In
+                what order to process the input sequence. Note that choosing
+                "bidirectional" will double the resulting vector dimension as
+                well as the number of encoder parameters.
+            dropout_keep_prob: 1 - dropout probability.
+            save_checkpoint: ModelPart save checkpoint file.
+            load_checkpoint: ModelPart load checkpoint file.
+        """
+        check_argument_types()
         s_ckp = "input_{}".format(save_checkpoint) if save_checkpoint else None
         l_ckp = "input_{}".format(load_checkpoint) if load_checkpoint else None
 
@@ -212,9 +301,93 @@ class FactoredEncoder(RecurrentEncoder):
             name=name,
             input_sequence=input_sequence,
             rnn_size=rnn_size,
-            dropout_keep_prob=dropout_keep_prob,
             rnn_cell=rnn_cell,
-            output_size=output_size,
+            rnn_direction=rnn_direction,
+            dropout_keep_prob=dropout_keep_prob,
             save_checkpoint=save_checkpoint,
             load_checkpoint=load_checkpoint)
     # pylint: enable=too-many-arguments,too-many-locals
+
+
+class DeepSentenceEncoder(SentenceEncoder):
+    # pylint: disable=too-many-arguments,too-many-locals
+    def __init__(self,
+                 name: str,
+                 vocabulary: Vocabulary,
+                 data_id: str,
+                 embedding_size: int,
+                 rnn_sizes: List[int],
+                 rnn_directions: List[str],
+                 rnn_cell: str = "GRU",
+                 max_input_len: int = None,
+                 dropout_keep_prob: float = 1.0,
+                 save_checkpoint: str = None,
+                 load_checkpoint: str = None) -> None:
+        """Create a new instance of the deep sentence encoder.
+
+        Arguments:
+            name: ModelPart name.
+            vocabulary: The input vocabulary.
+            data_id: The input sequence data ID.
+            embedding_size: The dimension of the embedding vectors in the input
+                sequence.
+            max_input_len: Maximum length of the input sequence (disregard
+                tokens after this position).
+            rnn_sizes: The list of dimensions of the RNN hidden state vectors
+                in respective layers.
+            rnn_cell: One of "GRU", "NematusGRU", "LSTM". Which kind of memory
+                cell to use.
+            rnn_directions: The list of rnn directions in the respective
+                layers. Should be equally long as `rnn_sizes`. Each item must
+                be one of "forward", "backward", "bidirectional". Determines in
+                what order to process the input sequence. Note that choosing
+                "bidirectional" will double the resulting vector dimension as
+                well as the number of the parameters in the given layer.
+            dropout_keep_prob: 1 - dropout probability.
+            save_checkpoint: ModelPart save checkpoint file.
+            load_checkpoint: ModelPart load checkpoint file.
+        """
+        check_argument_types()
+
+        if len(rnn_sizes) != len(rnn_directions):
+            raise ValueError("Different number of rnn sizes and directions.")
+
+        self.rnn_sizes = rnn_sizes
+        self.rnn_directions = rnn_directions
+        self.rnn_cell = rnn_cell
+
+        SentenceEncoder.__init__(
+            self,
+            name=name,
+            vocabulary=vocabulary,
+            data_id=data_id,
+            embedding_size=embedding_size,
+            rnn_size=rnn_sizes[-1],
+            rnn_direction=rnn_directions[-1],
+            rnn_cell=rnn_cell,
+            max_input_len=max_input_len,
+            dropout_keep_prob=dropout_keep_prob,
+            save_checkpoint=save_checkpoint,
+            load_checkpoint=load_checkpoint)
+
+    @tensor
+    def rnn(self) -> Tuple[tf.Tensor, tf.Tensor]:
+        """Run stacked RNN given sizes and directions.
+
+        Inputs of the first RNN are the RNN inputs to the encoder. Outputs from
+        each layer are used as inputs to the next one. As a final state of the
+        stacked RNN, the final state of the final layer is used.
+        """
+        rnn_input_local = self.rnn_input
+
+        for level, (rnn_size, rnn_dir) in enumerate(
+                zip(self.rnn_sizes, self.rnn_directions)):
+            rnn_spec = _make_rnn_spec(rnn_size, rnn_dir, self.rnn_cell)
+
+            with tf.variable_scope("layer_{}".format(level)):
+                outputs, state = rnn_layer(
+                    rnn_input_local, self.input_sequence.lengths, rnn_spec)
+
+            rnn_input_local = outputs
+
+        return outputs, state
