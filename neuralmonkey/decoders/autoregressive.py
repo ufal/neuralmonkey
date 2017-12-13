@@ -194,7 +194,7 @@ class AutoregressiveDecoder(ModelPart):
         return tf.argmax(self.runtime_logits[:, :, 1:], -1) + 1
 
     @tensor
-    def runtime_loss(self) -> tf.Tensor:
+    def runtime_xents(self) -> tf.Tensor:
         train_targets = tf.transpose(self.train_inputs)
         batch_major_logits = tf.transpose(self.runtime_logits, [1, 0, 2])
         min_time = tf.minimum(tf.shape(train_targets)[1],
@@ -206,7 +206,12 @@ class AutoregressiveDecoder(ModelPart):
         return tf.contrib.seq2seq.sequence_loss(
             logits=batch_major_logits[:, :min_time],
             targets=train_targets[:, :min_time],
-            weights=tf.transpose(self.train_mask)[:, :min_time])
+            weights=tf.transpose(self.train_mask)[:, :min_time],
+            average_across_batch=False)
+
+    @tensor
+    def runtime_loss(self) -> tf.Tensor:
+        return tf.reduce_mean(self.runtime_xents)
 
     @tensor
     def runtime_logprobs(self) -> tf.Tensor:
