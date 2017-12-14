@@ -114,7 +114,7 @@ class TransformerDecoder(SequenceDecoder):
     def masked_self_attention(
             self, level: int, prev_layer: TransformerLayer) -> tf.Tensor:
 
-        with tf.variable_scope("dec_self_att_level_{}".format(level)):
+        with tf.variable_scope("dec_self_att_level_{}".format(level), reuse=tf.AUTO_REUSE):
             # TODO handle histories
             self_context, _ = attention(
                 queries=prev_layer.temporal_states,
@@ -131,7 +131,7 @@ class TransformerDecoder(SequenceDecoder):
 
     def encoder_attention(self, level: int, queries: tf.Tensor) -> tf.Tensor:
 
-        with tf.variable_scope("dec_inter_att_level_{}".format(level)):
+        with tf.variable_scope("dec_inter_att_level_{}".format(level), reuse=tf.AUTO_REUSE):
             encoder_att_states = get_attention_states(self.encoder)
             encoder_att_mask = get_attention_mask(self.encoder)
 
@@ -260,10 +260,25 @@ class TransformerDecoder(SequenceDecoder):
 
         # pylint: disable=too-many-locals
         def body(*args) -> LoopState:
+
+          with tf.variable_scope(self._variable_scope, reuse=tf.AUTO_REUSE):
+
             loop_state = LoopState(*args)
             histories = loop_state.histories
             feedables = loop_state.feedables
             step = feedables.step
+
+
+            # IF step = 0:
+            # vstup = feedables.input_symbol
+            # IF step > 0:
+            # - zavolat stack na decoded symbols
+            # - zkonkatenovat vysledek pred feedables.input_symbol
+            # vstup = ta konkatenace
+            #
+            # .. provedu body
+            #
+            #
 
             decoded_symbols_ta = histories.decoded_symbols.write(
                 step, feedables.input_symbol)

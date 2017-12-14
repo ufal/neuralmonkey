@@ -84,7 +84,7 @@ class BeamSearchDecoder(ModelPart):
                  max_steps: int = None,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None) -> None:
-        check_argument_types()
+        #check_argument_types()
         ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
 
         self.parent_decoder = parent_decoder
@@ -254,7 +254,7 @@ class BeamSearchDecoder(ModelPart):
             bs_output = loop_state.bs_output
 
             # Don't want to use this decoder with uninitialized parent
-            assert self.parent_decoder.step_scope.reuse
+            # assert self.parent_decoder.step_scope.reuse
 
             # The decoder should be "one step ahead" (see above)
             step = dec_loop_state.feedables.step - 1
