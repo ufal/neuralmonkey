@@ -182,7 +182,7 @@ class TransformerDecoder(SequenceDecoder):
 
         # Feed-forward output projection + dropout
         ff_output = tf.layers.dense(
-            ff_hidden, self.dimension, name="ff_out_{}".format(level))
+            ff_hidden_drop, self.dimension, name="ff_out_{}".format(level))
         ff_output = dropout(ff_output, self.dropout_keep_prob, self.train_mode)
 
         # Residual connections + layer normalization
