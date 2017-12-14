@@ -152,7 +152,8 @@ class TransformerDecoder(SequenceDecoder):
               mask: tf.Tensor) -> TransformerLayer:
         # Recursive implementation. Outputs of the zeroth layer are the inputs
         if level == 0:
-            norm_inputs = tf.contrib.layers.layer_norm(inputs)
+            norm_inputs = tf.contrib.layers.layer_norm(
+                inputs, begin_norm_axis=2)
             return TransformerLayer(norm_inputs, mask)
 
         # Compute the outputs of the previous layer
@@ -163,14 +164,14 @@ class TransformerDecoder(SequenceDecoder):
 
         # Residual connections + layer normalization
         encoder_queries = tf.contrib.layers.layer_norm(
-            self_context + prev_layer.temporal_states)
+            self_context + prev_layer.temporal_states, begin_norm_axis=2)
 
         # Attend to the encoder
         encoder_context = self.encoder_attention(level, encoder_queries)
 
         # Residual connections + layer normalization
         ff_input = tf.contrib.layers.layer_norm(
-            encoder_context + self_context)
+            encoder_context + self_context, begin_norm_axis=2)
 
         # Feed-forward network hidden layer + ReLU + dropout
         ff_hidden = tf.layers.dense(
@@ -185,7 +186,8 @@ class TransformerDecoder(SequenceDecoder):
         ff_output = dropout(ff_output, self.dropout_keep_prob, self.train_mode)
 
         # Residual connections + layer normalization
-        output_states = tf.contrib.layers.layer_norm(ff_output + ff_input)
+        output_states = tf.contrib.layers.layer_norm(
+            ff_output + ff_input, begin_norm_axis=2)
 
         return TransformerLayer(states=output_states, mask=mask)
 

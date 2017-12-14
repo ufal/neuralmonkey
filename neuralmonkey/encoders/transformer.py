@@ -131,7 +131,8 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
         # Recursive implementation. Outputs of the zeroth layer are normalized
         # inputs.
         if level == 0:
-            norm_inputs = tf.contrib.layers.layer_norm(self.encoder_inputs)
+            norm_inputs = tf.contrib.layers.layer_norm(
+                self.encoder_inputs, begin_norm_axis=2)
             return TransformerLayer(norm_inputs, self.temporal_mask)
 
         # Compute the outputs of the previous layer
@@ -142,7 +143,7 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
 
         # Residual connections + layer normalization
         ff_input = tf.contrib.layers.layer_norm(
-            self_context + prev_layer.temporal_states)
+            self_context + prev_layer.temporal_states, begin_norm_axis=2)
 
         # Feed-forward network hidden layer + ReLU + dropout
         ff_hidden = tf.layers.dense(
@@ -157,7 +158,8 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
         ff_output = dropout(ff_output, self.dropout_keep_prob, self.train_mode)
 
         # Residual connections + layer normalization
-        output_states = tf.contrib.layers.layer_norm(ff_input + ff_output)
+        output_states = tf.contrib.layers.layer_norm(
+            ff_input + ff_output, begin_norm_axis=2)
 
         return TransformerLayer(states=output_states, mask=self.temporal_mask)
 
