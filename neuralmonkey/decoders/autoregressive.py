@@ -131,7 +131,8 @@ class AutoregressiveDecoder(ModelPart):
         return tf.matmul(state, self.decoding_w) + self.decoding_b
 
     @tensor
-    def train_loop_result(self) -> Tuple[tf.Tensor, tf.Tensor, tf.Tensor]:
+    def train_loop_result(self) -> Tuple[tf.Tensor, tf.Tensor,
+                                         tf.Tensor, tf.Tensor]:
         return self.decoding_loop(train_mode=True)
 
     @tensor

@@ -32,8 +32,8 @@ from typeguard import check_argument_types
 
 from neuralmonkey.model.model_part import ModelPart, FeedDict
 from neuralmonkey.dataset import Dataset
-from neuralmonkey.decoders.autoregressive import LoopState
-from neuralmonkey.decoders.decoder import Decoder
+from neuralmonkey.decoders.autoregressive import (
+    LoopState, AutoregressiveDecoder)
 from neuralmonkey.vocabulary import (END_TOKEN_INDEX, PAD_TOKEN_INDEX)
 from neuralmonkey.decorators import tensor
 
@@ -78,13 +78,13 @@ class BeamSearchDecoder(ModelPart):
 
     def __init__(self,
                  name: str,
-                 parent_decoder: Decoder,
+                 parent_decoder: AutoregressiveDecoder,
                  beam_size: int,
                  length_normalization: float,
                  max_steps: int = None,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None) -> None:
-        #check_argument_types()
+        check_argument_types()
         ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
 
         self.parent_decoder = parent_decoder

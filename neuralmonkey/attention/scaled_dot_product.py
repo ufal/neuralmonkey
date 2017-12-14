@@ -53,6 +53,7 @@ def mask_future(energies: tf.Tensor) -> tf.Tensor:
     masked_value = tf.fill(tf.shape(energies), -np.inf)
     return tf.where(mask_area, energies, masked_value)
 
+
 def attention(
         queries: tf.Tensor,
         keys: tf.Tensor,

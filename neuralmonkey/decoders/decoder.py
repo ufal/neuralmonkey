@@ -382,7 +382,7 @@ class Decoder(AutoregressiveDecoder):
         return body
 
     def get_initial_loop_state(self) -> LoopState:
-        default_ls = SequenceDecoder.get_initial_loop_state(self)
+        default_ls = AutoregressiveDecoder.get_initial_loop_state(self)
         feedables = default_ls.feedables._asdict()
         histories = default_ls.histories._asdict()
 

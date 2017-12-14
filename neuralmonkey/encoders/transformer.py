@@ -15,7 +15,6 @@ from neuralmonkey.decorators import tensor
 from neuralmonkey.attention.scaled_dot_product import attention
 from neuralmonkey.logging import log
 from neuralmonkey.model.model_part import FeedDict, ModelPart
-from neuralmonkey.model.sequence import Sequence
 from neuralmonkey.model.stateful import (TemporalStateful,
                                          TemporalStatefulWithOutput)
 from neuralmonkey.nn.utils import dropout
@@ -63,7 +62,7 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
     # pylint: disable=too-many-arguments
     def __init__(self,
                  name: str,
-                 input_sequence: Sequence,
+                 input_sequence: TemporalStateful,
                  ff_hidden_size: int,
                  depth: int,
                  n_heads: int,
@@ -75,7 +74,7 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
         ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
 
         self.input_sequence = input_sequence
-        self.dimension = self.input_sequence.dimension
+        self.model_dimension = self.input_sequence.dimension
         self.ff_hidden_size = ff_hidden_size
         self.depth = depth
         self.n_heads = n_heads
@@ -106,9 +105,9 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
 
     @tensor
     def encoder_inputs(self) -> tf.Tensor:
-        length = tf.shape(self.input_sequence.data)[1]
-        signal = position_signal(self.dimension, length)
-        return dropout(self.input_sequence.data + signal,
+        length = tf.shape(self.input_sequence.temporal_states)[1]
+        signal = position_signal(self.model_dimension, length)
+        return dropout(self.input_sequence.temporal_states + signal,
                        self.dropout_keep_prob, self.train_mode)
 
     def self_attention(
@@ -154,7 +153,8 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
 
         # Feed-forward output projection + dropout
         ff_output = tf.layers.dense(
-            ff_hidden_drop, self.dimension, name="ff_out_{}".format(level))
+            ff_hidden_drop, self.model_dimension,
+            name="ff_out_{}".format(level))
         ff_output = dropout(ff_output, self.dropout_keep_prob, self.train_mode)
 
         # Residual connections + layer normalization
@@ -169,7 +169,7 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
 
     @tensor
     def temporal_mask(self) -> tf.Tensor:
-        return self.input_sequence.mask
+        return self.input_sequence.temporal_mask
 
     def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
         return {self.train_mode: train}

@@ -13,8 +13,8 @@ from neuralmonkey.attention.scaled_dot_product import (
 from neuralmonkey.attention.base_attention import (
     Attendable, get_attention_states, get_attention_mask)
 from neuralmonkey.decorators import tensor
-from neuralmonkey.decoders.sequence_decoder import (
-    SequenceDecoder, LoopState, extend_namedtuple, DecoderHistories,
+from neuralmonkey.decoders.autoregressive import (
+    AutoregressiveDecoder, LoopState, extend_namedtuple, DecoderHistories,
     DecoderFeedables)
 from neuralmonkey.encoders.transformer import (
     TransformerLayer, position_signal)
@@ -34,7 +34,7 @@ TransformerHistories = extend_namedtuple(
 # pylint: enable=invalid-name
 
 
-class TransformerDecoder(SequenceDecoder):
+class TransformerDecoder(AutoregressiveDecoder):
 
     # pylint: disable=too-many-arguments
     def __init__(self,
@@ -53,7 +53,7 @@ class TransformerDecoder(SequenceDecoder):
                  save_checkpoint: str = None,
                  load_checkpoint: str = None) -> None:
         check_argument_types()
-        SequenceDecoder.__init__(
+        AutoregressiveDecoder.__init__(
             self,
             name=name,
             vocabulary=vocabulary,
@@ -114,7 +114,8 @@ class TransformerDecoder(SequenceDecoder):
     def masked_self_attention(
             self, level: int, prev_layer: TransformerLayer) -> tf.Tensor:
 
-        with tf.variable_scope("dec_self_att_level_{}".format(level), reuse=tf.AUTO_REUSE):
+        with tf.variable_scope("dec_self_att_level_{}".format(level),
+                               reuse=tf.AUTO_REUSE):
             # TODO handle histories
             self_context, _ = attention(
                 queries=prev_layer.temporal_states,
@@ -131,7 +132,8 @@ class TransformerDecoder(SequenceDecoder):
 
     def encoder_attention(self, level: int, queries: tf.Tensor) -> tf.Tensor:
 
-        with tf.variable_scope("dec_inter_att_level_{}".format(level), reuse=tf.AUTO_REUSE):
+        with tf.variable_scope("dec_inter_att_level_{}".format(level),
+                               reuse=tf.AUTO_REUSE):
             encoder_att_states = get_attention_states(self.encoder)
             encoder_att_mask = get_attention_mask(self.encoder)
 
@@ -225,7 +227,7 @@ class TransformerDecoder(SequenceDecoder):
 
     def get_initial_loop_state(self) -> LoopState:
 
-        default_ls = SequenceDecoder.get_initial_loop_state(self)
+        default_ls = AutoregressiveDecoder.get_initial_loop_state(self)
         # feedables = default_ls.feedables._asdict()
         histories = default_ls.histories._asdict()
 
@@ -261,24 +263,10 @@ class TransformerDecoder(SequenceDecoder):
         # pylint: disable=too-many-locals
         def body(*args) -> LoopState:
 
-          with tf.variable_scope(self._variable_scope, reuse=tf.AUTO_REUSE):
-
             loop_state = LoopState(*args)
             histories = loop_state.histories
             feedables = loop_state.feedables
             step = feedables.step
-
-
-            # IF step = 0:
-            # vstup = feedables.input_symbol
-            # IF step > 0:
-            # - zavolat stack na decoded symbols
-            # - zkonkatenovat vysledek pred feedables.input_symbol
-            # vstup = ta konkatenace
-            #
-            # .. provedu body
-            #
-            #
 
             decoded_symbols_ta = histories.decoded_symbols.write(
                 step, feedables.input_symbol)
@@ -286,37 +274,42 @@ class TransformerDecoder(SequenceDecoder):
             # shape (time, batch)
             decoded_symbols = decoded_symbols_ta.stack()
             decoded_symbols.set_shape([None, None])
-
-            # shape (batch, time, dimension)
-            embedded_inputs = self.embed_inputs(tf.transpose(decoded_symbols))
+            decoded_symbols_in_batch = tf.transpose(decoded_symbols)
 
             # MASKA (time, batch)
             mask = histories.input_mask.stack()
             mask.set_shape([None, None])
 
-            last_layer = self.layer(self.depth, embedded_inputs,
-                                    tf.transpose(mask))
+            with tf.variable_scope(self._variable_scope, reuse=tf.AUTO_REUSE):
 
-            # (batch, state_size)
-            output_state = last_layer.temporal_states[:, -1, :]
+                # shape (batch, time, dimension)
+                embedded_inputs = self.embed_inputs(decoded_symbols_in_batch)
 
-            logits = tf.matmul(output_state, self.decoding_w) + self.decoding_b
+                last_layer = self.layer(
+                    self.depth, embedded_inputs, tf.transpose(mask))
 
-            if sample:
-                next_symbols = tf.multinomial(logits, num_samples=1)
-            else:
-                next_symbols = tf.to_int32(tf.argmax(logits, axis=1))
-                int_unfinished_mask = tf.to_int32(
-                    tf.logical_not(loop_state.feedables.finished))
+                # (batch, state_size)
+                output_state = last_layer.temporal_states[:, -1, :]
 
-                # Note this works only when PAD_TOKEN_INDEX is 0. Otherwise
-                # this have to be rewritten
-                assert PAD_TOKEN_INDEX == 0
-                next_symbols = next_symbols * int_unfinished_mask
+                logits = tf.matmul(output_state, self.decoding_w)
+                logits += self.decoding_b
 
-            has_just_finished = tf.equal(next_symbols, END_TOKEN_INDEX)
-            has_finished = tf.logical_or(feedables.finished, has_just_finished)
-            not_finished = tf.logical_not(has_finished)
+                if sample:
+                    next_symbols = tf.multinomial(logits, num_samples=1)
+                else:
+                    next_symbols = tf.to_int32(tf.argmax(logits, axis=1))
+                    int_unfinished_mask = tf.to_int32(
+                        tf.logical_not(loop_state.feedables.finished))
+
+                    # Note this works only when PAD_TOKEN_INDEX is 0. Otherwise
+                    # this have to be rewritten
+                    assert PAD_TOKEN_INDEX == 0
+                    next_symbols = next_symbols * int_unfinished_mask
+
+                    has_just_finished = tf.equal(next_symbols, END_TOKEN_INDEX)
+                    has_finished = tf.logical_or(feedables.finished,
+                                                 has_just_finished)
+                    not_finished = tf.logical_not(has_finished)
 
             new_feedables = DecoderFeedables(
                 step=step + 1,
@@ -329,6 +322,7 @@ class TransformerDecoder(SequenceDecoder):
                 decoder_outputs=histories.decoder_outputs.write(
                     step, output_state),
                 mask=histories.mask.write(step, not_finished),
+                outputs=histories.outputs.write(step, next_symbols),
                 # transformer-specific:
                 # TODO handle attention histories correctly
                 decoded_symbols=decoded_symbols_ta,
