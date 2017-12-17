@@ -1,7 +1,6 @@
-"""Implementation of the encoder of the Transformer model as described in
-Vaswani et al. (2017).
+"""Implementation of the encoder of the Transformer model.
 
-See arxiv.org/abs/1706.03762
+Described in Vaswani et al. (2017), arxiv.org/abs/1706.03762
 """
 # pylint: disable=unused-import
 from typing import Set, Optional, List

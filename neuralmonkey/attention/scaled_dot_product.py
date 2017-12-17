@@ -25,8 +25,11 @@ MultiHeadLoopStateTA = NamedTuple("MultiHeadLoopStateTA",
 
 
 def split_for_heads(x: tf.Tensor, n_heads: int, head_dim: int) -> tf.Tensor:
-    """Split last dimension of 3D vector of shape (batch, time, dim) and return
-    a 4D vector with shape (batch, n_heads, time, dim/n_heads)"""
+    """Split a tensor for multi-head attention.
+
+    Split last dimension of 3D vector of shape (batch, time, dim) and return
+    a 4D vector with shape (batch, n_heads, time, dim/n_heads)
+    """
     x_shape = tf.shape(x)
     x_4d = tf.reshape(tf.expand_dims(x, 2),
                       [x_shape[0], x_shape[1], n_heads, head_dim])
@@ -35,7 +38,7 @@ def split_for_heads(x: tf.Tensor, n_heads: int, head_dim: int) -> tf.Tensor:
 
 
 def mask_weights(weights_4d: tf.Tensor, mask: tf.Tensor) -> tf.Tensor:
-    """Apply mask to softmax weights and renormalize"""
+    """Apply mask to softmax weights and renormalize."""
     # attention mask shape: batch, time(k)
     # weights_all shape: batch, head, time(q), time(k)
     weights_all = weights_4d * tf.expand_dims(tf.expand_dims(mask, 1), 1)
@@ -47,7 +50,7 @@ def mask_weights(weights_4d: tf.Tensor, mask: tf.Tensor) -> tf.Tensor:
 
 
 def mask_future(energies: tf.Tensor) -> tf.Tensor:
-    """Mask energies of keys to the right of the query"""
+    """Mask energies of keys to the right of the query."""
     triangular_mask = tf.matrix_band_part(tf.ones_like(energies), -1, 0)
     mask_area = tf.equal(triangular_mask, 1)
     masked_value = tf.fill(tf.shape(energies), -np.inf)
