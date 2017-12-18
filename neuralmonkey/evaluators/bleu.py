@@ -79,17 +79,12 @@ class BLEUEvaluator(object):
         corpus_generated_length = 0
 
         for hypothesis, references in zip(hypotheses, references_list):
-            reference_counters = []
+            reference_counts = BLEUEvaluator.merge_max_counters([
+                BLEUEvaluator.ngram_counts(ref, n, not case_sensitive)
+                for ref in references])
 
-            for reference in references:
-                counter = BLEUEvaluator.ngram_counts(reference, n,
-                                                     not case_sensitive)
-                reference_counters.append(counter)
-
-            reference_counts = BLEUEvaluator.merge_max_counters(
-                reference_counters)
-            hypothesis_counts = BLEUEvaluator.ngram_counts(hypothesis, n,
-                                                           not case_sensitive)
+            hypothesis_counts = BLEUEvaluator.ngram_counts(
+                hypothesis, n, not case_sensitive)
 
             true_positives = 0
             for ngram in hypothesis_counts:

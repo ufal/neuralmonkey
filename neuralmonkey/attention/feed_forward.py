@@ -150,12 +150,9 @@ class Attention(BaseAttention):
             * self._att_states_reshaped, [1, 2])
         context = tf.reshape(context, [-1, self.context_vector_size])
 
-        next_contexts = loop_state.contexts.write(step, context)
-        next_weights = loop_state.weights.write(step, weights)
-
         next_loop_state = AttentionLoopStateTA(
-            contexts=next_contexts,
-            weights=next_weights)
+            contexts=loop_state.contexts.write(step, context),
+            weights=loop_state.weights.write(step, weights))
 
         return context, next_loop_state
 

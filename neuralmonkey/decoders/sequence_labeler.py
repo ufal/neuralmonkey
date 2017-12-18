@@ -47,24 +47,29 @@ class SequenceLabeler(ModelPart):
     # pylint: enable=no-self-use
 
     @tensor
-    def logits(self) -> tf.Tensor:
-        vocabulary_size = len(self.vocabulary)
-
-        weights = tf.get_variable(
+    def decoding_w(self) -> tf.Variable:
+        return tf.get_variable(
             name="state_to_word_W",
-            shape=[self.rnn_size, vocabulary_size],
+            shape=[self.rnn_size, len(self.vocabulary)],
             initializer=tf.glorot_normal_initializer())
 
-        biases = tf.get_variable(
+    @tensor
+    def decoding_b(self) -> tf.Variable:
+        return tf.get_variable(
             name="state_to_word_b",
-            shape=[vocabulary_size],
+            shape=[len(self.vocabulary)],
             initializer=tf.zeros_initializer())
 
-        weights_direct = tf.get_variable(
+    @tensor
+    def decoding_residual_w(self) -> tf.Variable:
+        input_dim = self.encoder.input_sequence.dimension
+        return tf.get_variable(
             name="emb_to_word_W",
-            shape=[self.encoder.input_sequence.dimension, vocabulary_size],
+            shape=[input_dim, len(self.vocabulary)],
             initializer=tf.glorot_normal_initializer())
 
+    @tensor
+    def logits(self) -> tf.Tensor:
         # To multiply 3-D matrix (encoder hidden states) by a 2-D matrix
         # (weights), we use 1-by-1 convolution (similar trick can be found in
         # attention computation)
@@ -72,17 +77,18 @@ class SequenceLabeler(ModelPart):
         # TODO dropout needs to be revisited
 
         encoder_states = tf.expand_dims(self.encoder.temporal_states, 2)
-        weights_4d = tf.expand_dims(tf.expand_dims(weights, 0), 0)
+        weights_4d = tf.expand_dims(tf.expand_dims(self.decoding_w, 0), 0)
 
         multiplication = tf.nn.conv2d(
             encoder_states, weights_4d, [1, 1, 1, 1], "SAME")
         multiplication_3d = tf.squeeze(multiplication, squeeze_dims=[2])
 
-        biases_3d = tf.expand_dims(tf.expand_dims(biases, 0), 0)
+        biases_3d = tf.expand_dims(tf.expand_dims(self.decoding_b, 0), 0)
 
         embedded_inputs = tf.expand_dims(
             self.encoder.input_sequence.temporal_states, 2)
-        dweights_4d = tf.expand_dims(tf.expand_dims(weights_direct, 0), 0)
+        dweights_4d = tf.expand_dims(
+            tf.expand_dims(self.decoding_residual_w, 0), 0)
 
         dmultiplication = tf.nn.conv2d(
             embedded_inputs, dweights_4d, [1, 1, 1, 1], "SAME")

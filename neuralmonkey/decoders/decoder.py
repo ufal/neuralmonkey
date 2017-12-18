@@ -1,4 +1,4 @@
-from typing import List, Callable, Union, Tuple
+from typing import List, Callable, Union, Tuple, cast
 
 import tensorflow as tf
 from typeguard import check_argument_types
@@ -18,7 +18,7 @@ from neuralmonkey.decoders.encoder_projection import (
     linear_encoder_projection, concat_encoder_projection, empty_initial_state,
     EncoderProjection)
 from neuralmonkey.decoders.output_projection import (
-    OutputProjectionSpec, nonlinear_output)
+    OutputProjectionSpec, OutputProjection, nonlinear_output)
 from neuralmonkey.decorators import tensor
 
 
@@ -159,10 +159,13 @@ class Decoder(AutoregressiveDecoder):
                 self.rnn_size, tf.tanh)[0]
             self.output_projection_size = self.rnn_size
         elif isinstance(self.output_projection_spec, tuple):
+            self.output_projection_spec = cast(
+                Tuple[OutputProjection, int], self.output_projection_spec)
             (self.output_projection,
-             self.output_projection_size) = tuple(self.output_projection_spec)
+             self.output_projection_size) = self.output_projection_spec
         else:
-            self.output_projection = self.output_projection_spec
+            self.output_projection = cast(
+                OutputProjection, self.output_projection_spec)
             self.output_projection_size = self.rnn_size
 
         if self._attention_on_input:

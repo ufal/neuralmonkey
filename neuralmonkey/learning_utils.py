@@ -12,6 +12,7 @@ from datetime import timedelta
 import numpy as np
 import tensorflow as tf
 from termcolor import colored
+from typeguard import check_argument_types
 
 from neuralmonkey.logging import log, log_print, warn, notice
 from neuralmonkey.dataset import Dataset, LazyDataset
@@ -19,7 +20,6 @@ from neuralmonkey.tf_manager import TensorFlowManager
 from neuralmonkey.runners.base_runner import BaseRunner, ExecutionResult
 from neuralmonkey.trainers.generic_trainer import GenericTrainer
 from neuralmonkey.tf_utils import gpu_memusage
-from typeguard import check_argument_types
 
 # pylint: disable=invalid-name
 Evaluation = Dict[str, float]
