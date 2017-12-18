@@ -249,7 +249,10 @@ class TransformerDecoder(AutoregressiveDecoder):
         histories["input_mask"] = input_mask.write(
             0, tf.ones_like(self.go_symbols, dtype=tf.float32))
 
+        # TransformerHistories is a type and should be callable
+        # disable=not-callable
         tr_histories = TransformerHistories(**histories)
+        # enable=not-callable
 
         return LoopState(
             histories=tr_histories,
@@ -316,6 +319,8 @@ class TransformerDecoder(AutoregressiveDecoder):
                 input_symbol=next_symbols,
                 prev_logits=logits)
 
+            # TransformerHistories is a type and should be callable
+            # disable=not-callable
             new_histories = TransformerHistories(
                 logits=histories.logits.write(step, logits),
                 decoder_outputs=histories.decoder_outputs.write(
@@ -329,6 +334,7 @@ class TransformerDecoder(AutoregressiveDecoder):
                 inter_attention_histories=histories.inter_attention_histories,
                 input_mask=histories.input_mask.write(
                     step + 1, tf.to_float(not_finished)))
+            # enable=not-callable
 
             new_loop_state = LoopState(
                 histories=new_histories,
