@@ -18,9 +18,9 @@ class AttentiveEmbeddingEncoder(ModelPart, TemporalStatefulWithOutput):
     Inspired by "A Structured Self-attentive Sentence Embedding",
     https://arxiv.org/abs/1703.03130.
 
-    The combines a sequence of vectors into a fixed-size matrix where each row
-    of the matrix is computed using a different attention head. This matrix
-    is exposed as the ``temporal_states`` property (the time dimension
+    The encoder combines a sequence of vectors into a fixed-size matrix where
+    each row of the matrix is computed using a different attention head. This
+    matrix is exposed as the ``temporal_states`` property (the time dimension
     corresponds to the different attention heads). The ``output`` property
     provides a flattened or projected representation of this matrix.
     """
