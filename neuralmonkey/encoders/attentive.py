@@ -12,10 +12,10 @@ from neuralmonkey.attention.base_attention import (
     get_attention_states, get_attention_mask, Attendable)
 
 
-class AttentiveEmbeddingEncoder(ModelPart, TemporalStatefulWithOutput):
-    """An attentive encoder with a fixed-dimension output.
+class AttentiveEncoder(ModelPart, TemporalStatefulWithOutput):
+    """An encoder with attention over the input and a fixed-dimension output.
 
-    Inspired by "A Structured Self-attentive Sentence Embedding",
+    Based on "A Structured Self-attentive Sentence Embedding",
     https://arxiv.org/abs/1703.03130.
 
     The encoder combines a sequence of vectors into a fixed-size matrix where
