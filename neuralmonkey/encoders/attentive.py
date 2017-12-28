@@ -32,6 +32,7 @@ class AttentiveEncoder(ModelPart, TemporalStatefulWithOutput):
                  hidden_size: int,
                  num_heads: int,
                  output_size: int = None,
+                 state_proj_size: int = None,
                  dropout_keep_prob: float = 1.0,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None) -> None:
@@ -44,6 +45,7 @@ class AttentiveEncoder(ModelPart, TemporalStatefulWithOutput):
         self.hidden_size = hidden_size
         self.num_heads = num_heads
         self.output_size = output_size
+        self.state_proj_size = state_proj_size
         self.dropout_keep_prob = dropout_keep_prob
 
         if self.dropout_keep_prob <= 0.0 or self.dropout_keep_prob > 1.0:
@@ -64,13 +66,16 @@ class AttentiveEncoder(ModelPart, TemporalStatefulWithOutput):
                                  activation=tf.tanh, use_bias=False,
                                  name="S1")
         energies = tf.layers.dense(hidden, units=self.num_heads,
-                                   activation=None, use_bias=False,
-                                   name="S2")
+                                   use_bias=False, name="S2")
         # shape: [batch_size, max_time, num_heads]
         weights = tf.nn.softmax(energies, dim=1)
         if mask is not None:
             weights *= tf.expand_dims(mask, -1)
             weights /= tf.reduce_sum(weights, axis=1, keep_dims=True) + 1e-8
+
+        if self.state_proj_size is not None:
+            states = tf.layers.dense(states, units=self.state_proj_size,
+                                     name="state_projection")
 
         return tf.matmul(a=weights, b=states, transpose_a=True)
 
