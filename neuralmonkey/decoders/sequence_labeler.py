@@ -1,4 +1,4 @@
-from typing import cast, Iterable, List, Optional, Union
+from typing import cast, Iterable, List, Optional, Union, Tuple
 
 import tensorflow as tf
 
@@ -99,7 +99,8 @@ class SequenceLabeler(ModelPart):
             embedded_inputs, dweights_4d, [1, 1, 1, 1], "SAME")
         dmultiplication_3d = tf.squeeze(dmultiplication, squeeze_dims=[2])
 
-        logits = multiplication_3d + dmultiplication_3d + biases_3d
+        logits = multiplication_3d + dmultiplication_3d
+        logits = logits + biases_3d
         return logits
 
     @tensor
@@ -144,3 +145,59 @@ class SequenceLabeler(ModelPart):
             fd[self.train_weights] = paddings.T
 
         return fd
+
+
+class CRFLabeler(SequenceLabeler):
+    """CRF Classifier assing a label to each encoder's state."""
+
+    def __init__(self,
+                 name: str,
+                 encoder: Union[RecurrentEncoder, SentenceEncoder],
+                 vocabulary: Vocabulary,
+                 data_id: str,
+                 dropout_keep_prob: float = 1.0,
+                 save_checkpoint: Optional[str] = None,
+                 load_checkpoint: Optional[str] = None) -> None:
+        SequenceLabeler.__init__(self, name, encoder, vocabulary, data_id,
+                                 dropout_keep_prob, save_checkpoint,
+                                 load_checkpoint)
+
+        self.transition_params = tf.get_variable(
+            "transition_params",
+            [len(self.vocabulary) - 3, len(self.vocabulary) - 3],
+            initializer=tf.glorot_uniform_initializer())
+
+    @tensor
+    def logprobs(self) -> tf.Tensor:
+        raise NotImplementedError("Logarithmic probabilities are not "
+                                  "supported by the CRFLabeler")
+
+    @tensor
+    def runtime_result(self) -> Tuple[tf.Tensor, tf.Tensor]:
+        return tf.contrib.crf.crf_decode(
+            potentials=self.logits[:, :, 3:],
+            transition_params=self.transition_params,
+            sequence_length=self.encoder.lengths)
+
+    @tensor
+    def decoded(self) -> tf.Tensor:
+        return self.runtime_result[0] + 3
+
+    @tensor
+    def sequence_score(self) -> tf.Tensor:
+        return self.runtime_result[1]
+
+    @tensor
+    def cost(self) -> tf.Tensor:
+        targets = self.train_targets
+        targets = tf.maximum(targets - 3, 0)
+
+        log_likelihood, self.transition_params = \
+            tf.contrib.crf.crf_log_likelihood(
+                inputs=self.logits[:, :, 3:],
+                tag_indices=targets,
+                sequence_lengths=self.encoder.lengths,
+                transition_params=self.transition_params)
+        loss = tf.reduce_mean(-log_likelihood)
+
+        return loss
