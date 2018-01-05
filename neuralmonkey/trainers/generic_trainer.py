@@ -6,7 +6,8 @@ import tensorflow as tf
 from neuralmonkey.model.model_part import ModelPart
 from neuralmonkey.runners.base_runner import (
     Executable, ExecutionResult, NextExecute)
-
+from neuralmonkey.trainers.optimizers import OptimizerGetter, adam_optimizer
+from neuralmonkey.trainers.lr_decay import DecayFunction
 
 # pylint: disable=invalid-name
 Gradients = List[Tuple[tf.Tensor, tf.Variable]]
@@ -24,10 +25,15 @@ BIAS_REGEX = re.compile(r"[Bb]ias")
 # pylint: disable=too-few-public-methods,too-many-locals,too-many-arguments
 class GenericTrainer(object):
 
-    def __init__(self, objectives: List[Objective],
-                 l1_weight: float = 0.0, l2_weight: float = 0.0,
-                 clip_norm: float = None, optimizer=None,
-                 global_step=None, var_scopes: List[str] = None,
+    def __init__(self,
+                 objectives: List[Objective],
+                 l1_weight: float = 0.0,
+                 l2_weight: float = 0.0,
+                 clip_norm: float = None,
+                 optimizer_getter: OptimizerGetter = adam_optimizer(),
+                 global_step: tf.Tensor = None,
+                 decay_function: DecayFunction = None,
+                 var_scopes: List[str] = None,
                  var_collection: str = None) -> None:
 
         if var_collection is None:
@@ -40,7 +46,19 @@ class GenericTrainer(object):
         self.var_list = [var for var_list in var_lists for var in var_list]
 
         with tf.name_scope("trainer"):
-            self.optimizer = optimizer or tf.train.AdamOptimizer(1e-4)
+            if global_step is None:
+                global_step = tf.Variable(
+                    0, trainable=False, name='global_step')
+            self.global_step = global_step
+
+            if decay_function is not None:
+                decayed_lr = decay_function(self.global_step)
+                self.optimizer = optimizer_getter(decayed_lr)
+
+                tf.summary.scalar("learning_rate", decayed_lr,
+                                  collections=["summary_train"])
+            else:
+                self.optimizer = optimizer_getter()
 
             with tf.name_scope("regularization"):
                 regularizable = [v for v in tf.trainable_variables()
@@ -93,11 +111,6 @@ class GenericTrainer(object):
 
             self.all_coders = set.union(*(obj.decoder.get_dependencies()
                                           for obj in objectives))
-
-            if global_step is None:
-                global_step = tf.Variable(
-                    0, trainable=False, name="global_step")
-            self.global_step = global_step
 
             self.train_op = self.optimizer.apply_gradients(
                 gradients, global_step=self.global_step)
