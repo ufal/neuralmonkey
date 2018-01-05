@@ -65,10 +65,10 @@ def get_attention_states(encoder: Attendable) -> tf.Tensor:
 
     elif isinstance(encoder, SpatialStateful):
         # pylint: disable=no-member
-        shape = [s.value for s in encoder.spatial_states.get_shape()[1:]]
+        shape = encoder.spatial_states.get_shape().as_list()
         # pylint: enable=no-member
         return tf.reshape(encoder.spatial_states,
-                          [-1, shape[0] * shape[1], shape[2]])
+                          [-1, shape[1] * shape[2], shape[3]])
     else:
         raise AssertionError("Unknown encoder type")
 
@@ -84,9 +84,9 @@ def get_attention_mask(encoder: Attendable) -> Optional[tf.Tensor]:
             return None
 
         # pylint: disable=no-member
-        shape = [s.value for s in encoder.spatial_mask.get_shape()[1:]]
+        shape = encoder.spatial_states.get_shape().as_list()
         # pylint: enable=no-member
-        return tf.reshape(encoder.spatial_mask, [-1, shape[0] * shape[1]])
+        return tf.reshape(encoder.spatial_mask, [-1, shape[1] * shape[2]])
     else:
         raise AssertionError("Unknown encoder type")
 
