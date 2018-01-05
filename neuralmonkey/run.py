@@ -41,8 +41,8 @@ def default_variable_file(output_dir):
 
     def continuation_file():
         return os.path.join(output_dir,
-                            "variables.data.cont-{}.best".format(cont_index))
-    while os.path.exists(continuation_file()):
+                            "variables.data.cont-{}".format(cont_index))
+    while os.path.exists(continuation_file() + ".best"):
         variables_file = continuation_file()
         cont_index += 1
 
