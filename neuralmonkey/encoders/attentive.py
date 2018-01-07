@@ -22,7 +22,8 @@ class AttentiveEncoder(ModelPart, TemporalStatefulWithOutput):
     each row of the matrix is computed using a different attention head. This
     matrix is exposed as the ``temporal_states`` property (the time dimension
     corresponds to the different attention heads). The ``output`` property
-    provides a flattened or projected representation of this matrix.
+    provides a flattened and, optionally, projected representation of this
+    matrix.
     """
 
     # pylint: disable=too-many-arguments
@@ -56,13 +57,15 @@ class AttentiveEncoder(ModelPart, TemporalStatefulWithOutput):
     # pylint: enable=too-many-arguments
 
     @tensor
-    def temporal_states(self) -> tf.Tensor:
-        states = dropout(get_attention_states(self.input_sequence),
-                         self.dropout_keep_prob,
-                         self.train_mode)
-        mask = get_attention_mask(self.input_sequence)
+    def attention_states(self) -> tf.Tensor:
+        return dropout(get_attention_states(self.input_sequence),
+                       self.dropout_keep_prob,
+                       self.train_mode)
 
-        hidden = tf.layers.dense(states, units=self.hidden_size,
+    @tensor
+    def attention_weights(self) -> tf.Tensor:
+        mask = get_attention_mask(self.input_sequence)
+        hidden = tf.layers.dense(self.attention_states, units=self.hidden_size,
                                  activation=tf.tanh, use_bias=False,
                                  name="S1")
         energies = tf.layers.dense(hidden, units=self.num_heads,
@@ -73,13 +76,16 @@ class AttentiveEncoder(ModelPart, TemporalStatefulWithOutput):
             weights *= tf.expand_dims(mask, -1)
             weights /= tf.reduce_sum(weights, axis=1, keep_dims=True) + 1e-8
 
-        self._weights = weights
+        return weights
 
+    @tensor
+    def temporal_states(self) -> tf.Tensor:
+        states = self.attention_states
         if self.state_proj_size is not None:
             states = tf.layers.dense(states, units=self.state_proj_size,
                                      name="state_projection")
 
-        return tf.matmul(a=weights, b=states, transpose_a=True)
+        return tf.matmul(a=self.attention_weights, b=states, transpose_a=True)
 
     @tensor
     def temporal_mask(self) -> tf.Tensor:
@@ -96,11 +102,6 @@ class AttentiveEncoder(ModelPart, TemporalStatefulWithOutput):
                                      name="output_projection")
 
         return output
-
-    @tensor
-    def attention_weights(self) -> tf.Tensor:
-        _ = self.temporal_states
-        return self._weights
 
     def get_dependencies(self) -> Set[ModelPart]:
         deps = ModelPart.get_dependencies(self)
