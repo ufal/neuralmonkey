@@ -3,6 +3,7 @@ from typing import (Any, Dict, Tuple, List, NamedTuple, Union, Set, TypeVar,
 import numpy as np
 import tensorflow as tf
 
+from neuralmonkey.logging import notice
 from neuralmonkey.model.model_part import ModelPart
 # pylint: disable=invalid-name
 FeedDict = Dict[tf.Tensor, Union[int, float, np.ndarray]]
@@ -34,6 +35,10 @@ class BaseRunner(Generic[MP]):
         self._decoder = decoder
         self.all_coders = decoder.get_dependencies()
 
+        if not hasattr(decoder, "data_id"):
+            notice("Top-level decoder {} does not have the 'data_id' attribute"
+                   .format(decoder.name))
+
     def get_executable(self,
                        compute_losses: bool,
                        summaries: bool,
@@ -42,12 +47,7 @@ class BaseRunner(Generic[MP]):
 
     @property
     def decoder_data_id(self) -> str:
-        if not hasattr(self._decoder, "data_id"):
-            raise ValueError(
-                "Top-level decoder {} does not have the 'data_id' attribute"
-                .format(self._decoder.name))
-
-        return getattr(self._decoder, "data_id")
+        return getattr(self._decoder, "data_id", None)
 
     @property
     def loss_names(self) -> List[str]:
