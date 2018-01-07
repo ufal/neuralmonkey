@@ -73,6 +73,8 @@ class AttentiveEncoder(ModelPart, TemporalStatefulWithOutput):
             weights *= tf.expand_dims(mask, -1)
             weights /= tf.reduce_sum(weights, axis=1, keep_dims=True) + 1e-8
 
+        self._weights = weights
+
         if self.state_proj_size is not None:
             states = tf.layers.dense(states, units=self.state_proj_size,
                                      name="state_projection")
@@ -95,13 +97,18 @@ class AttentiveEncoder(ModelPart, TemporalStatefulWithOutput):
 
         return output
 
+    @tensor
+    def attention_weights(self) -> tf.Tensor:
+        _ = self.temporal_states
+        return self._weights
+
     def get_dependencies(self) -> Set[ModelPart]:
         deps = ModelPart.get_dependencies(self)
 
         # feed only if needed
         if isinstance(self.input_sequence, ModelPart):
             feedable = cast(ModelPart, self.input_sequence)
-            deps = deps.union(feedable.get_dependencies())
+            deps |= feedable.get_dependencies()
 
         return deps
 
