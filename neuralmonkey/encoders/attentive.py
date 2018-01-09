@@ -54,18 +54,18 @@ class AttentiveEncoder(ModelPart, TemporalStatefulWithOutput):
 
         with self.use_scope():
             self.train_mode = tf.placeholder(tf.bool, [], "train_mode")
-    # pylint: enable=too-many-arguments
 
-    @tensor
-    def attention_states(self) -> tf.Tensor:
-        return dropout(get_attention_states(self.input_sequence),
-                       self.dropout_keep_prob,
-                       self.train_mode)
+            self._attention_states_dropped = dropout(
+                get_attention_states(self.input_sequence),
+                self.dropout_keep_prob,
+                self.train_mode)
+    # pylint: enable=too-many-arguments
 
     @tensor
     def attention_weights(self) -> tf.Tensor:
         mask = get_attention_mask(self.input_sequence)
-        hidden = tf.layers.dense(self.attention_states, units=self.hidden_size,
+        hidden = tf.layers.dense(self._attention_states_dropped,
+                                 units=self.hidden_size,
                                  activation=tf.tanh, use_bias=False,
                                  name="S1")
         energies = tf.layers.dense(hidden, units=self.num_heads,
@@ -80,7 +80,7 @@ class AttentiveEncoder(ModelPart, TemporalStatefulWithOutput):
 
     @tensor
     def temporal_states(self) -> tf.Tensor:
-        states = self.attention_states
+        states = self._attention_states_dropped
         if self.state_proj_size is not None:
             states = tf.layers.dense(states, units=self.state_proj_size,
                                      name="state_projection")
