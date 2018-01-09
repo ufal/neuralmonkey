@@ -36,6 +36,7 @@ class TensorFlowManager(object):
     """
 
     # pylint: disable=too-many-arguments, too-many-instance-attributes
+    # pylint: disable=too-many-locals
     def __init__(self,
                  num_sessions: int,
                  num_threads: int,
@@ -120,7 +121,7 @@ class TensorFlowManager(object):
         self.variables_files = []  # type: List[str]
         self.best_vars_file = None  # type: str
 
-    # pylint: enable=too-many-arguments
+    # pylint: enable=too-many-arguments, too-many-locals
 
     def _is_better(self, score1: float, score2: float) -> bool:
         if self.minimize_metric:
