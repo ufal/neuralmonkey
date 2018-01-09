@@ -40,7 +40,6 @@ class AttentiveEncoder(ModelPart, TemporalStatefulWithOutput):
         """Initialize an instance of the encoder."""
         check_argument_types()
         ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
-        TemporalStatefulWithOutput.__init__(self)
 
         self.input_sequence = input_sequence
         self.hidden_size = hidden_size
