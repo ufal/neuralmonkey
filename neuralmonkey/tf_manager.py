@@ -156,7 +156,7 @@ class TensorFlowManager(object):
             self.best_score_epoch = epoch
             self.best_score_batch = batch
 
-        if (self.patience is not None and
+        if (self.patience is not None and not self.should_stop and
                 batch - self.best_score_batch > self.patience):
             log("No improvement for {} batches; stopping training".format(
                 batch - self.best_score_batch))
