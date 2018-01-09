@@ -34,9 +34,9 @@ class BeamSearchExecutable(Executable):
 
         # We need to define the np.empty arrays here due to the usage
         # of np.append later
-        self._scores = np.empty([0, decoder.beam_size], dtype=float)
-        self._parent_ids = np.empty([0, decoder.beam_size], dtype=int)
-        self._token_ids = np.empty([0, decoder.beam_size], dtype=int)
+        self._scores = np.empty(0)
+        self._parent_ids = np.empty(0)
+        self._token_ids = np.empty(0)
 
         self._next_feed = [{} for _ in range(self._num_sessions)] \
             # type: List[FeedDict]
@@ -76,6 +76,17 @@ class BeamSearchExecutable(Executable):
         # ensembles: step_size == 1
         step_size = bs_outputs.last_dec_loop_state.step - 1
 
+        batch_size = bs_outputs.last_search_step_output.scores.shape[1]
+        if self._scores.size == 0:
+            self._scores = np.empty(
+                [0, batch_size, self._decoder.beam_size],
+                dtype=float)
+            self._parent_ids = np.empty(
+                [0, batch_size, self._decoder.beam_size],
+                dtype=int)
+            self._token_ids = np.empty(
+                [0, batch_size, self._decoder.beam_size],
+                dtype=int)
         self._step += step_size
         self._scores = np.append(
             self._scores,
@@ -102,7 +113,11 @@ class BeamSearchExecutable(Executable):
         for result in results:
             bs_outputs = result["bs_outputs"]
 
+
+            input_beam_size = len(bs_outputs.last_search_state.prev_logprobs)
+            input_beam_size //= batch_size
             search_state = bs_outputs.last_search_state._replace(
+                input_beam_size=input_beam_size,
                 prev_logprobs=ens_logprobs)
 
             # in the next iteration, we want to generate one new symbol
@@ -142,31 +157,35 @@ class BeamSearchExecutable(Executable):
     def prepare_results(self):
         max_time = self._step
 
-        output_tokens = []
-        hyp_idx = np.argpartition(
-            -self._scores[-1], self._rank - 1)[self._rank - 1]
-        bs_score = self._scores[-1][hyp_idx]
-        for time in reversed(range(max_time)):
-            token_id = self._token_ids[time][hyp_idx]
-            token = self._decoder.vocabulary.index_to_word[token_id]
-            output_tokens.append(token)
-            hyp_idx = self._parent_ids[time][hyp_idx]
+        decoded_tokens = []
+        # We extract last hyp_idx for each sentence in the batch
+        hyp_indices = np.argpartition(
+            -self._scores[-1], self._rank - 1)[:, self._rank - 1]
 
-        output_tokens.reverse()
+        for batch_idx, hyp_idx in enumerate(hyp_indices):
+            output_tokens = []
+            bs_score = self._scores[-1][batch_idx][hyp_idx]
+            for time in reversed(range(max_time)):
+                token_id = self._token_ids[time][batch_idx][hyp_idx]
+                token = self._decoder.vocabulary.index_to_word[token_id]
+                output_tokens.append(token)
+                hyp_idx = self._parent_ids[time][batch_idx][hyp_idx]
 
-        before_eos_tokens = []
-        for tok in output_tokens:
-            if tok == END_TOKEN:
-                break
-            # TODO: investigate why the decoder can start generating
-            # padding before generating the END_TOKEN
-            if tok != PAD_TOKEN:
-                before_eos_tokens.append(tok)
+            output_tokens.reverse()
+
+            before_eos_tokens = []
+            for tok in output_tokens:
+                if tok == END_TOKEN:
+                    break
+                # TODO: investigate why the decoder can start generating
+                # padding before generating the END_TOKEN
+                if tok != PAD_TOKEN:
+                    before_eos_tokens.append(tok)
+
+            decoded_tokens.append(before_eos_tokens)
 
         if self._postprocess is not None:
-            decoded_tokens = self._postprocess([before_eos_tokens])
-        else:
-            decoded_tokens = [before_eos_tokens]
+            decoded_tokens = self._postprocess(decoded_tokens)
 
         # TODO: provide better summaries in case (issue #599)
         # we want to use the runner during training.
