@@ -95,7 +95,7 @@ class BeamSearchDecoder(ModelPart):
         # and the n+1th step of decoder (which is discarded) will be executed
         if max_steps is None:
             max_steps = parent_decoder.max_output_len
-        self._max_steps = tf.constant(max_steps + 1)
+        self._max_steps = tf.constant(max_steps)
         self.max_output_len = max_steps
 
         # Feedables
@@ -152,9 +152,8 @@ class BeamSearchDecoder(ModelPart):
                 [0.0], [None], name="bs_logprob_sum"),
             prev_logprobs=tf.nn.log_softmax(dec_ls.feedables.prev_logits),
             lengths=tf.placeholder_with_default(
-                [1], [None], name="bs_lengths"),
-            finished=tf.identity(
-                dec_ls.feedables.finished, name="bs_finished"))
+                [0], [None], name="bs_lengths"),
+            finished=tf.zeros([self.batch_size], dtype=tf.bool))
 
         self._decoder_state = dec_ls.feedables
 
@@ -291,10 +290,13 @@ class BeamSearchDecoder(ModelPart):
                 scores_flat, self._beam_size)
             topk_indices.set_shape([None, self._beam_size])
 
+            # first, we need offset to flatten topk indices
             batch_offset = tf.expand_dims(
                 tf.range(
-                    0, self.batch_size * input_beam_size, input_beam_size),
-                1)
+                    0,
+                    self.batch_size * input_beam_size * len(self.vocabulary),
+                    input_beam_size * len(self.vocabulary)),
+                axis=1)
             topk_indices_flat = tf.reshape(
                 topk_indices + batch_offset, [-1])
 
@@ -304,6 +306,14 @@ class BeamSearchDecoder(ModelPart):
             # select logprobs of the best hyps (disregard lenghts)
             next_beam_logprob_sum = tf.gather(hyp_probs_flat,
                                               topk_indices_flat)
+
+            # next, we compute offset to flatten other beam_id indices
+            batch_offset = tf.expand_dims(
+                tf.range(
+                    0,
+                    self.batch_size * input_beam_size,
+                    input_beam_size),
+                axis=1)
 
             next_word_ids = tf.mod(topk_indices, len(self.vocabulary))
             next_word_ids_flat = tf.reshape(next_word_ids, [-1])
@@ -316,7 +326,7 @@ class BeamSearchDecoder(ModelPart):
             next_finished = tf.logical_or(next_finished, next_just_finished)
 
             next_feedables_dict = {
-                "input_symbol": tf.reshape(next_word_ids, [-1]),
+                "input_symbol": next_word_ids_flat,
                 "finished": next_finished}
             for key, val in dec_loop_state.feedables._asdict().items():
                 # Note that the parent decoder is working with "batches"
@@ -379,9 +389,6 @@ class BeamSearchDecoder(ModelPart):
             dataset: The dataset to use for the decoder.
             train: Boolean flag, telling whether this is a training run
         """
-        #assert not train
-        #assert len(dataset) == 1
-
         return {}
 
     def _length_penalty(self, lengths):

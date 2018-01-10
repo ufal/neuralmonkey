@@ -77,7 +77,7 @@ class BeamSearchExecutable(Executable):
         step_size = bs_outputs.last_dec_loop_state.step - 1
 
         batch_size = bs_outputs.last_search_step_output.scores.shape[1]
-        if self._scores.size == 0:
+        if self._step == 0:
             self._scores = np.empty(
                 [0, batch_size, self._decoder.beam_size],
                 dtype=float)
@@ -104,7 +104,7 @@ class BeamSearchExecutable(Executable):
             axis=0)
 
         if (self._decoder.max_output_len is not None and
-                self._step > self._decoder.max_output_len):
+                self._step >= self._decoder.max_output_len):
             self.prepare_results()
             return
 
@@ -112,7 +112,6 @@ class BeamSearchExecutable(Executable):
         self._next_feed = []
         for result in results:
             bs_outputs = result["bs_outputs"]
-
 
             input_beam_size = len(bs_outputs.last_search_state.prev_logprobs)
             input_beam_size //= batch_size
@@ -144,7 +143,7 @@ class BeamSearchExecutable(Executable):
 
             self._next_feed.append(fd)
 
-        if self._token_ids.size == 0:
+        if self._step == 0:
             return
 
         # We assume that we can stop decoding when all tokens
@@ -158,13 +157,14 @@ class BeamSearchExecutable(Executable):
         max_time = self._step
 
         decoded_tokens = []
+        bs_scores = []
         # We extract last hyp_idx for each sentence in the batch
         hyp_indices = np.argpartition(
             -self._scores[-1], self._rank - 1)[:, self._rank - 1]
 
         for batch_idx, hyp_idx in enumerate(hyp_indices):
             output_tokens = []
-            bs_score = self._scores[-1][batch_idx][hyp_idx]
+            bs_scores.append(self._scores[-1][batch_idx][hyp_idx])
             for time in reversed(range(max_time)):
                 token_id = self._token_ids[time][batch_idx][hyp_idx]
                 token = self._decoder.vocabulary.index_to_word[token_id]
@@ -191,7 +191,7 @@ class BeamSearchExecutable(Executable):
         # we want to use the runner during training.
         self.result = ExecutionResult(
             outputs=decoded_tokens,
-            losses=[bs_score],
+            losses=[np.mean(bs_scores) * len(bs_scores)],
             scalar_summaries=None,
             histogram_summaries=None,
             image_summaries=None)
