@@ -112,7 +112,7 @@ Session Manager
 This and following sections describes TensorFlow Manager from the users' perspective: what
 can be configured in Neural Monkey with respect to TensorFlow.  The
 configuration of the TensorFlow manager is specified within the INI file in
-section with class :py:class:`neuralmonkey.tf_manager.TensorFlowManager`::
+section with class :py:class:`neuralmonkey.tf_manager.TensorFlowManager`:
 
 .. code-block:: ini
 
@@ -121,7 +121,7 @@ section with class :py:class:`neuralmonkey.tf_manager.TensorFlowManager`::
   ...
 
 The ``session_manager`` configuration object is then referenced from the main
-section of the configuration::
+section of the configuration:
 
 .. code-block:: ini
 
@@ -144,13 +144,13 @@ Neural Monkey.
 By default, Neural Monkey prefers to allocate GPU memory stepwise only as
 needed. This can create problems with memory
 fragmentation. If you know that you can allocate the whole memory at once
-add the following parameter the ``session_manager`` section::
+add the following parameter the ``session_manager`` section:
 
 .. code-block:: ini
 
   gpu_allow_growth=False
 
-You can also restrict TensorFlow to use only a fixed proportion of GPU memory::
+You can also restrict TensorFlow to use only a fixed proportion of GPU memory:
 
 .. code-block:: ini
 
@@ -160,7 +160,7 @@ This parameter tells TensorFlow to use only 65% of GPU memory.
 
 With the default ``gpu_allow_growth=True``, it makes sense to monitor memory
 consumption. Neural Monkey can include a short summary total GPU memory used
-in the periodic log line. Just set::
+in the periodic log line. Just set:
 
 .. code-block:: ini
 
@@ -178,7 +178,7 @@ Training on CPUs
 
 TensorFlow Manager settings also affect training on CPUs.
 
-The line::
+The line:
 
 .. code-block:: ini
 
