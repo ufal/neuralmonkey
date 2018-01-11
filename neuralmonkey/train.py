@@ -63,8 +63,8 @@ def _main() -> None:
                         "syntax is [section.]option=value")
     parser.add_argument("-v", "--var", type=str, metavar="VAR", default=[],
                         action="append", dest="config_vars",
-                        help="set a variable in the configuration; the "
-                        "syntax is var=value (shorthand for -s vars.var=value)")
+                        help="set a variable in the configuration; the syntax "
+                        "is var=value (shorthand for -s vars.var=value)")
     parser.add_argument("-i", "--init", dest="init_only", action="store_true",
                         help="initialize the experiment directory and exit "
                         "without building the model")
@@ -76,7 +76,7 @@ def _main() -> None:
     # define valid parameters and defaults
     cfg = create_config()
     # load the params from the config file, getting also the simple arguments
-    args.config_changes.extend('vars.{}'.format(s) for s in args.config_vars)
+    args.config_changes.extend("vars.{}".format(s) for s in args.config_vars)
     cfg.load_file(args.config, changes=args.config_changes)
     # various things like randseed or summarywriter should be set up here
     # so that graph building can be recorded

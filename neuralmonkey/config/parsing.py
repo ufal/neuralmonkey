@@ -19,7 +19,7 @@ FLOAT = re.compile(r"^[0-9]*\.[0-9]*(e[+-]?[0-9]+)?$")
 LIST = re.compile(r"\[([^]]*)\]")
 TUPLE = re.compile(r"\(([^]]+)\)")
 STRING = re.compile(r'^"(.*)"$')
-VAR_REF = re.compile(r'^\$([a-zA-Z][a-zA-Z0-9_]*)$')
+VAR_REF = re.compile(r"^\$([a-zA-Z][a-zA-Z0-9_]*)$")
 OBJECT_REF = re.compile(
     r"^<([a-zA-Z][a-zA-Z0-9_]*(\.[a-zA-Z][a-zA-Z0-9_]*)*)>$")
 CLASS_NAME = re.compile(
@@ -40,7 +40,7 @@ def _keyval_parser_dict() -> Dict[Any, Callable]:
         INTEGER: lambda x, _: int(x),
         FLOAT: lambda x, _: float(x),
         STRING: lambda x, vars_dict:
-            STRING.match(x).group(1).format(**vars_dict),
+                STRING.match(x).group(1).format(**vars_dict),
         VAR_REF: lambda x, vars_dict: vars_dict[VAR_REF.match(x).group(1)],
         CLASS_NAME: _parse_class_name,
         OBJECT_REF: lambda x, _: ObjectRef(OBJECT_REF.match(x).group(1)),
@@ -82,7 +82,7 @@ def _split_on_commas(string: str) -> List[str]:
     return items
 
 
-def _parse_list(string: str, vars_dict: Dict) -> List[Any]:
+def _parse_list(string: str, vars_dict: Dict[str, Any]) -> List[Any]:
     """Parse the string recursively as a list."""
 
     matched_content = LIST.match(string).group(1)
@@ -99,7 +99,7 @@ def _parse_list(string: str, vars_dict: Dict) -> List[Any]:
     return values
 
 
-def _parse_tuple(string: str, vars_dict: Dict) -> Tuple[Any, ...]:
+def _parse_tuple(string: str, vars_dict: Dict[str, Any]) -> Tuple[Any, ...]:
     """Parse the string recursively as a tuple."""
 
     items = _split_on_commas(TUPLE.match(string).group(1))
@@ -108,13 +108,13 @@ def _parse_tuple(string: str, vars_dict: Dict) -> Tuple[Any, ...]:
     return tuple(values)
 
 
-def _parse_class_name(string: str, vars_dict: Dict) -> ClassSymbol:
+def _parse_class_name(string: str, vars_dict: Dict[str, Any]) -> ClassSymbol:
     """Parse the string as a module or class name."""
     del vars_dict
     return ClassSymbol(string)
 
 
-def _parse_value(string: str, vars_dict: Dict) -> Any:
+def _parse_value(string: str, vars_dict: Dict[str, Any]) -> Any:
     """Parse the value recursively according to the Nerualmonkey grammar.
 
     Arguments:
@@ -185,10 +185,10 @@ def parse_file(config_file: Iterable[str],
         for change in changes:
             _apply_change(config, change)
 
-    vars_dict = OrderedDict()
-    vars_dict['TIME'] = time.strftime("%Y-%m-%d-%H-%M-%S")
+    vars_dict = OrderedDict()  # type: Dict[str, Any]
+    vars_dict["TIME"] = time.strftime("%Y-%m-%d-%H-%M-%S")
 
-    def parse_section(section: str, output_dict: OrderedDict):
+    def parse_section(section: str, output_dict: Dict[str, Any]):
         for key, (lineno, value_string) in config[section].items():
             try:
                 value = _parse_value(value_string, vars_dict)
