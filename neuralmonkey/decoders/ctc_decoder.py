@@ -5,6 +5,7 @@ import tensorflow as tf
 
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.model.model_part import ModelPart, FeedDict
+from neuralmonkey.model.stateful import TemporalStateful
 from neuralmonkey.vocabulary import Vocabulary, END_TOKEN
 from neuralmonkey.decorators import tensor
 
@@ -18,7 +19,7 @@ class CTCDecoder(ModelPart):
     # pylint: disable=too-many-arguments
     def __init__(self,
                  name: str,
-                 encoder: Any,
+                 encoder: TemporalStateful,
                  vocabulary: Vocabulary,
                  data_id: str,
                  merge_repeated_targets: bool = False,
@@ -49,8 +50,8 @@ class CTCDecoder(ModelPart):
 
     @tensor
     def input_lengths(self) -> tf.Tensor:
-        # encoder.states_mask is batch-major
-        return tf.reduce_sum(tf.to_int32(self.encoder.states_mask), 1)
+        # encoder.temporal_mask is batch-major
+        return tf.reduce_sum(tf.to_int32(self.encoder.temporal_mask), 1)
 
     @tensor
     def decoded(self) -> tf.Tensor:
@@ -82,6 +83,7 @@ class CTCDecoder(ModelPart):
             labels=self.train_targets, inputs=self.logits,
             sequence_length=self.input_lengths,
             preprocess_collapse_repeated=self.merge_repeated_targets,
+            ignore_longer_outputs_than_inputs=True,
             ctc_merge_repeated=self.merge_repeated_outputs)
 
         return tf.reduce_sum(loss)
@@ -90,7 +92,7 @@ class CTCDecoder(ModelPart):
     def logits(self) -> tf.Tensor:
         vocabulary_size = len(self.vocabulary)
 
-        encoder_states = self.encoder.hidden_states
+        encoder_states = self.encoder.temporal_states
 
         weights = tf.get_variable(
             name="state_to_word_W",
