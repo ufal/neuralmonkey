@@ -527,7 +527,7 @@ class Vocabulary(collections.Sized):
         return word_indices, weights
 
     def vectors_to_sentences(self,
-                             vectors: List[np.ndarray]) -> List[List[str]]:
+                             vectors: np.ndarray) -> List[List[str]]:
         """Convert vectors of indexes of vocabulary items to lists of words.
 
         Arguments:

@@ -1,4 +1,4 @@
-from typing import Any, cast, Iterable, List, Optional
+from typing import cast, Iterable, List, Optional
 
 import numpy as np
 import tensorflow as tf
