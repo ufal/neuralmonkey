@@ -22,6 +22,7 @@ class Configuration(object):
         self.ignored = set()
         self.raw_config = OrderedDict()
         self.config_dict = OrderedDict()
+        self.objects = None
         self.args = None
         self.model = None
 
@@ -87,7 +88,8 @@ class Configuration(object):
         log("Building model based on the config.")
         self._check_loaded_conf()
         try:
-            model = build_config(self.config_dict, self.ignored, warn_unused)
+            model, self.objects = build_config(self.config_dict, self.ignored,
+                                               warn_unused)
         # pylint: disable=broad-except
         except Exception as exc:
             log("Failed to build model: {}".format(exc), color="red")
