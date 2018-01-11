@@ -39,8 +39,8 @@ def _keyval_parser_dict() -> Dict[Any, Callable]:
     return {
         INTEGER: lambda x, _: int(x),
         FLOAT: lambda x, _: float(x),
-        STRING: lambda x, vars_dict:
-                STRING.match(x).group(1).format(**vars_dict),
+        STRING:
+            lambda x, vars_dict: STRING.match(x).group(1).format(**vars_dict),
         VAR_REF: lambda x, vars_dict: vars_dict[VAR_REF.match(x).group(1)],
         CLASS_NAME: _parse_class_name,
         OBJECT_REF: lambda x, _: ObjectRef(OBJECT_REF.match(x).group(1)),
