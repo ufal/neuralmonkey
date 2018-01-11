@@ -91,10 +91,10 @@ class BeamSearchDecoder(ModelPart):
         self._beam_size = beam_size
         self._length_normalization = length_normalization
 
-        # In the n+1th step, outputs  of lenght n will be collected
-        # and the n+1th step of decoder (which is discarded) will be executed
+        # Due to the nature of collecting beams (which is motivated
+        # by ensembling) the parent decoder is one step ahead
         if max_steps is None:
-            max_steps = parent_decoder.max_output_len
+            max_steps = parent_decoder.max_output_len - 1
         self._max_steps = tf.constant(max_steps)
         self.max_output_len = max_steps
 
@@ -147,12 +147,12 @@ class BeamSearchDecoder(ModelPart):
         # We want to feed these values in ensembles
         self._search_state = SearchState(
             input_beam_size=tf.placeholder_with_default(
-                1, None, name="input_beam_size"),
+                input=1, shape=[], name="input_beam_size"),
             logprob_sum=tf.placeholder_with_default(
-                [0.0], [None], name="bs_logprob_sum"),
+                input=[0.0], shape=[None], name="bs_logprob_sum"),
             prev_logprobs=tf.nn.log_softmax(dec_ls.feedables.prev_logits),
             lengths=tf.placeholder_with_default(
-                [0], [None], name="bs_lengths"),
+                input=[0], shape=[None], name="bs_lengths"),
             finished=tf.zeros([self.batch_size], dtype=tf.bool))
 
         self._decoder_state = dec_ls.feedables
@@ -190,10 +190,12 @@ class BeamSearchDecoder(ModelPart):
         dec_loop_state = final_state.decoder_loop_state
         bs_state = final_state.bs_state
 
-        # Because the "batch" dymension is dynamic and the TensorArrays
-        # are empty during initial call during ensembling we have
-        # to define a default values (the runner itself has to handle them,
-        # if needed
+        # Because the "batch" dimension is dynamic and the TensorArrays
+        # are empty during initial call during ensembling, we have
+        # to define default values (the runner itself has to handle them,
+        # if needed)
+        # NOTE this code might change in the future, if tf.cond gets replaced
+        # by something more reasonable
         scores = tf.cond(
             tf.equal(final_state.bs_output.scores.size(), 0),
             lambda: tf.fill([1, self.batch_size, self.beam_size], 0.0),
@@ -253,8 +255,10 @@ class BeamSearchDecoder(ModelPart):
             step = dec_loop_state.feedables.step - 1
 
             # mask the probabilities
-            # shape(logprobs) = (batch * beam) x vocabulary
+            # shape(logprobs) = (batch*beam) x vocabulary
             logprobs = bs_state.prev_logprobs
+
+            input_beam_size = bs_state.input_beam_size
 
             finished_mask = tf.expand_dims(tf.to_float(bs_state.finished), 1)
             unfinished_logprobs = (1. - finished_mask) * logprobs
@@ -270,35 +274,56 @@ class BeamSearchDecoder(ModelPart):
             logprobs = unfinished_logprobs + finished_logprobs
 
             # update hypothesis scores
-            # shape(hyp_probs) = (batch * beam) x vocabulary
+            # shape(hyp_probs) = (batch*beam) x vocabulary
             hyp_probs = tf.expand_dims(bs_state.logprob_sum, 1) + logprobs
 
             # update hypothesis lengths
             hyp_lengths = bs_state.lengths + 1 - tf.to_int32(bs_state.finished)
 
-            # shape(scores) = (batch * beam) x vocabulary
+            # shape(scores) = (batch*beam) x vocabulary
             scores = hyp_probs / tf.expand_dims(
                 self._length_penalty(hyp_lengths), 1)
 
-            # reshape to batch_size x (beam_size * vocabulary) for topk
-            input_beam_size = bs_state.input_beam_size
+            # reshape to batch_size x (beam_size*vocabulary) for topk
             scores_flat = tf.reshape(
                 scores, [-1, input_beam_size * len(self.vocabulary)])
 
-            # shape(both) = beam
+            # shape(both) = batch x beam
             topk_scores, topk_indices = tf.nn.top_k(
                 scores_flat, self._beam_size)
             topk_indices.set_shape([None, self._beam_size])
+            topk_scores.set_shape([None, self._beam_size])
 
-            # first, we need offset to flatten topk indices
-            batch_offset = tf.expand_dims(
+            # First, we need the offset to flatten topk indices so we can
+            # gather correct hyp_probs values
+            #
+            # ("|" marks beam border, "||" marks batch border)
+            # e.g. scores (vocabulary=2, beam_size=3, batch_size=2):
+            #
+            # [ 2.0, 3.0 | 1.0, 4.0 | 2.0, 5.0 ]
+            # [ 1.0, 2.0 | 3.0, 4.0 | 5.0, 1.0 ]
+            #
+            # topk(k=3) produces following indices:
+            # [ 5, 3, 1 ]
+            # [ 4, 3, 2 ]
+            #
+            # To correctly gather values from flattened hyp_probs
+            # shape(hyp_probs_flat) = (batch*beam*vocabulary) we compute
+            # the offset, so the following holds:
+            # [ 0 .. (beam*voc) - 1 || (beam*voc) + 0 .. 2*(beam*voc) - 1 ||
+            #   2*(beam*voc) + 0 .. 3*(beam*voc) - 1 || .. ]
+            #
+            # In the case of topk from above:
+            # [ 0*(3*2) + 5, 0*(3*2) + 3, 0*(3*2) + 1 ||
+            #   1*(3*2) + 4, 1*(3*2) + 3, 1*(3*2) + 2 ]
+            beam_voc_offset = tf.expand_dims(
                 tf.range(
                     0,
                     self.batch_size * input_beam_size * len(self.vocabulary),
                     input_beam_size * len(self.vocabulary)),
                 axis=1)
             topk_indices_flat = tf.reshape(
-                topk_indices + batch_offset, [-1])
+                topk_indices + beam_voc_offset, [-1])
 
             # flatten the hypothesis probabilities
             hyp_probs_flat = tf.reshape(hyp_probs, [-1])
@@ -307,8 +332,21 @@ class BeamSearchDecoder(ModelPart):
             next_beam_logprob_sum = tf.gather(hyp_probs_flat,
                                               topk_indices_flat)
 
-            # next, we compute offset to flatten other beam_id indices
-            batch_offset = tf.expand_dims(
+            # Next, we compute the offset to flatten beam_id indices
+            # to gather correct beams from the respective batches.
+            #
+            # Similar to the previous offset computation however,
+            # now we have to recompute beam_ids with regard to their
+            # corresponding batch_id
+            #
+            # e.g beam_ids (beam_size=5, batch_size=2).
+            # [ 3, 4, 1 ]
+            # [ 2, 0, 2 ]
+            #
+            # ...after reshaping should be:
+            # [ 0*(5) + 3, 0*(5) + 4, 0*(5) + 1 ||
+            #   1*(5) + 2, 1*(5) + 0, 1*(5) + 2 ]
+            beam_offset = tf.expand_dims(
                 tf.range(
                     0,
                     self.batch_size * input_beam_size,
@@ -316,10 +354,11 @@ class BeamSearchDecoder(ModelPart):
                 axis=1)
 
             next_word_ids = tf.mod(topk_indices, len(self.vocabulary))
-            next_word_ids_flat = tf.reshape(next_word_ids, [-1])
             next_beam_ids = tf.div(topk_indices, len(self.vocabulary))
+
+            next_word_ids_flat = tf.reshape(next_word_ids, [-1])
             next_beam_ids_flat = tf.reshape(
-                next_beam_ids + batch_offset, [-1])
+                next_beam_ids + beam_offset, [-1])
 
             next_finished = tf.gather(bs_state.finished, next_beam_ids_flat)
             next_just_finished = tf.equal(next_word_ids_flat, END_TOKEN_INDEX)
@@ -330,7 +369,7 @@ class BeamSearchDecoder(ModelPart):
                 "finished": next_finished}
             for key, val in dec_loop_state.feedables._asdict().items():
                 # Note that the parent decoder is working with "batches"
-                # of the size (batch_size * beam_size)
+                # of the size (batch_size*beam_size)
 
                 if key in ["step", "input_symbol", "finished"]:
                     continue

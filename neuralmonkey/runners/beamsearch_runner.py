@@ -130,12 +130,12 @@ class BeamSearchExecutable(Executable):
             # NOTE Due to the arrays in DecoderState (prev_contexts),
             # we have to create feed for each value separately.
             for field in self._decoder.decoder_state._fields:
-                # We do not feed the step
-                if field == "step":
-                    continue
                 tensor = getattr(self._decoder.decoder_state, field)
-                value = getattr(dec_feedables, field)
-                if isinstance(tensor, list):
+                if field == "step":
+                    value = 1
+                else:
+                    value = getattr(dec_feedables, field)
+                if isinstance(tensor, list) and isinstance(value, list):
                     for t, val in zip(tensor, value):
                         fd.update({t: val})
                 else:
