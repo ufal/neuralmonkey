@@ -536,15 +536,15 @@ class Vocabulary(collections.Sized):
         Returns:
             List of lists of words.
         """
-        sentences = [[] for _ in
-                     range(vectors[0].shape[0])]  # type: List[List[str]]
+        sentences = [[] for _
+                     in range(vectors.shape[1])]  # type: List[List[str]]
 
         for vec in vectors:
             for sentence, word_i in zip(sentences, vec):
                 if not sentence or sentence[-1] != END_TOKEN:
                     sentence.append(self.index_to_word[word_i])
 
-        return [s[:-1] if s[-1] == END_TOKEN else s for s in sentences]
+        return [s[:-1] if s and s[-1] == END_TOKEN else s for s in sentences]
 
     def save_wordlist(self, path: str, overwrite: bool = False,
                       save_frequencies: bool = False,
