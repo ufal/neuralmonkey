@@ -55,6 +55,34 @@ On top of that, there are two compound types syntax from Python:
    ``("target", <ter>)``)
 
 
+Variables
+---------
+
+The configuration file can contain a ``[vars]`` section, defining
+variables which can be used in the rest of the config file. Their values
+can have any of the types listed above. To reference a variable, use its
+name preceded by a dollar sign (e.g. ``$variable``). Variable values can
+also be included inside strings using the :py:func:`str.format` notation.
+For example:
+
+.. code-block:: ini
+
+  [vars]
+  parent_dir="experiments"
+  drop_keep_p=0.5
+  output_dir="{parent_dir}/test_drop{drop_keep_p:.2f}"
+  prefix="my"
+ 
+  [main]
+  output=$output_dir
+ 
+  ...
+  
+  [encoder]
+  name="{prefix}_encoder"
+  dropout_keep_prob=$drop_keep_p
+  ...
+
 Interpretation
 --------------
 
@@ -73,8 +101,8 @@ you write ``<session_manager>`` in a right-hand side and a section
 a Python object based on the key-value pairs in the section
 ``[session_manager]``.)
 
-Every section except the ``[main]`` section needs to contain the key
-``class`` with
+Every section except the ``[main]`` and ``[vars]`` sections needs
+to contain the key ``class`` with
 a value of Python name which is a callable (e.g., a class constructor or a
 function). The other keys are used as named arguments of the callable.
 
@@ -86,6 +114,8 @@ can be configured in Neural Monkey with respect to TensorFlow.  The
 configuration of the TensorFlow manager is specified within the INI file in
 section with class :py:class:`neuralmonkey.tf_manager.TensorFlowManager`::
 
+.. code-block:: ini
+
   [session_manager]
   class=tf_manager.TensorFlowManager
   ...
@@ -93,10 +123,11 @@ section with class :py:class:`neuralmonkey.tf_manager.TensorFlowManager`::
 The ``session_manager`` configuration object is then referenced from the main
 section of the configuration::
 
+.. code-block:: ini
+
   [main]
   tf_manager=<session_manager>
   ...
-
 
 
 Training on GPU
@@ -115,9 +146,13 @@ needed. This can create problems with memory
 fragmentation. If you know that you can allocate the whole memory at once
 add the following parameter the ``session_manager`` section::
 
+.. code-block:: ini
+
   gpu_allow_growth=False
 
 You can also restrict TensorFlow to use only a fixed proportion of GPU memory::
+
+.. code-block:: ini
 
   per_process_gpu_memory_fraction=0.65
 
@@ -126,6 +161,8 @@ This parameter tells TensorFlow to use only 65% of GPU memory.
 With the default ``gpu_allow_growth=True``, it makes sense to monitor memory
 consumption. Neural Monkey can include a short summary total GPU memory used
 in the periodic log line. Just set::
+
+.. code-block:: ini
 
   report_gpu_memory_consumption=True
 
@@ -142,6 +179,8 @@ Training on CPUs
 TensorFlow Manager settings also affect training on CPUs.
 
 The line::
+
+.. code-block:: ini
 
   num_threads=4
 
