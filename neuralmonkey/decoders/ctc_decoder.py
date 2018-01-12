@@ -1,4 +1,4 @@
-from typing import cast, Iterable, List, Optional
+from typing import cast, Iterable, List
 
 import numpy as np
 import tensorflow as tf
@@ -25,8 +25,8 @@ class CTCDecoder(ModelPart):
                  merge_repeated_targets: bool = False,
                  merge_repeated_outputs: bool = True,
                  beam_width: int = 1,
-                 save_checkpoint: Optional[str] = None,
-                 load_checkpoint: Optional[str] = None) -> None:
+                 save_checkpoint: str = None,
+                 load_checkpoint: str = None) -> None:
         ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
 
         self.encoder = encoder
@@ -49,19 +49,14 @@ class CTCDecoder(ModelPart):
     # pylint: disable=no-self-use
 
     @tensor
-    def input_lengths(self) -> tf.Tensor:
-        # encoder.temporal_mask is batch-major
-        return tf.reduce_sum(tf.to_int32(self.encoder.temporal_mask), 1)
-
-    @tensor
     def decoded(self) -> tf.Tensor:
         if self.beam_width == 1:
             decoded, _ = tf.nn.ctc_greedy_decoder(
-                inputs=self.logits, sequence_length=self.input_lengths,
+                inputs=self.logits, sequence_length=self.encoder.lengths,
                 merge_repeated=self.merge_repeated_outputs)
         else:
             decoded, _ = tf.nn.ctc_beam_search_decoder(
-                inputs=self.logits, sequence_length=self.input_lengths,
+                inputs=self.logits, sequence_length=self.encoder.lengths,
                 beam_width=self.beam_width,
                 merge_repeated=self.merge_repeated_outputs)
 
@@ -81,7 +76,7 @@ class CTCDecoder(ModelPart):
     def cost(self) -> tf.Tensor:
         loss = tf.nn.ctc_loss(
             labels=self.train_targets, inputs=self.logits,
-            sequence_length=self.input_lengths,
+            sequence_length=self.encoder.lengths,
             preprocess_collapse_repeated=self.merge_repeated_targets,
             ignore_longer_outputs_than_inputs=True,
             ctc_merge_repeated=self.merge_repeated_outputs)
