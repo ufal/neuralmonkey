@@ -170,7 +170,7 @@ def _main() -> None:
     os.system("(cd {}; git log -1 --format=%H) > {}"
               .format(repodir, git_commit_file))
 
-    os.system("(cd {}; git --no-pager diff --color=always) > {}"
+    os.system("(cd {}; git --no-pager diff --color=always HEAD) > {}"
               .format(repodir, git_diff_file))
 
     cfg.build_model(warn_unused=True)
