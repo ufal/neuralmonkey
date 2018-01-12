@@ -19,6 +19,7 @@ FLOAT = re.compile(r"^[0-9]*\.[0-9]*(e[+-]?[0-9]+)?$")
 LIST = re.compile(r"\[([^]]*)\]")
 TUPLE = re.compile(r"\(([^]]+)\)")
 STRING = re.compile(r'^"(.*)"$')
+VAR_REF = re.compile(r"^\$([a-zA-Z][a-zA-Z0-9_]*)$")
 OBJECT_REF = re.compile(
     r"^<([a-zA-Z][a-zA-Z0-9_]*(\.[a-zA-Z][a-zA-Z0-9_]*)*)>$")
 CLASS_NAME = re.compile(
@@ -36,11 +37,13 @@ CONSTANTS = {
 # functions which are not defined yet
 def _keyval_parser_dict() -> Dict[Any, Callable]:
     return {
-        INTEGER: int,
-        FLOAT: float,
-        STRING: lambda x: STRING.match(x).group(1),
+        INTEGER: lambda x, _: int(x),
+        FLOAT: lambda x, _: float(x),
+        STRING:
+            lambda x, vars_dict: STRING.match(x).group(1).format(**vars_dict),
+        VAR_REF: lambda x, vars_dict: vars_dict[VAR_REF.match(x).group(1)],
         CLASS_NAME: _parse_class_name,
-        OBJECT_REF: lambda x: ObjectRef(OBJECT_REF.match(x).group(1)),
+        OBJECT_REF: lambda x, _: ObjectRef(OBJECT_REF.match(x).group(1)),
         LIST: _parse_list,
         TUPLE: _parse_tuple
     }
@@ -79,7 +82,7 @@ def _split_on_commas(string: str) -> List[str]:
     return items
 
 
-def _parse_list(string: str) -> List[Any]:
+def _parse_list(string: str, vars_dict: Dict[str, Any]) -> List[Any]:
     """Parse the string recursively as a list."""
 
     matched_content = LIST.match(string).group(1)
@@ -87,7 +90,7 @@ def _parse_list(string: str) -> List[Any]:
         return []
 
     items = _split_on_commas(matched_content)
-    values = [_parse_value(val) for val in items]
+    values = [_parse_value(val, vars_dict) for val in items]
     types = [type(val) for val in values]
 
     if len(set(types)) > 1:
@@ -96,25 +99,27 @@ def _parse_list(string: str) -> List[Any]:
     return values
 
 
-def _parse_tuple(string: str) -> Tuple[Any, ...]:
+def _parse_tuple(string: str, vars_dict: Dict[str, Any]) -> Tuple[Any, ...]:
     """Parse the string recursively as a tuple."""
 
     items = _split_on_commas(TUPLE.match(string).group(1))
-    values = [_parse_value(val) for val in items]
+    values = [_parse_value(val, vars_dict) for val in items]
 
     return tuple(values)
 
 
-def _parse_class_name(string: str) -> ClassSymbol:
+def _parse_class_name(string: str, vars_dict: Dict[str, Any]) -> ClassSymbol:
     """Parse the string as a module or class name."""
+    del vars_dict
     return ClassSymbol(string)
 
 
-def _parse_value(string: str) -> Any:
+def _parse_value(string: str, vars_dict: Dict[str, Any]) -> Any:
     """Parse the value recursively according to the Nerualmonkey grammar.
 
     Arguments:
         string: the string to be parsed
+        vars_dict: a dictionary of variables for substitution
     """
 
     if string in CONSTANTS:
@@ -122,7 +127,7 @@ def _parse_value(string: str) -> Any:
 
     for matcher, parser in _keyval_parser_dict().items():
         if matcher.match(string):
-            return parser(string)
+            return parser(string, vars_dict)
 
     raise Exception("Cannot parse value: '{}'.".format(string)) from None
 
@@ -173,7 +178,6 @@ def parse_file(config_file: Iterable[str],
     """Parse an INI file and creates all values."""
 
     parsed_dicts = OrderedDict()  # type: Dict[str, Any]
-    time_stamp = time.strftime("%Y-%m-%d-%H-%M-%S")
 
     config = _parse_ini(config_file)
 
@@ -181,15 +185,13 @@ def parse_file(config_file: Iterable[str],
         for change in changes:
             _apply_change(config, change)
 
-    for section in config:
-        parsed_dicts[section] = OrderedDict()
-        for key, (lineno, value_string) in config[section].items():
-            # expansion
-            # TODO do this using **kwargs with dict from names to values
-            value_string = re.sub(r"\$TIME", time_stamp, value_string)
+    vars_dict = OrderedDict()  # type: Dict[str, Any]
+    vars_dict["TIME"] = time.strftime("%Y-%m-%d-%H-%M-%S")
 
+    def parse_section(section: str, output_dict: Dict[str, Any]):
+        for key, (lineno, value_string) in config[section].items():
             try:
-                value = _parse_value(value_string)
+                value = _parse_value(value_string, vars_dict)
             except IniError as exc:
                 raise
             except Exception as exc:
@@ -197,7 +199,15 @@ def parse_file(config_file: Iterable[str],
                     lineno, "Cannot parse value: '{}'.".format(value_string),
                     exc) from None
 
-            parsed_dicts[section][key] = value
+            output_dict[key] = value
+
+    if "vars" in config:
+        parse_section("vars", vars_dict)
+
+    for section in config:
+        if section != "vars":
+            parsed_dicts[section] = OrderedDict()
+            parse_section(section, parsed_dicts[section])
 
     # also return the unparsed config dict; need to remove line numbers
     raw_config = OrderedDict([
