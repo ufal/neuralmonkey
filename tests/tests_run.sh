@@ -7,7 +7,8 @@ export PYTHONFAULTHANDLER=1
 
 bin/neuralmonkey-train tests/vocab.ini
 bin/neuralmonkey-train tests/bahdanau.ini
-bin/neuralmonkey-train tests/bpe.ini
+NEURALMONKEY_STRICT= bin/neuralmonkey-train tests/bpe.ini
+bin/neuralmonkey-train tests/bpe.ini -s 'decoder.encoders=[<encoder_frozen>]'
 #bin/neuralmonkey-train tests/alignment.ini
 bin/neuralmonkey-train tests/post-edit.ini
 bin/neuralmonkey-train tests/factored.ini
