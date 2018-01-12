@@ -199,6 +199,10 @@ def build_config(config_dicts: Dict[str, Any],
         config_dicts: The parsed configuration file
         ignore_names: A set of names that should be ignored during the loading.
         warn_unused: Emit a warning if there are unused sections.
+
+    Returns:
+        A tuple containing a dictionary corresponding to the main section and
+        a dictionary mapping section names to objects.
     """
     if "main" not in config_dicts:
         raise Exception("Configuration does not contain the main block.")
