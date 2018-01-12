@@ -8,7 +8,7 @@ import collections
 import importlib
 from argparse import Namespace
 from inspect import signature, isclass, isfunction
-from typing import Any, Dict, Set
+from typing import Any, Dict, Set, Tuple
 
 from neuralmonkey.logging import debug, warn
 from neuralmonkey.config.exceptions import (ConfigInvalidValueException,
@@ -191,13 +191,18 @@ def instantiate_class(name: str,
 
 def build_config(config_dicts: Dict[str, Any],
                  ignore_names: Set[str],
-                 warn_unused: bool = False) -> Dict[str, Any]:
+                 warn_unused: bool = False) -> Tuple[Dict[str, Any],
+                                                     Dict[str, Any]]:
     """Build the model from the configuration.
 
     Arguments:
         config_dicts: The parsed configuration file
         ignore_names: A set of names that should be ignored during the loading.
         warn_unused: Emit a warning if there are unused sections.
+
+    Returns:
+        A tuple containing a dictionary corresponding to the main section and
+        a dictionary mapping section names to objects.
     """
     if "main" not in config_dicts:
         raise Exception("Configuration does not contain the main block.")
@@ -226,4 +231,4 @@ def build_config(config_dicts: Dict[str, Any],
             warn("Configuration contains unused sections: "
                  + str(unused) + ".")
 
-    return configuration
+    return configuration, existing_objects

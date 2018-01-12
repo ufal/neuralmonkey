@@ -87,7 +87,7 @@ def main() -> None:
     if args.code:
         imports, statements = _patch_config_builder()
 
-    config = build_config(config_dict, ignore_names=set())
+    config, _ = build_config(config_dict, ignore_names=set())
 
     if args.code:
         print("import argparse\nimport tensorflow as tf")
