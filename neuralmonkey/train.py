@@ -6,6 +6,7 @@ import random
 import os
 import shlex
 from shutil import copyfile
+import subprocess
 import numpy as np
 import tensorflow as tf
 from tensorflow.contrib.tensorboard.plugins import projector
@@ -50,6 +51,17 @@ def create_config() -> Configuration:
     config.add_argument("overwrite_output_dir", required=False, default=False)
 
     return config
+
+
+def save_git_info(repo_dir: str, git_commit_file: str, git_diff_file: str,
+                  branch: str = "HEAD"):
+    with open(git_commit_file, "wb") as file:
+        subprocess.run(["git", "log", "-1", "--format=%H", branch],
+                       cwd=repo_dir, stdout=file)
+
+    with open(git_diff_file, "wb") as file:
+        subprocess.run(["git", "--no-pager", "diff", "--color=always", branch],
+                       cwd=repo_dir, stdout=file)
 
 
 # pylint: disable=too-many-statements, too-many-locals, too-many-branches
@@ -162,16 +174,8 @@ def _main() -> None:
 
     # this points inside the neuralmonkey/ dir inside the repo, but
     # it does not matter for git.
-    repodir = os.path.dirname(os.path.realpath(__file__))
-
-    # we need to execute the git log command in subshell, because if
-    # the log file is specified via relative path, we need to do the
-    # redirection of the git-log output to the right file
-    os.system("(cd {}; git log -1 --format=%H) > {}"
-              .format(repodir, git_commit_file))
-
-    os.system("(cd {}; git --no-pager diff --color=always HEAD) > {}"
-              .format(repodir, git_diff_file))
+    repo_dir = os.path.dirname(os.path.realpath(__file__))
+    save_git_info(repo_dir, git_commit_file, git_diff_file)
 
     cfg.build_model(warn_unused=True)
 
