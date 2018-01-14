@@ -196,7 +196,8 @@ class SentenceEncoder(RecurrentEncoder):
                  max_input_len: int = None,
                  dropout_keep_prob: float = 1.0,
                  save_checkpoint: str = None,
-                 load_checkpoint: str = None) -> None:
+                 load_checkpoint: str = None,
+                 initializers: InitializerSpecs = None) -> None:
         """Create a new instance of the sentence encoder.
 
         Arguments:
@@ -246,7 +247,8 @@ class SentenceEncoder(RecurrentEncoder):
             rnn_direction=rnn_direction,
             dropout_keep_prob=dropout_keep_prob,
             save_checkpoint=save_checkpoint,
-            load_checkpoint=load_checkpoint)
+            load_checkpoint=load_checkpoint,
+            initializers=initializers)
     # pylint: enable=too-many-arguments,too-many-locals
 
 
@@ -263,7 +265,8 @@ class FactoredEncoder(RecurrentEncoder):
                  max_input_len: int = None,
                  dropout_keep_prob: float = 1.0,
                  save_checkpoint: str = None,
-                 load_checkpoint: str = None) -> None:
+                 load_checkpoint: str = None,
+                 initializers: InitializerSpecs = None) -> None:
         """Create a new instance of the factored encoder.
 
         Arguments:
@@ -307,7 +310,8 @@ class FactoredEncoder(RecurrentEncoder):
             rnn_direction=rnn_direction,
             dropout_keep_prob=dropout_keep_prob,
             save_checkpoint=save_checkpoint,
-            load_checkpoint=load_checkpoint)
+            load_checkpoint=load_checkpoint,
+            initializers=initializers)
     # pylint: enable=too-many-arguments,too-many-locals
 
 
@@ -324,7 +328,8 @@ class DeepSentenceEncoder(SentenceEncoder):
                  max_input_len: int = None,
                  dropout_keep_prob: float = 1.0,
                  save_checkpoint: str = None,
-                 load_checkpoint: str = None) -> None:
+                 load_checkpoint: str = None,
+                 initializers: InitializerSpecs = None) -> None:
         """Create a new instance of the deep sentence encoder.
 
         Arguments:
@@ -370,7 +375,8 @@ class DeepSentenceEncoder(SentenceEncoder):
             max_input_len=max_input_len,
             dropout_keep_prob=dropout_keep_prob,
             save_checkpoint=save_checkpoint,
-            load_checkpoint=load_checkpoint)
+            load_checkpoint=load_checkpoint,
+            initializers=initializers)
 
     @tensor
     def rnn(self) -> Tuple[tf.Tensor, tf.Tensor]:
