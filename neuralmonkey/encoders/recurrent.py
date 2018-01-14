@@ -197,7 +197,8 @@ class SentenceEncoder(RecurrentEncoder):
                  dropout_keep_prob: float = 1.0,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None,
-                 initializers: InitializerSpecs = None) -> None:
+                 initializers: InitializerSpecs = None,
+                 embedding_initializer: Callable = None) -> None:
         """Create a new instance of the sentence encoder.
 
         Arguments:
@@ -222,6 +223,10 @@ class SentenceEncoder(RecurrentEncoder):
         check_argument_types()
         s_ckp = "input_{}".format(save_checkpoint) if save_checkpoint else None
         l_ckp = "input_{}".format(load_checkpoint) if load_checkpoint else None
+        input_initializers = []
+        if embedding_initializer is not None:
+            input_initializers.append(
+                ("embedding_matrix_0", embedding_initializer))
 
         # TODO! Representation runner needs this. It is not simple to do it in
         # recurrent encoder since there may be more source data series. The
@@ -236,7 +241,8 @@ class SentenceEncoder(RecurrentEncoder):
             embedding_size=embedding_size,
             max_length=max_input_len,
             save_checkpoint=s_ckp,
-            load_checkpoint=l_ckp)
+            load_checkpoint=l_ckp,
+            initializers=input_initializers)
 
         RecurrentEncoder.__init__(
             self,
@@ -266,7 +272,8 @@ class FactoredEncoder(RecurrentEncoder):
                  dropout_keep_prob: float = 1.0,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None,
-                 initializers: InitializerSpecs = None) -> None:
+                 initializers: InitializerSpecs = None,
+                 input_initializers: InitializerSpecs = None) -> None:
         """Create a new instance of the factored encoder.
 
         Arguments:
@@ -299,7 +306,8 @@ class FactoredEncoder(RecurrentEncoder):
             embedding_sizes=embedding_sizes,
             max_length=max_input_len,
             save_checkpoint=s_ckp,
-            load_checkpoint=l_ckp)
+            load_checkpoint=l_ckp,
+            initializers=input_initializers)
 
         RecurrentEncoder.__init__(
             self,
@@ -329,7 +337,8 @@ class DeepSentenceEncoder(SentenceEncoder):
                  dropout_keep_prob: float = 1.0,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None,
-                 initializers: InitializerSpecs = None) -> None:
+                 initializers: InitializerSpecs = None,
+                 embedding_initializer: Callable = None) -> None:
         """Create a new instance of the deep sentence encoder.
 
         Arguments:
@@ -376,7 +385,8 @@ class DeepSentenceEncoder(SentenceEncoder):
             dropout_keep_prob=dropout_keep_prob,
             save_checkpoint=save_checkpoint,
             load_checkpoint=load_checkpoint,
-            initializers=initializers)
+            initializers=initializers,
+            embedding_initializer=embedding_initializer)
 
     @tensor
     def rnn(self) -> Tuple[tf.Tensor, tf.Tensor]:
