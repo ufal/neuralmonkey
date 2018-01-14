@@ -33,7 +33,7 @@ class ModelPart(metaclass=ABCMeta):
         with tf.variable_scope(name) as scope:
             self._variable_scope = scope
             if initializers is not None:
-                tf_utils.initializers.update(
+                tf_utils.update_initializers(
                     (scope.name + "/" + name, initializer)
                     for name, initializer in initializers)
 

@@ -81,13 +81,17 @@ def gpu_memusage() -> str:
     return 'MiB:' + ",".join(info)
 
 
-initializers = {}  # type: Dict[str, Callable]
+_initializers = {}  # type: Dict[str, Callable]
+
+
+def update_initializers(initializers: Iterable[Tuple[str, Callable]]):
+    _initializers.update(initializers)
 
 
 def get_initializer(var_name: str, default: Callable = None):
     """Returns the initializer associated with the given variable name."""
     full_name = tf.get_variable_scope().name + "/" + var_name
-    initializer = initializers.get(full_name, default)
+    initializer = _initializers.get(full_name, default)
     if initializer is not default:
         debug("Using {} for variable {}".format(initializer, full_name))
     return initializer
@@ -101,7 +105,7 @@ def get_variable(name: str,
     """A wrapper around tf.get_variable which uses the right initializer.
 
     The `initializer` parameter is treated as a default which can be overriden
-    by updating the `initializers` dictionary.
+    by a call to `update_initializers`.
     """
     return tf.get_variable(
         name=name, shape=shape, dtype=dtype,
