@@ -32,9 +32,10 @@ class ModelPart(metaclass=ABCMeta):
 
         with tf.variable_scope(name) as scope:
             self._variable_scope = scope
-            tf_utils.initializers.update(
-                (scope.name + "/" + name, initializer)
-                for name, initializer in initializers)
+            if initializers is not None:
+                tf_utils.initializers.update(
+                    (scope.name + "/" + name, initializer)
+                    for name, initializer in initializers)
 
     @property
     def name(self) -> str:
