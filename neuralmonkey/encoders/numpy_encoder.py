@@ -5,7 +5,7 @@ import tensorflow as tf
 
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.decorators import tensor
-from neuralmonkey.model.model_part import ModelPart, FeedDict
+from neuralmonkey.model.model_part import ModelPart, FeedDict, InitializerSpecs
 from neuralmonkey.model.stateful import Stateful, SpatialStatefulWithOutput
 from neuralmonkey.tf_utils import get_variable
 
@@ -21,8 +21,10 @@ class VectorEncoder(ModelPart, Stateful):
                  data_id: str,
                  output_shape: int = None,
                  save_checkpoint: str = None,
-                 load_checkpoint: str = None) -> None:
-        ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
+                 load_checkpoint: str = None,
+                 initializers: InitializerSpecs = None) -> None:
+        ModelPart.__init__(self, name, save_checkpoint, load_checkpoint,
+                           initializers)
         check_argument_types()
 
         if dimension <= 0:
@@ -65,9 +67,11 @@ class PostCNNImageEncoder(ModelPart, SpatialStatefulWithOutput):
                  output_shape: int,
                  data_id: str,
                  save_checkpoint: Optional[str] = None,
-                 load_checkpoint: Optional[str] = None) -> None:
+                 load_checkpoint: Optional[str] = None,
+                 initializers: InitializerSpecs = None) -> None:
         check_argument_types()
-        ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
+        ModelPart.__init__(self, name, save_checkpoint, load_checkpoint,
+                           initializers)
 
         assert len(input_shape) == 3
         if output_shape <= 0:

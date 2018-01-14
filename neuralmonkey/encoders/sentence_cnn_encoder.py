@@ -6,7 +6,7 @@ import tensorflow as tf
 from typeguard import check_argument_types
 
 from neuralmonkey.encoders.recurrent import RNNCellTuple
-from neuralmonkey.model.model_part import ModelPart, FeedDict
+from neuralmonkey.model.model_part import ModelPart, FeedDict, InitializerSpecs
 from neuralmonkey.model.sequence import Sequence
 from neuralmonkey.model.stateful import TemporalStatefulWithOutput
 from neuralmonkey.nn.noisy_gru_cell import NoisyGRUCell
@@ -44,7 +44,8 @@ class SentenceCNNEncoder(ModelPart, TemporalStatefulWithOutput):
                  dropout_keep_prob: float = 1.0,
                  use_noisy_activations: bool = False,
                  save_checkpoint: Optional[str] = None,
-                 load_checkpoint: Optional[str] = None) -> None:
+                 load_checkpoint: Optional[str] = None,
+                 initializers: InitializerSpecs = None) -> None:
         """Create a new instance of the sentence encoder.
 
         Arguments:
@@ -63,7 +64,8 @@ class SentenceCNNEncoder(ModelPart, TemporalStatefulWithOutput):
             dropout_keep_prob: The dropout keep probability
                 (default 1.0)
         """
-        ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
+        ModelPart.__init__(self, name, save_checkpoint, load_checkpoint,
+                           initializers)
         check_argument_types()
 
         self.input_sequence = input_sequence

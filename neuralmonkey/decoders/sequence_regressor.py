@@ -5,7 +5,7 @@ import tensorflow as tf
 from typeguard import check_argument_types
 from neuralmonkey.nn.projection import multilayer_projection
 from neuralmonkey.dataset import Dataset
-from neuralmonkey.model.model_part import ModelPart, FeedDict
+from neuralmonkey.model.model_part import ModelPart, FeedDict, InitializerSpecs
 from neuralmonkey.model.stateful import Stateful
 from neuralmonkey.decorators import tensor
 
@@ -27,8 +27,10 @@ class SequenceRegressor(ModelPart):
                  dropout_keep_prob: float = 1.0,
                  dimension: int = 1,
                  save_checkpoint: str = None,
-                 load_checkpoint: str = None) -> None:
-        ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
+                 load_checkpoint: str = None,
+                 initializers: InitializerSpecs = None) -> None:
+        ModelPart.__init__(self, name, save_checkpoint, load_checkpoint,
+                           initializers)
         assert check_argument_types()
 
         self.encoders = encoders

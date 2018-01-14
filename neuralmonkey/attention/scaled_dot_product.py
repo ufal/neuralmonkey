@@ -14,6 +14,7 @@ import numpy as np
 from typeguard import check_argument_types
 
 from neuralmonkey.nn.utils import dropout
+from neuralmonkey.model.model_part import InitializerSpecs
 from neuralmonkey.attention.base_attention import (
     BaseAttention, Attendable, get_attention_states, get_attention_mask)
 
@@ -210,6 +211,7 @@ def empty_multi_head_loop_state(num_heads: int) -> MultiHeadLoopStateTA:
 
 class MultiHeadAttention(BaseAttention):
 
+    # pylint: disable=too-many-arguments
     def __init__(self,
                  name: str,
                  n_heads: int,
@@ -217,9 +219,11 @@ class MultiHeadAttention(BaseAttention):
                  values_encoder: Attendable = None,
                  dropout_keep_prob: float = 1.0,
                  save_checkpoint: str = None,
-                 load_checkpoint: str = None) -> None:
+                 load_checkpoint: str = None,
+                 initializers: InitializerSpecs = None) -> None:
         check_argument_types()
-        BaseAttention.__init__(self, name, save_checkpoint, load_checkpoint)
+        BaseAttention.__init__(self, name, save_checkpoint, load_checkpoint,
+                               initializers)
 
         self.n_heads = n_heads
         self.dropout_keep_prob = dropout_keep_prob
@@ -236,6 +240,7 @@ class MultiHeadAttention(BaseAttention):
         self.attention_keys = get_attention_states(keys_encoder)
         self.attention_mask = get_attention_mask(keys_encoder)
         self.attention_values = get_attention_states(values_encoder)
+    # pylint: enable=too-many-arguments
 
     def attention(self,
                   query: tf.Tensor,
@@ -327,8 +332,9 @@ class ScaledDotProdAttention(MultiHeadAttention):
                  values_encoder: Attendable = None,
                  dropout_keep_prob: float = 1.0,
                  save_checkpoint: str = None,
-                 load_checkpoint: str = None) -> None:
+                 load_checkpoint: str = None,
+                 initializers: InitializerSpecs = None) -> None:
         check_argument_types()
         MultiHeadAttention.__init__(
             self, name, 1, keys_encoder, values_encoder, dropout_keep_prob,
-            save_checkpoint, load_checkpoint)
+            save_checkpoint, load_checkpoint, initializers)

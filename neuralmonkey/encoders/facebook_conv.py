@@ -7,7 +7,7 @@ import tensorflow as tf
 import numpy as np
 from typeguard import check_argument_types
 
-from neuralmonkey.model.model_part import ModelPart, FeedDict
+from neuralmonkey.model.model_part import ModelPart, FeedDict, InitializerSpecs
 from neuralmonkey.logging import log
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.decorators import tensor
@@ -28,9 +28,11 @@ class SentenceEncoder(ModelPart, TemporalStatefulWithOutput):
                  kernel_width: int = 5,
                  dropout_keep_prob: float = 1.0,
                  save_checkpoint: str = None,
-                 load_checkpoint: str = None) -> None:
+                 load_checkpoint: str = None,
+                 initializers: InitializerSpecs = None) -> None:
         check_argument_types()
-        ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
+        ModelPart.__init__(self, name, save_checkpoint, load_checkpoint,
+                           initializers)
 
         self.input_sequence = input_sequence
         self.encoder_layers = encoder_layers

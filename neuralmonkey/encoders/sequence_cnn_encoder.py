@@ -7,7 +7,7 @@ import tensorflow as tf
 
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.decorators import tensor
-from neuralmonkey.model.model_part import ModelPart, FeedDict
+from neuralmonkey.model.model_part import ModelPart, FeedDict, InitializerSpecs
 from neuralmonkey.model.stateful import Stateful
 from neuralmonkey.nn.utils import dropout
 from neuralmonkey.vocabulary import Vocabulary
@@ -27,7 +27,8 @@ class SequenceCNNEncoder(ModelPart, Stateful):
                  max_input_len: Optional[int] = None,
                  dropout_keep_prob: float = 1.0,
                  save_checkpoint: Optional[str] = None,
-                 load_checkpoint: Optional[str] = None) -> None:
+                 load_checkpoint: Optional[str] = None,
+                 initializers: InitializerSpecs = None) -> None:
         """Create a new instance of the CNN sequence encoder.
 
         Based on: Yoon Kim: Convolutional Neural Networks for Sentence
@@ -46,7 +47,8 @@ class SequenceCNNEncoder(ModelPart, Stateful):
                 (default 1.0)
         """
         check_argument_types()
-        ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
+        ModelPart.__init__(self, name, save_checkpoint, load_checkpoint,
+                           initializers)
 
         self.vocabulary = vocabulary
         self.data_id = data_id

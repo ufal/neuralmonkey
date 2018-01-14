@@ -22,6 +22,7 @@ from neuralmonkey.attention.base_attention import (
     BaseAttention, AttentionLoopStateTA, empty_attention_loop_state,
     get_attention_states, get_attention_mask, Attendable)
 from neuralmonkey.checking import assert_shape
+from neuralmonkey.model.model_part import InitializerSpecs
 from neuralmonkey.tf_utils import get_variable
 
 
@@ -35,8 +36,10 @@ class MultiAttention(BaseAttention):
                  share_attn_projections: bool = False,
                  use_sentinels: bool = False,
                  save_checkpoint: str = None,
-                 load_checkpoint: str = None) -> None:
-        BaseAttention.__init__(self, name, save_checkpoint, load_checkpoint)
+                 load_checkpoint: str = None,
+                 initializers: InitializerSpecs = None) -> None:
+        BaseAttention.__init__(self, name, save_checkpoint, load_checkpoint,
+                               initializers)
         self.attentions_in_time = []  # type: List[tf.Tensor]
         self.attention_state_size = attention_state_size
         self._share_projections = share_attn_projections
@@ -108,6 +111,7 @@ class FlatMultiAttention(MultiAttention):
     See equations 8 to 10 in the Attention Combination Strategies paper.
     """
 
+    # pylint: disable=too-many-arguments
     def __init__(self,
                  name: str,
                  encoders: List[Attendable],
@@ -115,7 +119,8 @@ class FlatMultiAttention(MultiAttention):
                  share_attn_projections: bool = False,
                  use_sentinels: bool = False,
                  save_checkpoint: str = None,
-                 load_checkpoint: str = None) -> None:
+                 load_checkpoint: str = None,
+                 initializers: InitializerSpecs = None) -> None:
         check_argument_types()
         MultiAttention.__init__(
             self,
@@ -124,7 +129,8 @@ class FlatMultiAttention(MultiAttention):
             share_attn_projections=share_attn_projections,
             use_sentinels=use_sentinels,
             save_checkpoint=save_checkpoint,
-            load_checkpoint=load_checkpoint)
+            load_checkpoint=load_checkpoint,
+            initializers=initializers)
         self._encoders = encoders
 
         # pylint: disable=protected-access
@@ -161,6 +167,7 @@ class FlatMultiAttention(MultiAttention):
                     tf.ones([tf.shape(self._encoders_masks[0])[0], 1]))
 
             self.masks_concat = tf.concat(self._encoders_masks, 1)
+    # pylint: enable=too-many-arguments
 
     def initial_loop_state(self) -> AttentionLoopStateTA:
         return empty_attention_loop_state()
@@ -318,6 +325,7 @@ class HierarchicalMultiAttention(MultiAttention):
     See equations 6 and 7 in the Attention Combination Strategies paper.
     """
 
+    # pylint: disable=too-many-arguments
     def __init__(self,
                  name: str,
                  attentions: List[BaseAttention],
@@ -325,7 +333,8 @@ class HierarchicalMultiAttention(MultiAttention):
                  use_sentinels: bool,
                  share_attn_projections: bool,
                  save_checkpoint: str = None,
-                 load_checkpoint: str = None) -> None:
+                 load_checkpoint: str = None,
+                 initializers: InitializerSpecs = None) -> None:
         check_argument_types()
         MultiAttention.__init__(
             self,
@@ -334,9 +343,11 @@ class HierarchicalMultiAttention(MultiAttention):
             use_sentinels=use_sentinels,
             share_attn_projections=share_attn_projections,
             save_checkpoint=save_checkpoint,
-            load_checkpoint=load_checkpoint)
+            load_checkpoint=load_checkpoint,
+            initializers=initializers)
 
         self.attentions = attentions
+    # pylint: enable=too-many-arguments
 
     def initial_loop_state(self) -> HierarchicalLoopState:
         return HierarchicalLoopState(

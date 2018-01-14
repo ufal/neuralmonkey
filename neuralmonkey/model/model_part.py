@@ -2,15 +2,17 @@
 
 from abc import ABCMeta
 from contextlib import contextmanager
-from typing import Any, Dict, Set
+from typing import Any, Callable, Dict, List, Set, Tuple
 
 import tensorflow as tf
 
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.logging import log
+from neuralmonkey import tf_utils
 
 # pylint: disable=invalid-name
 FeedDict = Dict[tf.Tensor, Any]
+InitializerSpecs = List[Tuple[str, Callable]]
 # pylint: disable=invalid-name
 
 
@@ -20,7 +22,8 @@ class ModelPart(metaclass=ABCMeta):
     def __init__(self,
                  name: str,
                  save_checkpoint: str = None,
-                 load_checkpoint: str = None) -> None:
+                 load_checkpoint: str = None,
+                 initializers: InitializerSpecs = None) -> None:
         self._name = name
         self._save_checkpoint = save_checkpoint
         self._load_checkpoint = load_checkpoint
@@ -29,6 +32,9 @@ class ModelPart(metaclass=ABCMeta):
 
         with tf.variable_scope(name) as scope:
             self._variable_scope = scope
+            tf_utils.initializers.update(
+                (scope.name + "/" + name, initializer)
+                for name, initializer in initializers)
 
     @property
     def name(self) -> str:

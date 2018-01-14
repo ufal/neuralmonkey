@@ -5,7 +5,7 @@ from typeguard import check_argument_types
 
 from neuralmonkey.model.stateful import (
     TemporalStatefulWithOutput, TemporalStateful)
-from neuralmonkey.model.model_part import ModelPart, FeedDict
+from neuralmonkey.model.model_part import ModelPart, FeedDict, InitializerSpecs
 from neuralmonkey.nn.ortho_gru_cell import OrthoGRUCell, NematusGRUCell
 from neuralmonkey.nn.utils import dropout
 from neuralmonkey.vocabulary import Vocabulary
@@ -108,7 +108,8 @@ class RecurrentEncoder(ModelPart, TemporalStatefulWithOutput):
                  rnn_direction: str = "bidirectional",
                  dropout_keep_prob: float = 1.0,
                  save_checkpoint: str = None,
-                 load_checkpoint: str = None) -> None:
+                 load_checkpoint: str = None,
+                 initializers: InitializerSpecs = None) -> None:
         """Create a new instance of a recurrent encoder.
 
         Arguments:
@@ -126,7 +127,8 @@ class RecurrentEncoder(ModelPart, TemporalStatefulWithOutput):
             load_checkpoint: ModelPart load checkpoint file.
         """
         check_argument_types()
-        ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
+        ModelPart.__init__(self, name, save_checkpoint, load_checkpoint,
+                           initializers)
         TemporalStatefulWithOutput.__init__(self)
 
         self.input_sequence = input_sequence

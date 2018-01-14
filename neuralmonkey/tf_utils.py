@@ -11,6 +11,8 @@ from subprocess import check_output
 from tensorflow.python.client import device_lib as _device_lib
 import tensorflow as tf
 
+from neuralmonkey.logging import debug
+
 
 __HAS_GPU_RESULT = None
 
@@ -85,7 +87,10 @@ initializers = {}  # type: Dict[str, Callable]
 def get_initializer(var_name: str, default: Callable = None):
     """Returns the initializer associated with the given variable name."""
     full_name = tf.get_variable_scope().name + "/" + var_name
-    return initializers.get(full_name, default)
+    initializer = initializers.get(full_name, default)
+    if initializer is not default:
+        debug("Using {} for variable {}".format(initializer, full_name))
+    return initializer
 
 
 def get_variable(name: str,
@@ -96,7 +101,7 @@ def get_variable(name: str,
     """A wrapper around tf.get_variable which uses the right initializer.
 
     The `initializer` parameter is treated as a default which can be overriden
-    by a call to `set_initializers`.
+    by updating the `initializers` dictionary.
     """
     return tf.get_variable(
         name=name, shape=shape, dtype=dtype,
