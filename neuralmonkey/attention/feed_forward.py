@@ -15,6 +15,7 @@ from neuralmonkey.attention.base_attention import (
 from neuralmonkey.decorators import tensor
 from neuralmonkey.nn.utils import dropout
 from neuralmonkey.logging import log
+from neuralmonkey.tf_utils import get_variable
 
 
 class Attention(BaseAttention):
@@ -63,14 +64,14 @@ class Attention(BaseAttention):
     @tensor
     def query_projection_matrix(self) -> tf.Variable:
         with tf.variable_scope("Attention"):
-            return tf.get_variable(
+            return get_variable(
                 name="attn_query_projection",
                 shape=[self.query_state_size, self.state_size],
                 initializer=tf.glorot_normal_initializer())
 
     @tensor
     def key_projection_matrix(self) -> tf.Variable:
-        return tf.get_variable(
+        return get_variable(
             name="attn_key_projection",
             # TODO tohle neni spravne
             shape=[self.context_vector_size, self.state_size],
@@ -78,13 +79,13 @@ class Attention(BaseAttention):
 
     @tensor
     def similarity_bias_vector(self) -> tf.Variable:
-        return tf.get_variable(
+        return get_variable(
             name="attn_similarity_v", shape=[self.state_size],
             initializer=tf.glorot_normal_initializer())
 
     @tensor
     def projection_bias_vector(self) -> tf.Variable:
-        return tf.get_variable(
+        return get_variable(
             name="attn_projection_bias", shape=[self.state_size],
             initializer=tf.zeros_initializer())
 
@@ -92,7 +93,7 @@ class Attention(BaseAttention):
     # Implicit self use in tensor annotation
     @tensor
     def bias_term(self) -> tf.Variable:
-        return tf.get_variable(
+        return get_variable(
             name="attn_bias", shape=[],
             initializer=tf.zeros_initializer())
     # pylint: enable=no-self-use

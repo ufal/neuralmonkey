@@ -22,6 +22,7 @@ from neuralmonkey.attention.base_attention import (
     BaseAttention, AttentionLoopStateTA, empty_attention_loop_state,
     get_attention_states, get_attention_mask, Attendable)
 from neuralmonkey.checking import assert_shape
+from neuralmonkey.tf_utils import get_variable
 
 
 class MultiAttention(BaseAttention):
@@ -44,7 +45,7 @@ class MultiAttention(BaseAttention):
         self.att_scope_name = "attention_{}".format(name)
 
         with self.use_scope():
-            self.attn_v = tf.get_variable(
+            self.attn_v = get_variable(
                 "attn_v", [1, 1, self.attention_state_size],
                 initializer=tf.glorot_normal_initializer())
     # pylint: enable=unused-argument
@@ -71,7 +72,7 @@ class MultiAttention(BaseAttention):
         assert_shape(vector_value, [-1, -1])
 
         with tf.variable_scope("{}_logit".format(scope)):
-            vector_bias = tf.get_variable(
+            vector_bias = get_variable(
                 "vector_bias", [],
                 initializer=tf.zeros_initializer())
 
@@ -143,9 +144,9 @@ class FlatMultiAttention(MultiAttention):
                 self.get_encoder_projections("logits_projections")
 
             self.encoder_attn_biases = [
-                tf.get_variable(name="attn_bias_{}".format(i),
-                                shape=[],
-                                initializer=tf.zeros_initializer())
+                get_variable(name="attn_bias_{}".format(i),
+                             shape=[],
+                             initializer=tf.zeros_initializer())
                 for i in range(len(self._encoders_tensors))]
 
             if self._share_projections:
@@ -171,12 +172,12 @@ class FlatMultiAttention(MultiAttention):
                 encoder_state_size = encoder_tensor.get_shape()[2].value
                 encoder_tensor_shape = tf.shape(encoder_tensor)
 
-                proj_matrix = tf.get_variable(
+                proj_matrix = get_variable(
                     "proj_matrix_{}".format(i),
                     [encoder_state_size, self.attention_state_size],
                     initializer=tf.glorot_normal_initializer())
 
-                proj_bias = tf.get_variable(
+                proj_bias = get_variable(
                     "proj_bias_{}".format(i),
                     shape=[self.attention_state_size],
                     initializer=tf.zeros_initializer())

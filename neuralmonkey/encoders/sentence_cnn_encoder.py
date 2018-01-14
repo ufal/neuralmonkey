@@ -15,6 +15,7 @@ from neuralmonkey.nn.utils import dropout
 from neuralmonkey.nn.highway import highway
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.decorators import tensor
+from neuralmonkey.tf_utils import get_variable
 
 
 # pylint: disable=too-many-instance-attributes
@@ -113,10 +114,10 @@ class SentenceCNNEncoder(ModelPart, TemporalStatefulWithOutput):
             with tf.variable_scope("conv-maxpool-%s" % filter_size):
                 filter_shape = [filter_size, self.input_sequence.dimension,
                                 num_filters]
-                w_filter = tf.get_variable(
+                w_filter = get_variable(
                     "conv_W", filter_shape,
                     initializer=tf.glorot_uniform_initializer())
-                b_filter = tf.get_variable(
+                b_filter = get_variable(
                     "conv_bias", [num_filters],
                     initializer=tf.zeros_initializer())
                 conv = tf.nn.conv1d(

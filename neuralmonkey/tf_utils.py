@@ -4,9 +4,12 @@
 """Small helper functions for TensorFlow."""
 
 import os
+from collections import defaultdict
+from typing import Callable, Dict, Iterable, List, Optional, Tuple, Union
 
 from subprocess import check_output
 from tensorflow.python.client import device_lib as _device_lib
+import tensorflow as tf
 
 
 __HAS_GPU_RESULT = None
@@ -74,3 +77,28 @@ def gpu_memusage() -> str:
                 for e in gpu_list]
 
     return 'MiB:' + ",".join(info)
+
+
+initializers = {}  # type: Dict[str, Callable]
+
+
+def get_initializer(var_name: str, default: Callable = None):
+    """Returns the initializer associated with the given variable name."""
+    full_name = tf.get_variable_scope().name + "/" + var_name
+    return initializers.get(full_name, default)
+
+
+def get_variable(name: str,
+                 shape: List[Optional[int]] = None,
+                 dtype: tf.DType = None,
+                 initializer: Callable = None,
+                 *args, **kwargs):
+    """A wrapper around tf.get_variable which uses the right initializer.
+
+    The `initializer` parameter is treated as a default which can be overriden
+    by a call to `set_initializers`.
+    """
+    return tf.get_variable(
+        name=name, shape=shape, dtype=dtype,
+        initializer=get_initializer(name, initializer),
+        *args, **kwargs)

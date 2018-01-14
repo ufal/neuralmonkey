@@ -8,6 +8,7 @@ from neuralmonkey.encoders.recurrent import RecurrentEncoder
 from neuralmonkey.encoders.facebook_conv import SentenceEncoder
 from neuralmonkey.vocabulary import Vocabulary
 from neuralmonkey.decorators import tensor
+from neuralmonkey.tf_utils import get_variable
 
 
 class SequenceLabeler(ModelPart):
@@ -48,14 +49,14 @@ class SequenceLabeler(ModelPart):
 
     @tensor
     def decoding_w(self) -> tf.Variable:
-        return tf.get_variable(
+        return get_variable(
             name="state_to_word_W",
             shape=[self.rnn_size, len(self.vocabulary)],
             initializer=tf.glorot_normal_initializer())
 
     @tensor
     def decoding_b(self) -> tf.Variable:
-        return tf.get_variable(
+        return get_variable(
             name="state_to_word_b",
             shape=[len(self.vocabulary)],
             initializer=tf.zeros_initializer())
@@ -63,7 +64,7 @@ class SequenceLabeler(ModelPart):
     @tensor
     def decoding_residual_w(self) -> tf.Variable:
         input_dim = self.encoder.input_sequence.dimension
-        return tf.get_variable(
+        return get_variable(
             name="emb_to_word_W",
             shape=[input_dim, len(self.vocabulary)],
             initializer=tf.glorot_normal_initializer())

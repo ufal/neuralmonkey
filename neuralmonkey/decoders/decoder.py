@@ -20,6 +20,7 @@ from neuralmonkey.decoders.encoder_projection import (
 from neuralmonkey.decoders.output_projection import (
     OutputProjectionSpec, OutputProjection, nonlinear_output)
 from neuralmonkey.decorators import tensor
+from neuralmonkey.tf_utils import get_variable
 
 
 RNN_CELL_TYPES = {
@@ -224,7 +225,7 @@ class Decoder(AutoregressiveDecoder):
         if self.embeddings_source is not None:
             return self.embeddings_source.embedding_matrix
 
-        return tf.get_variable(
+        return get_variable(
             name="word_embeddings",
             shape=[len(self.vocabulary), self.embedding_size],
             initializer=tf.glorot_uniform_initializer())

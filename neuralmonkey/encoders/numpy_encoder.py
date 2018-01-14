@@ -7,6 +7,7 @@ from neuralmonkey.dataset import Dataset
 from neuralmonkey.decorators import tensor
 from neuralmonkey.model.model_part import ModelPart, FeedDict
 from neuralmonkey.model.stateful import Stateful, SpatialStatefulWithOutput
+from neuralmonkey.tf_utils import get_variable
 
 
 # pylint: disable=too-few-public-methods
@@ -35,10 +36,10 @@ class VectorEncoder(ModelPart, Stateful):
 
         with self.use_scope():
             if output_shape is not None and dimension != output_shape:
-                project_w = tf.get_variable(
+                project_w = get_variable(
                     shape=[dimension, output_shape],
                     name="img_init_proj_W")
-                project_b = tf.get_variable(
+                project_b = get_variable(
                     name="img_init_b", shape=[output_shape],
                     initializer=tf.zeros_initializer())
 
@@ -84,11 +85,11 @@ class PostCNNImageEncoder(ModelPart, SpatialStatefulWithOutput):
                                        axis=[1, 2],
                                        name="average_image")
 
-            self.project_w = tf.get_variable(
+            self.project_w = get_variable(
                 name="img_init_proj_W",
                 shape=[input_shape[2], output_shape],
                 initializer=tf.glorot_normal_initializer())
-            self.project_b = tf.get_variable(
+            self.project_b = get_variable(
                 name="img_init_b", shape=[output_shape],
                 initializer=tf.zeros_initializer())
 

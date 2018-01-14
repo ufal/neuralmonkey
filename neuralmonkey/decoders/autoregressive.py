@@ -16,6 +16,7 @@ from neuralmonkey.decorators import tensor
 from neuralmonkey.logging import log
 from neuralmonkey.model.model_part import ModelPart, FeedDict
 from neuralmonkey.nn.utils import dropout
+from neuralmonkey.tf_utils import get_variable
 from neuralmonkey.vocabulary import Vocabulary, START_TOKEN
 
 
@@ -117,7 +118,7 @@ class AutoregressiveDecoder(ModelPart):
     @tensor
     def decoding_w(self) -> tf.Variable:
         with tf.name_scope("output_projection"):
-            return tf.get_variable(
+            return get_variable(
                 "logit_matrix",
                 [self.output_dimension, len(self.vocabulary)],
                 initializer=tf.glorot_uniform_initializer())
@@ -125,7 +126,7 @@ class AutoregressiveDecoder(ModelPart):
     @tensor
     def decoding_b(self) -> tf.Variable:
         with tf.name_scope("output_projection"):
-            return tf.get_variable(
+            return get_variable(
                 "logit_bias", [len(self.vocabulary)],
                 initializer=tf.zeros_initializer())
 

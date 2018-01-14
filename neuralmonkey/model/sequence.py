@@ -12,6 +12,7 @@ from neuralmonkey.model.stateful import TemporalStateful
 from neuralmonkey.vocabulary import Vocabulary
 from neuralmonkey.decorators import tensor
 from neuralmonkey.dataset import Dataset
+from neuralmonkey.tf_utils import get_variable
 
 
 # pylint: disable=abstract-method
@@ -140,7 +141,7 @@ class EmbeddedFactorSequence(Sequence):
         # experiments
 
         return [
-            tf.get_variable(
+            get_variable(
                 name="embedding_matrix_{}".format(i),
                 shape=[vocab_size, emb_size],
                 initializer=tf.glorot_uniform_initializer())

@@ -5,10 +5,11 @@ import tensorflow as tf
 from typeguard import check_argument_types
 
 from neuralmonkey.dataset import Dataset
+from neuralmonkey.decorators import tensor
 from neuralmonkey.model.model_part import ModelPart, FeedDict
 from neuralmonkey.model.stateful import TemporalStateful
+from neuralmonkey.tf_utils import get_variable
 from neuralmonkey.vocabulary import Vocabulary, END_TOKEN
-from neuralmonkey.decorators import tensor
 
 
 class CTCDecoder(ModelPart):
@@ -91,12 +92,12 @@ class CTCDecoder(ModelPart):
 
         encoder_states = self.encoder.temporal_states
 
-        weights = tf.get_variable(
+        weights = get_variable(
             name="state_to_word_W",
             shape=[encoder_states.shape[2], vocabulary_size + 1],
             initializer=tf.glorot_uniform_initializer())
 
-        biases = tf.get_variable(
+        biases = get_variable(
             name="state_to_word_b",
             shape=[vocabulary_size + 1],
             initializer=tf.zeros_initializer())

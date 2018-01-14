@@ -1,5 +1,6 @@
 """Module implementing the highway networks."""
 import tensorflow as tf
+from neuralmonkey.tf_utils import get_variable
 
 
 def highway(inputs, activation=tf.nn.relu, scope="HighwayNetwork"):
@@ -34,20 +35,20 @@ def highway(inputs, activation=tf.nn.relu, scope="HighwayNetwork"):
         W_shape = [vec_size, vec_size]
         b_shape = [vec_size]
 
-        W_H = tf.get_variable(
+        W_H = get_variable(
             "weight_H",
             shape=W_shape,
             initializer=tf.glorot_normal_initializer())
-        b_H = tf.get_variable(
+        b_H = get_variable(
             "bias_H",
             shape=b_shape,
             initializer=tf.constant_initializer(-1.0))
 
-        W_T = tf.get_variable(
+        W_T = get_variable(
             "weight_T",
             shape=W_shape,
             initializer=tf.glorot_normal_initializer())
-        b_T = tf.get_variable(
+        b_T = get_variable(
             "bias_T",
             shape=b_shape,
             initializer=tf.constant_initializer(-1.0))

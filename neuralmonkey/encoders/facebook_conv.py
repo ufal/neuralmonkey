@@ -14,6 +14,7 @@ from neuralmonkey.decorators import tensor
 from neuralmonkey.nn.projection import glu
 from neuralmonkey.model.sequence import EmbeddedSequence
 from neuralmonkey.model.stateful import TemporalStatefulWithOutput
+from neuralmonkey.tf_utils import get_variable
 
 
 class SentenceEncoder(ModelPart, TemporalStatefulWithOutput):
@@ -77,7 +78,7 @@ class SentenceEncoder(ModelPart, TemporalStatefulWithOutput):
     def order_embeddings(self) -> tf.Tensor:
         # initialization in the same way as in original CS2S implementation
         with tf.variable_scope("input_projection"):
-            return tf.get_variable(
+            return get_variable(
                 "order_embeddings", [self.input_sequence.max_length,
                                      self.input_sequence.embedding_sizes[0]],
                 initializer=tf.glorot_normal_initializer())
@@ -96,13 +97,13 @@ class SentenceEncoder(ModelPart, TemporalStatefulWithOutput):
             # Initialized as described in the paper.
             # Note: this should be equivalent to tf.glorot_normal_initializer
             init_deviat = np.sqrt(4 / self.conv_features)
-            convolution_filters = tf.get_variable(
+            convolution_filters = get_variable(
                 "convolution_filters",
                 [self.kernel_width, self.conv_features,
                  2 * self.conv_features],
                 initializer=tf.random_normal_initializer(stddev=init_deviat))
 
-            bias = tf.get_variable(
+            bias = get_variable(
                 name="conv_bias",
                 shape=[2 * self.conv_features],
                 initializer=tf.zeros_initializer())
