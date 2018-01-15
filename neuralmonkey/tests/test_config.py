@@ -36,7 +36,7 @@ class TestParsing(unittest.TestCase):
         self.assertEqual(parsing._parse_value('"{greeting}"world"', varz),
                          'hello"world')
         self.assertEqual(parsing._parse_value('"pi = {pi:.0f}"', varz),
-                         'pi = 3')
+                         "pi = 3")
 
 
 def test_splitter_gen(a, b):
