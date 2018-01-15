@@ -2,6 +2,7 @@ from typing import cast, Iterable, List
 
 import numpy as np
 import tensorflow as tf
+from typeguard import check_argument_types
 
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.model.model_part import ModelPart, FeedDict
@@ -27,6 +28,7 @@ class CTCDecoder(ModelPart):
                  beam_width: int = 1,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None) -> None:
+        check_argument_types()
         ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
 
         self.encoder = encoder
