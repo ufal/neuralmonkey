@@ -91,8 +91,13 @@ class BeamSearchDecoder(ModelPart):
         self._beam_size = beam_size
         self._length_normalization = length_normalization
 
-        # Due to the nature of collecting beams (which is motivated
-        # by ensembling) the parent decoder is one step ahead
+        # The parent_decoder is one step ahead. This is required for ensembling
+        # support.
+        # At the end of the Nth step we generate logits for ensembling
+        # in the N+1th step by the parent_decoder. These need to be first
+        # ensembled outside of the session.run before finishing the N+1th
+        # step of the beam_search_decoder (collecting topk outputs, selecting
+        # beams and running next parent_decoder step based on the chosen beam).
         if max_steps is None:
             max_steps = parent_decoder.max_output_len - 1
         self._max_steps = tf.constant(max_steps)
@@ -311,7 +316,8 @@ class BeamSearchDecoder(ModelPart):
             #
             # To correctly gather values from flattened hyp_probs
             # shape(hyp_probs_flat) = (batch*beam*vocabulary) we compute
-            # the offset, so the following holds:
+            # the offsets of the values starting at each batch (||), so
+            # the following holds:
             # [ 0 .. (beam*voc) - 1 || (beam*voc) + 0 .. 2*(beam*voc) - 1 ||
             #   2*(beam*voc) + 0 .. 3*(beam*voc) - 1 || .. ]
             #
@@ -341,7 +347,8 @@ class BeamSearchDecoder(ModelPart):
             #
             # Similar to the previous offset computation however,
             # now we have to recompute beam_ids with regard to their
-            # corresponding batch_id
+            # corresponding batch_id (again, the values are stargin at each
+            # batch, ||).
             #
             # e.g beam_ids (beam_size=5, batch_size=2).
             # [ 3, 4, 1 ]
