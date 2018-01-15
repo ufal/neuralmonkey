@@ -21,6 +21,23 @@ class TestParsing(unittest.TestCase):
         self.assertRaises(Exception, parsing._split_on_commas,
                           "(omg,brac],kets")
 
+    def test_parse_value_int(self):
+        self.assertEqual(parsing._parse_value("42", {}), 42)
+        self.assertEqual(parsing._parse_value("-42", {}), -42)
+
+    def test_parse_value_float(self):
+        self.assertAlmostEqual(parsing._parse_value("0.5e-1", {}), 0.5e-1)
+        self.assertAlmostEqual(parsing._parse_value(".5e-1", {}), .5e-1)
+        self.assertAlmostEqual(parsing._parse_value("-.5e-1", {}), -.5e-1)
+        self.assertAlmostEqual(parsing._parse_value("5.e-1", {}), 5.e-1)
+
+    def test_parse_value_string(self):
+        varz = {"pi": 3.14159, "greeting": "hello"}
+        self.assertEqual(parsing._parse_value('"{greeting}"world"', varz),
+                         'hello"world')
+        self.assertEqual(parsing._parse_value('"pi = {pi:.0f}"', varz),
+                         'pi = 3')
+
 
 def test_splitter_gen(a, b):
     def test_case_fun(self):
