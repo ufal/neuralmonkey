@@ -12,6 +12,7 @@ import tensorflow as tf
 from neuralmonkey.logging import log, debug
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.runners.base_runner import BaseRunner
+from neuralmonkey import tf_utils
 
 
 class CheckingException(Exception):
@@ -60,6 +61,14 @@ def check_dataset_and_coders(dataset: Dataset,
 
         raise CheckingException("Dataset '{}' is mising series {}:"
                                 .format(dataset.name, ", ".join(formated)))
+
+
+def check_unused_initializers() -> None:
+    unused_initializers = tf_utils.get_unused_initializers()
+    if unused_initializers:
+        raise CheckingException(
+            "Initializers were specified for the following non-existent "
+            "variables: " + ", ".join(unused_initializers))
 
 
 def assert_shape(tensor: tf.Tensor,

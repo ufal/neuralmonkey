@@ -11,7 +11,8 @@ import numpy as np
 import tensorflow as tf
 from tensorflow.contrib.tensorboard.plugins import projector
 
-from neuralmonkey.checking import CheckingException, check_dataset_and_coders
+from neuralmonkey.checking import (CheckingException, check_dataset_and_coders,
+                                   check_unused_initializers)
 from neuralmonkey.logging import Logging, log
 from neuralmonkey.config.configuration import Configuration
 from neuralmonkey.learning_utils import training_loop
@@ -189,6 +190,8 @@ def _main() -> None:
         else:
             for val_dataset in cfg.model.val_dataset:
                 check_dataset_and_coders(val_dataset, cfg.model.runners)
+
+        check_unused_initializers()
     except CheckingException as exc:
         log(str(exc), color="red")
         exit(1)
