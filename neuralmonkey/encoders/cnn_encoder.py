@@ -1,17 +1,17 @@
 """CNN for image processing."""
 
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, Set
 
 import numpy as np
 import tensorflow as tf
-
-from tensorflow.contrib.layers import conv2d, max_pool2d
 
 from neuralmonkey.checking import assert_shape
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.decorators import tensor
 from neuralmonkey.model.model_part import ModelPart, FeedDict, InitializerSpecs
 from neuralmonkey.model.stateful import SpatialStatefulWithOutput
+from neuralmonkey.model.stateful import (SpatialStatefulWithOutput,
+                                         TemporalStatefulWithOutput)
 from neuralmonkey.nn.projection import multilayer_projection
 
 
@@ -30,6 +30,7 @@ class CNNEncoder(ModelPart, SpatialStatefulWithOutput):
                  convolutions: List[Tuple[int, int, Optional[int]]],
                  image_height: int, image_width: int, pixel_dim: int,
                  fully_connected: Optional[List[int]] = None,
+                 batch_normalize: bool = False,
                  dropout_keep_prob: float = 0.5,
                  save_checkpoint: Optional[str] = None,
                  load_checkpoint: Optional[str] = None,
@@ -61,6 +62,8 @@ class CNNEncoder(ModelPart, SpatialStatefulWithOutput):
         self.pixel_dim = pixel_dim
         self.convolutions = convolutions
         self.fully_connected = fully_connected
+        self.batch_normalize = batch_normalize
+    # pylint: enable=too-many-arguments, too-many-locals
 
     # pylint: disable=no-self-use
     @tensor
@@ -77,35 +80,134 @@ class CNNEncoder(ModelPart, SpatialStatefulWithOutput):
             name="input_images")
 
     @tensor
-    def image_processing_layers(self) -> List[tf.Tensor]:
+    def image_mask(self) -> tf.Tensor:
+        return tf.placeholder(
+            tf.float32,
+            shape=(None, self.image_height, self.image_width, 1),
+            name="input_mask")
+
+    @tensor
+    def image_processing_layers(self) -> List[Tuple[tf.Tensor, tf.Tensor]]:
         """Do all convolutions and return the last conditional map.
 
-        Applies convolutions on the input tensor with optional max pooling.
-        All the intermediate layers are stored in the `image_processing_layers`
-        attribute.  There is not dropout between the convolutional layers, by
+        There is not dropout between the convolutional layers, by
         default the activation function is ReLU.
         """
         last_layer = self.image_input
-        image_processing_layers = []  # type: List[tf.Tensor]
+        last_mask = self.image_mask
+        last_channels = self.pixel_dim
+        image_processing_layers = []  # type: List[Tuple[tf.Tensor, tf.Tensor]]
 
         with tf.variable_scope("convolutions"):
-            for i, (filter_size,
-                    n_filters,
-                    pool_size) in enumerate(self.convolutions):
-                with tf.variable_scope("cnn_layer_{}".format(i)):
-                    last_layer = conv2d(last_layer, n_filters, filter_size)
-                    image_processing_layers.append(last_layer)
+            for i, specification in enumerate(self.convolutions):
+                if specification[0] == 'C':
+                    if len(specification) != 5:
+                        raise ValueError((
+                            'Specification of a convolutional layer needs to '
+                            'have 5 members: kernel size, stride, padding, '
+                            '# output channels, was {}').format(specification))
+                    kernel_size, stride, pad, out_channels = specification[1:]
 
-                    if pool_size:
-                        last_layer = max_pool2d(last_layer, pool_size)
-                        image_processing_layers.append(last_layer)
+                    if pad not in ['same', 'valid']:
+                        raise ValueError(
+                            ('Padding must be "same" or "valid", '
+                             'was "{}" in layer {}.').format(pad, i + 1))
+
+                    with tf.variable_scope('layer_{}_convolution'.format(i)):
+                        last_layer = tf.layers.conv2d(
+                            last_layer, out_channels, kernel_size,
+                            activation=None, padding='same')
+                        last_channels = out_channels
+
+                        if self.batch_normalize:
+                            # pylint: disable=cell-var-from-loop
+                            last_layer = tf.layers.batch_normalization(
+                                last_layer, training=self.train_mode)
+                            # pylint: enable=cell-var-from-loop
+
+                        last_layer = tf.nn.relu(last_layer)
+
+                        last_mask = tf.layers.max_pooling2d(
+                            last_mask, kernel_size, stride, padding=pad)
+
+                    image_processing_layers.append((last_layer, last_mask))
+                elif specification[0] == 'M':
+                    if len(specification) != 4:
+                        raise ValueError((
+                            'Specification of a convolutional layer needs to '
+                            'have 5 members: kernel size, stride, padding, '
+                            'was {}').format(specification))
+                    pool_size, stride, pad = specification[1:]
+
+                    if pad not in ['same', 'valid']:
+                        raise ValueError(
+                            ('Padding must be "same" or "valid", '
+                             'was "{}" in layer {}.').format(pad, i + 1))
+
+                    with tf.variable_scope('layer_{}_max_pool'.format(i)):
+                        last_layer = tf.layers.max_pooling2d(
+                            last_layer, pool_size, 2)
+                        last_mask = tf.layers.max_pooling2d(
+                            last_mask, pool_size, 2)
+                    image_processing_layers.append((last_layer, last_mask))
+                elif specification[0] == 'R':
+                    if not self.batch_normalize:
+                        raise ValueError('Using ResNet blocks requires batch '
+                                         'normalization to be turned on.')
+                    kernel_size, out_channels = specification[1:]
+
+                    with tf.variable_scope('layer_{}_resnet_block'.format(i)):
+                        if out_channels == last_channels:
+                            before_resnet_block = last_layer
+                        else:
+                            with tf.variable_scope('project_input'):
+                                before_resnet_block = tf.layers.conv2d(
+                                    last_layer, out_channels, 1, 1,
+                                    'same', activation=None)
+                                before_resnet_block = (
+                                    tf.layers.batch_normalization(
+                                        before_resnet_block,
+                                        training=self.train_mode))
+                            last_channels = out_channels
+
+                        with tf.variable_scope('conv_a'):
+                            last_layer = tf.layers.batch_normalization(
+                                last_layer, training=self.train_mode)
+                            last_layer = tf.nn.relu(last_layer)
+                            last_layer = tf.layers.conv2d(
+                                last_layer, last_channels, kernel_size,
+                                padding='same',
+                                activation=None)
+
+                        with tf.variable_scope('conv_b'):
+                            last_layer = tf.layers.batch_normalization(
+                                last_layer, training=self.train_mode)
+                            last_layer = tf.nn.relu(last_layer)
+                            last_layer = tf.layers.conv2d(
+                                last_layer, last_channels, kernel_size,
+                                padding='same',
+                                activation=None)
+
+                        last_layer = last_layer + before_resnet_block
+
+                    image_processing_layers.append((last_layer, last_mask))
+                else:
+                    raise ValueError(
+                        'Unknown type of convoutional layer #{}: "{}"'.format(
+                            i + 1, specification[0]))
 
         return image_processing_layers
 
     @tensor
     def spatial_states(self):
         # pylint: disable=unsubscriptable-object
-        return self.image_processing_layers[-1]
+        return self.image_processing_layers[-1][0]
+        # pylint: enable=unsubscriptable-object
+
+    @tensor
+    def spatial_mask(self) -> tf.Tensor:
+        # pylint: disable=unsubscriptable-object
+        return self.image_processing_layers[-1][1]
         # pylint: enable=unsubscriptable-object
 
     @tensor
@@ -141,10 +243,6 @@ class CNNEncoder(ModelPart, SpatialStatefulWithOutput):
             dropout_keep_prob=self.dropout_keep_prob,
             train_mode=self.train_mode)
 
-    @tensor
-    def spatial_mask(self) -> tf.Tensor:
-        return tf.ones(tf.shape(self.spatial_states)[:3])
-
     def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
         # if it is from the pickled file, it is list, not numpy tensor,
         # so convert it as as a prevention
@@ -152,6 +250,9 @@ class CNNEncoder(ModelPart, SpatialStatefulWithOutput):
 
         f_dict = {}
         f_dict[self.image_input] = images / 225.0
+        # it is one everywhere where non-zero, i.e. zero columns are masked out
+        f_dict[self.image_mask] = np.sum(
+            np.sign(images), axis=3, keepdims=True)
 
         f_dict[self.train_mode] = train
         return f_dict
