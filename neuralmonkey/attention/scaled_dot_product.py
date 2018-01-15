@@ -27,8 +27,16 @@ MultiHeadLoopStateTA = NamedTuple("MultiHeadLoopStateTA",
 def split_for_heads(x: tf.Tensor, n_heads: int, head_dim: int) -> tf.Tensor:
     """Split a tensor for multi-head attention.
 
-    Split last dimension of 3D vector of shape (batch, time, dim) and return
-    a 4D vector with shape (batch, n_heads, time, dim/n_heads)
+    Split last dimension of 3D vector of shape(batch, time, dim) and return
+    a 4D vector with shape(batch, n_heads, time, dim/n_heads).
+
+    Arguments:
+        x: input Tensor of shape(batch, time, dim).
+        n_heads: Number of attention heads.
+        head_dim: Dimension of the attention heads.
+
+    Returns:
+        4D vector of shape(batch, n_heads, time, head_dim/n_heads)
     """
     x_shape = tf.shape(x)
     x_4d = tf.reshape(tf.expand_dims(x, 2),
@@ -38,9 +46,18 @@ def split_for_heads(x: tf.Tensor, n_heads: int, head_dim: int) -> tf.Tensor:
 
 
 def mask_weights(weights_4d: tf.Tensor, mask: tf.Tensor) -> tf.Tensor:
-    """Apply mask to softmax weights and renormalize."""
-    # attention mask shape: batch, time(k)
-    # weights_all shape: batch, head, time(q), time(k)
+    """Apply mask to softmax weights and renormalize.
+
+    Arguments:
+        weights_4d: Softmax weights of shape(batch, n_heads, time(q), time(k))
+            to renormalize.
+        mask: Float Tensor of zeros and ones of shape(batch_time(k)),
+            specifies valid positions in the weight tensor.
+
+    Returns:
+        Renormalized distribution over valid positions,
+        has the same shape as weights_4d.
+    """
     weights_all = weights_4d * tf.expand_dims(tf.expand_dims(mask, 1), 1)
 
     # normalization along time(k)
@@ -50,7 +67,19 @@ def mask_weights(weights_4d: tf.Tensor, mask: tf.Tensor) -> tf.Tensor:
 
 
 def mask_future(energies: tf.Tensor) -> tf.Tensor:
-    """Mask energies of keys to the right of the query."""
+    """Mask energies of keys using lower triangular matrix.
+
+    Mask simulates autoregressive decoding, such that it prevents
+    the attention to look at what has not yet been decoded.
+    Mask is not necessary during training when true output values
+    are used instead of the decoded ones.
+
+    Arguments:
+        energies: A tensor to mask.
+
+    Returns:
+        Masked energies tensor.
+    """
     triangular_mask = tf.matrix_band_part(tf.ones_like(energies), -1, 0)
     mask_area = tf.equal(triangular_mask, 1)
     masked_value = tf.fill(tf.shape(energies), -np.inf)
@@ -65,18 +94,46 @@ def attention(
         num_heads: int,
         dropout_callback: Callable[[tf.Tensor], tf.Tensor],
         masked: bool = False) -> tf.Tensor:
+    """Run multi-head scaled dot-product attention.
+
+    See arxiv.org/abs/1706.03762
+
+    When performing multi-head attention, the queries, keys and values
+    vectors are first split to sets of smaller vectors, one for each attention
+    head. Next, they are transformed using a linear layer and a separate
+    attention (from a corresponding head) is applied on each set of
+    the transformed triple of query, key and value. The resulting contexts
+    from each head are then concatenated and a linear layer is applied
+    on this concatenated output. The following can be summed by following
+    equations:
+
+    MultiHead(Q, K, V) = Concat(head_1, ..., head_h) * W_o
+    head_i = Attention(Q * W_Q_i, K * W_K_i, V * W_V_i)
+
+    The scaled dot-product attention is a simple dot-product between
+    the query and a transposed key vector. The result is then scaled
+    using square root of the vector dimensions and a softmax layer is applied.
+    Finally, the output of the softmax layer is multiplied by the value vector.
+    See the following equation:
+
+    Attention(Q, K, V) = softmax(Q * K^T / √(d_k)) * V
+
+    Arguments:
+        queries: Input queries of shape(batch, time(q), k_channels).
+        keys: Input keys of shape(batch, time(k), k_channels).
+        values: Input values of shape(batch, time(k), v_channels).
+        keys_mask: A float Tensor for masking sequences in keys.
+        num_heads: Number of attention heads.
+        dropout_callback: Callable function implementing dropout.
+        masked: Boolean indicating whether we want to mask future energies.
+
+    Returns:
+        Contexts of shape(batch, time(q), v_channels) and
+        weights of shape(batch, time(q), time(k)).
+    """
 
     if num_heads <= 0:
         raise ValueError("Number of heads must be greater than zero.")
-
-    # Input shapes:
-    # queries:  batch, time(q), k_channels
-    # keys:   batch, time(k), k_channels
-    # values: batch, time(k), v_channels
-    #
-    # Output shapes:
-    # context: batch, time(q), v_channels
-    # weights: batch, time(q), time(k)
 
     queries_dim = queries.get_shape()[-1].value
     keys_dim = keys.get_shape()[-1].value
@@ -114,7 +171,6 @@ def attention(
 
     # To protect the attention from looking ahead of time, we must
     # replace the energies of future keys with negative infinity
-    # We use lower triangular matrix and basic tf where tricks
     if masked:
         energies = mask_future(energies)
 
@@ -128,15 +184,6 @@ def attention(
     # apply dropout to the weights (Attention Dropout)
     weights = dropout_callback(weights)
 
-    # CODE MUSEUM
-    # 1. expand weights (4d) to shape batch, head, time(q), time(k), 1
-    # 2. expand values to shape batch, head, 1, time(k), head_dim
-    # 3. element-wise multiplication broadcasts that to
-    #    shape: batch, head, time(q), time(k), head_dim
-    # 4. sum along the time(k) axis
-    # context = tf.reduce_sum(
-    #    tf.expand_dims(weights, 4) * tf.expand_dims(values, 2), 3)
-    # END OF CODE MUSEUM
     context = tf.matmul(weights, values)
 
     # transpose and reshape to shape [batch, time(q), v_channels]
@@ -196,10 +243,28 @@ class MultiHeadAttention(BaseAttention):
                   decoder_input: tf.Tensor,
                   loop_state: MultiHeadLoopStateTA,
                   step: tf.Tensor) -> Tuple[tf.Tensor, MultiHeadLoopStateTA]:
+        """Run a multi-head attention getting context vector for a given query.
 
-        # transform (batch, query_size) to (batch, 1, query_size)
-        # context is (batch, 1, value_size)
-        # weights is (batch, head, 1, time(keys))
+        This method is an API-wrapper for the global function 'attention'
+        defined in this module. Transforms a query of shape(batch, query_size)
+        to shape(batch, 1, query_size) and applies the attention function.
+        Output context has shape(batch, 1, value_size) and weights
+        have shape(batch, n_heads, 1, time(k)). The output is then processed
+        to produce output vector of contexts and the following attention
+        loop state.
+
+        Arguments:
+            query: Input query for the current decoding step
+                of shape(batch, query_size).
+            decoder_prev_state: Previous state of the decoder.
+            decoder_input: Input to the RNN cell of the decoder.
+            loop_state: Attention loop state.
+            step: Current decoding step.
+
+        Returns:
+            Vector of contexts and the following attention loop state.
+        """
+
         context_3d, weights_4d = attention(
             queries=tf.expand_dims(query, 1),
             keys=self.attention_keys,

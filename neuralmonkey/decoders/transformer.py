@@ -35,7 +35,7 @@ TransformerHistories = extend_namedtuple(
 
 class TransformerDecoder(AutoregressiveDecoder):
 
-    # pylint: disable=too-many-arguments
+    # pylint: disable=too-many-arguments,too-many-locals
     def __init__(self,
                  name: str,
                  encoder: Attendable,
@@ -48,6 +48,7 @@ class TransformerDecoder(AutoregressiveDecoder):
                  depth: int,
                  max_output_len: int = None,
                  dropout_keep_prob: float = 1.0,
+                 label_smoothing: float = None,
                  attention_dropout_keep_prob: float = 1.0,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None) -> None:
@@ -59,8 +60,7 @@ class TransformerDecoder(AutoregressiveDecoder):
             data_id=data_id,
             max_output_len=max_output_len,
             dropout_keep_prob=dropout_keep_prob,
-            # from the "dark slide"
-            label_smoothing=0.1,
+            label_smoothing=label_smoothing,
             save_checkpoint=save_checkpoint,
             load_checkpoint=load_checkpoint)
 
@@ -78,7 +78,7 @@ class TransformerDecoder(AutoregressiveDecoder):
         log("Decoder cost op: {}".format(self.cost))
         self._variable_scope.reuse_variables()
         log("Runtime logits: {}".format(self.runtime_logits))
-    # pylint: enable=too-many-arguments
+    # pylint: enable=too-many-arguments,too-many-locals
 
     @property
     def output_dimension(self) -> int:

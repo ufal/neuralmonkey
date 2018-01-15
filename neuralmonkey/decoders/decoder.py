@@ -56,6 +56,7 @@ class Decoder(AutoregressiveDecoder):
                  name: str,
                  max_output_len: int,
                  dropout_keep_prob: float = 1.0,
+                 label_smoothing: float = None,
                  rnn_size: int = None,
                  embedding_size: int = None,
                  output_projection: OutputProjectionSpec = None,
@@ -101,6 +102,7 @@ class Decoder(AutoregressiveDecoder):
             data_id=data_id,
             max_output_len=max_output_len,
             dropout_keep_prob=dropout_keep_prob,
+            label_smoothing=label_smoothing,
             save_checkpoint=save_checkpoint,
             load_checkpoint=load_checkpoint)
 
