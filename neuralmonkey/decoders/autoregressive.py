@@ -61,12 +61,14 @@ DecoderFeedables = NamedTuple(
 # pylint: disable=too-many-public-methods
 class AutoregressiveDecoder(ModelPart):
 
+    # pylint: disable=too-many-arguments
     def __init__(self,
                  name: str,
                  vocabulary: Vocabulary,
                  data_id: str,
                  max_output_len: int,
                  dropout_keep_prob: float = 1.0,
+                 label_smoothing: float = None,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None) -> None:
         """Initialize parameters common for all autoregressive decoders.
@@ -87,6 +89,7 @@ class AutoregressiveDecoder(ModelPart):
         self.data_id = data_id
         self.max_output_len = max_output_len
         self.dropout_keep_prob = dropout_keep_prob
+        self.label_smoothing = label_smoothing
 
         # check the values of the parameters (max_output_len, ...)
         if max_output_len <= 0:
@@ -105,6 +108,7 @@ class AutoregressiveDecoder(ModelPart):
                 tf.int32, [None, None], "train_inputs")
             self.train_mask = tf.placeholder(
                 tf.float32, [None, None], "train_mask")
+    # pylint: enable=too-many-arguments
 
     @tensor
     def batch_size(self) -> tf.Tensor:
@@ -152,12 +156,19 @@ class AutoregressiveDecoder(ModelPart):
     @tensor
     def train_xents(self) -> tf.Tensor:
         train_targets = tf.transpose(self.train_inputs)
+        softmax_function = None
+        if self.label_smoothing:
+            softmax_function = (
+                lambda labels, logits: tf.losses.softmax_cross_entropy(
+                    tf.one_hot(labels, len(self.vocabulary)),
+                    logits, label_smoothing=self.label_smoothing))
 
         return tf.contrib.seq2seq.sequence_loss(
             tf.transpose(self.train_logits, perm=[1, 0, 2]),
             train_targets,
             tf.transpose(self.train_mask),
-            average_across_batch=False)
+            average_across_batch=False,
+            softmax_loss_function=softmax_function)
 
     @tensor
     def train_loss(self) -> tf.Tensor:

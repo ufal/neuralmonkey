@@ -59,6 +59,8 @@ class TransformerDecoder(AutoregressiveDecoder):
             data_id=data_id,
             max_output_len=max_output_len,
             dropout_keep_prob=dropout_keep_prob,
+            # from the "dark slide"
+            label_smoothing=0.1,
             save_checkpoint=save_checkpoint,
             load_checkpoint=load_checkpoint)
 
@@ -209,21 +211,6 @@ class TransformerDecoder(AutoregressiveDecoder):
         # return logits in time-major shape
         return tf.transpose(logits, perm=[1, 0, 2])
 
-    # @tensor
-    # def train_xents(self) -> tf.Tensor:
-    #     train_targets = tf.transpose(self.train_inputs)
-
-    #     return tf.contrib.seq2seq.sequence_loss(
-    #         tf.transpose(self.train_logits, perm=[1, 0, 2]),
-    #         train_targets,
-    #         tf.transpose(self.train_mask),
-    #         average_across_batch=False,
-    #         softmax_loss_function=(
-    #             lambda labels, logits:
-    #             tf.losses.softmax_cross_entropy(
-    #                 tf.one_hot(labels, len(self.vocabulary)),
-    #                 logits, label_smoothing=0.1)))
-
     def get_initial_loop_state(self) -> LoopState:
 
         default_ls = AutoregressiveDecoder.get_initial_loop_state(self)
@@ -250,9 +237,9 @@ class TransformerDecoder(AutoregressiveDecoder):
             0, tf.ones_like(self.go_symbols, dtype=tf.float32))
 
         # TransformerHistories is a type and should be callable
-        # disable=not-callable
+        # pylint: disable=not-callable
         tr_histories = TransformerHistories(**histories)
-        # enable=not-callable
+        # pylint: enable=not-callable
 
         return LoopState(
             histories=tr_histories,
@@ -320,7 +307,7 @@ class TransformerDecoder(AutoregressiveDecoder):
                 prev_logits=logits)
 
             # TransformerHistories is a type and should be callable
-            # disable=not-callable
+            # pylint: disable=not-callable
             new_histories = TransformerHistories(
                 logits=histories.logits.write(step, logits),
                 decoder_outputs=histories.decoder_outputs.write(
@@ -334,7 +321,7 @@ class TransformerDecoder(AutoregressiveDecoder):
                 inter_attention_histories=histories.inter_attention_histories,
                 input_mask=histories.input_mask.write(
                     step + 1, tf.to_float(not_finished)))
-            # enable=not-callable
+            # pylint: enable=not-callable
 
             new_loop_state = LoopState(
                 histories=new_histories,
