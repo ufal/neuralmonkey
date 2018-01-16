@@ -46,12 +46,18 @@ class CNNEncoder(ModelPart, SpatialStatefulWithOutput):
                  initializers: InitializerSpecs = None) -> None:
         """Initialize a convolutional network for image processing.
 
+        The convolutional network can consist of plain convolutions,
+        max-pooling layers and residual block. In the configuration, they are
+        specified using the following tuples.
+
+            * convolution: ("C", kernel_size, stride, padding, out_channel);
+            * max pooling: ("M", kernel_size, stride, padding);
+            * residual block: ("R", kernel_size, out_channels).
+
+        Padding must be either "valid" or "same".
+
         Args:
-            convolutions: Configuration of convolutional layers. It is a list
-                of triplets of integers where the values are: size of the
-                convolutional window, number of convolutional filters, and size
-                of max-pooling window. If the max-pooling size is set to None,
-                no pooling is performed.
+            convolutions: Configuration of convolutional layers.
             data_id: Identifier of the data series in the dataset.
             image_height: Height of the input image in pixels.
             image_width: Width of the image.
@@ -102,11 +108,14 @@ class CNNEncoder(ModelPart, SpatialStatefulWithOutput):
             prev_mask: tf.Tensor,
             specification: ConvSpec,
             layer_num: int) -> Tuple[tf.Tensor, tf.Tensor, int]:
-        if len(specification) != 5:
+        try:
+            check_argument_types()
+        except TypeError:
             raise ValueError((
-                "Specification of a convolutional layer needs to "
-                "have 5 members: kernel size, stride, padding, "
-                "# output channels, was {}").format(specification))
+                "Specification of a convolutional layer (number {} in config) "
+                'needs to have 5 members: "C", kernel size, stride, '
+                "padding, output channels, was {}").format(
+                    layer_num, specification))
         kernel_size, stride, pad, out_channels = specification[1:]
 
         if pad not in ["same", "valid"]:
@@ -139,6 +148,13 @@ class CNNEncoder(ModelPart, SpatialStatefulWithOutput):
             prev_channels: int,
             specification: ResNetSpec,
             layer_num: int) -> Tuple[tf.Tensor, tf.Tensor, int]:
+        try:
+            check_argument_types()
+        except TypeError:
+            raise ValueError((
+                "Specification of a residual block (number {} in config) "
+                'needs to have 3 members: "R", kernel size, channels; '
+                "was {}").format(layer_num, specification))
         if not self.batch_normalize:
             raise ValueError("Using ResNet blocks requires batch "
                              "normalization to be turned on.")
@@ -276,13 +292,15 @@ class CNNEncoder(ModelPart, SpatialStatefulWithOutput):
 def max_pooling(
         prev_layer: tf.Tensor,
         prev_mask: tf.Tensor,
-        specification: Tuple[str, int, int, str],
+        specification: MaxPoolSpec,
         layer_num: int) -> Tuple[tf.Tensor, tf.Tensor]:
-    if len(specification) != 4:
+    try:
+        check_argument_types()
+    except TypeError:
         raise ValueError((
-            "Specification of a convolutional layer needs to have 5 "
-            "members: kernel size, stride, padding, was {}")
-                         .format(specification))
+            "Specification of a max-pooling layer (number {} in config) "
+            'needs to have 3 members: "M", pool size, stride, padding, '
+            "was {}").format(layer_num, specification))
     pool_size, stride, pad = specification[1:]
 
     if pad not in ["same", "valid"]:
@@ -306,7 +324,7 @@ class OCREncoder(ModelPart, TemporalStatefulWithOutput):
                  rnn_state_size: int,
                  save_checkpoint: Optional[str] = None,
                  load_checkpoint: Optional[str] = None) -> None:
-
+        check_argument_types()
         ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
         self._cnn = cnn
         self._rnn_state_size = rnn_state_size
