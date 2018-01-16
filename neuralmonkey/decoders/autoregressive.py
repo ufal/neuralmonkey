@@ -248,7 +248,7 @@ class AutoregressiveDecoder(ModelPart):
                                     size=0, name="outputs")
 
         feedables = DecoderFeedables(
-            step=0,
+            step=tf.constant(0, tf.int32),
             finished=tf.zeros([self.batch_size], dtype=tf.bool),
             input_symbol=self.go_symbols,
             prev_logits=tf.zeros([self.batch_size, len(self.vocabulary)]))
