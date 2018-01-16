@@ -11,7 +11,7 @@ import os
 import random
 
 # pylint: disable=unused-import
-from typing import List, Optional, Tuple, Dict
+from typing import List, Optional, Tuple, Dict, Union
 # pylint: enable=unused-import
 
 import numpy as np
@@ -526,8 +526,9 @@ class Vocabulary(collections.Sized):
 
         return word_indices, weights
 
-    def vectors_to_sentences(self,
-                             vectors: List[np.ndarray]) -> List[List[str]]:
+    def vectors_to_sentences(
+            self,
+            vectors: Union[List[np.ndarray], np.ndarray]) -> List[List[str]]:
         """Convert vectors of indexes of vocabulary items to lists of words.
 
         Arguments:
@@ -536,15 +537,26 @@ class Vocabulary(collections.Sized):
         Returns:
             List of lists of words.
         """
-        sentences = [[] for _ in
-                     range(vectors[0].shape[0])]  # type: List[List[str]]
+        if isinstance(vectors, list):
+            if not vectors:
+                raise ValueError(
+                    "Cannot infer batch size because decoder returned an "
+                    "empty output.")
+            batch_size = vectors[0].shape[0]
+        elif isinstance(vectors, np.ndarray):
+            batch_size = vectors.shape[1]
+        else:
+            raise TypeError(
+                "Unexpected type of decoder output: {}".format(type(vectors)))
+
+        sentences = [[] for _ in range(batch_size)]  # type: List[List[str]]
 
         for vec in vectors:
             for sentence, word_i in zip(sentences, vec):
                 if not sentence or sentence[-1] != END_TOKEN:
                     sentence.append(self.index_to_word[word_i])
 
-        return [s[:-1] if s[-1] == END_TOKEN else s for s in sentences]
+        return [s[:-1] if s and s[-1] == END_TOKEN else s for s in sentences]
 
     def save_wordlist(self, path: str, overwrite: bool = False,
                       save_frequencies: bool = False,

@@ -1,10 +1,12 @@
-from typing import Any, cast, Iterable, List, Optional
+from typing import cast, Iterable, List
 
 import numpy as np
 import tensorflow as tf
+from typeguard import check_argument_types
 
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.model.model_part import ModelPart, FeedDict
+from neuralmonkey.model.stateful import TemporalStateful
 from neuralmonkey.vocabulary import Vocabulary, END_TOKEN
 from neuralmonkey.decorators import tensor
 
@@ -18,14 +20,15 @@ class CTCDecoder(ModelPart):
     # pylint: disable=too-many-arguments
     def __init__(self,
                  name: str,
-                 encoder: Any,
+                 encoder: TemporalStateful,
                  vocabulary: Vocabulary,
                  data_id: str,
                  merge_repeated_targets: bool = False,
                  merge_repeated_outputs: bool = True,
                  beam_width: int = 1,
-                 save_checkpoint: Optional[str] = None,
-                 load_checkpoint: Optional[str] = None) -> None:
+                 save_checkpoint: str = None,
+                 load_checkpoint: str = None) -> None:
+        check_argument_types()
         ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
 
         self.encoder = encoder
@@ -48,19 +51,14 @@ class CTCDecoder(ModelPart):
     # pylint: disable=no-self-use
 
     @tensor
-    def input_lengths(self) -> tf.Tensor:
-        # encoder.states_mask is batch-major
-        return tf.reduce_sum(tf.to_int32(self.encoder.states_mask), 1)
-
-    @tensor
     def decoded(self) -> tf.Tensor:
         if self.beam_width == 1:
             decoded, _ = tf.nn.ctc_greedy_decoder(
-                inputs=self.logits, sequence_length=self.input_lengths,
+                inputs=self.logits, sequence_length=self.encoder.lengths,
                 merge_repeated=self.merge_repeated_outputs)
         else:
             decoded, _ = tf.nn.ctc_beam_search_decoder(
-                inputs=self.logits, sequence_length=self.input_lengths,
+                inputs=self.logits, sequence_length=self.encoder.lengths,
                 beam_width=self.beam_width,
                 merge_repeated=self.merge_repeated_outputs)
 
@@ -80,8 +78,9 @@ class CTCDecoder(ModelPart):
     def cost(self) -> tf.Tensor:
         loss = tf.nn.ctc_loss(
             labels=self.train_targets, inputs=self.logits,
-            sequence_length=self.input_lengths,
+            sequence_length=self.encoder.lengths,
             preprocess_collapse_repeated=self.merge_repeated_targets,
+            ignore_longer_outputs_than_inputs=True,
             ctc_merge_repeated=self.merge_repeated_outputs)
 
         return tf.reduce_sum(loss)
@@ -90,7 +89,7 @@ class CTCDecoder(ModelPart):
     def logits(self) -> tf.Tensor:
         vocabulary_size = len(self.vocabulary)
 
-        encoder_states = self.encoder.hidden_states
+        encoder_states = self.encoder.temporal_states
 
         weights = tf.get_variable(
             name="state_to_word_W",
