@@ -538,6 +538,10 @@ class Vocabulary(collections.Sized):
             List of lists of words.
         """
         if isinstance(vectors, list):
+            if not vectors:
+                raise ValueError(
+                    "Cannot infer batch size because decoder returned an "
+                    "empty output.")
             batch_size = vectors[0].shape[0]
         elif isinstance(vectors, np.ndarray):
             batch_size = vectors.shape[1]
