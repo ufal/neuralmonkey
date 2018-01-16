@@ -101,7 +101,8 @@ class BaseAttention(ModelPart):
         self.query_state_size = None  # type: tf.Tensor
         self._histories = {}  # type: Dict[str, tf.Tensor]
 
-        self.train_mode = tf.placeholder(tf.bool, [], "train_mode")
+        with self.use_scope():
+            self.train_mode = tf.placeholder(tf.bool, [], "train_mode")
 
     @property
     def histories(self) -> Dict[str, tf.Tensor]:

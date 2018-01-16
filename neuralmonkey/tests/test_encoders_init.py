@@ -37,6 +37,25 @@ SENTENCE_ENCODER_BAD = {
     "dropout_keep_prob": [0.0, 0, -1.0, 2.0, "ahoj", VOCABULARY, None],
 }
 
+TRANSFORMER_ENCODER_GOOD = {
+    "name": ["transformer_encoder"],
+    "input_sequence": [INPUT_SEQUENCE],
+    "ff_hidden_size": [10],
+    "depth": [6],
+    "n_heads": [3],
+    "dropout_keep_prob": [0.5],
+}
+
+TRANSFORMER_ENCODER_BAD = {
+    "nonexistent": ["ahoj"],
+    "name": [None, 1],
+    "input_sequence": [0, None, VOCABULARY],
+    "ff_hidden_size": [-1, 0, "ahoj", 3.14, VOCABULARY, SentenceEncoder, None],
+    "depth": [-1, "ahoj", 3.14, SentenceEncoder, None],
+    "n_heads": [-1, "ahoj", 3.14, SentenceEncoder, None],
+    "dropout_keep_prob": [0.0, 0, -1.0, 2.0, "ahoj", VOCABULARY, None]
+}
+
 SENTENCE_CNN_ENCODER_GOOD = {
     "name": ["cnn_encoder"],
     "input_sequence": [INPUT_SEQUENCE],

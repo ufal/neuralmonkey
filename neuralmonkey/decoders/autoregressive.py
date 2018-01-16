@@ -61,12 +61,14 @@ DecoderFeedables = NamedTuple(
 # pylint: disable=too-many-public-methods
 class AutoregressiveDecoder(ModelPart):
 
+    # pylint: disable=too-many-arguments
     def __init__(self,
                  name: str,
                  vocabulary: Vocabulary,
                  data_id: str,
                  max_output_len: int,
                  dropout_keep_prob: float = 1.0,
+                 label_smoothing: float = None,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None) -> None:
         """Initialize parameters common for all autoregressive decoders.
@@ -87,6 +89,7 @@ class AutoregressiveDecoder(ModelPart):
         self.data_id = data_id
         self.max_output_len = max_output_len
         self.dropout_keep_prob = dropout_keep_prob
+        self.label_smoothing = label_smoothing
 
         # check the values of the parameters (max_output_len, ...)
         if max_output_len <= 0:
@@ -105,6 +108,7 @@ class AutoregressiveDecoder(ModelPart):
                 tf.int32, [None, None], "train_inputs")
             self.train_mask = tf.placeholder(
                 tf.float32, [None, None], "train_mask")
+    # pylint: enable=too-many-arguments
 
     @tensor
     def batch_size(self) -> tf.Tensor:
@@ -131,11 +135,19 @@ class AutoregressiveDecoder(ModelPart):
         return tf.matmul(state, self.decoding_w) + self.decoding_b
 
     @tensor
+    def train_loop_result(self) -> Tuple[tf.Tensor, tf.Tensor,
+                                         tf.Tensor, tf.Tensor]:
+        return self.decoding_loop(train_mode=True)
+
+    @tensor
     def train_logits(self) -> tf.Tensor:
         # THE LAST TRAIN INPUT IS NOT USED IN DECODING FUNCTION
         # (just as a target)
-        logits, _, _, _ = self.decoding_loop(train_mode=True)
-        return logits
+        return tuple(self.train_loop_result)[0]
+
+    @tensor
+    def train_output_states(self) -> tf.Tensor:
+        return tuple(self.train_loop_result)[1]
 
     @tensor
     def train_logprobs(self) -> tf.Tensor:
@@ -144,12 +156,19 @@ class AutoregressiveDecoder(ModelPart):
     @tensor
     def train_xents(self) -> tf.Tensor:
         train_targets = tf.transpose(self.train_inputs)
+        softmax_function = None
+        if self.label_smoothing:
+            softmax_function = (
+                lambda labels, logits: tf.losses.softmax_cross_entropy(
+                    tf.one_hot(labels, len(self.vocabulary)),
+                    logits, label_smoothing=self.label_smoothing))
 
         return tf.contrib.seq2seq.sequence_loss(
             tf.transpose(self.train_logits, perm=[1, 0, 2]),
             train_targets,
             tf.transpose(self.train_mask),
-            average_across_batch=False)
+            average_across_batch=False,
+            softmax_loss_function=softmax_function)
 
     @tensor
     def train_loss(self) -> tf.Tensor:
@@ -169,7 +188,7 @@ class AutoregressiveDecoder(ModelPart):
         return tuple(self.runtime_loop_result)[0]
 
     @tensor
-    def runtime_rnn_states(self) -> tf.Tensor:
+    def runtime_output_states(self) -> tf.Tensor:
         return tuple(self.runtime_loop_result)[1]
 
     @tensor
@@ -187,7 +206,7 @@ class AutoregressiveDecoder(ModelPart):
         return tf.argmax(self.runtime_logits[:, :, 1:], -1) + 1
 
     @tensor
-    def runtime_loss(self) -> tf.Tensor:
+    def runtime_xents(self) -> tf.Tensor:
         train_targets = tf.transpose(self.train_inputs)
         batch_major_logits = tf.transpose(self.runtime_logits, [1, 0, 2])
         min_time = tf.minimum(tf.shape(train_targets)[1],
@@ -199,7 +218,12 @@ class AutoregressiveDecoder(ModelPart):
         return tf.contrib.seq2seq.sequence_loss(
             logits=batch_major_logits[:, :min_time],
             targets=train_targets[:, :min_time],
-            weights=tf.transpose(self.train_mask)[:, :min_time])
+            weights=tf.transpose(self.train_mask)[:, :min_time],
+            average_across_batch=False)
+
+    @tensor
+    def runtime_loss(self) -> tf.Tensor:
+        return tf.reduce_mean(self.runtime_xents)
 
     @tensor
     def runtime_logprobs(self) -> tf.Tensor:
@@ -210,7 +234,37 @@ class AutoregressiveDecoder(ModelPart):
         raise NotImplementedError("Abstract property")
 
     def get_initial_loop_state(self) -> LoopState:
-        raise NotImplementedError("Abstract method")
+
+        dec_output_ta = tf.TensorArray(dtype=tf.float32, dynamic_size=True,
+                                       size=0, name="decoder_outputs")
+
+        logit_ta = tf.TensorArray(dtype=tf.float32, dynamic_size=True,
+                                  size=0, name="logits")
+
+        mask_ta = tf.TensorArray(dtype=tf.bool, dynamic_size=True,
+                                 size=0, name="mask")
+
+        outputs_ta = tf.TensorArray(dtype=tf.int32, dynamic_size=True,
+                                    size=0, name="outputs")
+
+        feedables = DecoderFeedables(
+            step=tf.constant(0, tf.int32),
+            finished=tf.zeros([self.batch_size], dtype=tf.bool),
+            input_symbol=self.go_symbols,
+            prev_logits=tf.zeros([self.batch_size, len(self.vocabulary)]))
+
+        histories = DecoderHistories(
+            logits=logit_ta,
+            decoder_outputs=dec_output_ta,
+            mask=mask_ta,
+            outputs=outputs_ta)
+
+        constants = DecoderConstants(train_inputs=self.train_inputs)
+
+        return LoopState(
+            histories=histories,
+            constants=constants,
+            feedables=feedables)
 
     def loop_continue_criterion(self, *args) -> tf.Tensor:
         """Decide whether to break out of the while loop.

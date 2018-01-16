@@ -213,7 +213,4 @@ class SentenceCNNEncoder(ModelPart, TemporalStatefulWithOutput):
             dataset: The dataset to use
             train: Boolean flag telling whether it is training time
         """
-        fd = self.input_sequence.feed_dict(dataset, train)
-        fd[self.train_mode] = train
-
-        return fd
+        return {self.train_mode: train}

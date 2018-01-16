@@ -105,7 +105,4 @@ class PostCNNImageEncoder(ModelPart, SpatialStatefulWithOutput):
         return tf.ones(tf.shape(self.spatial_states)[:3])
 
     def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
-        res = {}  # type: FeedDict
-        res[self.image_features] = dataset.get_series(self.data_id)
-
-        return res
+        return {self.image_features: dataset.get_series(self.data_id)}

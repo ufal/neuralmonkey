@@ -69,6 +69,11 @@ class ModelPart(metaclass=ABCMeta):
             if isinstance(enc, ModelPart):
                 to_return = to_return.union(enc.get_dependencies())
 
+        if hasattr(self, "input_sequence"):
+            inpseq = getattr(self, "input_sequence")
+            if isinstance(inpseq, ModelPart):
+                to_return = to_return.union(inpseq.get_dependencies())
+
         if hasattr(self, "parent_decoder"):
             dec = getattr(self, "parent_decoder")
             if isinstance(dec, ModelPart):
