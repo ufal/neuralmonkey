@@ -404,7 +404,7 @@ class Decoder(AutoregressiveDecoder):
         # pylint: disable=not-callable
         rnn_feedables = RNNFeedables(
             # general:
-            step=0,
+            step=tf.constant(0, dtype=tf.int32),
             finished=tf.zeros([self.batch_size], dtype=tf.bool),
             input_symbol=self.go_symbols,
             prev_logits=tf.zeros([self.batch_size, len(self.vocabulary)]),

@@ -32,12 +32,6 @@ class BeamSearchExecutable(Executable):
         # Length of the currently sequence decoded so far
         self._step = 0
 
-        # We need to define the np.empty arrays here due to the usage
-        # of np.append later
-        self._scores = np.empty([0, decoder.beam_size], dtype=float)
-        self._parent_ids = np.empty([0, decoder.beam_size], dtype=int)
-        self._token_ids = np.empty([0, decoder.beam_size], dtype=int)
-
         self._next_feed = [{} for _ in range(self._num_sessions)] \
             # type: List[FeedDict]
 
@@ -76,6 +70,18 @@ class BeamSearchExecutable(Executable):
         # ensembles: step_size == 1
         step_size = bs_outputs.last_dec_loop_state.step - 1
 
+        batch_size = bs_outputs.last_search_step_output.scores.shape[1]
+        # pylint: disable=attribute-defined-outside-init
+        if self._step == 0:
+            self._scores = np.empty(
+                [0, batch_size, self._decoder.beam_size],
+                dtype=float)
+            self._parent_ids = np.empty(
+                [0, batch_size, self._decoder.beam_size],
+                dtype=int)
+            self._token_ids = np.empty(
+                [0, batch_size, self._decoder.beam_size],
+                dtype=int)
         self._step += step_size
         self._scores = np.append(
             self._scores,
@@ -91,9 +97,10 @@ class BeamSearchExecutable(Executable):
             self._token_ids,
             bs_outputs.last_search_step_output.token_ids[0:step_size],
             axis=0)
+        # pylint: enable=attribute-defined-outside-init
 
         if (self._decoder.max_output_len is not None and
-                self._step > self._decoder.max_output_len):
+                self._step >= self._decoder.max_output_len):
             self.prepare_results()
             return
 
@@ -102,7 +109,10 @@ class BeamSearchExecutable(Executable):
         for result in results:
             bs_outputs = result["bs_outputs"]
 
+            input_beam_size = len(bs_outputs.last_search_state.prev_logprobs)
+            input_beam_size //= batch_size
             search_state = bs_outputs.last_search_state._replace(
+                input_beam_size=input_beam_size,
                 prev_logprobs=ens_logprobs)
 
             # in the next iteration, we want to generate one new symbol
@@ -116,12 +126,12 @@ class BeamSearchExecutable(Executable):
             # NOTE Due to the arrays in DecoderState (prev_contexts),
             # we have to create feed for each value separately.
             for field in self._decoder.decoder_state._fields:
-                # We do not feed the step
-                if field == "step":
-                    continue
                 tensor = getattr(self._decoder.decoder_state, field)
-                value = getattr(dec_feedables, field)
-                if isinstance(tensor, list):
+                if field == "step":
+                    value = 1
+                else:
+                    value = getattr(dec_feedables, field)
+                if isinstance(tensor, list) and isinstance(value, list):
                     for t, val in zip(tensor, value):
                         fd.update({t: val})
                 else:
@@ -129,7 +139,7 @@ class BeamSearchExecutable(Executable):
 
             self._next_feed.append(fd)
 
-        if self._token_ids.size == 0:
+        if self._step == 0:
             return
 
         # We assume that we can stop decoding when all tokens
@@ -142,37 +152,42 @@ class BeamSearchExecutable(Executable):
     def prepare_results(self):
         max_time = self._step
 
-        output_tokens = []
-        hyp_idx = np.argpartition(
-            -self._scores[-1], self._rank - 1)[self._rank - 1]
-        bs_score = self._scores[-1][hyp_idx]
-        for time in reversed(range(max_time)):
-            token_id = self._token_ids[time][hyp_idx]
-            token = self._decoder.vocabulary.index_to_word[token_id]
-            output_tokens.append(token)
-            hyp_idx = self._parent_ids[time][hyp_idx]
+        decoded_tokens = []
+        bs_scores = []
+        # We extract last hyp_idx for each sentence in the batch
+        hyp_indices = np.argpartition(
+            -self._scores[-1], self._rank - 1)[:, self._rank - 1]
 
-        output_tokens.reverse()
+        for batch_idx, hyp_idx in enumerate(hyp_indices):
+            output_tokens = []
+            bs_scores.append(self._scores[-1][batch_idx][hyp_idx])
+            for time in reversed(range(max_time)):
+                token_id = self._token_ids[time][batch_idx][hyp_idx]
+                token = self._decoder.vocabulary.index_to_word[token_id]
+                output_tokens.append(token)
+                hyp_idx = self._parent_ids[time][batch_idx][hyp_idx]
 
-        before_eos_tokens = []
-        for tok in output_tokens:
-            if tok == END_TOKEN:
-                break
-            # TODO: investigate why the decoder can start generating
-            # padding before generating the END_TOKEN
-            if tok != PAD_TOKEN:
-                before_eos_tokens.append(tok)
+            output_tokens.reverse()
+
+            before_eos_tokens = []
+            for tok in output_tokens:
+                if tok == END_TOKEN:
+                    break
+                # TODO: investigate why the decoder can start generating
+                # padding before generating the END_TOKEN
+                if tok != PAD_TOKEN:
+                    before_eos_tokens.append(tok)
+
+            decoded_tokens.append(before_eos_tokens)
 
         if self._postprocess is not None:
-            decoded_tokens = self._postprocess([before_eos_tokens])
-        else:
-            decoded_tokens = [before_eos_tokens]
+            decoded_tokens = self._postprocess(decoded_tokens)
 
         # TODO: provide better summaries in case (issue #599)
         # we want to use the runner during training.
         self.result = ExecutionResult(
             outputs=decoded_tokens,
-            losses=[bs_score],
+            losses=[np.mean(bs_scores) * len(bs_scores)],
             scalar_summaries=None,
             histogram_summaries=None,
             image_summaries=None)
