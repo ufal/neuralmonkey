@@ -32,12 +32,6 @@ class BeamSearchExecutable(Executable):
         # Length of the currently sequence decoded so far
         self._step = 0
 
-        # We need to define the np.empty arrays here due to the usage
-        # of np.append later
-        self._scores = np.empty(0)
-        self._parent_ids = np.empty(0)
-        self._token_ids = np.empty(0)
-
         self._next_feed = [{} for _ in range(self._num_sessions)] \
             # type: List[FeedDict]
 
@@ -77,6 +71,7 @@ class BeamSearchExecutable(Executable):
         step_size = bs_outputs.last_dec_loop_state.step - 1
 
         batch_size = bs_outputs.last_search_step_output.scores.shape[1]
+        # pylint: disable=attribute-defined-outside-init
         if self._step == 0:
             self._scores = np.empty(
                 [0, batch_size, self._decoder.beam_size],
@@ -102,6 +97,7 @@ class BeamSearchExecutable(Executable):
             self._token_ids,
             bs_outputs.last_search_step_output.token_ids[0:step_size],
             axis=0)
+        # pylint: enable=attribute-defined-outside-init
 
         if (self._decoder.max_output_len is not None and
                 self._step >= self._decoder.max_output_len):
