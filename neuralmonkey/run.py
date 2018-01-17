@@ -5,9 +5,10 @@ from neuralmonkey.logging import log, log_print
 from neuralmonkey.config.configuration import Configuration
 from neuralmonkey.learning_utils import (evaluation, run_on_dataset,
                                          print_final_evaluation)
+from neuralmonkey.tf_manager import get_default_tf_manager
 
 CONFIG = Configuration()
-CONFIG.add_argument("tf_manager")
+CONFIG.add_argument("tf_manager", required=False, default=None)
 CONFIG.add_argument("output")
 CONFIG.add_argument("postprocess")
 CONFIG.add_argument("evaluation", required=False, default=None)
@@ -100,8 +101,13 @@ def main() -> None:
     test_datasets.load_file(args.datasets)
     test_datasets.build_model()
     datasets_model = test_datasets.model
-    initialize_for_running(CONFIG.model.output, CONFIG.model.tf_manager,
-                           datasets_model.variables)
+
+    tf_manager = CONFIG.model.tf_manager
+    if tf_manager is None:
+        tf_manager = get_default_tf_manager()
+
+    initialize_for_running(
+        CONFIG.model.output, tf_manager, datasets_model.variables)
 
     if args.grid and len(datasets_model.test_datasets) > 1:
         raise ValueError("Only one test dataset supported when using --grid")
@@ -133,8 +139,8 @@ def main() -> None:
             runners_batch_size = CONFIG.model.runners_batch_size
 
         execution_results, output_data = run_on_dataset(
-            CONFIG.model.tf_manager, CONFIG.model.runners,
-            dataset, CONFIG.model.postprocess, write_out=True,
+            tf_manager, CONFIG.model.runners, dataset,
+            CONFIG.model.postprocess, write_out=True,
             batch_size=runners_batch_size, log_progress=60)
 
         if CONFIG.model.evaluation is not None:
@@ -145,5 +151,5 @@ def main() -> None:
             if eval_result:
                 print_final_evaluation(dataset.name, eval_result)
 
-    for _ in range(len(CONFIG.model.tf_manager.sessions)):
-        del CONFIG.model.tf_manager.sessions[0]
+    for _ in range(len(tf_manager.sessions)):
+        del tf_manager.sessions[0]

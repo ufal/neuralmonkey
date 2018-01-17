@@ -301,3 +301,7 @@ def _feed_dicts(dataset, coders, train=False):
         res.update(coder.feed_dict(dataset, train=train))
 
     return res
+
+
+def get_default_tf_manager():
+    return TensorFlowManager(num_sessions=1, num_threads=4)
