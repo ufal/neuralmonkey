@@ -1,5 +1,6 @@
 from typing import Callable, Iterable, List, Optional
 import os
+from typeguard import check_argument_types
 import numpy as np
 from PIL import Image, ImageFile
 ImageFile.LOAD_TRUNCATED_IMAGES = True
@@ -33,6 +34,7 @@ def image_reader(prefix="",
         pad_h x pad_w x number of channels.
     """
 
+    check_argument_types()
     if not rescale_w and not rescale_h and keep_aspect_ratio:
         raise ValueError(
             "It does not make sense to keep the aspect ratio while not "
@@ -83,6 +85,8 @@ def imagenet_reader(prefix: str,
                     target_width: int = 227,
                     target_height: int = 227) -> Callable:
     """Load and prepare image the same way as Caffe scripts."""
+    check_argument_types()
+
     def load(list_files: List[str]) -> Iterable[np.ndarray]:
         for list_file in list_files:
             with open(list_file) as f_list:
