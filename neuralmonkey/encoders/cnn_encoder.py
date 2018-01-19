@@ -1,6 +1,6 @@
 """CNN for image processing."""
 
-from typing import cast, List, Tuple, Set, Union
+from typing import cast, Callable, List, Tuple, Set, Union
 from typeguard import check_argument_types
 
 import numpy as np
@@ -103,94 +103,11 @@ class CNNEncoder(ModelPart, SpatialStatefulWithOutput):
             shape=(None, self.image_height, self.image_width, 1),
             name="input_mask")
 
-    def plain_convolution(
-            self,
-            prev_layer: tf.Tensor,
-            prev_mask: tf.Tensor,
-            specification: ConvSpec,
-            layer_num: int) -> Tuple[tf.Tensor, tf.Tensor, int]:
-        try:
-            check_argument_types()
-        except TypeError:
-            raise ValueError((
-                "Specification of a convolutional layer (number {} in config) "
-                'needs to have 5 members: "C", kernel size, stride, '
-                "padding, output channels, was {}").format(
-                    layer_num, specification))
-        kernel_size, stride, pad, out_channels = specification[1:]
-
-        if pad not in ["same", "valid"]:
-            raise ValueError(
-                ("Padding must be 'same' or 'valid', "
-                 "was '{}' in layer {}.").format(pad, layer_num + 1))
-
-        with tf.variable_scope("layer_{}_convolution".format(layer_num)):
-            next_layer = tf.layers.conv2d(
-                prev_layer, out_channels, kernel_size,
-                activation=None, padding=pad)
-
-            if self.batch_normalize:
-                # pylint: disable=cell-var-from-loop
-                next_layer = tf.layers.batch_normalization(
-                    next_layer, training=self.train_mode)
-                # pylint: enable=cell-var-from-loop
-
-            next_layer = tf.nn.relu(next_layer)
-
-            next_mask = tf.layers.max_pooling2d(
-                prev_mask, kernel_size, stride, padding=pad)
-
-        return next_mask, next_mask, out_channels
-
-    def residual_block(
-            self,
-            prev_layer: tf.Tensor,
-            prev_mask: tf.Tensor,
-            prev_channels: int,
-            specification: ResNetSpec,
-            layer_num: int) -> Tuple[tf.Tensor, tf.Tensor, int]:
-        try:
-            check_argument_types()
-        except TypeError:
-            raise ValueError((
-                "Specification of a residual block (number {} in config) "
-                'needs to have 3 members: "R", kernel size, channels; '
-                "was {}").format(layer_num, specification))
-        if not self.batch_normalize:
-            raise ValueError("Using ResNet blocks requires batch "
-                             "normalization to be turned on.")
-        kernel_size, out_channels = specification[1:]
-
-        with tf.variable_scope("layer_{}_resnet_block".format(layer_num)):
-            if out_channels == prev_channels:
-                before_resnet_block = prev_layer
-            else:
-                with tf.variable_scope("project_input"):
-                    before_resnet_block = tf.layers.conv2d(
-                        prev_layer, out_channels, 1, 1,
-                        "same", activation=None)
-                    before_resnet_block = tf.layers.batch_normalization(
-                        before_resnet_block, training=self.train_mode)
-
-            with tf.variable_scope("conv_a"):
-                after_cnn = tf.layers.batch_normalization(
-                    prev_layer, training=self.train_mode)
-                after_cnn = tf.nn.relu(after_cnn)
-                after_cnn = tf.layers.conv2d(
-                    after_cnn, out_channels, kernel_size,
-                    padding="same", activation=None)
-
-            with tf.variable_scope("conv_b"):
-                after_cnn = tf.layers.batch_normalization(
-                    after_cnn, training=self.train_mode)
-                after_cnn = tf.nn.relu(after_cnn)
-                after_cnn = tf.layers.conv2d(
-                    after_cnn, out_channels, kernel_size,
-                    padding="same", activation=None)
-
-            next_layer = after_cnn + before_resnet_block
-
-        return next_layer, prev_mask, out_channels
+    def batch_norm_callback(self, layer_output: tf.Tensor) -> tf.Tensor:
+        if self.batch_normalize:
+            return tf.layers.batch_normalization(
+                layer_output, training=self.train_mode)
+        return layer_output
 
     @tensor
     def image_processing_layers(self) -> List[Tuple[tf.Tensor, tf.Tensor]]:
@@ -208,9 +125,10 @@ class CNNEncoder(ModelPart, SpatialStatefulWithOutput):
             for i, specification in enumerate(self.convolutions):
                 if specification[0] == "C":
                     (last_layer, last_mask,
-                     last_channels) = self.plain_convolution(
+                     last_channels) = plain_convolution(
                          last_layer, last_mask,
-                         cast(ConvSpec, specification), i)
+                         cast(ConvSpec, specification),
+                         self.batch_norm_callback, i)
                     image_processing_layers.append((last_layer, last_mask))
                 elif specification[0] in ["M", "A"]:
                     last_layer, last_mask = pooling(
@@ -218,10 +136,15 @@ class CNNEncoder(ModelPart, SpatialStatefulWithOutput):
                         cast(MaxPoolSpec, specification), i)
                     image_processing_layers.append((last_layer, last_mask))
                 elif specification[0] == "R":
+                    if not self.batch_normalize:
+                        raise ValueError(
+                            "Using ResNet blocks requires batch normalization "
+                            "to be turned on.")
                     (last_layer, last_mask,
-                     last_channels) = self.residual_block(
+                     last_channels) = residual_block(
                          last_layer, last_mask, last_channels,
-                         cast(ResNetSpec, specification), i)
+                         cast(ResNetSpec, specification),
+                         self.batch_norm_callback, i)
                     image_processing_layers.append((last_layer, last_mask))
                 else:
                     raise ValueError(
@@ -290,6 +213,87 @@ class CNNEncoder(ModelPart, SpatialStatefulWithOutput):
         return f_dict
 
 
+def plain_convolution(
+        prev_layer: tf.Tensor,
+        prev_mask: tf.Tensor,
+        specification: ConvSpec,
+        batch_norm_callback: Callable[[tf.Tensor], tf.Tensor],
+        layer_num: int) -> Tuple[tf.Tensor, tf.Tensor, int]:
+    try:
+        check_argument_types()
+    except TypeError as err:
+        raise ValueError((
+            "Specification of a convolutional layer (number {} in config) "
+            'needs to have 5 members: "C", kernel size, stride, '
+            "padding, output channels, was {}").format(
+                layer_num, specification)) from err
+    kernel_size, stride, pad, out_channels = specification[1:]
+
+    if pad not in ["same", "valid"]:
+        raise ValueError(
+            ("Padding must be 'same' or 'valid', "
+             "was '{}' in layer {}.").format(pad, layer_num + 1))
+
+    with tf.variable_scope("layer_{}_convolution".format(layer_num)):
+        next_layer = tf.layers.conv2d(
+            prev_layer, out_channels, kernel_size,
+            activation=None, padding=pad)
+
+        next_layer = batch_norm_callback(next_layer)
+
+        next_layer = tf.nn.relu(next_layer)
+
+        next_mask = tf.layers.max_pooling2d(
+            prev_mask, kernel_size, stride, padding=pad)
+
+    return next_mask, next_mask, out_channels
+
+
+def residual_block(
+        prev_layer: tf.Tensor,
+        prev_mask: tf.Tensor,
+        prev_channels: int,
+        specification: ResNetSpec,
+        batch_norm_callback: Callable[[tf.Tensor], tf.Tensor],
+        layer_num: int) -> Tuple[tf.Tensor, tf.Tensor, int]:
+    try:
+        check_argument_types()
+    except TypeError as err:
+        raise ValueError((
+            "Specification of a residual block (number {} in config) "
+            'needs to have 3 members: "R", kernel size, channels; '
+            "was {}").format(layer_num, specification)) from err
+    kernel_size, out_channels = specification[1:]
+
+    with tf.variable_scope("layer_{}_resnet_block".format(layer_num)):
+        if out_channels == prev_channels:
+            before_resnet_block = prev_layer
+        else:
+            with tf.variable_scope("project_input"):
+                before_resnet_block = tf.layers.conv2d(
+                    prev_layer, out_channels, 1, 1,
+                    "same", activation=None)
+                before_resnet_block = batch_norm_callback(before_resnet_block)
+
+        with tf.variable_scope("conv_a"):
+            after_cnn = batch_norm_callback(prev_layer)
+            after_cnn = tf.nn.relu(after_cnn)
+            after_cnn = tf.layers.conv2d(
+                after_cnn, out_channels, kernel_size,
+                padding="same", activation=None)
+
+        with tf.variable_scope("conv_b"):
+            after_cnn = batch_norm_callback(after_cnn)
+            after_cnn = tf.nn.relu(after_cnn)
+            after_cnn = tf.layers.conv2d(
+                after_cnn, out_channels, kernel_size,
+                padding="same", activation=None)
+
+        next_layer = after_cnn + before_resnet_block
+
+    return next_layer, prev_mask, out_channels
+
+
 def pooling(
         prev_layer: tf.Tensor,
         prev_mask: tf.Tensor,
@@ -297,11 +301,11 @@ def pooling(
         layer_num: int) -> Tuple[tf.Tensor, tf.Tensor]:
     try:
         check_argument_types()
-    except TypeError:
+    except TypeError as err:
         raise ValueError((
             "Specification of a max-pooling layer (number {} in config) "
             'needs to have 3 members: "M", pool size, stride, padding, '
-            "was {}").format(layer_num, specification))
+            "was {}").format(layer_num, specification)) from err
     pool_type, pool_size, stride, pad = specification
 
     if pool_type == "M":
