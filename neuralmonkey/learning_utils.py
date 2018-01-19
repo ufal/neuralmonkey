@@ -8,6 +8,7 @@ from typing import (Any, Callable, Dict, List, Tuple, Optional, Union,
 
 import time
 import re
+import io
 from datetime import timedelta
 import numpy as np
 import tensorflow as tf
@@ -423,7 +424,13 @@ def run_on_dataset(tf_manager: TensorFlowManager,
             if series_id in dataset.series_outputs:
                 path = dataset.series_outputs[series_id]
                 if isinstance(data, np.ndarray):
-                    np.save(path, data)
+                    with open(path, "wb") as f_out:
+                        if f_out.seekable():
+                            np.save(f_out, data)
+                        else:
+                            buffer = io.BytesIO()
+                            np.save(buffer, data)
+                            f_out.write(buffer.getbuffer())
                     log("Result saved as numpy array to '{}'".format(path))
                 else:
                     with open(path, "w", encoding="utf-8") as f_out:
