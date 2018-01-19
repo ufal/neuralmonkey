@@ -1,6 +1,7 @@
 """Pre-trained ImageNet networks."""
 
-from typing import Optional
+from typing import Callable, NamedTuple, Tuple, Optional
+import sys
 
 from typeguard import check_argument_types
 import numpy as np
@@ -18,42 +19,92 @@ from neuralmonkey.model.model_part import ModelPart, FeedDict, InitializerSpecs
 from neuralmonkey.model.stateful import SpatialStatefulWithOutput
 
 
+ImageNetSpec = NamedTuple(
+    "ImageNetSpec",
+    [("scope", Callable),
+     ("image_size", Tuple[int, int]),
+     ("apply_net", Callable)])
+
+
+# pylint: disable=import-error
+def get_alexnet() -> ImageNetSpec:
+    import nets.alexnet_v2
+    return ImageNetSpec(
+        scope=nets.alexnet.alexnet_v2_arg_scope,
+        image_size=(224, 224),
+        apply_net=lambda image: nets.alexnet.alexnet_v2(
+            image, is_training=False))
+
+
+def get_vgg_by_type(vgg_type: str) -> Callable[[], ImageNetSpec]:
+    def get_vgg() -> ImageNetSpec:
+        import nets.vgg
+        if vgg_type == "vgg16":
+            net_fn = nets.vgg.vgg_16
+        elif vgg_type == "vgg19":
+            net_fn = nets.vgg.vgg_19
+        else:
+            raise ValueError(
+                "Unknown type of VGG net: {}".format(vgg_type))
+
+        return ImageNetSpec(
+            scope=nets.vgg.vgg_arg_scope,
+            image_size=(224, 224),
+            apply_net=lambda image: net_fn(
+                image, is_training=False, dropout_keep_prob=1.0))
+    return get_vgg
+
+
+def get_resnet_by_type(resnet_type: str) -> Callable[[], ImageNetSpec]:
+    def get_resnet() -> ImageNetSpec:
+        import nets.resnet_v2
+        if resnet_type == "resnet_50":
+            net_fn = nets.resnet_v2.resnet_v2_50
+        elif resnet_type == "resnet_101":
+            net_fn = nets.resnet_v2.resnet_v2_101
+        elif resnet_type == "resnet_152":
+            net_fn = nets.resnet_v2.resnet_v2_152
+        else:
+            raise ValueError(
+                "Unknown type of ResNet: {}".format(resnet_type))
+
+        return ImageNetSpec(
+            scope=nets.resnet_v2.resnet_arg_scope,
+            image_size=(229, 229),
+            apply_net=lambda image: net_fn(
+                image, is_training=False, global_pool=False))
+    return get_resnet
+# pylint: enable=import-error
+
+
 SUPPORTED_NETWORKS = {
-    "AlexNet": (
-        tf_slim.nets.alexnet.alexnet_v2_arg_scope, (224, 224),
-        lambda image: tf_slim.nets.alexnet.alexnet_v2(image)),
-    "VGG16": (
-        tf_slim.nets.vgg.vgg_arg_scope, (224, 224),
-        lambda image: tf_slim.nets.vgg.vgg_16(
-            image, is_training=False, dropout_keep_prob=1.0)),
-    "VGG19": (
-        tf_slim.nets.vgg.vgg_arg_scope, (224, 224),
-        lambda image: tf_slim.nets.vgg.vgg_19(
-            image, is_training=False, dropout_keep_prob=1.0)),
-    "ResNet_v2_50": (
-        tf_slim.nets.resnet_v2.resnet_arg_scope, (229, 229),
-        lambda image: tf_slim.nets.resnet_v2.resnet_v2_50(
-            image, is_training=False, global_pool=False)),
-    "ResNet_v2_101": (
-        tf_slim.nets.resnet_v2.resnet_arg_scope, (229, 229),
-        lambda image: tf_slim.nets.resnet_v2.resnet_v2_101(
-            image, is_training=False, global_pool=False)),
-    "ResNet_v2_152": (
-        tf_slim.nets.resnet_v2.resnet_arg_scope, (229, 229),
-        lambda image: tf_slim.nets.resnet_v2.resnet_v2_152(
-            image, is_training=False, global_pool=False)),
+    "AlexNet": get_alexnet,
+    "VGG16": get_vgg_by_type("vgg16"),
+    "VGG19": get_vgg_by_type("vgg19"),
+    "ResNet_50": get_resnet_by_type("resnet_50"),
+    "ResNet_101": get_resnet_by_type("resnet_101"),
+    "ResNet_152": get_resnet_by_type("resnet_152")
 }
 
 
 class ImageNet(ModelPart, SpatialStatefulWithOutput):
-    """Pre-trained ImageNet network."""
+    """Pre-trained ImageNet network.
+
+    We use the ImageNet networks as they are in the tesnorflow/models
+    repository (https://github.com/tensorflow/models). In order use them, you
+    need to clone the repository and configure the ImageNet object such that it
+    has a full path to "research/slim" in the repository.  Visit
+    https://github.com/tensorflow/models/tree/master/research/slim for
+    information about checkpoints of the pre-trained models.
+    """
 
     # pylint: disable=too-many-arguments
     def __init__(self,
                  name: str,
                  data_id: str,
                  network_type: str,
-                 load_checkpoint: str,
+                 slim_models_path: str,
+                 load_checkpoint: str = None,
                  spacial_layer: str = None,
                  encoded_layer: str = None,
                  initializers: InitializerSpecs = None) -> None:
@@ -70,13 +121,15 @@ class ImageNet(ModelPart, SpatialStatefulWithOutput):
             encoded_layer: String id of the network layer that will be used as
                 input of a decoder. `None` means averaging the convolutional
                 maps.
+            path_to_models: Path to Slim models in tensorflow/models
+                repository.
             load_checkpoint: Checkpoint file from which the pre-trained network
                 is loaded.
         """
         check_argument_types()
 
-        ModelPart.__init__(self, name, load_checkpoint, initializers,
-                           save_checkpoint=None)
+        ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
+        sys.path.insert(0, slim_models_path)
 
         self.data_id = data_id
         self.network_type = network_type
@@ -88,10 +141,11 @@ class ImageNet(ModelPart, SpatialStatefulWithOutput):
                 "Network '{}' is not among the supported ones ({})".format(
                     self.network_type, ", ".join(SUPPORTED_NETWORKS.keys())))
 
-        (scope, (self.height, self.width),
-         net_function) = SUPPORTED_NETWORKS[self.network_type]
-        with tf_slim.arg_scope(scope()):
-            _, self.end_points = net_function(self.input_image)
+        net_specification = SUPPORTED_NETWORKS[self.network_type]()
+        self.height, self.width = net_specification.image_size
+
+        with tf_slim.arg_scope(net_specification.scope()):
+            _, self.end_points = net_specification.apply_net(self.input_image)
 
         if (self.spacial_layer is not None and
                 self.spacial_layer not in self.end_points):
