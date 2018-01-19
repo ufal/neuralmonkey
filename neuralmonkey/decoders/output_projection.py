@@ -20,6 +20,7 @@ from typeguard import check_argument_types
 
 from neuralmonkey.nn.projection import multilayer_projection, maxout
 from neuralmonkey.nn.utils import dropout
+from neuralmonkey.tf_utils import get_initializer
 
 
 # pylint: disable=invalid-name
@@ -95,17 +96,20 @@ def nematus_output(
 
         logit_rnn = tf.layers.dense(
             prev_state, output_size,
-            kernel_initializer=tf.glorot_normal_initializer(),
+            kernel_initializer=get_initializer(
+                "rnn_state/kernel", tf.glorot_normal_initializer()),
             name="rnn_state")
 
         logit_emb = tf.layers.dense(
             prev_output, output_size,
-            kernel_initializer=tf.glorot_normal_initializer(),
+            kernel_initializer=get_initializer(
+                "prev_out/kernel", tf.glorot_normal_initializer()),
             name="prev_out")
 
         logit_ctx = tf.layers.dense(
             ctx, output_size,
-            kernel_initializer=tf.glorot_normal_initializer(),
+            kernel_initializer=get_initializer(
+                "context/kernel", tf.glorot_normal_initializer()),
             name="context")
 
         return activation_fn(logit_rnn + logit_emb + logit_ctx)

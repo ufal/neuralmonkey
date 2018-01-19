@@ -4,9 +4,14 @@
 """Small helper functions for TensorFlow."""
 
 import os
+from collections import defaultdict
+from typing import Callable, Dict, Iterable, List, Optional, Set, Tuple, Union
 
 from subprocess import check_output
 from tensorflow.python.client import device_lib as _device_lib
+import tensorflow as tf
+
+from neuralmonkey.logging import debug
 
 
 __HAS_GPU_RESULT = None
@@ -74,3 +79,45 @@ def gpu_memusage() -> str:
                 for e in gpu_list]
 
     return 'MiB:' + ",".join(info)
+
+
+_initializers = {}  # type: Dict[str, Callable]
+_initialized_variables = set()  # type: Set[str]
+
+
+def update_initializers(initializers: Iterable[Tuple[str, Callable]]) -> None:
+    _initializers.update(initializers)
+
+
+def get_initializer(var_name: str,
+                    default: Callable = None) -> Optional[Callable]:
+    """Return the initializer associated with the given variable name."""
+    full_name = tf.get_variable_scope().name + "/" + var_name
+    initializer = _initializers.get(full_name, default)
+    if initializer is not default:
+        debug("Using {} for variable {}".format(initializer, full_name))
+    _initialized_variables.add(full_name)
+    return initializer
+
+
+def get_unused_initializers() -> List[str]:
+    """Return the names of unused initializers."""
+    return [name for name in _initializers
+            if name not in _initialized_variables]
+
+
+def get_variable(name: str,
+                 shape: List[Optional[int]] = None,
+                 dtype: tf.DType = None,
+                 initializer: Callable = None,
+                 *args, **kwargs) -> tf.Variable:
+    """Get an existing variable with these parameters or create a new one.
+
+    This is a wrapper around `tf.get_variable`. The `initializer` parameter is
+    treated as a default which can be overriden by a call to
+    `update_initializers`.
+    """
+    return tf.get_variable(
+        name=name, shape=shape, dtype=dtype,
+        initializer=get_initializer(name, initializer),
+        *args, **kwargs)

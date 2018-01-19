@@ -10,7 +10,7 @@ from tensorflow.contrib.layers import conv2d, max_pool2d
 from neuralmonkey.checking import assert_shape
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.decorators import tensor
-from neuralmonkey.model.model_part import ModelPart, FeedDict
+from neuralmonkey.model.model_part import ModelPart, FeedDict, InitializerSpecs
 from neuralmonkey.model.stateful import SpatialStatefulWithOutput
 from neuralmonkey.nn.projection import multilayer_projection
 
@@ -32,7 +32,8 @@ class CNNEncoder(ModelPart, SpatialStatefulWithOutput):
                  fully_connected: Optional[List[int]] = None,
                  dropout_keep_prob: float = 0.5,
                  save_checkpoint: Optional[str] = None,
-                 load_checkpoint: Optional[str] = None) -> None:
+                 load_checkpoint: Optional[str] = None,
+                 initializers: InitializerSpecs = None) -> None:
         """Initialize a convolutional network for image processing.
 
         Args:
@@ -49,7 +50,8 @@ class CNNEncoder(ModelPart, SpatialStatefulWithOutput):
                 dropout. Dropout is done between all convolutional layers and
                 fully connected layer.
         """
-        ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
+        ModelPart.__init__(self, name, save_checkpoint, load_checkpoint,
+                           initializers)
 
         self.data_id = data_id
         self.dropout_keep_prob = dropout_keep_prob

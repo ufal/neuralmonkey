@@ -7,13 +7,14 @@ import tensorflow as tf
 import numpy as np
 from typeguard import check_argument_types
 
-from neuralmonkey.model.model_part import ModelPart, FeedDict
+from neuralmonkey.model.model_part import ModelPart, FeedDict, InitializerSpecs
 from neuralmonkey.logging import log
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.decorators import tensor
 from neuralmonkey.nn.projection import glu
 from neuralmonkey.model.sequence import EmbeddedSequence
 from neuralmonkey.model.stateful import TemporalStatefulWithOutput
+from neuralmonkey.tf_utils import get_variable
 
 
 class SentenceEncoder(ModelPart, TemporalStatefulWithOutput):
@@ -27,9 +28,11 @@ class SentenceEncoder(ModelPart, TemporalStatefulWithOutput):
                  kernel_width: int = 5,
                  dropout_keep_prob: float = 1.0,
                  save_checkpoint: str = None,
-                 load_checkpoint: str = None) -> None:
+                 load_checkpoint: str = None,
+                 initializers: InitializerSpecs = None) -> None:
         check_argument_types()
-        ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
+        ModelPart.__init__(self, name, save_checkpoint, load_checkpoint,
+                           initializers)
 
         self.input_sequence = input_sequence
         self.encoder_layers = encoder_layers
@@ -77,7 +80,7 @@ class SentenceEncoder(ModelPart, TemporalStatefulWithOutput):
     def order_embeddings(self) -> tf.Tensor:
         # initialization in the same way as in original CS2S implementation
         with tf.variable_scope("input_projection"):
-            return tf.get_variable(
+            return get_variable(
                 "order_embeddings", [self.input_sequence.max_length,
                                      self.input_sequence.embedding_sizes[0]],
                 initializer=tf.glorot_normal_initializer())
@@ -96,13 +99,13 @@ class SentenceEncoder(ModelPart, TemporalStatefulWithOutput):
             # Initialized as described in the paper.
             # Note: this should be equivalent to tf.glorot_normal_initializer
             init_deviat = np.sqrt(4 / self.conv_features)
-            convolution_filters = tf.get_variable(
+            convolution_filters = get_variable(
                 "convolution_filters",
                 [self.kernel_width, self.conv_features,
                  2 * self.conv_features],
                 initializer=tf.random_normal_initializer(stddev=init_deviat))
 
-            bias = tf.get_variable(
+            bias = get_variable(
                 name="conv_bias",
                 shape=[2 * self.conv_features],
                 initializer=tf.zeros_initializer())

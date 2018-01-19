@@ -7,7 +7,7 @@ from neuralmonkey.dataset import Dataset
 from neuralmonkey.encoders.recurrent import RecurrentEncoder
 from neuralmonkey.decoders.decoder import Decoder
 from neuralmonkey.logging import warn
-from neuralmonkey.model.model_part import ModelPart, FeedDict
+from neuralmonkey.model.model_part import ModelPart, FeedDict, InitializerSpecs
 from neuralmonkey.model.sequence import Sequence
 from neuralmonkey.decorators import tensor
 
@@ -22,8 +22,9 @@ class WordAlignmentDecoder(ModelPart):
                  encoder: RecurrentEncoder,
                  decoder: Decoder,
                  data_id: str,
-                 name: str) -> None:
-        ModelPart.__init__(self, name, None, None)
+                 name: str,
+                 initializers: InitializerSpecs = None) -> None:
+        ModelPart.__init__(self, name, None, None, initializers)
 
         self.encoder = encoder
         self.decoder = decoder

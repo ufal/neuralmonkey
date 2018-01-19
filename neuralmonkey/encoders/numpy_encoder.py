@@ -5,8 +5,9 @@ import tensorflow as tf
 
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.decorators import tensor
-from neuralmonkey.model.model_part import ModelPart, FeedDict
+from neuralmonkey.model.model_part import ModelPart, FeedDict, InitializerSpecs
 from neuralmonkey.model.stateful import Stateful, SpatialStatefulWithOutput
+from neuralmonkey.tf_utils import get_variable
 
 
 # pylint: disable=too-few-public-methods
@@ -20,8 +21,10 @@ class VectorEncoder(ModelPart, Stateful):
                  data_id: str,
                  output_shape: int = None,
                  save_checkpoint: str = None,
-                 load_checkpoint: str = None) -> None:
-        ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
+                 load_checkpoint: str = None,
+                 initializers: InitializerSpecs = None) -> None:
+        ModelPart.__init__(self, name, save_checkpoint, load_checkpoint,
+                           initializers)
         check_argument_types()
 
         if dimension <= 0:
@@ -35,10 +38,10 @@ class VectorEncoder(ModelPart, Stateful):
 
         with self.use_scope():
             if output_shape is not None and dimension != output_shape:
-                project_w = tf.get_variable(
+                project_w = get_variable(
                     shape=[dimension, output_shape],
                     name="img_init_proj_W")
-                project_b = tf.get_variable(
+                project_b = get_variable(
                     name="img_init_b", shape=[output_shape],
                     initializer=tf.zeros_initializer())
 
@@ -64,9 +67,11 @@ class PostCNNImageEncoder(ModelPart, SpatialStatefulWithOutput):
                  output_shape: int,
                  data_id: str,
                  save_checkpoint: Optional[str] = None,
-                 load_checkpoint: Optional[str] = None) -> None:
+                 load_checkpoint: Optional[str] = None,
+                 initializers: InitializerSpecs = None) -> None:
         check_argument_types()
-        ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
+        ModelPart.__init__(self, name, save_checkpoint, load_checkpoint,
+                           initializers)
 
         assert len(input_shape) == 3
         if output_shape <= 0:
@@ -84,11 +89,11 @@ class PostCNNImageEncoder(ModelPart, SpatialStatefulWithOutput):
                                        axis=[1, 2],
                                        name="average_image")
 
-            self.project_w = tf.get_variable(
+            self.project_w = get_variable(
                 name="img_init_proj_W",
                 shape=[input_shape[2], output_shape],
                 initializer=tf.glorot_normal_initializer())
-            self.project_b = tf.get_variable(
+            self.project_b = get_variable(
                 name="img_init_b", shape=[output_shape],
                 initializer=tf.zeros_initializer())
 

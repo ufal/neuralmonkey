@@ -23,6 +23,7 @@ from neuralmonkey.model.stateful import Stateful, TemporalStatefulWithOutput
 from neuralmonkey.nn.utils import dropout
 from neuralmonkey.nn.ortho_gru_cell import orthogonal_initializer
 from neuralmonkey.logging import log, warn
+from neuralmonkey.tf_utils import get_initializer
 
 
 # pylint: disable=invalid-name
@@ -135,9 +136,10 @@ def nematus_projection(dropout_keep_prob: float = 1.0) -> EncoderProjection:
             warn("Using nematus projection on nonequal encoder and decoder "
                  "state sizes ({} vs {})".format(encoder_rnn_size, rnn_size))
 
-        return tf.layers.dense(means, rnn_size,
-                               activation=tf.tanh,
-                               kernel_initializer=kernel_initializer,
-                               name="encoders_projection")
+        return tf.layers.dense(
+            means, rnn_size, activation=tf.tanh,
+            kernel_initializer=get_initializer(
+                "encoders_projection/kernel", kernel_initializer),
+            name="encoders_projection")
 
     return cast(EncoderProjection, func)

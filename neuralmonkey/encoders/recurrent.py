@@ -5,7 +5,7 @@ from typeguard import check_argument_types
 
 from neuralmonkey.model.stateful import (
     TemporalStatefulWithOutput, TemporalStateful)
-from neuralmonkey.model.model_part import ModelPart, FeedDict
+from neuralmonkey.model.model_part import ModelPart, FeedDict, InitializerSpecs
 from neuralmonkey.nn.ortho_gru_cell import OrthoGRUCell, NematusGRUCell
 from neuralmonkey.nn.utils import dropout
 from neuralmonkey.vocabulary import Vocabulary
@@ -108,7 +108,8 @@ class RecurrentEncoder(ModelPart, TemporalStatefulWithOutput):
                  rnn_direction: str = "bidirectional",
                  dropout_keep_prob: float = 1.0,
                  save_checkpoint: str = None,
-                 load_checkpoint: str = None) -> None:
+                 load_checkpoint: str = None,
+                 initializers: InitializerSpecs = None) -> None:
         """Create a new instance of a recurrent encoder.
 
         Arguments:
@@ -126,7 +127,8 @@ class RecurrentEncoder(ModelPart, TemporalStatefulWithOutput):
             load_checkpoint: ModelPart load checkpoint file.
         """
         check_argument_types()
-        ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
+        ModelPart.__init__(self, name, save_checkpoint, load_checkpoint,
+                           initializers)
         TemporalStatefulWithOutput.__init__(self)
 
         self.input_sequence = input_sequence
@@ -194,7 +196,9 @@ class SentenceEncoder(RecurrentEncoder):
                  max_input_len: int = None,
                  dropout_keep_prob: float = 1.0,
                  save_checkpoint: str = None,
-                 load_checkpoint: str = None) -> None:
+                 load_checkpoint: str = None,
+                 initializers: InitializerSpecs = None,
+                 embedding_initializer: Callable = None) -> None:
         """Create a new instance of the sentence encoder.
 
         Arguments:
@@ -219,6 +223,10 @@ class SentenceEncoder(RecurrentEncoder):
         check_argument_types()
         s_ckp = "input_{}".format(save_checkpoint) if save_checkpoint else None
         l_ckp = "input_{}".format(load_checkpoint) if load_checkpoint else None
+        input_initializers = []
+        if embedding_initializer is not None:
+            input_initializers.append(
+                ("embedding_matrix_0", embedding_initializer))
 
         # TODO! Representation runner needs this. It is not simple to do it in
         # recurrent encoder since there may be more source data series. The
@@ -233,7 +241,8 @@ class SentenceEncoder(RecurrentEncoder):
             embedding_size=embedding_size,
             max_length=max_input_len,
             save_checkpoint=s_ckp,
-            load_checkpoint=l_ckp)
+            load_checkpoint=l_ckp,
+            initializers=input_initializers)
 
         RecurrentEncoder.__init__(
             self,
@@ -244,7 +253,8 @@ class SentenceEncoder(RecurrentEncoder):
             rnn_direction=rnn_direction,
             dropout_keep_prob=dropout_keep_prob,
             save_checkpoint=save_checkpoint,
-            load_checkpoint=load_checkpoint)
+            load_checkpoint=load_checkpoint,
+            initializers=initializers)
     # pylint: enable=too-many-arguments,too-many-locals
 
 
@@ -261,7 +271,9 @@ class FactoredEncoder(RecurrentEncoder):
                  max_input_len: int = None,
                  dropout_keep_prob: float = 1.0,
                  save_checkpoint: str = None,
-                 load_checkpoint: str = None) -> None:
+                 load_checkpoint: str = None,
+                 initializers: InitializerSpecs = None,
+                 input_initializers: InitializerSpecs = None) -> None:
         """Create a new instance of the factored encoder.
 
         Arguments:
@@ -294,7 +306,8 @@ class FactoredEncoder(RecurrentEncoder):
             embedding_sizes=embedding_sizes,
             max_length=max_input_len,
             save_checkpoint=s_ckp,
-            load_checkpoint=l_ckp)
+            load_checkpoint=l_ckp,
+            initializers=input_initializers)
 
         RecurrentEncoder.__init__(
             self,
@@ -305,7 +318,8 @@ class FactoredEncoder(RecurrentEncoder):
             rnn_direction=rnn_direction,
             dropout_keep_prob=dropout_keep_prob,
             save_checkpoint=save_checkpoint,
-            load_checkpoint=load_checkpoint)
+            load_checkpoint=load_checkpoint,
+            initializers=initializers)
     # pylint: enable=too-many-arguments,too-many-locals
 
 
@@ -322,7 +336,9 @@ class DeepSentenceEncoder(SentenceEncoder):
                  max_input_len: int = None,
                  dropout_keep_prob: float = 1.0,
                  save_checkpoint: str = None,
-                 load_checkpoint: str = None) -> None:
+                 load_checkpoint: str = None,
+                 initializers: InitializerSpecs = None,
+                 embedding_initializer: Callable = None) -> None:
         """Create a new instance of the deep sentence encoder.
 
         Arguments:
@@ -368,7 +384,9 @@ class DeepSentenceEncoder(SentenceEncoder):
             max_input_len=max_input_len,
             dropout_keep_prob=dropout_keep_prob,
             save_checkpoint=save_checkpoint,
-            load_checkpoint=load_checkpoint)
+            load_checkpoint=load_checkpoint,
+            initializers=initializers,
+            embedding_initializer=embedding_initializer)
 
     @tensor
     def rnn(self) -> Tuple[tf.Tensor, tf.Tensor]:

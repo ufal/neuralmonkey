@@ -10,9 +10,11 @@ from typeguard import check_argument_types
 
 from neuralmonkey.attention.base_attention import Attendable
 from neuralmonkey.attention.feed_forward import Attention
+from neuralmonkey.model.model_part import InitializerSpecs
 
 
 class CoverageAttention(Attention):
+    # pylint: disable=too-many-arguments
     def __init__(self,
                  name: str,
                  encoder: Attendable,
@@ -20,10 +22,11 @@ class CoverageAttention(Attention):
                  state_size: int = None,
                  max_fertility: int = 5,
                  save_checkpoint: str = None,
-                 load_checkpoint: str = None) -> None:
+                 load_checkpoint: str = None,
+                 initializers: InitializerSpecs = None) -> None:
         check_argument_types()
         Attention.__init__(self, name, encoder, dropout_keep_prob, state_size,
-                           save_checkpoint, load_checkpoint)
+                           save_checkpoint, load_checkpoint, initializers)
 
         self.max_fertility = max_fertility
 
@@ -34,6 +37,7 @@ class CoverageAttention(Attention):
 
         self.fertility = 1e-8 + self.max_fertility * tf.sigmoid(
             tf.reduce_sum(self.fertility_weights * self.attention_states, [2]))
+    # pylint: enable=too-many-arguments
 
     def get_energies(self, y: tf.Tensor, weights_in_time: tf.TensorArray):
         weight_sum = tf.cond(

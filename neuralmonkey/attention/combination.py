@@ -22,6 +22,8 @@ from neuralmonkey.attention.base_attention import (
     BaseAttention, AttentionLoopStateTA, empty_attention_loop_state,
     get_attention_states, get_attention_mask, Attendable)
 from neuralmonkey.checking import assert_shape
+from neuralmonkey.model.model_part import InitializerSpecs
+from neuralmonkey.tf_utils import get_variable
 
 
 class MultiAttention(BaseAttention):
@@ -34,8 +36,10 @@ class MultiAttention(BaseAttention):
                  share_attn_projections: bool = False,
                  use_sentinels: bool = False,
                  save_checkpoint: str = None,
-                 load_checkpoint: str = None) -> None:
-        BaseAttention.__init__(self, name, save_checkpoint, load_checkpoint)
+                 load_checkpoint: str = None,
+                 initializers: InitializerSpecs = None) -> None:
+        BaseAttention.__init__(self, name, save_checkpoint, load_checkpoint,
+                               initializers)
         self.attentions_in_time = []  # type: List[tf.Tensor]
         self.attention_state_size = attention_state_size
         self._share_projections = share_attn_projections
@@ -44,7 +48,7 @@ class MultiAttention(BaseAttention):
         self.att_scope_name = "attention_{}".format(name)
 
         with self.use_scope():
-            self.attn_v = tf.get_variable(
+            self.attn_v = get_variable(
                 "attn_v", [1, 1, self.attention_state_size],
                 initializer=tf.glorot_normal_initializer())
     # pylint: enable=unused-argument
@@ -71,7 +75,7 @@ class MultiAttention(BaseAttention):
         assert_shape(vector_value, [-1, -1])
 
         with tf.variable_scope("{}_logit".format(scope)):
-            vector_bias = tf.get_variable(
+            vector_bias = get_variable(
                 "vector_bias", [],
                 initializer=tf.zeros_initializer())
 
@@ -107,6 +111,7 @@ class FlatMultiAttention(MultiAttention):
     See equations 8 to 10 in the Attention Combination Strategies paper.
     """
 
+    # pylint: disable=too-many-arguments
     def __init__(self,
                  name: str,
                  encoders: List[Attendable],
@@ -114,7 +119,8 @@ class FlatMultiAttention(MultiAttention):
                  share_attn_projections: bool = False,
                  use_sentinels: bool = False,
                  save_checkpoint: str = None,
-                 load_checkpoint: str = None) -> None:
+                 load_checkpoint: str = None,
+                 initializers: InitializerSpecs = None) -> None:
         check_argument_types()
         MultiAttention.__init__(
             self,
@@ -123,7 +129,8 @@ class FlatMultiAttention(MultiAttention):
             share_attn_projections=share_attn_projections,
             use_sentinels=use_sentinels,
             save_checkpoint=save_checkpoint,
-            load_checkpoint=load_checkpoint)
+            load_checkpoint=load_checkpoint,
+            initializers=initializers)
         self._encoders = encoders
 
         # pylint: disable=protected-access
@@ -143,9 +150,9 @@ class FlatMultiAttention(MultiAttention):
                 self.get_encoder_projections("logits_projections")
 
             self.encoder_attn_biases = [
-                tf.get_variable(name="attn_bias_{}".format(i),
-                                shape=[],
-                                initializer=tf.zeros_initializer())
+                get_variable(name="attn_bias_{}".format(i),
+                             shape=[],
+                             initializer=tf.zeros_initializer())
                 for i in range(len(self._encoders_tensors))]
 
             if self._share_projections:
@@ -160,6 +167,7 @@ class FlatMultiAttention(MultiAttention):
                     tf.ones([tf.shape(self._encoders_masks[0])[0], 1]))
 
             self.masks_concat = tf.concat(self._encoders_masks, 1)
+    # pylint: enable=too-many-arguments
 
     def initial_loop_state(self) -> AttentionLoopStateTA:
         return empty_attention_loop_state()
@@ -171,12 +179,12 @@ class FlatMultiAttention(MultiAttention):
                 encoder_state_size = encoder_tensor.get_shape()[2].value
                 encoder_tensor_shape = tf.shape(encoder_tensor)
 
-                proj_matrix = tf.get_variable(
+                proj_matrix = get_variable(
                     "proj_matrix_{}".format(i),
                     [encoder_state_size, self.attention_state_size],
                     initializer=tf.glorot_normal_initializer())
 
-                proj_bias = tf.get_variable(
+                proj_bias = get_variable(
                     "proj_bias_{}".format(i),
                     shape=[self.attention_state_size],
                     initializer=tf.zeros_initializer())
@@ -317,6 +325,7 @@ class HierarchicalMultiAttention(MultiAttention):
     See equations 6 and 7 in the Attention Combination Strategies paper.
     """
 
+    # pylint: disable=too-many-arguments
     def __init__(self,
                  name: str,
                  attentions: List[BaseAttention],
@@ -324,7 +333,8 @@ class HierarchicalMultiAttention(MultiAttention):
                  use_sentinels: bool,
                  share_attn_projections: bool,
                  save_checkpoint: str = None,
-                 load_checkpoint: str = None) -> None:
+                 load_checkpoint: str = None,
+                 initializers: InitializerSpecs = None) -> None:
         check_argument_types()
         MultiAttention.__init__(
             self,
@@ -333,9 +343,11 @@ class HierarchicalMultiAttention(MultiAttention):
             use_sentinels=use_sentinels,
             share_attn_projections=share_attn_projections,
             save_checkpoint=save_checkpoint,
-            load_checkpoint=load_checkpoint)
+            load_checkpoint=load_checkpoint,
+            initializers=initializers)
 
         self.attentions = attentions
+    # pylint: enable=too-many-arguments
 
     def initial_loop_state(self) -> HierarchicalLoopState:
         return HierarchicalLoopState(

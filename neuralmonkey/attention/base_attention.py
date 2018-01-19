@@ -28,7 +28,7 @@ from typing import NamedTuple, Dict, Optional, Any, Tuple, Union
 import tensorflow as tf
 
 from neuralmonkey.model.stateful import TemporalStateful, SpatialStateful
-from neuralmonkey.model.model_part import ModelPart, FeedDict
+from neuralmonkey.model.model_part import ModelPart, FeedDict, InitializerSpecs
 from neuralmonkey.dataset import Dataset
 
 # pylint: disable=invalid-name
@@ -95,8 +95,10 @@ class BaseAttention(ModelPart):
     def __init__(self,
                  name: str,
                  save_checkpoint: str = None,
-                 load_checkpoint: str = None) -> None:
-        ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
+                 load_checkpoint: str = None,
+                 initializers: InitializerSpecs = None) -> None:
+        ModelPart.__init__(self, name, save_checkpoint, load_checkpoint,
+                           initializers)
 
         self.query_state_size = None  # type: tf.Tensor
         self._histories = {}  # type: Dict[str, tf.Tensor]

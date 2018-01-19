@@ -3,16 +3,18 @@ from typing import cast, Iterable, List, Optional, Union
 import tensorflow as tf
 
 from neuralmonkey.dataset import Dataset
-from neuralmonkey.model.model_part import ModelPart, FeedDict
+from neuralmonkey.model.model_part import ModelPart, FeedDict, InitializerSpecs
 from neuralmonkey.encoders.recurrent import RecurrentEncoder
 from neuralmonkey.encoders.facebook_conv import SentenceEncoder
 from neuralmonkey.vocabulary import Vocabulary
 from neuralmonkey.decorators import tensor
+from neuralmonkey.tf_utils import get_variable
 
 
 class SequenceLabeler(ModelPart):
     """Classifier assing a label to each encoder's state."""
 
+    # pylint: disable=too-many-arguments
     def __init__(self,
                  name: str,
                  encoder: Union[RecurrentEncoder, SentenceEncoder],
@@ -20,8 +22,10 @@ class SequenceLabeler(ModelPart):
                  data_id: str,
                  dropout_keep_prob: float = 1.0,
                  save_checkpoint: Optional[str] = None,
-                 load_checkpoint: Optional[str] = None) -> None:
-        ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
+                 load_checkpoint: Optional[str] = None,
+                 initializers: InitializerSpecs = None) -> None:
+        ModelPart.__init__(self, name, save_checkpoint, load_checkpoint,
+                           initializers)
 
         self.encoder = encoder
         self.vocabulary = vocabulary
@@ -29,6 +33,7 @@ class SequenceLabeler(ModelPart):
         self.dropout_keep_prob = dropout_keep_prob
 
         self.rnn_size = int(self.encoder.temporal_states.get_shape()[-1])
+    # pylint: enable=too-many-arguments
 
     # pylint: disable=no-self-use
     @tensor
@@ -48,14 +53,14 @@ class SequenceLabeler(ModelPart):
 
     @tensor
     def decoding_w(self) -> tf.Variable:
-        return tf.get_variable(
+        return get_variable(
             name="state_to_word_W",
             shape=[self.rnn_size, len(self.vocabulary)],
             initializer=tf.glorot_normal_initializer())
 
     @tensor
     def decoding_b(self) -> tf.Variable:
-        return tf.get_variable(
+        return get_variable(
             name="state_to_word_b",
             shape=[len(self.vocabulary)],
             initializer=tf.zeros_initializer())
@@ -63,7 +68,7 @@ class SequenceLabeler(ModelPart):
     @tensor
     def decoding_residual_w(self) -> tf.Variable:
         input_dim = self.encoder.input_sequence.dimension
-        return tf.get_variable(
+        return get_variable(
             name="emb_to_word_W",
             shape=[input_dim, len(self.vocabulary)],
             initializer=tf.glorot_normal_initializer())

@@ -4,7 +4,7 @@ import tensorflow as tf
 
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.vocabulary import Vocabulary
-from neuralmonkey.model.model_part import ModelPart, FeedDict
+from neuralmonkey.model.model_part import ModelPart, FeedDict, InitializerSpecs
 from neuralmonkey.model.stateful import Stateful
 from neuralmonkey.nn.mlp import MultilayerPerceptron
 from neuralmonkey.decorators import tensor
@@ -27,7 +27,8 @@ class Classifier(ModelPart):
                  activation_fn: Callable[[tf.Tensor], tf.Tensor] = tf.nn.relu,
                  dropout_keep_prob: float = 0.5,
                  save_checkpoint: Optional[str] = None,
-                 load_checkpoint: Optional[str] = None) -> None:
+                 load_checkpoint: Optional[str] = None,
+                 initializers: InitializerSpecs = None) -> None:
         """Construct a new instance of the sequence classifier.
 
         Args:
@@ -44,7 +45,8 @@ class Classifier(ModelPart):
                            hidden layer.
             dropout_keep_prob: Probability of keeping a value during dropout
         """
-        ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
+        ModelPart.__init__(self, name, save_checkpoint, load_checkpoint,
+                           initializers)
 
         self.encoders = encoders
         self.vocabulary = vocabulary

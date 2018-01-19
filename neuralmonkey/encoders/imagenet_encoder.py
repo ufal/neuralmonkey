@@ -15,7 +15,7 @@ import tensorflow.contrib.slim.nets
 from neuralmonkey.logging import warn
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.decorators import tensor
-from neuralmonkey.model.model_part import ModelPart, FeedDict
+from neuralmonkey.model.model_part import ModelPart, FeedDict, InitializerSpecs
 from neuralmonkey.model.stateful import SpatialStatefulWithOutput
 
 
@@ -57,8 +57,9 @@ class ImageNet(ModelPart, SpatialStatefulWithOutput):
                  attention_layer: Optional[str] = None,
                  fine_tune: bool = False,
                  encoded_layer: Optional[str] = None,
+                 save_checkpoint: Optional[str] = None,
                  load_checkpoint: Optional[str] = None,
-                 save_checkpoint: Optional[str] = None) -> None:
+                 initializers: InitializerSpecs = None) -> None:
         """Initialize pre-trained ImageNet network.
 
         Args:
@@ -76,14 +77,15 @@ class ImageNet(ModelPart, SpatialStatefulWithOutput):
             encoded_layer: String id of the network layer that will be used as
                 input of a decoder. `None` means averaging the convolutional
                 maps.
-            load_checkpoint: Checkpoint file from which the pre-trained network
-                is loaded.
             save_checkpoint: Checkpoint file where the encoder is saved after
                 the training. (Makes sense only if `fine_tune` is set to
                 `True`).
+            load_checkpoint: Checkpoint file from which the pre-trained network
+                is loaded.
         """
         check_argument_types()
-        ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
+        ModelPart.__init__(self, name, save_checkpoint, load_checkpoint,
+                           initializers)
 
         if save_checkpoint is not None and not fine_tune:
             warn("The ImageNet network is not fine-tuned and still it is set "

@@ -4,7 +4,7 @@ import tensorflow as tf
 from typeguard import check_argument_types
 
 from neuralmonkey.model.stateful import TemporalStatefulWithOutput
-from neuralmonkey.model.model_part import ModelPart, FeedDict
+from neuralmonkey.model.model_part import ModelPart, FeedDict, InitializerSpecs
 from neuralmonkey.nn.utils import dropout
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.decorators import tensor
@@ -36,10 +36,12 @@ class AttentiveEncoder(ModelPart, TemporalStatefulWithOutput):
                  state_proj_size: int = None,
                  dropout_keep_prob: float = 1.0,
                  save_checkpoint: str = None,
-                 load_checkpoint: str = None) -> None:
+                 load_checkpoint: str = None,
+                 initializers: InitializerSpecs = None) -> None:
         """Initialize an instance of the encoder."""
         check_argument_types()
-        ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
+        ModelPart.__init__(self, name, save_checkpoint, load_checkpoint,
+                           initializers)
 
         self.input_sequence = input_sequence
         self.hidden_size = hidden_size

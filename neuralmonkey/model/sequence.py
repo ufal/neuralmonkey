@@ -7,11 +7,12 @@ import tensorflow as tf
 from tensorflow.contrib.tensorboard.plugins import projector
 from typeguard import check_argument_types
 
-from neuralmonkey.model.model_part import ModelPart, FeedDict
+from neuralmonkey.model.model_part import ModelPart, FeedDict, InitializerSpecs
 from neuralmonkey.model.stateful import TemporalStateful
 from neuralmonkey.vocabulary import Vocabulary
 from neuralmonkey.decorators import tensor
 from neuralmonkey.dataset import Dataset
+from neuralmonkey.tf_utils import get_variable
 
 
 # pylint: disable=abstract-method
@@ -30,7 +31,8 @@ class Sequence(ModelPart, TemporalStateful):
                  name: str,
                  max_length: int = None,
                  save_checkpoint: str = None,
-                 load_checkpoint: str = None) -> None:
+                 load_checkpoint: str = None,
+                 initializers: InitializerSpecs = None) -> None:
         """Construct a new `Sequence` object.
 
         Arguments:
@@ -39,7 +41,8 @@ class Sequence(ModelPart, TemporalStateful):
             save_checkpoint: The save_checkpoint parameter for `ModelPart`
             load_checkpoint: The load_checkpoint parameter for `ModelPart`
         """
-        ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
+        ModelPart.__init__(self, name, save_checkpoint, load_checkpoint,
+                           initializers)
 
         self.max_length = max_length
         if self.max_length is not None and self.max_length <= 0:
@@ -60,7 +63,8 @@ class EmbeddedFactorSequence(Sequence):
                  add_start_symbol: bool = False,
                  add_end_symbol: bool = False,
                  save_checkpoint: str = None,
-                 load_checkpoint: str = None) -> None:
+                 load_checkpoint: str = None,
+                 initializers: InitializerSpecs = None) -> None:
         """Construct a new instance of `EmbeddedFactorSequence`.
 
         Takes three lists of vocabularies, data series IDs, and embedding
@@ -83,7 +87,8 @@ class EmbeddedFactorSequence(Sequence):
         """
         check_argument_types()
         Sequence.__init__(
-            self, name, max_length, save_checkpoint, load_checkpoint)
+            self, name, max_length, save_checkpoint, load_checkpoint,
+            initializers)
 
         self.vocabularies = vocabularies
         self.vocabulary_sizes = [len(vocab) for vocab in self.vocabularies]
@@ -140,7 +145,7 @@ class EmbeddedFactorSequence(Sequence):
         # experiments
 
         return [
-            tf.get_variable(
+            get_variable(
                 name="embedding_matrix_{}".format(i),
                 shape=[vocab_size, emb_size],
                 initializer=tf.glorot_uniform_initializer())
@@ -217,7 +222,8 @@ class EmbeddedSequence(EmbeddedFactorSequence):
                  add_start_symbol: bool = False,
                  add_end_symbol: bool = False,
                  save_checkpoint: str = None,
-                 load_checkpoint: str = None) -> None:
+                 load_checkpoint: str = None,
+                 initializers: InitializerSpecs = None) -> None:
         """Construct a new instance of `EmbeddedSequence`.
 
         Arguments:
@@ -243,7 +249,8 @@ class EmbeddedSequence(EmbeddedFactorSequence):
             add_start_symbol=add_start_symbol,
             add_end_symbol=add_end_symbol,
             save_checkpoint=save_checkpoint,
-            load_checkpoint=load_checkpoint)
+            load_checkpoint=load_checkpoint,
+            initializers=initializers)
     # pylint: enable=too-many-arguments
 
     @property

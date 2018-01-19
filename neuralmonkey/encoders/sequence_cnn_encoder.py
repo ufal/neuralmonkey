@@ -7,10 +7,11 @@ import tensorflow as tf
 
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.decorators import tensor
-from neuralmonkey.model.model_part import ModelPart, FeedDict
+from neuralmonkey.model.model_part import ModelPart, FeedDict, InitializerSpecs
 from neuralmonkey.model.stateful import Stateful
 from neuralmonkey.nn.utils import dropout
 from neuralmonkey.vocabulary import Vocabulary
+from neuralmonkey.tf_utils import get_variable
 
 
 class SequenceCNNEncoder(ModelPart, Stateful):
@@ -26,7 +27,8 @@ class SequenceCNNEncoder(ModelPart, Stateful):
                  max_input_len: Optional[int] = None,
                  dropout_keep_prob: float = 1.0,
                  save_checkpoint: Optional[str] = None,
-                 load_checkpoint: Optional[str] = None) -> None:
+                 load_checkpoint: Optional[str] = None,
+                 initializers: InitializerSpecs = None) -> None:
         """Create a new instance of the CNN sequence encoder.
 
         Based on: Yoon Kim: Convolutional Neural Networks for Sentence
@@ -45,7 +47,8 @@ class SequenceCNNEncoder(ModelPart, Stateful):
                 (default 1.0)
         """
         check_argument_types()
-        ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
+        ModelPart.__init__(self, name, save_checkpoint, load_checkpoint,
+                           initializers)
 
         self.vocabulary = vocabulary
         self.data_id = data_id
@@ -73,7 +76,7 @@ class SequenceCNNEncoder(ModelPart, Stateful):
     @tensor
     def embedded_inputs(self) -> tf.Tensor:
         with tf.variable_scope("input_projection"):
-            embedding_matrix = tf.get_variable(
+            embedding_matrix = get_variable(
                 "word_embeddings",
                 [len(self.vocabulary), self.embedding_size],
                 initializer=tf.glorot_uniform_initializer())
@@ -89,10 +92,10 @@ class SequenceCNNEncoder(ModelPart, Stateful):
             with tf.variable_scope("conv-maxpool-%s" % filter_size):
                 # Convolution Layer
                 filter_shape = [filter_size, self.embedding_size, num_filters]
-                w_filter = tf.get_variable(
+                w_filter = get_variable(
                     "conv_W", filter_shape,
                     initializer=tf.glorot_uniform_initializer())
-                b_filter = tf.get_variable(
+                b_filter = get_variable(
                     "conv_bias", [num_filters],
                     initializer=tf.zeros_initializer())
                 conv = tf.nn.conv1d(

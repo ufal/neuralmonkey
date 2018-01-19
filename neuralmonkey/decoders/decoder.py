@@ -11,6 +11,7 @@ from neuralmonkey.vocabulary import (
     Vocabulary, END_TOKEN_INDEX, PAD_TOKEN_INDEX)
 from neuralmonkey.model.sequence import EmbeddedSequence
 from neuralmonkey.model.stateful import Stateful
+from neuralmonkey.model.model_part import InitializerSpecs
 from neuralmonkey.logging import log, warn
 from neuralmonkey.nn.ortho_gru_cell import OrthoGRUCell, NematusGRUCell
 from neuralmonkey.nn.utils import dropout
@@ -20,6 +21,7 @@ from neuralmonkey.decoders.encoder_projection import (
 from neuralmonkey.decoders.output_projection import (
     OutputProjectionSpec, OutputProjection, nonlinear_output)
 from neuralmonkey.decorators import tensor
+from neuralmonkey.tf_utils import get_variable
 
 
 RNN_CELL_TYPES = {
@@ -67,7 +69,8 @@ class Decoder(AutoregressiveDecoder):
                  rnn_cell: str = "GRU",
                  conditional_gru: bool = False,
                  save_checkpoint: str = None,
-                 load_checkpoint: str = None) -> None:
+                 load_checkpoint: str = None,
+                 initializers: InitializerSpecs = None) -> None:
         """Create a refactored version of monster decoder.
 
         Arguments:
@@ -104,7 +107,8 @@ class Decoder(AutoregressiveDecoder):
             dropout_keep_prob=dropout_keep_prob,
             label_smoothing=label_smoothing,
             save_checkpoint=save_checkpoint,
-            load_checkpoint=load_checkpoint)
+            load_checkpoint=load_checkpoint,
+            initializers=initializers)
 
         self.encoders = encoders
         self.embedding_size = embedding_size
@@ -224,7 +228,7 @@ class Decoder(AutoregressiveDecoder):
         if self.embeddings_source is not None:
             return self.embeddings_source.embedding_matrix
 
-        return tf.get_variable(
+        return get_variable(
             name="word_embeddings",
             shape=[len(self.vocabulary), self.embedding_size],
             initializer=tf.glorot_uniform_initializer())

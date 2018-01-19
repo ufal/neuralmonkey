@@ -14,8 +14,9 @@ import tensorflow as tf
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.decorators import tensor
 from neuralmonkey.logging import log
-from neuralmonkey.model.model_part import ModelPart, FeedDict
+from neuralmonkey.model.model_part import ModelPart, FeedDict, InitializerSpecs
 from neuralmonkey.nn.utils import dropout
+from neuralmonkey.tf_utils import get_variable
 from neuralmonkey.vocabulary import Vocabulary, START_TOKEN
 
 
@@ -70,7 +71,8 @@ class AutoregressiveDecoder(ModelPart):
                  dropout_keep_prob: float = 1.0,
                  label_smoothing: float = None,
                  save_checkpoint: str = None,
-                 load_checkpoint: str = None) -> None:
+                 load_checkpoint: str = None,
+                 initializers: InitializerSpecs = None) -> None:
         """Initialize parameters common for all autoregressive decoders.
 
         Arguments:
@@ -81,7 +83,8 @@ class AutoregressiveDecoder(ModelPart):
             max_output_len: Maximum length of an output sequence.
             dropout_keep_prob: Probability of keeping a value during dropout.
         """
-        ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
+        ModelPart.__init__(self, name, save_checkpoint, load_checkpoint,
+                           initializers)
 
         log("Initializing decoder, name: '{}'".format(name))
 
@@ -117,7 +120,7 @@ class AutoregressiveDecoder(ModelPart):
     @tensor
     def decoding_w(self) -> tf.Variable:
         with tf.name_scope("output_projection"):
-            return tf.get_variable(
+            return get_variable(
                 "logit_matrix",
                 [self.output_dimension, len(self.vocabulary)],
                 initializer=tf.glorot_uniform_initializer())
@@ -125,7 +128,7 @@ class AutoregressiveDecoder(ModelPart):
     @tensor
     def decoding_b(self) -> tf.Variable:
         with tf.name_scope("output_projection"):
-            return tf.get_variable(
+            return get_variable(
                 "logit_bias", [len(self.vocabulary)],
                 initializer=tf.zeros_initializer())
 

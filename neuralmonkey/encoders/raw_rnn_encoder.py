@@ -5,7 +5,7 @@ import tensorflow as tf
 from tensorflow.contrib.rnn import RNNCell
 from typeguard import check_argument_types
 
-from neuralmonkey.model.model_part import ModelPart, FeedDict
+from neuralmonkey.model.model_part import ModelPart, FeedDict, InitializerSpecs
 from neuralmonkey.model.stateful import TemporalStatefulWithOutput
 from neuralmonkey.logging import log
 from neuralmonkey.nn.ortho_gru_cell import OrthoGRUCell
@@ -55,7 +55,8 @@ class RawRNNEncoder(ModelPart, TemporalStatefulWithOutput):
                  max_input_len: Optional[int] = None,
                  dropout_keep_prob: float = 1.0,
                  save_checkpoint: Optional[str] = None,
-                 load_checkpoint: Optional[str] = None) -> None:
+                 load_checkpoint: Optional[str] = None,
+                 initializers: InitializerSpecs = None) -> None:
         """Create a new instance of the encoder.
 
         Arguments:
@@ -70,7 +71,8 @@ class RawRNNEncoder(ModelPart, TemporalStatefulWithOutput):
                 (default 1.0)
         """
         check_argument_types()
-        ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
+        ModelPart.__init__(self, name, save_checkpoint, load_checkpoint,
+                           initializers)
 
         self.data_id = data_id
 
