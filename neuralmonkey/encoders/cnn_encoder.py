@@ -14,9 +14,10 @@ from neuralmonkey.model.stateful import SpatialStatefulWithOutput
 from neuralmonkey.model.stateful import (SpatialStatefulWithOutput,
                                          TemporalStatefulWithOutput)
 from neuralmonkey.nn.projection import multilayer_projection
-from neuralmonkey.nn.ortho_gru_cell import OrthoGRUCell
 
 
+# Tuples used for configuration of the convolutional layers. See docstring of
+# CNNEncoder initialization for more details.
 # pylint: disable=invalid-name
 ConvSpec = Tuple[str, int, int, str, int]
 ResNetSpec = Tuple[str, int, int]
@@ -314,54 +315,28 @@ def max_pooling(
     return next_layer, next_mask
 
 
-class OCREncoder(ModelPart, TemporalStatefulWithOutput):
-    """Apply bidirectionaly RNN over image processing CNN."""
+class CNNTemporalView(ModelPart, TemporalStatefulWithOutput):
+    """Slice the convolutional maps left to right."""
 
     # pylint: disable=too-many-arguments
     def __init__(self,
                  name: str,
                  cnn: CNNEncoder,
-                 rnn_state_size: int,
                  save_checkpoint: Optional[str] = None,
                  load_checkpoint: Optional[str] = None) -> None:
         check_argument_types()
         ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
         self._cnn = cnn
-        self._rnn_state_size = rnn_state_size
     # pylint: enable=too-many-arguments
-
-    @tensor
-    def bidirectional_rnn(self) -> Tuple[Tuple[tf.Tensor, tf.Tensor],
-                                         Tuple[tf.Tensor, tf.Tensor]]:
-        return tf.nn.bidirectional_dynamic_rnn(
-            OrthoGRUCell(self._rnn_state_size),
-            OrthoGRUCell(self._rnn_state_size),
-            self.cnn_temporal_states,
-            sequence_length=self.cnn_lengths,
-            dtype=tf.float32)
-
-    @tensor
-    def states(self) -> tf.Tensor:
-        # pylint: disable=unsubscriptable-object
-        return tf.concat(self.bidirectional_rnn[0], 2)
-        # pylint: enable=unsubscriptable-object
-
-    @tensor
-    def temporal_states(self) -> tf.Tensor:
-        return self.states
 
     @tensor
     def output(self) -> tf.Tensor:
         # pylint: disable=unsubscriptable-object
-        return tf.concat(self.bidirectional_rnn[1], 1)
+        return self._cnn.output
         # pylint: enable=unsubscriptable-object
 
     @tensor
-    def temporal_mask(self) -> tf.Tensor:
-        return self.cnn_temporal_mask
-
-    @tensor
-    def cnn_temporal_states(self):
+    def temporal_states(self):
         states = tf.transpose(self._cnn.spatial_states, perm=[0, 2, 1, 3])
         shape = states.get_shape()
         res = tf.reshape(
@@ -369,14 +344,10 @@ class OCREncoder(ModelPart, TemporalStatefulWithOutput):
         return res
 
     @tensor
-    def cnn_temporal_mask(self) -> tf.Tensor:
+    def temporal_mask(self) -> tf.Tensor:
         mask = tf.squeeze(self._cnn.spatial_mask, 3)
         summed = tf.reduce_sum(mask, axis=1)
         return tf.to_float(tf.greater(summed, 0))
-
-    @tensor
-    def cnn_lengths(self):
-        return tf.to_int32(tf.reduce_sum(self.cnn_temporal_mask, 1))
 
     def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
         return {}
