@@ -1,6 +1,6 @@
 """CNN for image processing."""
 
-from typing import cast, List, Tuple, Optional, Set, Union
+from typing import cast, List, Tuple, Set, Union
 from typeguard import check_argument_types
 
 import numpy as np
@@ -39,11 +39,11 @@ class CNNEncoder(ModelPart, SpatialStatefulWithOutput):
                  data_id: str,
                  convolutions: List[Union[ConvSpec, ResNetSpec, MaxPoolSpec]],
                  image_height: int, image_width: int, pixel_dim: int,
-                 fully_connected: Optional[List[int]] = None,
+                 fully_connected: List[int] = None,
                  batch_normalize: bool = False,
                  dropout_keep_prob: float = 0.5,
-                 save_checkpoint: Optional[str] = None,
-                 load_checkpoint: Optional[str] = None,
+                 save_checkpoint: str = None,
+                 load_checkpoint: str = None,
                  initializers: InitializerSpecs = None) -> None:
         """Initialize a convolutional network for image processing.
 
@@ -52,7 +52,7 @@ class CNNEncoder(ModelPart, SpatialStatefulWithOutput):
         specified using the following tuples.
 
             * convolution: ("C", kernel_size, stride, padding, out_channel);
-            * max pooling: ("M", kernel_size, stride, padding);
+            * max / average pooling: ("M"/"A", kernel_size, stride, padding);
             * residual block: ("R", kernel_size, out_channels).
 
         Padding must be either "valid" or "same".
@@ -212,8 +212,8 @@ class CNNEncoder(ModelPart, SpatialStatefulWithOutput):
                          last_layer, last_mask,
                          cast(ConvSpec, specification), i)
                     image_processing_layers.append((last_layer, last_mask))
-                elif specification[0] == "M":
-                    last_layer, last_mask = max_pooling(
+                elif specification[0] in ["M", "A"]:
+                    last_layer, last_mask = pooling(
                         last_layer, last_mask,
                         cast(MaxPoolSpec, specification), i)
                     image_processing_layers.append((last_layer, last_mask))
@@ -290,7 +290,7 @@ class CNNEncoder(ModelPart, SpatialStatefulWithOutput):
         return f_dict
 
 
-def max_pooling(
+def pooling(
         prev_layer: tf.Tensor,
         prev_mask: tf.Tensor,
         specification: MaxPoolSpec,
@@ -302,7 +302,16 @@ def max_pooling(
             "Specification of a max-pooling layer (number {} in config) "
             'needs to have 3 members: "M", pool size, stride, padding, '
             "was {}").format(layer_num, specification))
-    pool_size, stride, pad = specification[1:]
+    pool_type, pool_size, stride, pad = specification
+
+    if pool_type == "M":
+        pool_fn = tf.layers.max_pooling2d
+    elif pool_type == "A":
+        pool_fn = tf.layers.average_pooling2d
+    else:
+        raise ValueError(
+            ("Unsupported type of pooling: {}, use 'M' for max-pooling or "
+             "'A' for average pooling.").format(pool_type))
 
     if pad not in ["same", "valid"]:
         raise ValueError(
@@ -310,7 +319,7 @@ def max_pooling(
             .format(pad, layer_num + 1))
 
     with tf.variable_scope("layer_{}_max_pool".format(layer_num)):
-        next_layer = tf.layers.max_pooling2d(prev_layer, pool_size, stride)
+        next_layer = pool_fn(prev_layer, pool_size, stride)
         next_mask = tf.layers.max_pooling2d(prev_mask, pool_size, stride)
     return next_layer, next_mask
 
@@ -322,8 +331,8 @@ class CNNTemporalView(ModelPart, TemporalStatefulWithOutput):
     def __init__(self,
                  name: str,
                  cnn: CNNEncoder,
-                 save_checkpoint: Optional[str] = None,
-                 load_checkpoint: Optional[str] = None) -> None:
+                 save_checkpoint: str = None,
+                 load_checkpoint: str = None) -> None:
         check_argument_types()
         ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
         self._cnn = cnn
