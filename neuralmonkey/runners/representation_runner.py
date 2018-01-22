@@ -4,7 +4,6 @@ import tensorflow as tf
 from typeguard import check_argument_types
 
 from neuralmonkey.model.model_part import ModelPart
-from neuralmonkey.model.stateful import Stateful
 from neuralmonkey.runners.base_runner import (
     BaseRunner, Executable, ExecutionResult, NextExecute)
 
@@ -49,26 +48,24 @@ class RepresentationRunner(BaseRunner):
 
     def __init__(self,
                  output_series: str,
-                 encoder: Stateful,
+                 encoder: ModelPart,
+                 attribute: str = "output",
                  used_session: int = 0) -> None:
         """Initialize the representation runner.
 
         Args:
-            output_series: Name of the output seriesi with vectors.
-            encoder: Used encoder.
+            output_series: Name of the output series with vectors.
+            encoder: The encoder to use.
+            attribute: The name of the encoder attribute that contains the
+                data.
             used_session: Id of the TensorFlow session used in case of model
                 ensembles.
         """
         check_argument_types()
-
-        if not isinstance(encoder, ModelPart):
-            raise TypeError("The encoder of the representation runner has to "
-                            "be an instance of 'ModelPart'")
-
         BaseRunner.__init__(self, output_series, cast(ModelPart, encoder))
 
         self._used_session = used_session  # type: int
-        self._encoded = encoder.output  # type: tf.Tensor
+        self._encoded = getattr(encoder, attribute)  # type: tf.Tensor
 
     # pylint: disable=unused-argument
     def get_executable(self,
