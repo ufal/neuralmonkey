@@ -134,7 +134,7 @@ def _rescale_or_crop(image: Image.Image, pad_w: int, pad_h: int,
     if rescale_w and rescale_h and not keep_aspect_ratio:
         image = image.resize((pad_w, pad_h), Image.BILINEAR)
     elif rescale_w and rescale_h and keep_aspect_ratio:
-        ratio = min(pad_h / orig_h, pad_w / orig_h)
+        ratio = min(pad_h / orig_h, pad_w / orig_w)
         image = image.resize((int(orig_w * ratio), int(orig_h * ratio)))
     elif rescale_w and not rescale_h:
         orig_w, orig_h = image.size
