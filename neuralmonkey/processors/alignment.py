@@ -39,8 +39,8 @@ class WordAlignmentPreprocessor(object):
 
         for ali in sentence:
             ids, _, str_weight = ali.partition("/")
-            i, j = map(int, ID_SEP.split(ids))
-            weight = float(str_weight) if str_weight != "" else 1.
+            i, j = [int(id_str) for id_str in ID_SEP.split(ids)]
+            weight = float(str_weight) if str_weight else 1.
 
             if not self._zero_based:
                 i -= 1

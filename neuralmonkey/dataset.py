@@ -265,7 +265,7 @@ class LazyDataset(Dataset):
             src_id, func = self.preprocess_series[name]
             paths, reader = self.series_paths_and_readers[src_id]
             src_series = reader(paths)
-            return map(func, src_series)
+            return [func(item) for item in src_series]
         else:
             raise Exception("Series '{}' is not in the dataset.".format(name))
 
@@ -386,7 +386,8 @@ def load_dataset_from_files(
                         ("The source series ({}) of the '{}' preprocessor "
                          "is not defined in the dataset.").format(
                              src_id, str(function)))
-                series[tgt_id] = list(map(function, series[src_id]))
+                series[tgt_id] = list(
+                    function(item) for item in series[src_id])
 
         dataset = Dataset(name, series, series_outputs)
         log("Dataset length: {}".format(len(dataset)))
