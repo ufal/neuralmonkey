@@ -86,7 +86,7 @@ def _parse_list(string: str, vars_dict: Dict[str, Any]) -> List[Any]:
     """Parse the string recursively as a list."""
 
     matched_content = LIST.match(string).group(1)
-    if matched_content == "":
+    if not matched_content:
         return []
 
     items = _split_on_commas(matched_content)
@@ -137,7 +137,7 @@ def _parse_ini(config_file: Iterable[str],
     """Parse an INI file into a dictionary."""
 
     line_numbers = (line.strip() + " " + str(i + 1)
-                    if line.strip() != "" else ""
+                    if line.strip() else ""
                     for i, line in
                     enumerate(config_file))
     config = configparser.ConfigParser()

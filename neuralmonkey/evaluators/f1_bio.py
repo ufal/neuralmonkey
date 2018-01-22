@@ -29,15 +29,14 @@ class F1Evaluator(object):
                 if s == "B":
                     sid = str(i) + "-"
                     inside_chunk = True
-            else:
-                if s != "I":
-                    sid += str(i - 1)
-                    output.add(sid)
-                    if s == "B":
-                        sid = str(i) + "-"
-                        inside_chunk = True
-                    else:
-                        inside_chunk = False
+            elif s != "I":
+                sid += str(i - 1)
+                output.add(sid)
+                if s == "B":
+                    sid = str(i) + "-"
+                    inside_chunk = True
+                else:
+                    inside_chunk = False
         if inside_chunk:
             sid += str(len(seq) - 1)
             output.add(sid)
