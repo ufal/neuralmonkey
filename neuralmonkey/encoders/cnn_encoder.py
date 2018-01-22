@@ -112,8 +112,8 @@ class CNNEncoder(ModelPart, SpatialStatefulWithOutput):
     def image_processing_layers(self) -> List[Tuple[tf.Tensor, tf.Tensor]]:
         """Do all convolutions and return the last conditional map.
 
-        There is not dropout between the convolutional layers, by
-        default the activation function is ReLU.
+        No dropout is applied between the convolutional layers. By default, the
+        activation function is ReLU.
         """
         last_layer = self.image_input
         last_mask = self.image_mask
@@ -203,10 +203,11 @@ class CNNEncoder(ModelPart, SpatialStatefulWithOutput):
         images = np.array(dataset.get_series(self.data_id))
 
         f_dict = {}
-        f_dict[self.image_input] = images / 225.0
-        # it is one everywhere where non-zero, i.e. zero columns are masked out
-        f_dict[self.image_mask] = np.sum(
-            np.sign(images), axis=3, keepdims=True)
+        f_dict[self.image_input] = images / 255.0
+        # the image mask is one everywhere where the image is non-zero, i.e.
+        # zero pixels are masked out
+        f_dict[self.image_mask] = np.sign(
+            np.sum(images, axis=3, keepdims=True))
 
         f_dict[self.train_mode] = train
         return f_dict
@@ -239,7 +240,6 @@ def plain_convolution(
             activation=None, padding=pad)
 
         next_layer = batch_norm_callback(next_layer)
-
         next_layer = tf.nn.relu(next_layer)
 
         next_mask = tf.layers.max_pooling2d(
