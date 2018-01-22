@@ -10,7 +10,6 @@ from neuralmonkey.checking import assert_shape
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.decorators import tensor
 from neuralmonkey.model.model_part import ModelPart, FeedDict, InitializerSpecs
-from neuralmonkey.model.stateful import SpatialStatefulWithOutput
 from neuralmonkey.model.stateful import (SpatialStatefulWithOutput,
                                          TemporalStatefulWithOutput)
 from neuralmonkey.nn.projection import multilayer_projection
@@ -42,7 +41,6 @@ class CNNEncoder(ModelPart, SpatialStatefulWithOutput):
                  fully_connected: List[int] = None,
                  batch_normalize: bool = False,
                  dropout_keep_prob: float = 0.5,
-                 save_checkpoint: str = None,
                  load_checkpoint: str = None,
                  initializers: InitializerSpecs = None) -> None:
         """Initialize a convolutional network for image processing.
@@ -68,8 +66,9 @@ class CNNEncoder(ModelPart, SpatialStatefulWithOutput):
                 fully connected layer.
         """
         check_argument_types()
-        ModelPart.__init__(self, name, save_checkpoint, load_checkpoint,
-                           initializers)
+        ModelPart.__init__(
+            self, name, save_checkpoint=None, load_checkpoint=load_checkpoint,
+            initializers=initializers)
 
         self.data_id = data_id
         self.dropout_keep_prob = dropout_keep_prob
@@ -334,11 +333,10 @@ class CNNTemporalView(ModelPart, TemporalStatefulWithOutput):
     # pylint: disable=too-many-arguments
     def __init__(self,
                  name: str,
-                 cnn: CNNEncoder,
-                 save_checkpoint: str = None,
-                 load_checkpoint: str = None) -> None:
+                 cnn: CNNEncoder) -> None:
         check_argument_types()
-        ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
+        ModelPart.__init__(
+            self, name, save_checkpoint=None, load_checkpoint=None)
         self._cnn = cnn
     # pylint: enable=too-many-arguments
 
