@@ -6,7 +6,6 @@ from typeguard import check_argument_types
 import numpy as np
 import tensorflow as tf
 
-from neuralmonkey.checking import assert_shape
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.decorators import tensor
 from neuralmonkey.model.model_part import ModelPart, FeedDict, InitializerSpecs
@@ -41,6 +40,7 @@ class CNNEncoder(ModelPart, SpatialStatefulWithOutput):
                  fully_connected: List[int] = None,
                  batch_normalize: bool = False,
                  dropout_keep_prob: float = 0.5,
+                 save_checkpoint: str = None,
                  load_checkpoint: str = None,
                  initializers: InitializerSpecs = None) -> None:
         """Initialize a convolutional network for image processing.
@@ -67,8 +67,7 @@ class CNNEncoder(ModelPart, SpatialStatefulWithOutput):
         """
         check_argument_types()
         ModelPart.__init__(
-            self, name, save_checkpoint=None, load_checkpoint=load_checkpoint,
-            initializers=initializers)
+            self, name, save_checkpoint, load_checkpoint, initializers)
 
         self.data_id = data_id
         self.dropout_keep_prob = dropout_keep_prob
@@ -185,7 +184,6 @@ class CNNEncoder(ModelPart, SpatialStatefulWithOutput):
             # we average out by the image size -> shape is number
             # channels from the last convolution
             encoded = tf.reduce_mean(self.spatial_states, [1, 2])
-            assert_shape(encoded, [None, self.convolutions[-1][1]])
             return encoded
 
         states_flat = tf.reshape(
@@ -245,7 +243,7 @@ def plain_convolution(
         next_mask = tf.layers.max_pooling2d(
             prev_mask, kernel_size, stride, padding=pad)
 
-    return next_mask, next_mask, out_channels
+    return next_layer, next_mask, out_channels
 
 
 def residual_block(
