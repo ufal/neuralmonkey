@@ -7,7 +7,7 @@ from neuralmonkey.model.model_part import ModelPart
 from neuralmonkey.runners.base_runner import (
     Executable, ExecutionResult, NextExecute)
 from neuralmonkey.trainers.optimizers import OptimizerGetter, adam_optimizer
-from neuralmonkey.trainers.lr_decay import DecayFunction
+from neuralmonkey.trainers.lr_decay import DecayFunction, constant_decay
 
 # pylint: disable=invalid-name
 Gradients = List[Tuple[tf.Tensor, tf.Variable]]
@@ -32,7 +32,7 @@ class GenericTrainer(object):
                  clip_norm: float = None,
                  optimizer_getter: OptimizerGetter = adam_optimizer(),
                  global_step: tf.Tensor = None,
-                 decay_function: DecayFunction = None,
+                 decay_function: DecayFunction = constant_decay(),
                  var_scopes: List[str] = None,
                  var_collection: str = None) -> None:
 
@@ -48,17 +48,16 @@ class GenericTrainer(object):
         with tf.name_scope("trainer"):
             if global_step is None:
                 global_step = tf.Variable(
-                    0, trainable=False, name='global_step')
+                    0, trainable=False, name="global_step")
             self.global_step = global_step
 
-            if decay_function is not None:
-                decayed_lr = decay_function(self.global_step)
-                self.optimizer = optimizer_getter(decayed_lr)
-
-                tf.summary.scalar("learning_rate", decayed_lr,
-                                  collections=["summary_train"])
-            else:
-                self.optimizer = optimizer_getter()
+            # type: ignore
+            self.optimizer = optimizer_getter(self.global_step, decay_function)
+            # TODO: avoid accessing private member
+            # pylint: disable=protected-access
+            tf.summary.scalar("learning_rate", self.optimizer._lr,
+                              collections=["summary_train"])
+            # pylint: enable=protected-access
 
             with tf.name_scope("regularization"):
                 regularizable = [v for v in tf.trainable_variables()

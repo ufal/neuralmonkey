@@ -1,8 +1,9 @@
 """Collection of helper functions providing optimizers for trainers"""
-from typing import Union, Callable, Optional, Any
+from typing import Union, Callable, Any
 
 import tensorflow as tf
 from typeguard import check_argument_types
+from neuralmonkey.trainers.lr_decay import DecayFunction, constant_decay
 
 # pylint: disable=invalid-name
 LearningRate = Union[float, tf.Tensor]
@@ -20,9 +21,14 @@ def adam_optimizer(
         use_locking: bool = False) -> OptimizerGetter:
     check_argument_types()
     def get_optimizer(
-            learning_rate: LearningRate = learning_rate) -> tf.train.Optimizer:
-        return tf.train.AdamOptimizer(learning_rate, beta1=beta1, beta2=beta2,
-                                      epsilon=epsilon, use_locking=use_locking)
+            global_step: tf.Tensor = None,
+            lr_decay: DecayFunction = constant_decay()) -> tf.train.Optimizer:
+        return tf.train.AdamOptimizer(
+            learning_rate=(learning_rate * lr_decay(global_step)),
+            beta1=beta1,
+            beta2=beta2,
+            epsilon=epsilon,
+            use_locking=use_locking)
     return get_optimizer
 
 def lazy_adam_optimizer(
@@ -33,9 +39,13 @@ def lazy_adam_optimizer(
         use_locking: bool = False) -> OptimizerGetter:
     check_argument_types()
     def get_optimizer(
-            learning_rate: LearningRate = learning_rate) -> tf.train.Optimizer:
+            global_step: tf.Tensor = None,
+            lr_decay: DecayFunction = constant_decay()) -> tf.train.Optimizer:
         return tf.contrib.opt.LazyAdamOptimizer(
-            learning_rate, beta1=beta1, beta2=beta2, epsilon=epsilon,
+            learning_rate=(learning_rate * lr_decay(global_step)),
+            beta1=beta1,
+            beta2=beta2,
+            epsilon=epsilon,
             use_locking=use_locking)
     return get_optimizer
 
@@ -46,9 +56,12 @@ def adadelta_optimizer(
         use_locking: bool = False) -> OptimizerGetter:
     check_argument_types()
     def get_optimizer(
-            learning_rate: LearningRate = learning_rate) -> tf.train.Optimizer:
+            global_step: tf.Tensor = None,
+            lr_decay: DecayFunction = constant_decay()) -> tf.train.Optimizer:
         return tf.train.AdadeltaOptimizer(
-            learning_rate=learning_rate, rho=rho, epsilon=epsilon,
+            learning_rate=(learning_rate * lr_decay(global_step)),
+            rho=rho,
+            epsilon=epsilon,
             use_locking=use_locking)
     return get_optimizer
 
