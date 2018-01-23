@@ -10,7 +10,7 @@ from neuralmonkey.tf_manager import get_default_tf_manager
 CONFIG = Configuration()
 CONFIG.add_argument("tf_manager", required=False, default=None)
 CONFIG.add_argument("output")
-CONFIG.add_argument("postprocess")
+CONFIG.add_argument("postprocess", required=False, default=None)
 CONFIG.add_argument("evaluation", required=False, default=None)
 CONFIG.add_argument("runners")
 CONFIG.add_argument("batch_size")

@@ -27,7 +27,8 @@ def create_config() -> Configuration:
 
     # training loop arguments
     config.add_argument("tf_manager", required=False, default=None)
-    config.add_argument("epochs", cond=lambda x: x >= 0)
+    config.add_argument("epochs", cond=lambda x: x >= 0, required=False,
+                        default=1)
     config.add_argument("trainer")
     config.add_argument("batch_size", cond=lambda x: x > 0)
     config.add_argument("train_dataset")
@@ -36,8 +37,10 @@ def create_config() -> Configuration:
     config.add_argument("evaluation")
     config.add_argument("runners")
     config.add_argument("test_datasets", required=False, default=[])
-    config.add_argument("logging_period", required=False, default=20)
-    config.add_argument("validation_period", required=False, default=500)
+    config.add_argument("logging_period", cond=lambda x: x > 0,
+                        required=False, default=20)
+    config.add_argument("validation_period", cond=lambda x: x > 0,
+                        required=False, default=500)
     config.add_argument("visualize_embeddings", required=False, default=None)
     config.add_argument("val_preview_input_series",
                         required=False, default=None)
@@ -47,8 +50,9 @@ def create_config() -> Configuration:
                         required=False, default=15)
     config.add_argument("train_start_offset", required=False, default=0)
     config.add_argument("runners_batch_size", required=False, default=None)
-    config.add_argument("postprocess")
-    config.add_argument("name", required=False, default="experiment")
+    config.add_argument("postprocess", required=False, default=None)
+    config.add_argument("name", required=False,
+                        default="Neural Monkey Experiment")
     config.add_argument("random_seed", required=False)
     config.add_argument("initial_variables", required=False, default=None)
     config.add_argument("overwrite_output_dir", required=False, default=False)
