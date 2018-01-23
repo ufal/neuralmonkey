@@ -174,7 +174,7 @@ class TransformerDecoder(AutoregressiveDecoder):
 
         # Residual connections + layer normalization
         ff_input = tf.contrib.layers.layer_norm(
-            encoder_context + self_context, begin_norm_axis=2)
+            encoder_context + encoder_queries, begin_norm_axis=2)
 
         # Feed-forward network hidden layer + ReLU + dropout
         ff_hidden = tf.layers.dense(
