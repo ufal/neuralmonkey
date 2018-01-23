@@ -7,6 +7,8 @@ from neuralmonkey.decoders.output_projection import OutputProjectionSpec
 from neuralmonkey.encoders import SentenceEncoder
 from neuralmonkey.vocabulary import Vocabulary
 
+
+# pylint: disable=too-many-arguments,too-few-public-methods,too-many-locals
 class AttentiveSeq2Seq(object):
 
     def __init__(
