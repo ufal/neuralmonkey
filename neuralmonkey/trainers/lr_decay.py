@@ -1,4 +1,4 @@
-"""Collection of learning rate decay strategies"""
+"""Collection of learning rate decay strategies."""
 from typing import Callable
 import math
 
@@ -11,7 +11,7 @@ DecayFunction = Callable[[tf.Tensor], tf.Tensor]
 
 def transformer_decay(model_dimension: int,
                       warmup_steps: int) -> DecayFunction:
-    """Return decay function as defined in Vaswani et al., 2017, Equation 3
+    """Return decay function as defined in Vaswani et al., 2017, Equation 3.
 
     Arguments:
         model_dimension: Size of the hidden states of decoder and encoder
@@ -29,7 +29,7 @@ def transformer_decay(model_dimension: int,
     return decay_function
 
 def constant_decay(decay_rate: float = 1.0) -> DecayFunction:
-    """Default decay function."""
+    """Return default decay function."""
 
     # pylint: disable=unused-argument
     def decay_function(step: tf.Tensor) -> tf.Tensor:
