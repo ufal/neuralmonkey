@@ -32,7 +32,7 @@ class GenericTrainer(object):
                  clip_norm: float = None,
                  optimizer_getter: OptimizerGetter = adam_optimizer(),
                  global_step: tf.Tensor = None,
-                 decay_function: DecayFunction = constant_decay(),
+                 decay_function: DecayFunction = None,
                  var_scopes: List[str] = None,
                  var_collection: str = None) -> None:
 
@@ -45,13 +45,16 @@ class GenericTrainer(object):
         # Flatten the list of lists
         self.var_list = [var for var_list in var_lists for var in var_list]
 
+        if decay_function is None:
+            decay_function = constant_decay()
+
         with tf.name_scope("trainer"):
             if global_step is None:
                 global_step = tf.Variable(
                     0, trainable=False, name="global_step")
             self.global_step = global_step
 
-            self.optimizer = optimizer_getter( # type: ignore
+            self.optimizer = optimizer_getter(  # type: ignore
                 self.global_step,
                 decay_function)
             # TODO: avoid accessing private member
