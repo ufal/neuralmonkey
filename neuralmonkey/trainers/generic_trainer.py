@@ -51,8 +51,9 @@ class GenericTrainer(object):
                     0, trainable=False, name="global_step")
             self.global_step = global_step
 
-            # type: ignore
-            self.optimizer = optimizer_getter(self.global_step, decay_function)
+            self.optimizer = optimizer_getter( # type: ignore
+                self.global_step,
+                decay_function)
             # TODO: avoid accessing private member
             # pylint: disable=protected-access
             tf.summary.scalar("learning_rate", self.optimizer._lr,
