@@ -17,7 +17,8 @@ from neuralmonkey.decoders.autoregressive import (
     DecoderFeedables)
 from neuralmonkey.encoders.transformer import (
     TransformerLayer, position_signal)
-from neuralmonkey.logging import log
+from neuralmonkey.model.sequence import EmbeddedSequence
+from neuralmonkey.logging import log, warn
 from neuralmonkey.nn.utils import dropout
 from neuralmonkey.vocabulary import (
     Vocabulary, PAD_TOKEN_INDEX, END_TOKEN_INDEX)
@@ -48,6 +49,8 @@ class TransformerDecoder(AutoregressiveDecoder):
                  depth: int,
                  max_output_len: int = None,
                  dropout_keep_prob: float = 1.0,
+                 embedding_size: int = None,
+                 embeddings_source: EmbeddedSequence = None,
                  label_smoothing: float = None,
                  attention_dropout_keep_prob: float = 1.0,
                  save_checkpoint: str = None,
@@ -70,10 +73,26 @@ class TransformerDecoder(AutoregressiveDecoder):
         self.n_heads_enc = n_heads_enc
         self.depth = depth
         self.attention_dropout_keep_prob = attention_dropout_keep_prob
+        self.embedding_size = embedding_size
+        self.embeddings_source = embeddings_source
 
         self.encoder_states = get_attention_states(self.encoder)
         self.encoder_mask = get_attention_mask(self.encoder)
         self.dimension = self.encoder_states.get_shape()[2].value
+
+        if self.embedding_size is None and self.embeddings_source is None:
+            self.embedding_size = self.dimension
+
+        if self.embeddings_source is not None:
+            if self.embedding_size is not None:
+                warn("Overriding the embedding_size parameter with the"
+                     " size of the reused embeddings from the encoder.")
+            self.embedding_size = (
+                self.embeddings_source.embedding_matrix.get_shape()[1].value)
+
+        if self.embedding_size != self.dimension:
+            raise ValueError("Model dimension and input embedding size"
+                             "do not match")
 
         log("Decoder cost op: {}".format(self.cost))
         self._variable_scope.reuse_variables()
@@ -87,9 +106,13 @@ class TransformerDecoder(AutoregressiveDecoder):
     @tensor
     def embedding_matrix(self) -> tf.Variable:
         # TODO better initialization
+        if self.embeddings_source is not None:
+            return self.embeddings_source.embedding_matrix
+
         return tf.get_variable(
-            "word_embeddings", [len(self.vocabulary), self.dimension],
-            initializer=tf.random_uniform_initializer(-0.5, 0.5))
+            name="word_embeddings",
+            shape=[len(self.vocabulary), self.embedding_size],
+            initializer=tf.glorot_uniform_initializer())
 
     def embed_inputs(self, inputs: tf.Tensor) -> tf.Tensor:
         embedded = tf.nn.embedding_lookup(self.embedding_matrix, inputs)
@@ -198,15 +221,25 @@ class TransformerDecoder(AutoregressiveDecoder):
     def train_logits(self) -> tf.Tensor:
         last_layer = self.layer(self.depth, self.embedded_train_inputs,
                                 tf.transpose(self.train_mask))
-        # matmul with output matrix
         # t_states shape: (batch, time, channels)
         # dec_w shape: (channels, vocab)
-        logits_unbiased = tf.nn.conv1d(
-            last_layer.temporal_states, tf.expand_dims(self.decoding_w, 0), 1,
-            "SAME")
+        last_layer_shape = tf.shape(last_layer.temporal_states)
+        last_layer_states = tf.reshape(
+            last_layer.temporal_states,
+            [-1, last_layer_shape[-1]])
 
+        # TODO: Add bias after matmul by embedding_matrix?
+
+        # Reusing input embedding matrix for generating logits
+        # significantly reduces the overall size of the model.
+        # See: https://arxiv.org/pdf/1608.05859.pdf
+        #
         # shape (batch, time, vocab)
-        logits = logits_unbiased + tf.reshape(self.decoding_b, [1, 1, -1])
+        logits = tf.reshape(
+            tf.matmul(
+                last_layer_states,
+                tf.transpose(self.embedding_matrix)),
+            [last_layer_shape[0], last_layer_shape[1], len(self.vocabulary)])
 
         # return logits in time-major shape
         return tf.transpose(logits, perm=[1, 0, 2])
@@ -280,8 +313,10 @@ class TransformerDecoder(AutoregressiveDecoder):
                 # (batch, state_size)
                 output_state = last_layer.temporal_states[:, -1, :]
 
-                logits = tf.matmul(output_state, self.decoding_w)
-                logits += self.decoding_b
+                # See train_logits definition
+                logits = tf.matmul(
+                    output_state,
+                    tf.transpose(self.embedding_matrix))
 
                 if sample:
                     next_symbols = tf.multinomial(logits, num_samples=1)
