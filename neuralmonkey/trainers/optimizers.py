@@ -1,4 +1,4 @@
-"""Collection of helper functions providing optimizers for trainers"""
+"""Collection of helper functions providing optimizers for trainers."""
 from typing import Union, Callable, Any
 
 import tensorflow as tf

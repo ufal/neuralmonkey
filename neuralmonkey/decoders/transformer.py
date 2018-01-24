@@ -18,7 +18,7 @@ from neuralmonkey.decoders.autoregressive import (
 from neuralmonkey.encoders.transformer import (
     TransformerLayer, position_signal)
 from neuralmonkey.model.sequence import EmbeddedSequence
-from neuralmonkey.logging import log, warn
+from neuralmonkey.logging import log
 from neuralmonkey.nn.utils import dropout
 from neuralmonkey.vocabulary import (
     Vocabulary, PAD_TOKEN_INDEX, END_TOKEN_INDEX)
@@ -63,6 +63,8 @@ class TransformerDecoder(AutoregressiveDecoder):
             data_id=data_id,
             max_output_len=max_output_len,
             dropout_keep_prob=dropout_keep_prob,
+            embedding_size=embedding_size,
+            embeddings_source=embeddings_source,
             label_smoothing=label_smoothing,
             save_checkpoint=save_checkpoint,
             load_checkpoint=load_checkpoint)
@@ -73,22 +75,10 @@ class TransformerDecoder(AutoregressiveDecoder):
         self.n_heads_enc = n_heads_enc
         self.depth = depth
         self.attention_dropout_keep_prob = attention_dropout_keep_prob
-        self.embedding_size = embedding_size
-        self.embeddings_source = embeddings_source
 
         self.encoder_states = get_attention_states(self.encoder)
         self.encoder_mask = get_attention_mask(self.encoder)
         self.dimension = self.encoder_states.get_shape()[2].value
-
-        if self.embedding_size is None and self.embeddings_source is None:
-            self.embedding_size = self.dimension
-
-        if self.embeddings_source is not None:
-            if self.embedding_size is not None:
-                warn("Overriding the embedding_size parameter with the"
-                     " size of the reused embeddings from the encoder.")
-            self.embedding_size = (
-                self.embeddings_source.embedding_matrix.get_shape()[1].value)
 
         if self.embedding_size != self.dimension:
             raise ValueError("Model dimension and input embedding size"
@@ -102,17 +92,6 @@ class TransformerDecoder(AutoregressiveDecoder):
     @property
     def output_dimension(self) -> int:
         return self.dimension
-
-    @tensor
-    def embedding_matrix(self) -> tf.Variable:
-        # TODO better initialization
-        if self.embeddings_source is not None:
-            return self.embeddings_source.embedding_matrix
-
-        return tf.get_variable(
-            name="word_embeddings",
-            shape=[len(self.vocabulary), self.embedding_size],
-            initializer=tf.glorot_uniform_initializer())
 
     def embed_inputs(self, inputs: tf.Tensor) -> tf.Tensor:
         embedded = tf.nn.embedding_lookup(self.embedding_matrix, inputs)
