@@ -25,8 +25,8 @@ def transformer_decay(model_dimension: int,
         warmup = tf.to_float(step) * inv_sq3_warmup_steps
         return inv_sq_dim * tf.minimum(inv_sq_step, warmup)
 
-
     return decay_function
+
 
 def constant_decay(decay_rate: float = 1.0) -> DecayFunction:
     """Return default decay function."""

@@ -20,6 +20,7 @@ def adam_optimizer(
         epsilon: float = 1e-08,
         use_locking: bool = False) -> OptimizerGetter:
     check_argument_types()
+
     def get_optimizer(
             global_step: tf.Tensor = None,
             lr_decay: DecayFunction = constant_decay()) -> tf.train.Optimizer:
@@ -31,6 +32,7 @@ def adam_optimizer(
             use_locking=use_locking)
     return get_optimizer
 
+
 def lazy_adam_optimizer(
         learning_rate: float = 1e-4,
         beta1: float = 0.9,
@@ -38,6 +40,7 @@ def lazy_adam_optimizer(
         epsilon: float = 1e-08,
         use_locking: bool = False) -> OptimizerGetter:
     check_argument_types()
+
     def get_optimizer(
             global_step: tf.Tensor = None,
             lr_decay: DecayFunction = constant_decay()) -> tf.train.Optimizer:
@@ -49,12 +52,14 @@ def lazy_adam_optimizer(
             use_locking=use_locking)
     return get_optimizer
 
+
 def adadelta_optimizer(
         learning_rate: float = 0.001,
         rho: float = 0.95,
         epsilon: float = 1e-08,
         use_locking: bool = False) -> OptimizerGetter:
     check_argument_types()
+
     def get_optimizer(
             global_step: tf.Tensor = None,
             lr_decay: DecayFunction = constant_decay()) -> tf.train.Optimizer:

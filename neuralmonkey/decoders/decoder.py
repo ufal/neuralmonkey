@@ -21,7 +21,6 @@ from neuralmonkey.decoders.encoder_projection import (
 from neuralmonkey.decoders.output_projection import (
     OutputProjectionSpec, OutputProjection, nonlinear_output)
 from neuralmonkey.decorators import tensor
-from neuralmonkey.tf_utils import get_variable
 
 
 RNN_CELL_TYPES = {
