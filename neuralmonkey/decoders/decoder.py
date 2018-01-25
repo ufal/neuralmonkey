@@ -73,24 +73,26 @@ class Decoder(AutoregressiveDecoder):
         """Create a refactored version of monster decoder.
 
         Arguments:
-            encoders: Input encoders of the decoder
-            vocabulary: Target vocabulary
-            data_id: Target data series
+            encoders: Input encoders of the decoder.
+            vocabulary: Target vocabulary.
+            data_id: Target data series.
             name: Name of the decoder. Should be unique accross all Neural
-                Monkey objects
-            max_output_len: Maximum length of an output sequence
-            dropout_keep_prob: Probability of keeping a value during dropout
+                Monkey objects.
+            max_output_len: Maximum length of an output sequence.
+            dropout_keep_prob: Probability of keeping a value during dropout.
+            embedding_size: Size of embedding vectors for target words.
+            embeddings_source: Embedded sequence to take embeddings from.
 
         Keyword arguments:
             rnn_size: Size of the decoder hidden state, if None set
                 according to encoders.
             output_projection: How to generate distribution over vocabulary
-                from decoder_outputs
-            encoder_projection: How to construct initial state from encoders
+                from decoder_outputs.
+            encoder_projection: How to construct initial state from encoders.
             attention: The attention object to use. Optional.
-            rnn_cell: RNN Cell used by the decoder (GRU or LSTM)
+            rnn_cell: RNN Cell used by the decoder (GRU or LSTM).
             conditional_gru: Flag whether to use the Conditional GRU
-                architecture
+                architecture.
             attention_on_input: Flag whether attention from previous decoding
                 step should be combined with the input in the next step.
         """

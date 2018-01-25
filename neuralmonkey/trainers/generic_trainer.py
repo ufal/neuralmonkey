@@ -57,10 +57,10 @@ class GenericTrainer(object):
             self.optimizer = optimizer_getter(  # type: ignore
                 self.global_step,
                 decay_function)
-            # TODO: avoid accessing private member
             # pylint: disable=protected-access
-            tf.summary.scalar("learning_rate", self.optimizer._lr,
-                              collections=["summary_train"])
+            if isinstance(self.optimizer._lr, tf.Tensor):
+                tf.summary.scalar("learning_rate", self.optimizer._lr,
+                                  collections=["summary_train"])
             # pylint: enable=protected-access
 
             with tf.name_scope("regularization"):
