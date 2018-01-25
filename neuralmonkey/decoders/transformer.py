@@ -55,6 +55,31 @@ class TransformerDecoder(AutoregressiveDecoder):
                  attention_dropout_keep_prob: float = 1.0,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None) -> None:
+        """Create a decoder of the Transformer model.
+
+        Described in Vaswani et al. (2017), arxiv.org/abs/1706.03762
+
+        Arguments:
+            encoder: Input encoder of the decoder.
+            vocabulary: Target vocabulary.
+            data_id: Target data series.
+            name: Name of the decoder. Should be unique accross all Neural
+                Monkey objects.
+            max_output_len: Maximum length of an output sequence.
+            dropout_keep_prob: Probability of keeping a value during dropout.
+            embedding_size: Size of embedding vectors for target words.
+            embeddings_source: Embedded sequence to take embeddings from.
+
+        Keyword arguments:
+            ff_hidden_size: Size of the feedforward sublayers.
+            n_heads_self: Number of the self-attention heads.
+            n_heads_enc: Number of the attention heads over the encoder.
+            depth: Number of sublayers.
+            label_smoothing: A label smoothing parameter for cross entropy
+                loss computation.
+            attention_dropout_keep_prob: Probability of keeping a value
+                during dropout on the attention output.
+        """
         check_argument_types()
         AutoregressiveDecoder.__init__(
             self,

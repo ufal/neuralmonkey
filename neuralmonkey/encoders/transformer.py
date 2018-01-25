@@ -69,6 +69,23 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
                  attention_dropout_keep_prob: float = 1.0,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None) -> None:
+        """Create an encoder of the Transformer model.
+
+        Described in Vaswani et al. (2017), arxiv.org/abs/1706.03762
+
+        Arguments:
+            input_sequence: Embedded input sequence.
+            name: Name of the decoder. Should be unique accross all Neural
+                Monkey objects.
+            dropout_keep_prob: Probability of keeping a value during dropout.
+
+        Keyword arguments:
+            ff_hidden_size: Size of the feedforward sublayers.
+            n_heads: Number of the self-attention heads.
+            depth: Number of sublayers.
+            attention_dropout_keep_prob: Probability of keeping a value
+                during dropout on the attention output.
+        """
         check_argument_types()
         ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
 
