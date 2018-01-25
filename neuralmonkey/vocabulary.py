@@ -243,43 +243,11 @@ def from_dataset(datasets: List[Dataset], series_ids: List[str], max_size: int,
     return vocabulary
 
 
-def from_bpe(path: str, encoding: str = "utf-8") -> "Vocabulary":
-    """Load a vocabulary from Byte-pair encoding merge list.
-
-    NOTE: The frequencies of words in this vocabulary are not computed from
-    data. Instead, they correspond to the number of times the subword units
-    occurred in the BPE merge list. This means that smaller words will tend to
-    have larger frequencies assigned and therefore the truncation of the
-    vocabulary can be somehow performed (but not without a great deal of
-    thought).
-
-    Arguments:
-        path: File name to load the vocabulary from.
-        encoding: The encoding of the merge file (defaults to UTF-8)
-    """
-    if not os.path.exists(path):
-        raise Exception("BPE file does not exist: {}".format(path))
-
-    vocab = Vocabulary()
-
-    with open(path, encoding=encoding) as f_bpe:
-        for line in f_bpe:
-            pair = line.split()
-            assert len(pair) == 2
-
-            if pair[1].endswith("</w>"):
-                pair[1] = pair[1][:-4]
-            else:
-                pair[1] += "@@"
-
-            vocab.add_word(pair[0] + "@@")
-            vocab.add_word(pair[1])
-            vocab.add_word("".join(pair))
-
-    log("Vocabulary from BPE merges loaded. Size: {} subwords"
-        .format(len(vocab)))
-    vocab.log_sample()
-    return vocab
+# pylint: disable=unused-argument
+def from_bpe(*args, **kwargs) -> "Vocabulary":
+    raise NotImplementedError("Create a vocabulary on the corpus processed "
+                              "by bpe and use loading by from_wordlist")
+# pylint: enable=unused-argument
 
 
 def initialize_vocabulary(directory: str, name: str,
