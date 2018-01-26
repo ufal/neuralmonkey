@@ -243,13 +243,6 @@ def from_dataset(datasets: List[Dataset], series_ids: List[str], max_size: int,
     return vocabulary
 
 
-# pylint: disable=unused-argument
-def from_bpe(*args, **kwargs) -> "Vocabulary":
-    raise NotImplementedError("Create a vocabulary on the corpus processed "
-                              "by bpe and use loading by from_wordlist")
-# pylint: enable=unused-argument
-
-
 def initialize_vocabulary(directory: str, name: str,
                           datasets: List[Dataset] = None,
                           series_ids: List[str] = None,
