@@ -5,8 +5,6 @@ from typeguard import check_argument_types
 
 from neuralmonkey.trainers.generic_trainer import (
     GenericTrainer, Objective, ObjectiveWeight)
-from neuralmonkey.trainers.optimizers import OptimizerGetter, adam_optimizer
-from neuralmonkey.trainers.lr_decay import DecayFunction
 
 
 def xent_objective(decoder, weight=None) -> Objective:
@@ -30,9 +28,7 @@ class CrossEntropyTrainer(GenericTrainer):
                  l1_weight: float = 0.,
                  l2_weight: float = 0.,
                  clip_norm: float = None,
-                 optimizer_getter: OptimizerGetter = adam_optimizer(),
-                 global_step: tf.Tensor = None,
-                 decay_function: DecayFunction = None,
+                 optimizer: tf.train.Optimizer = None,
                  var_scopes: List[str] = None,
                  var_collection: str = None) -> None:
         check_argument_types()
@@ -54,8 +50,6 @@ class CrossEntropyTrainer(GenericTrainer):
             l1_weight=l1_weight,
             l2_weight=l2_weight,
             clip_norm=clip_norm,
-            optimizer_getter=optimizer_getter,
-            global_step=global_step,
-            decay_function=decay_function,
+            optimizer=optimizer,
             var_scopes=var_scopes,
             var_collection=var_collection)
