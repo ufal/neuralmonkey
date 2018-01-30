@@ -87,9 +87,10 @@ class TensorFlowManager(object):
         init_op = tf.global_variables_initializer()
         for sess in self.sessions:
             sess.run(init_op)
-        self.saver = tf.train.Saver(max_to_keep=self.saver_max_to_keep,
+        self.loader = tf.train.Saver(max_to_keep=self.saver_max_to_keep,
                                     var_list=[g for g in tf.global_variables()
-                                              if "reward_" not in g.name])
+                                              if "length_estim" not in g.name])
+        self.saver = tf.train.Saver(max_to_keep=self.saver_max_to_keep)
 
         if variable_files:
             if len(variable_files) != num_sessions:
@@ -271,7 +272,7 @@ class TensorFlowManager(object):
 
         for sess, file_name in zip(self.sessions, variable_files):
             log("Loading variables from {}".format(file_name))
-            self.saver.restore(sess, file_name)
+            self.loader.restore(sess, file_name)
 
     def restore_best_vars(self) -> None:
         # TODO warn when link does not exist
