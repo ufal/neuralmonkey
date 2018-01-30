@@ -312,7 +312,6 @@ the source sentences:
   max_input_len=50
   embedding_size=300
   dropout_keep_prob=0.8
-  attention_type=decoding_function.Attention
   data_id="source"
   name="src_encoder"
   vocabulary=<source_vocabulary>
@@ -338,7 +337,6 @@ The configuration of the second encoder follows:
   max_input_len=50
   embedding_size=300
   dropout_keep_prob=0.8
-  attention_type=decoding_function.Attention
   data_id="translated"
   name="trans_encoder"
   vocabulary=<target_vocabulary>
@@ -347,6 +345,27 @@ The configuration of the second encoder follows:
 This config creates a second encoder for the ``translated`` data series. The
 setting is the same as for the first encoder, except for the different
 vocabulary and name.
+
+To be able to use the attention mechanism, we need to define the attention
+components for each encoder we want to process. In our tutorial, we use
+attention over both of the encoders:
+
+.. code-block:: ini
+
+  [src_attention]
+  class=attention.Attention
+  name="attention_src_encoder"
+  encoder=<src_encoder>
+  dropout_keep_prob=0.8
+  state_size=300
+
+  [trans_attention]
+  class=attention.Attention
+  name="attention_trans_encoder"
+  encoder=<trans_encoder>
+  dropout_keep_prob=0.8
+  state_size=300
+.. TUTCHECK exp-nm-ape/post-edit.ini
 
 
 4 - Decoder
@@ -361,11 +380,11 @@ decoder. Without further ado, here it goes:
   class=decoders.decoder.Decoder
   name="decoder"
   encoders=[<trans_encoder>, <src_encoder>]
+  attentions=[<trans_attention>, <src_attention>]
   rnn_size=300
   max_output_len=50
-  embeddings_encoder=<trans_encoder>
+  embeddings_source=<trans_encoder.input_sequence>
   dropout_keep_prob=0.8
-  use_attention=True
   data_id="edits"
   vocabulary=<target_vocabulary>
 .. TUTCHECK exp-nm-ape/post-edit.ini
@@ -373,18 +392,21 @@ decoder. Without further ado, here it goes:
 As in the case of encoders, the decoder needs its RNN and embedding size
 settings, maximum output length, dropout parameter, and vocabulary settings.
 
-The outputs of the individual encoders are by default simply concatenated
-and projected to the decoder hidden state (of ``rnn_size``). Internally,
-the code is ready to support arbitrary mappings by adding one more parameter
-here: ``encoder_projection``.
+The outputs of the individual encoders are by default simply concatenated and
+projected to the decoder hidden state (of ``rnn_size``). Internally, the code
+is ready to support arbitrary mappings by adding one more parameter here:
+``encoder_projection``. For an additional view on the encoders, we use the two
+attention mechanism objects defined in the previous section.
 
 Note that you may set ``rnn_size`` to ``None``. Neural Monkey will then directly
 use the concatenation of encoder states without any mapping. This is particularly
 useful when you have just one encoder as in MT.
 
-The line ``embeddings_encoder=<trans_encoder>`` means that the embeddings (including
-embedding size) are shared with ``trans_encoder``.
-
+The line ``embeddings_encoder=<trans_encoder.input_sequence>`` means that the
+embeddings (including embedding size) are to be shared with the input sequence
+object of the ``trans_encoder`` (the input sequence object is an underlying
+structure that manages the input layer of an encoder and, in case of
+``SentenceEncoder``, provides access to the word embeddings.
 
 The loss of the decoder is computed
 against the ``edits`` data series of whatever dataset the decoder will be
