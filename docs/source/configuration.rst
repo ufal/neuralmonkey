@@ -72,12 +72,12 @@ For example:
   drop_keep_p=0.5
   output_dir="{parent_dir}/test_drop{drop_keep_p:.2f}"
   prefix="my"
- 
+
   [main]
   output=$output_dir
- 
+
   ...
-  
+
   [encoder]
   name="{prefix}_encoder"
   dropout_keep_prob=$drop_keep_p
@@ -157,21 +157,6 @@ You can also restrict TensorFlow to use only a fixed proportion of GPU memory:
   per_process_gpu_memory_fraction=0.65
 
 This parameter tells TensorFlow to use only 65% of GPU memory.
-
-With the default ``gpu_allow_growth=True``, it makes sense to monitor memory
-consumption. Neural Monkey can include a short summary total GPU memory used
-in the periodic log line. Just set:
-
-.. code-block:: ini
-
-  report_gpu_memory_consumption=True
-
-The log line will then contain the information like:
-``MiB:0:7971/8113,1:4283/8113``. This particular message means that there are
-two GPU cards and the one indexed 1 has 4283 out of the total 8113 MiB
-occupied. Note that the information reports all GPUs on the machine, regardless
-``CUDA_VISIBLE_DEVICES``.
-
 
 Training on CPUs
 ----------------
