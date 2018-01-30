@@ -70,6 +70,11 @@ class ModelPart(metaclass=ABCMeta):
                 *(enc.get_dependencies()
                   for enc in getattr(self, "encoders")
                   if isinstance(enc, ModelPart)))
+            to_return = to_return.union(
+                *(getattr(enc, "_blocked_object").get_dependencies()
+                  for enc in getattr(self, "encoders")
+                  if hasattr(enc, "_blocked_object")
+                  and isinstance(getattr(enc, "_blocked_object"), ModelPart)))
 
         if hasattr(self, "encoder"):
             enc = getattr(self, "encoder")
