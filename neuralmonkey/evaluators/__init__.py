@@ -5,6 +5,7 @@ from .bleu import BLEU1, BLEU4, BLEU, BLEUEvaluator
 from .chrf import ChrF3, ChrFEvaluator
 from .edit_distance import EditDistance, EditDistanceEvaluator
 from .f1_bio import BIOF1Score, F1Evaluator
+from .gauss_density import GaussDensity
 from .gleu import GLEUEvaluator
 from .mse import MSE, MeanSquaredErrorEvaluator
 from .multeval import MultEvalWrapper

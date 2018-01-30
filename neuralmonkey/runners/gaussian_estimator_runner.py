@@ -1,4 +1,4 @@
-from typing import Dict, List, Callable, Set, cast
+from typing import Dict, List, Set, cast
 
 import numpy as np
 import tensorflow as tf
@@ -21,7 +21,8 @@ class GaussianEstimatorRunner(BaseRunner):
 
     def get_executable(self,
                        compute_losses: bool = False,
-                       summaries: bool = True) -> Executable:
+                       summaries: bool = True,
+                       num_sessions: int = 1) -> Executable:
         decoder = cast(GaussianEstimator, self._decoder)
 
         if compute_losses:
@@ -32,7 +33,8 @@ class GaussianEstimatorRunner(BaseRunner):
         fetches["mean"] = decoder.distribution.mean()
         fetches["stddev"] = decoder.distribution.stddev()
 
-        return GaussianEstimatorRunExecutable(self.all_coders, fetches)
+        return GaussianEstimatorRunExecutable(
+            self.all_coders, fetches, num_sessions)
 
     @property
     def loss_names(self) -> List[str]:
@@ -43,15 +45,17 @@ class GaussianEstimatorRunExecutable(Executable):
 
     def __init__(self,
                  all_coders: Set[ModelPart],
-                 fetches: Dict[str, tf.Tensor]) -> None:
+                 fetches: Dict[str, tf.Tensor],
+                 num_sessions: int) -> None:
 
         self.all_coders = all_coders
         self._fetches = fetches
+        self._num_sessions = num_sessions
         self.result = None  # type: ExecutionResult
 
     def next_to_execute(self) -> NextExecute:
-        """Get the feedables and tensors to run."""
-        return self.all_coders, self._fetches, {}
+        return (self.all_coders, self._fetches,
+                [{} for _ in range(self._num_sessions)])
 
     def collect_results(self, results: List[Dict]) -> None:
         means_sum = np.zeros_like(results[0]["mean"])
@@ -68,11 +72,11 @@ class GaussianEstimatorRunExecutable(Executable):
         means = means_sum / len(results)
         stddevs = stddevs_sum / len(results)
 
-        formatted_output = ["{:.4g} +/- {:.4g}".format(m, s)
-                            for m, s in zip(means, stddevs)]
+        # formatted_output = ["{:.4g} +/- {:.4g}".format(m, s)
+        #                     for m, s in zip(means, stddevs)]
 
         self.result = ExecutionResult(
-            outputs=formatted_output,
+            outputs=list(zip(means, stddevs)),
             losses=[neg_density_loss],
             scalar_summaries=None,
             histogram_summaries=None,

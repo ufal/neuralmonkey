@@ -5,3 +5,4 @@ from .ctc_decoder import CTCDecoder
 from .decoder import Decoder
 from .sequence_labeler import SequenceLabeler
 from .word_alignment_decoder import WordAlignmentDecoder
+from .gaussian_estimator import GaussianEstimator

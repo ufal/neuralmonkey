@@ -24,7 +24,7 @@ class GaussianEstimator(ModelPart):
                  encoder_signal_size: int,
                  data_id: str,
                  encoder_projection: EncoderProjection = None,
-                 dropout_keep_prob: float = 0.9,
+                 dropout_keep_prob: float = 1.0,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None) -> None:
         """Initialize Gaussian scalar estimator.
