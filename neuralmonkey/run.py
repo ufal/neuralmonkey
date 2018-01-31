@@ -93,7 +93,7 @@ def main() -> None:
 
     test_datasets = Configuration()
     test_datasets.add_argument("test_datasets")
-    test_datasets.add_argument("variables")
+    test_datasets.add_argument("variables", cond=lambda x: isinstance(x, list))
 
     CONFIG.load_file(args.config)
     CONFIG.build_model()
