@@ -19,7 +19,6 @@ from neuralmonkey.dataset import Dataset, LazyDataset
 from neuralmonkey.tf_manager import TensorFlowManager
 from neuralmonkey.runners.base_runner import BaseRunner, ExecutionResult
 from neuralmonkey.trainers.generic_trainer import GenericTrainer
-from neuralmonkey.tf_utils import gpu_memusage
 
 # pylint: disable=invalid-name
 Evaluation = Dict[str, float]
@@ -106,9 +105,6 @@ def training_loop(tf_manager: TensorFlowManager,
 
     _log_model_variables(var_list=trainer.var_list)
 
-    if tf_manager.report_gpu_memory_consumption:
-        log("GPU memory usage: {}".format(gpu_memusage()))
-
     if runners_batch_size is None:
         runners_batch_size = batch_size
 
@@ -187,7 +183,7 @@ def training_loop(tf_manager: TensorFlowManager,
                         train_results, train_outputs)
 
                     _log_continuous_evaluation(
-                        tb_writer, tf_manager, main_metric, train_evaluation,
+                        tb_writer, main_metric, train_evaluation,
                         seen_instances, epoch_n, epochs, trainer_result,
                         train=True)
                     last_log_time = time.process_time()
@@ -259,7 +255,7 @@ def training_loop(tf_manager: TensorFlowManager,
                         else:
                             valset_name = None
                         _log_continuous_evaluation(
-                            tb_writer, tf_manager, main_metric, val_evaluation,
+                            tb_writer, main_metric, val_evaluation,
                             seen_instances, epoch_n, epochs, val_results,
                             train=False, dataset_name=valset_name)
 
@@ -473,7 +469,6 @@ def evaluation(evaluators, dataset, runners, execution_results, result_data):
 
 
 def _log_continuous_evaluation(tb_writer: tf.summary.FileWriter,
-                               tf_manager: TensorFlowManager,
                                main_metric: str,
                                eval_result: Evaluation,
                                seen_instances: int,
@@ -489,16 +484,10 @@ def _log_continuous_evaluation(tb_writer: tf.summary.FileWriter,
     if dataset_name is not None:
         prefix += "_" + dataset_name
 
-    if tf_manager.report_gpu_memory_consumption:
-        meminfostr = "  " + gpu_memusage()
-    else:
-        meminfostr = ""
-
     eval_string = _format_evaluation_line(eval_result, main_metric)
     eval_string = "Epoch {}/{}  Instances {}  {}".format(epoch, max_epochs,
                                                          seen_instances,
                                                          eval_string)
-    eval_string = eval_string + meminfostr
     log(eval_string, color=color)
 
     if tb_writer:

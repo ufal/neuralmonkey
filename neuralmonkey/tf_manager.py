@@ -44,7 +44,6 @@ class TensorFlowManager(object):
                  variable_files: Optional[List[str]] = None,
                  gpu_allow_growth: bool = True,
                  per_process_gpu_memory_fraction: float = 1.0,
-                 report_gpu_memory_consumption: bool = False,
                  enable_tf_debug: bool = False) -> None:
         """Initialize a TensorflowManager.
 
@@ -61,8 +60,6 @@ class TensorFlowManager(object):
             variable_files: List of variable files.
             gpu_allow_growth: TF to allocate incrementally, not all at once.
             per_process_gpu_memory_fraction: Limit TF memory use.
-            report_gpu_memory_consumption: Report overall GPU memory at every
-                logging
         """
         check_argument_types()
 
@@ -74,7 +71,6 @@ class TensorFlowManager(object):
         session_cfg.gpu_options.allow_growth = gpu_allow_growth
         session_cfg.gpu_options.per_process_gpu_memory_fraction = \
             per_process_gpu_memory_fraction
-        self.report_gpu_memory_consumption = report_gpu_memory_consumption
 
         if save_n_best < 1:
             raise Exception("save_n_best parameter must be greater than zero")
