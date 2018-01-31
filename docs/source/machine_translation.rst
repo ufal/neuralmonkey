@@ -191,18 +191,24 @@ The encoder and decored are similar to those from
   max_input_len=50
   embedding_size=300
   dropout_keep_prob=0.8
-  attention_type=decoding_function.Attention
   data_id="source_bpe"
   vocabulary=<shared_vocabulary>
+
+  [attention]
+  class=attentions.Attention
+  name="att_sent_enc"
+  encoder=<encoder>
+  state_size=300
+  dropout_keep_prob=0.8
 
   [decoder]
   class=decoders.decoder.Decoder
   name="decoder"
   encoders=[<encoder>]
+  attentions=[<attention>]
   rnn_size=256
   embedding_size=300
   dropout_keep_prob=0.8
-  use_attention=True
   data_id="target_bpe"
   vocabulary=<shared_vocabulary>
   max_output_len=50
@@ -265,7 +271,7 @@ As for the main configuration section do not forget to add BPE postprocessing:
 Part III. - Running and Evaluation of the Experiment
 ----------------------------------------------------
 
-1 - Training 
+1 - Training
 *********************
 
 The training can be run as simply as:
@@ -273,14 +279,14 @@ The training can be run as simply as:
 .. code-block:: bash
 
   bin/neuralmonkey-train exp-nm-mt/translation.ini
-  
+
 2 - Resuming Training
 *********************
 
 If training stopped and you want to resume it, you can load pre-trained parameters by specifying the ``initial_variables`` of the model in the [main] section:
 
 .. code-block:: ini
-  
+
   [main]
   initial_variables=/path/to/variables.data
 
