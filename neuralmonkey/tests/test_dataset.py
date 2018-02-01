@@ -1,9 +1,11 @@
 #!/usr/bin/env python3.5
 
 from typing import Iterable, List
+import os
+import tempfile
 import unittest
 
-from neuralmonkey.dataset import LazyDataset
+from neuralmonkey.dataset import LazyDataset, from_files
 from neuralmonkey.readers.plain_text_reader import UtfPlainTextReader
 
 
@@ -36,6 +38,20 @@ class TestDataset(unittest.TestCase):
         for j, _ in enumerate(series):
             self.assertEqual(i, j)
         self.assertEqual(i, 9)
+
+    def test_glob(self):
+        filenames = sorted(["abc1", "abc2", "abcxx", "xyz"])
+        contents = ["a", "b", "c", "d"]
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            for fname, text in zip(filenames, contents):
+                with open(os.path.join(tmp_dir, fname), "w") as file:
+                    print(text, file=file)
+
+            dataset = from_files(
+                s_data=[os.path.join(tmp_dir, "abc?"),
+                        os.path.join(tmp_dir, "xyz*")])
+
+            self.assertEqual(dataset.get_series("data"), [["a"], ["b"], ["d"]])
 
 
 if __name__ == "__main__":
