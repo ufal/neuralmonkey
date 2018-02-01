@@ -15,7 +15,17 @@ from neuralmonkey.readers.plain_text_reader import UtfPlainTextReader
 
 # pylint: disable=invalid-name
 Reader = Callable[[List[str]], Any]
+ReaderDef = Union[str, List[str],
+                  Tuple[str, Reader], Tuple[List[str], Reader]]
+DatasetPreprocess = Callable[["Dataset"], Iterable[Any]]
+DatasetPostprocess = Callable[["Dataset", Dict[str, Iterable[Any]]],
+                              Iterable[Any]]
+SeriesConfig = Dict[str, Union[ReaderDef, DatasetPreprocess]]
 # pylint: enable=invalid-name
+
+SERIES_SOURCE = re.compile("s_([^_]*)$")
+SERIES_OUTPUT = re.compile("s_(.*)_out")
+PREPROCESSED_SERIES = re.compile("pre_([^_]*)$")
 
 
 class Dataset(collections.Sized):
@@ -307,21 +317,12 @@ class LazyDataset(Dataset):
         return Dataset(subset_name, subset_series, subset_outputs)
 
 
-# pylint: disable=invalid-name
-DatasetPreprocess = Callable[[Dataset], Iterable[Any]]
-DatasetPostprocess = Callable[[Dataset, Dict[str, Iterable[Any]]],
-                              Iterable[Any]]
-ReaderDef = Union[str, List[str],
-                  Tuple[str, Reader], Tuple[List[str], Reader]]
-SeriesConfig = Dict[str, Union[ReaderDef, DatasetPreprocess]]
-# pylint: enable=invalid-name
-
-SERIES_SOURCE = re.compile("s_([^_]*)$")
-SERIES_OUTPUT = re.compile("s_(.*)_out")
-PREPROCESSED_SERIES = re.compile("pre_([^_]*)$")
+def load_dataset_from_files(*args, **kwargs) -> Dataset:
+    """Compatibility method, see docstring for from_files."""
+    return from_files(*args, **kwargs)
 
 
-def load_dataset_from_files(
+def from_files(
         name: str = None, lazy: bool = False,
         preprocessors: List[Tuple[str, str, Callable]] = None,
         **kwargs) -> Dataset:
