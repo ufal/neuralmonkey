@@ -3,6 +3,7 @@
 import os
 import random
 import re
+import glob
 import collections
 
 from typing import cast, Any, List, Callable, Iterable, Dict, Tuple, Union
@@ -10,7 +11,7 @@ from typing import cast, Any, List, Callable, Iterable, Dict, Tuple, Union
 import numpy as np
 from typeguard import check_argument_types
 
-from neuralmonkey.logging import log
+from neuralmonkey.logging import log, debug
 from neuralmonkey.readers.plain_text_reader import UtfPlainTextReader
 
 # pylint: disable=invalid-name
@@ -440,13 +441,19 @@ def _get_series_paths_and_readers(
         value = cast(ReaderDef, series_config[key])
 
         if isinstance(value, tuple):
-            paths, reader = value  # type: ignore
+            patterns, reader = value  # type: ignore
         else:
-            paths = value
+            patterns = value
             reader = UtfPlainTextReader
 
-        if isinstance(paths, str):
-            paths = [paths]
+        if isinstance(patterns, str):
+            patterns = [patterns]
+
+        paths = []
+        for pattern in patterns:
+            paths.extend(sorted(glob.glob(pattern)))
+
+        debug("Series '{}' has the following files: {}".format(name, paths))
 
         series_sources[name] = (paths, reader)
 
