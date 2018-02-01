@@ -5,6 +5,7 @@ import tensorflow as tf
 
 from typeguard import check_argument_types
 from neuralmonkey.decoders.gaussian_estimator import GaussianEstimator
+from neuralmonkey.logging import log
 from neuralmonkey.model.model_part import ModelPart
 from neuralmonkey.runners.base_runner import (BaseRunner, Executable,
                                               ExecutionResult, NextExecute)
@@ -18,6 +19,7 @@ class GaussianEstimatorRunner(BaseRunner):
                  decoder: GaussianEstimator) -> None:
         check_argument_types()
         BaseRunner.__init__(self, output_series, decoder)
+        log("Decoder cost: {}".format(decoder.cost))
 
     def get_executable(self,
                        compute_losses: bool = False,
