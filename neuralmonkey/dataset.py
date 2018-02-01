@@ -426,6 +426,9 @@ def _get_series_paths_and_readers(
     paths, or a tuple whose first member is a path or a list of paths and the
     second memeber is a reader function.
 
+    The paths can contain wildcards, which will be expanded using
+    :py:func:`glob.glob` in sorted order.
+
     Arguments:
         series_config: A dictionary containing the dataset keyword argument
             specs.
