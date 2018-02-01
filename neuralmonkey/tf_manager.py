@@ -28,6 +28,7 @@ from neuralmonkey.runners.base_runner import (ExecutionResult,
                                               reduce_execution_results)
 
 
+# pylint: disable=too-many-instance-attributes
 class TensorFlowManager(object):
     """Inteface between computational graph, data and TF sessions.
 
@@ -87,9 +88,10 @@ class TensorFlowManager(object):
         init_op = tf.global_variables_initializer()
         for sess in self.sessions:
             sess.run(init_op)
-        self.loader = tf.train.Saver(max_to_keep=self.saver_max_to_keep,
-                                    var_list=[g for g in tf.global_variables()
-                                              if "length_estim" not in g.name])
+        self.loader = tf.train.Saver(
+            max_to_keep=self.saver_max_to_keep,
+            var_list=[g for g in tf.global_variables()
+                      if "length_estim" not in g.name])
         self.saver = tf.train.Saver(max_to_keep=self.saver_max_to_keep)
 
         if variable_files:
@@ -99,6 +101,7 @@ class TensorFlowManager(object):
                                 .format(len(variable_files), num_sessions))
             self.restore(variable_files)
 
+        # TODO make named tuple of this and remove pylint disable too many att
         self.best_score_index = 0
         self.best_score_epoch = 0
         self.best_score_batch = 0

@@ -1,5 +1,5 @@
 import numbers
-from typing import List
+from typing import List, cast
 
 import numpy as np
 import tensorflow as tf
@@ -10,7 +10,7 @@ from neuralmonkey.decoders.encoder_projection import (
     EncoderProjection, linear_encoder_projection)
 from neuralmonkey.decorators import tensor
 from neuralmonkey.model.model_part import ModelPart, FeedDict
-from neuralmonkey.model.stateful import TemporalStatefulWithOutput
+from neuralmonkey.model.stateful import Stateful, TemporalStatefulWithOutput
 from neuralmonkey.nn.utils import dropout
 
 
@@ -38,6 +38,7 @@ class GaussianEstimator(ModelPart):
         check_argument_types()
 
         self.encoders = encoders
+        self.__casted_encoders = [cast(Stateful, e) for e in self.encoders]
         self.encoder_projection = encoder_projection
         self.encoder_signal_size = encoder_signal_size
         self.data_id = data_id
@@ -55,7 +56,7 @@ class GaussianEstimator(ModelPart):
             encoder_signal = dropout(
                 self.encoder_projection(self.train_mode,
                                         self.encoder_signal_size,
-                                        self.encoders),
+                                        self.__casted_encoders),
                 self.dropout_keep_prob,
                 self.train_mode)
         return encoder_signal
