@@ -1,5 +1,7 @@
 """Implementation of the dataset class."""
 
+# pylint: disable=too-many-lines
+
 import os
 import random
 import re
