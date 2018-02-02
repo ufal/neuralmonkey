@@ -3,7 +3,7 @@
 from typing import Iterable, List
 import unittest
 
-from neuralmonkey.dataset import LazyDataset, from_files
+from neuralmonkey.dataset import LazyDataset
 from neuralmonkey.readers.plain_text_reader import UtfPlainTextReader
 
 
@@ -25,16 +25,17 @@ class TestDataset(unittest.TestCase):
             for i in range(10):  # pylint: disable=unused-variable
                 yield ["foo"]
 
-        dataset = from_files(
-            s_data=([], reader),
-            preprocessors=[("data", "data_prep", lambda x: x)],
-            lazy=True)
-        series = dataset.get_series("data_prep")
+        dataset = LazyDataset(
+            name="data",
+            series_paths_and_readers={"source": ([], reader)},
+            series_outputs={},
+            preprocessors=[("source", "source_prep", lambda x: x)])
+        series = dataset.get_series("source_prep")
 
         # Check that the reader is being iterated lazily
-        for j in range(5):
-            next(series)
+        for j, _ in enumerate(series):
             self.assertEqual(i, j)
+        self.assertEqual(i, 9)
 
 
 if __name__ == "__main__":
