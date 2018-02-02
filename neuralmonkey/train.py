@@ -7,13 +7,14 @@ import os
 import shlex
 from shutil import copyfile
 import subprocess
+import traceback
 import numpy as np
 import tensorflow as tf
 from tensorflow.contrib.tensorboard.plugins import projector
 
 from neuralmonkey.checking import (CheckingException, check_dataset_and_coders,
                                    check_unused_initializers)
-from neuralmonkey.logging import Logging, log
+from neuralmonkey.logging import Logging, log, debug
 from neuralmonkey.config.configuration import Configuration
 from neuralmonkey.learning_utils import training_loop
 from neuralmonkey.dataset import Dataset
@@ -243,4 +244,5 @@ def main() -> None:
         _main()
     except KeyboardInterrupt:
         log("Training interrupted by user.")
+        debug(traceback.format_exc())
         exit(1)

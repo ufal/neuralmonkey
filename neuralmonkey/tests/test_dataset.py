@@ -2,6 +2,7 @@
 
 import os
 import tempfile
+from typing import Iterable, List
 import unittest
 
 from neuralmonkey.dataset import LazyDataset, from_files
@@ -30,6 +31,26 @@ class TestDataset(unittest.TestCase):
                         os.path.join(tmp_dir, "xyz*")])
 
             self.assertEqual(dataset.get_series("data"), [["a"], ["b"], ["d"]])
+
+    def test_lazy_dataset(self):
+        i = 0  # iteration counter
+
+        def reader(files: List[str]) -> Iterable[List[str]]:
+            del files
+            nonlocal i
+            for i in range(10):  # pylint: disable=unused-variable
+                yield ["foo"]
+
+        dataset = from_files(
+            s_data=([], reader),
+            preprocessors=[("data", "data_prep", lambda x: x)],
+            lazy=True)
+        series = dataset.get_series("data_prep")
+
+        # Check that the reader is being iterated lazily
+        for j in range(5):
+            next(series)
+            self.assertEqual(i, j)
 
 
 if __name__ == "__main__":
