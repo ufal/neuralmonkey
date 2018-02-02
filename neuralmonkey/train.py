@@ -46,7 +46,7 @@ def create_config() -> Configuration:
     config.add_argument("train_start_offset", required=False, default=0)
     config.add_argument("runners_batch_size", required=False, default=None)
     config.add_argument("postprocess")
-    config.add_argument("name")
+    config.add_argument("name", required=False, default="experiment")
     config.add_argument("random_seed", required=False)
     config.add_argument("initial_variables", required=False, default=None)
     config.add_argument("overwrite_output_dir", required=False, default=False)
