@@ -1,12 +1,11 @@
 """Implementation of the dataset class."""
 
-# pylint: disable=too-many-lines
-
 import os
 import random
 import re
 import glob
 import collections
+from itertools import islice
 
 from typing import cast, Any, List, Callable, Iterable, Dict, Tuple, Union
 
@@ -173,15 +172,11 @@ class Dataset(collections.Sized):
         self._series[name] = series
 
     def subset(self, start: int, length: int) -> "Dataset":
-
-        # new name
         subset_name = "{}.{}.{}".format(self.name, start, length)
 
-        # new outputs
         subset_outputs = {k: "{}.{:010}".format(v, start)
                           for k, v in self.series_outputs.items()}
 
-        # new series
         subset_series = {k: v[start:start + length]
                          for k, v in self._series.items()}
 
@@ -265,7 +260,6 @@ class LazyDataset(Dataset):
         Raises:
             KeyError if the series does not exists and allow_none is False
         """
-
         if (allow_none and
                 name not in self.series_paths_and_readers and
                 name not in self.preprocess_series):
@@ -298,24 +292,16 @@ class LazyDataset(Dataset):
         raise NotImplementedError(
             "Lazy dataset does not support adding series.")
 
-    def subset(self, start: int, length: int) -> "Dataset":
-        # new name
+    def subset(self, start: int, length: int) -> Dataset:
         subset_name = "{}.{}.{}".format(self.name, start, length)
 
-        # new outputs
         subset_outputs = {k: "{}.{:010}".format(v, start)
                           for k, v in self.series_outputs.items()}
 
-        # new series
         # TODO make this more efficient with large datasets
-        subset_series = {}
-
-        for s_id, (paths, reader) in self.series_paths_and_readers.items():
-            generator = reader(paths)
-            for _ in range(start):
-                next(generator)
-
-            subset_series[s_id] = [next(generator) for _ in range(length)]
+        subset_series = {
+            s_id: list(islice(self.get_series(s_id), start, start + length))
+            for s_id in self.series_ids}
 
         return Dataset(subset_name, subset_series, subset_outputs)
 
@@ -411,7 +397,6 @@ def _get_name_from_paths(series_paths: Dict[str, Tuple[List[str],
     Returns:
         The name for the dataset.
     """
-
     name = "dataset"
     for paths, _ in series_paths.values():
         name += "-{}".format("+".join(paths))
