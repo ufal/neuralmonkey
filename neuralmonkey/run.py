@@ -10,7 +10,7 @@ CONFIG = Configuration()
 CONFIG.add_argument("tf_manager")
 CONFIG.add_argument("output")
 CONFIG.add_argument("postprocess")
-CONFIG.add_argument("evaluation")
+CONFIG.add_argument("evaluation", required=False, default=None)
 CONFIG.add_argument("runners")
 CONFIG.add_argument("batch_size")
 CONFIG.add_argument("threads", required=False, default=4)
@@ -103,11 +103,6 @@ def main() -> None:
     initialize_for_running(CONFIG.model.output, CONFIG.model.tf_manager,
                            datasets_model.variables)
 
-    print("")
-
-    evaluators = [(e[0], e[0], e[1]) if len(e) == 2 else e
-                  for e in CONFIG.model.evaluation]
-
     if args.grid and len(datasets_model.test_datasets) > 1:
         raise ValueError("Only one test dataset supported when using --grid")
 
@@ -141,11 +136,14 @@ def main() -> None:
             CONFIG.model.tf_manager, CONFIG.model.runners,
             dataset, CONFIG.model.postprocess, write_out=True,
             batch_size=runners_batch_size, log_progress=60)
-        # TODO what if there is no ground truth
-        eval_result = evaluation(evaluators, dataset, CONFIG.model.runners,
-                                 execution_results, output_data)
-        if eval_result:
-            print_final_evaluation(dataset.name, eval_result)
+
+        if CONFIG.model.evaluation is not None:
+            evaluators = [(e[0], e[0], e[1]) if len(e) == 2 else e
+                          for e in CONFIG.model.evaluation]
+            eval_result = evaluation(evaluators, dataset, CONFIG.model.runners,
+                                     execution_results, output_data)
+            if eval_result:
+                print_final_evaluation(dataset.name, eval_result)
 
     for _ in range(len(CONFIG.model.tf_manager.sessions)):
         del CONFIG.model.tf_manager.sessions[0]
