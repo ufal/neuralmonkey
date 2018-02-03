@@ -3,14 +3,16 @@
 import os
 import random
 import re
+import glob
 import collections
+from itertools import islice
 
 from typing import cast, Any, List, Callable, Iterable, Dict, Tuple, Union
 
 import numpy as np
 from typeguard import check_argument_types
 
-from neuralmonkey.logging import log
+from neuralmonkey.logging import log, debug
 from neuralmonkey.readers.plain_text_reader import UtfPlainTextReader
 
 # pylint: disable=invalid-name
@@ -170,15 +172,11 @@ class Dataset(collections.Sized):
         self._series[name] = series
 
     def subset(self, start: int, length: int) -> "Dataset":
-
-        # new name
         subset_name = "{}.{}.{}".format(self.name, start, length)
 
-        # new outputs
         subset_outputs = {k: "{}.{:010}".format(v, start)
                           for k, v in self.series_outputs.items()}
 
-        # new series
         subset_series = {k: v[start:start + length]
                          for k, v in self._series.items()}
 
@@ -262,7 +260,6 @@ class LazyDataset(Dataset):
         Raises:
             KeyError if the series does not exists and allow_none is False
         """
-
         if (allow_none and
                 name not in self.series_paths_and_readers and
                 name not in self.preprocess_series):
@@ -295,31 +292,18 @@ class LazyDataset(Dataset):
         raise NotImplementedError(
             "Lazy dataset does not support adding series.")
 
-    def subset(self, start: int, length: int) -> "Dataset":
-        # new name
+    def subset(self, start: int, length: int) -> Dataset:
         subset_name = "{}.{}.{}".format(self.name, start, length)
 
-        # new outputs
         subset_outputs = {k: "{}.{:010}".format(v, start)
                           for k, v in self.series_outputs.items()}
 
-        # new series
         # TODO make this more efficient with large datasets
-        subset_series = {}
-
-        for s_id, (paths, reader) in self.series_paths_and_readers.items():
-            generator = reader(paths)
-            for _ in range(start):
-                next(generator)
-
-            subset_series[s_id] = [next(generator) for _ in range(length)]
+        subset_series = {
+            s_id: list(islice(self.get_series(s_id), start, start + length))
+            for s_id in self.series_ids}
 
         return Dataset(subset_name, subset_series, subset_outputs)
-
-
-def load_dataset_from_files(*args, **kwargs) -> Dataset:
-    """Compatibility method, see docstring for from_files."""
-    return from_files(*args, **kwargs)
 
 
 def from_files(
@@ -397,6 +381,9 @@ def from_files(
     return dataset
 
 
+load_dataset_from_files = from_files  # pylint: disable=invalid-name
+
+
 def _get_name_from_paths(series_paths: Dict[str, Tuple[List[str],
                                                        Reader]]) -> str:
     """Construct name for a dataset using the paths to its files.
@@ -408,7 +395,6 @@ def _get_name_from_paths(series_paths: Dict[str, Tuple[List[str],
     Returns:
         The name for the dataset.
     """
-
     name = "dataset"
     for paths, _ in series_paths.values():
         name += "-{}".format("+".join(paths))
@@ -423,6 +409,9 @@ def _get_series_paths_and_readers(
     dataset series is defined by a string with a path / list of strings with
     paths, or a tuple whose first member is a path or a list of paths and the
     second memeber is a reader function.
+
+    The paths can contain wildcards, which will be expanded using
+    :py:func:`glob.glob` in sorted order.
 
     Arguments:
         series_config: A dictionary containing the dataset keyword argument
@@ -440,13 +429,24 @@ def _get_series_paths_and_readers(
         value = cast(ReaderDef, series_config[key])
 
         if isinstance(value, tuple):
-            paths, reader = value  # type: ignore
+            patterns, reader = value  # type: ignore
         else:
-            paths = value
+            patterns = value
             reader = UtfPlainTextReader
 
-        if isinstance(paths, str):
-            paths = [paths]
+        if isinstance(patterns, str):
+            patterns = [patterns]
+
+        paths = []
+        for pattern in patterns:
+            matched_files = sorted(glob.glob(pattern))
+            if not matched_files:
+                raise FileNotFoundError(
+                    "Pattern did not match any files. Series: {}, Pattern: {}"
+                    .format(name, pattern))
+            paths.extend(matched_files)
+
+        debug("Series '{}' has the following files: {}".format(name, paths))
 
         series_sources[name] = (paths, reader)
 
