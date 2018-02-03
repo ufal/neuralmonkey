@@ -306,11 +306,6 @@ class LazyDataset(Dataset):
         return Dataset(subset_name, subset_series, subset_outputs)
 
 
-def load_dataset_from_files(*args, **kwargs) -> Dataset:
-    """Compatibility method, see docstring for from_files."""
-    return from_files(*args, **kwargs)
-
-
 def from_files(
         name: str = None, lazy: bool = False,
         preprocessors: List[Tuple[str, str, Callable]] = None,
@@ -386,6 +381,9 @@ def from_files(
     return dataset
 
 
+load_dataset_from_files = from_files  # pylint: disable=invalid-name
+
+
 def _get_name_from_paths(series_paths: Dict[str, Tuple[List[str],
                                                        Reader]]) -> str:
     """Construct name for a dataset using the paths to its files.
@@ -441,7 +439,12 @@ def _get_series_paths_and_readers(
 
         paths = []
         for pattern in patterns:
-            paths.extend(sorted(glob.glob(pattern)))
+            matched_files = sorted(glob.glob(pattern))
+            if not matched_files:
+                raise FileNotFoundError(
+                    "Pattern did not match any files. Series: {}, Pattern: {}"
+                    .format(name, pattern))
+            paths.extend(matched_files)
 
         debug("Series '{}' has the following files: {}".format(name, paths))
 
