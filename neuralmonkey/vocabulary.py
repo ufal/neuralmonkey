@@ -602,12 +602,16 @@ class Vocabulary(collections.Sized):
 
                 output_file.write("\n")
 
-    def log_sample(self, size: int = 5):
+    def log_sample(self, size: int = 5) -> None:
         """Log a sample of the vocabulary.
 
         Arguments:
             size: How many sample words to log.
         """
-        log("Sample of the vocabulary: {}"
-            .format([self.index_to_word[i]
-                     for i in np.random.randint(0, len(self), size)]))
+        if size > len(self):
+            log("Vocabulary: {}".format(
+                [self.index_to_word[i] for i in range(0, len(self))]))
+        else:
+            log("Sample of the vocabulary: {}".format(
+                [self.index_to_word[i]
+                 for i in np.random.permutation(np.arange(len(self)))[:size]]))
