@@ -28,8 +28,7 @@ def create_config() -> Configuration:
 
     # training loop arguments
     config.add_argument("tf_manager", required=False, default=None)
-    config.add_argument("epochs", cond=lambda x: x >= 0, required=False,
-                        default=1)
+    config.add_argument("epochs", cond=lambda x: x >= 0)
     config.add_argument("trainer")
     config.add_argument("batch_size", cond=lambda x: x > 0)
     config.add_argument("train_dataset")
@@ -54,9 +53,8 @@ def create_config() -> Configuration:
                         required=False, default=15)
     config.add_argument("train_start_offset", required=False, default=0)
     config.add_argument("runners_batch_size", required=False, default=None)
-    config.add_argument("postprocess", required=False, default=None)
-    config.add_argument("name", required=False,
-                        default="Neural Monkey Experiment")
+    config.add_argument("postprocess")
+    config.add_argument("name")
     config.add_argument("random_seed", required=False)
     config.add_argument("initial_variables", required=False, default=None)
     config.add_argument("overwrite_output_dir", required=False, default=False)
