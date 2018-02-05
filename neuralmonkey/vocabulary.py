@@ -609,9 +609,8 @@ class Vocabulary(collections.Sized):
             size: How many sample words to log.
         """
         if size > len(self):
-            log("Vocabulary: {}".format(
-                [self.index_to_word[i] for i in range(0, len(self))]))
+            log("Vocabulary: {}".format(self.index_to_word))
         else:
+            sample_ids = np.random.permutation(np.arange(len(self)))[:size]
             log("Sample of the vocabulary: {}".format(
-                [self.index_to_word[i]
-                 for i in np.random.permutation(np.arange(len(self)))[:size]]))
+                [self.index_to_word[i] for i in sample_ids]))
