@@ -9,6 +9,7 @@ from flask import Flask, request, Response, render_template
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.learning_utils import run_on_dataset
 from neuralmonkey.run import CONFIG, initialize_for_running
+from neuralmonkey.tf_manager import get_default_tf_manager
 
 
 APP = Flask(__name__)
@@ -93,6 +94,11 @@ def main() -> None:
     # pylint: disable=no-member
     CONFIG.load_file(cli_args.configuration)
     CONFIG.build_model()
-    initialize_for_running(CONFIG.model.output, CONFIG.model.tf_manager, None)
+
+    tf_manager = CONFIG.model.tf_manager
+    if tf_manager is None:
+        tf_manager = get_default_tf_manager()
+
+    initialize_for_running(CONFIG.model.output, tf_manager, None)
     APP.config["args"] = CONFIG.model
     APP.run(port=cli_args.port, host=cli_args.host)

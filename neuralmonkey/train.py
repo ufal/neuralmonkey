@@ -19,13 +19,14 @@ from neuralmonkey.config.configuration import Configuration
 from neuralmonkey.learning_utils import training_loop
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.model.sequence import EmbeddedFactorSequence
+from neuralmonkey.tf_manager import get_default_tf_manager
 
 
 def create_config() -> Configuration:
     config = Configuration()
 
     # training loop arguments
-    config.add_argument("tf_manager")
+    config.add_argument("tf_manager", required=False, default=None)
     config.add_argument("epochs", cond=lambda x: x >= 0)
     config.add_argument("trainer")
     config.add_argument("batch_size", cond=lambda x: x > 0)
@@ -47,7 +48,8 @@ def create_config() -> Configuration:
     config.add_argument("train_start_offset", required=False, default=0)
     config.add_argument("runners_batch_size", required=False, default=None)
     config.add_argument("postprocess")
-    config.add_argument("name", required=False, default="experiment")
+    config.add_argument("name", required=False,
+                        default="Neural Monkey Experiment")
     config.add_argument("random_seed", required=False)
     config.add_argument("initial_variables", required=False, default=None)
     config.add_argument("overwrite_output_dir", required=False, default=False)
@@ -181,7 +183,11 @@ def _main() -> None:
 
     cfg.build_model(warn_unused=True)
 
-    cfg.model.tf_manager.init_saving(variables_file_prefix)
+    tf_manager = cfg.model.tf_manager
+    if cfg.model.tf_manager is None:
+        tf_manager = get_default_tf_manager()
+
+    tf_manager.init_saving(variables_file_prefix)
 
     try:
         check_dataset_and_coders(cfg.model.train_dataset,
@@ -218,7 +224,7 @@ def _main() -> None:
         cfg.model.runners_batch_size = cfg.model.batch_size
 
     training_loop(
-        tf_manager=cfg.model.tf_manager,
+        tf_manager=tf_manager,
         epochs=cfg.model.epochs,
         trainer=cfg.model.trainer,
         batch_size=cfg.model.batch_size,
