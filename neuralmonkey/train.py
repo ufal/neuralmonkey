@@ -39,10 +39,8 @@ def create_config() -> Configuration:
     config.add_argument("test_datasets", required=False, default=[])
     # a little "hackish" checking
     config.add_argument("logging_period",
-                        cond=lambda x: int(re.sub("[^0-9-]", "", str(x))) > 0,
                         required=False, default=20)
     config.add_argument("validation_period",
-                        cond=lambda x: int(re.sub("[^0-9-]", "", str(x))) > 0,
                         required=False, default=500)
     config.add_argument("visualize_embeddings", required=False, default=None)
     config.add_argument("val_preview_input_series",

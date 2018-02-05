@@ -164,7 +164,7 @@ class AutoregressiveDecoder(ModelPart):
         if self.embeddings_source is not None:
             return self.embeddings_source.embedding_matrix
 
-        return tf.get_variable(
+        return get_variable(
             name="word_embeddings",
             shape=[len(self.vocabulary), self.embedding_size],
             initializer=tf.glorot_uniform_initializer())
