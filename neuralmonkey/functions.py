@@ -1,10 +1,9 @@
 """Collection of various functions and function wrappers."""
 
-from typing import Optional, Any
+from typing import Optional
 
 import math
 import tensorflow as tf
-from typeguard import check_argument_types
 
 
 def inverse_sigmoid_decay(param, rate, min_value: float = 0.,
@@ -74,9 +73,3 @@ def noam_decay(learning_rate: float,
     warmup = step * inv_sq3_warmup_steps
 
     return learning_rate * inv_sq_dim * tf.minimum(inv_sq_step, warmup)
-
-
-def variable(initial_value: Any = 0,
-             trainable: bool = False, **kwargs) -> tf.Variable:
-    check_argument_types()
-    return tf.Variable(initial_value, trainable, **kwargs)
