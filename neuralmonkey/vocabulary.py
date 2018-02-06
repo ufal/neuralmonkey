@@ -141,6 +141,69 @@ def from_nematus_json(path: str, max_size: int = None,
 
 # pylint: disable=too-many-arguments
 # helper function, this number of parameters is needed
+def from_dataset_char(datasets: List[Dataset], series_ids: List[str],
+                 max_size: int,
+                 save_file: str = None, overwrite: bool = False,
+                 min_freq: Optional[int] = None,
+                 unk_sample_prob: float = 0.5) -> "CharacterVocabulary":
+    """Load a vocabulary from a dataset with an option to save it.
+
+    Arguments:
+        datasets: A list of datasets from which to create the vocabulary
+        series_ids: A list of ids of series of the datasets that should be used
+                    producing the vocabulary
+        max_size: The maximum size of the vocabulary
+        save_file: A file to save the vocabulary to. If None (default),
+                   the vocabulary will not be saved.
+        overwrite: Overwrite existing file.
+        min_freq: Do not include words with frequency smaller than this.
+        unk_sample_prob: The probability with which to sample unks out of
+                         words with frequency 1. Defaults to 0.5.
+
+    Returns:
+        The new Vocabulary instance.
+    """
+    check_argument_types()
+
+    vocabulary = CharacterVocabulary(unk_sample_prob=unk_sample_prob)
+    vocabulary.correct_counts = True
+
+    for dataset in datasets:
+        if isinstance(dataset, LazyDataset):
+            warn("Inferring vocabulary from lazy dataset!")
+
+        for series_id in series_ids:
+            if not dataset.has_series(series_id):
+                warn("Data series '{}' not present in the dataset"
+                     .format(series_id))
+
+            series = dataset.get_series(series_id, allow_none=True)
+            if series:
+                vocabulary.add_tokenized_text(
+                    [token for sent in series for token in sent])
+
+    vocabulary.truncate(max_size)
+
+    if min_freq is not None:
+        if min_freq > 1:
+            vocabulary.truncate_by_min_freq(min_freq)
+
+    log("Vocabulary for series {} initialized, containing {} words"
+        .format(series_ids, len(vocabulary)))
+
+    vocabulary.log_sample()
+
+    if save_file is not None:
+        directory = os.path.dirname(save_file)
+        if directory and not os.path.exists(directory):
+            os.makedirs(directory)
+        vocabulary.save_wordlist(save_file, overwrite, True)
+
+    return vocabulary
+
+
+# pylint: disable=too-many-arguments
+# helper function, this number of parameters is needed
 def from_dataset(datasets: List[Dataset], series_ids: List[str], max_size: int,
                  save_file: str = None, overwrite: bool = False,
                  min_freq: Optional[int] = None,
@@ -624,7 +687,7 @@ class CharacterVocabulary(collections.Sized):
                  unk_sample_prob: float = 0.0) -> None:
 
         check_argument_types()
-        #Vocabulary.__init__(
+        # Vocabulary.__init__(
         #    self,
         #    tokenized_text=tokenized_text,
         #    unk_sample_prob=unk_sample_prob)
@@ -673,7 +736,6 @@ class CharacterVocabulary(collections.Sized):
         """
         for word in tokenized_text:
             self.add_word(word)
-
 
     def add_word(self, word: List[str], occurences: int = 1) -> None:
         """Add a word, represented as a list of characters, to the vocabulary.
