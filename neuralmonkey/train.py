@@ -4,7 +4,6 @@ import argparse
 import sys
 import random
 import os
-import re
 import shlex
 from shutil import copyfile
 import subprocess

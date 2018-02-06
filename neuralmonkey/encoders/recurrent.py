@@ -8,7 +8,7 @@ from neuralmonkey.model.stateful import (
 from neuralmonkey.model.model_part import ModelPart, FeedDict, InitializerSpecs
 from neuralmonkey.nn.ortho_gru_cell import OrthoGRUCell, NematusGRUCell
 from neuralmonkey.nn.utils import dropout
-from neuralmonkey.vocabulary import Vocabulary
+from neuralmonkey.vocabulary import Vocabulary, CharacterVocabulary
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.decorators import tensor
 from neuralmonkey.model.sequence import (
@@ -187,7 +187,7 @@ class SentenceEncoder(RecurrentEncoder):
     # pylint: disable=too-many-arguments,too-many-locals
     def __init__(self,
                  name: str,
-                 vocabulary: Vocabulary,
+                 vocabulary: Union[Vocabulary, CharacterVocabulary],
                  data_id: str,
                  embedding_size: int,
                  rnn_size: int,
@@ -262,7 +262,7 @@ class FactoredEncoder(RecurrentEncoder):
     # pylint: disable=too-many-arguments,too-many-locals
     def __init__(self,
                  name: str,
-                 vocabularies: List[Vocabulary],
+                 vocabularies: List[Union[Vocabulary, CharacterVocabulary]],
                  data_ids: List[str],
                  embedding_sizes: List[int],
                  rnn_size: int,
