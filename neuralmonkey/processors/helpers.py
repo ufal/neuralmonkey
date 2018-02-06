@@ -4,6 +4,7 @@ from typing import Any, Callable, Generator, List
 def preprocess_char_based(sentence: List[str]) -> List[str]:
     return list(" ".join(sentence))
 
+
 def preprocess_char_two_level(sentence: List[str]) -> List[List[str]]:
     output = []
     for token in sentence:
@@ -21,7 +22,6 @@ def postprocess_char_based(sentences: List[List[str]]) -> List[List[str]]:
         result.append(tokenized)
 
     return result
-
 
 
 def untruecase(

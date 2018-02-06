@@ -22,6 +22,7 @@ RNN_CELL_TYPES = {
     "LSTM": tf.contrib.rnn.LSTMCell
 }
 
+
 # pylint: disable=abstract-method
 class Sequence(ModelPart, TemporalStateful):
     """Base class for a data sequence.
@@ -370,9 +371,7 @@ class CharacterLevelSequence(EmbeddedSequence):
 
     @tensor
     def temporal_states(self) -> tf.Tensor:
-        """Embed tokens by applying encoder on their character sequence.
-
-        """
+        """Embed tokens by applying encoder on their character sequence."""
         input_shape = tf.shape(self.inputs)
         embedded_chars = tf.nn.embedding_lookup(self.embedding_matrix,
                                                 self.inputs)
@@ -410,7 +409,6 @@ class CharacterLevelSequence(EmbeddedSequence):
                     stride=1,
                     padding="SAME",
                     name="conv_{}".format(filt_size))
-            #maxpool_layer = tf.reduce_max(conv_layer,1,keep_dims=True)
             conv_layers.append(conv_layer)
             hidden_states = tf.concat(conv_layers, 3)
 
