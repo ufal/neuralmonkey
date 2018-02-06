@@ -410,8 +410,11 @@ class CharacterLevelSequence(EmbeddedSequence):
                     stride=1,
                     padding="SAME",
                     name="conv_{}".format(filt_size))
-            conv_layers.append(conv_layer)
-            hidden_states = tf.concat(conv_layers, 3)
+                conv_layers.append(conv_layer)
+
+            hidden_states = tf.concat(conv_layers, 2)
+            # we take maxpool as default CNN output
+            output_states = tf.reduce_max(hidden_states, axis=1)
 
         hidden_states = tf.reshape(
             hidden_states,
@@ -419,6 +422,7 @@ class CharacterLevelSequence(EmbeddedSequence):
         output_states = tf.reshape(
             output_states,
             [-1, input_shape[1], self.embedding_sizes[0]])
+
         if self.pooling == "maxpool":
             return tf.reduce_max(hidden_states, axis=2)
         elif self.pooling == "average":

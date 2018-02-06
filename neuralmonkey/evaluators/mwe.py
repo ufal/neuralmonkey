@@ -79,7 +79,7 @@ def _to_mwes(sent) -> List[int]:
             mwe_info[1].append(tok_idx)
 
     mwe_set = set(frozenset(i + 1 for i in x[1]) for x in mwe_infos.values())
-    return list(sorted(mwe_set), key=lambda x: list(x))
+    return sorted(mwe_set, key=lambda x: list(x))
 
 
 def _tok_based_pairing(h_mwes, r_mwes):
