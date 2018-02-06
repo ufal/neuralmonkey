@@ -540,7 +540,7 @@ def _data_item_to_str(item: Any) -> str:
         return item
 
     if isinstance(item, np.ndarray) and len(item.shape) > 1:
-        return "numpy tensor"
+        return "[numpy tensor, shape {}]".format(item.shape)
 
     return str(item)
 
@@ -602,8 +602,8 @@ def _print_examples(dataset: Dataset,
 
         def print_line(prefix, color, content):
             colored_prefix = colored(prefix, color=color)
-            formated = _data_item_to_str(content)
-            log_print("  {}: {}".format(colored_prefix, formated))
+            formatted = _data_item_to_str(content)
+            log_print("  {}: {}".format(colored_prefix, formatted))
 
         # Input source series = yellow
         for series_id, data in sorted(source_series.items(),
