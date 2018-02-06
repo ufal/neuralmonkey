@@ -1,5 +1,5 @@
 """Beam search decoder with gaussian length estimation."""
-from typing import NamedTuple, Callable, Optional, Tuple
+from typing import NamedTuple, Callable, Optional, Tuple, Set
 
 import tensorflow as tf
 from typeguard import check_argument_types
@@ -43,8 +43,10 @@ class BeamSearchDecoder(ModelPart):
     def __init__(self,
                  name: str,
                  parent_decoder: Decoder,
-                 length_estimator: GaussianEstimator,
                  beam_size: int,
+                 length_estimator: GaussianEstimator = None,
+                 perplexity_scoring: bool = True,
+                 length_normalize: bool = False,
                  max_steps: int = None,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None) -> None:
@@ -54,16 +56,14 @@ class BeamSearchDecoder(ModelPart):
         self.parent_decoder = parent_decoder
         self.beam_size = beam_size
         self.length_estimator = length_estimator
+        self.perplexity_scoring = perplexity_scoring
+        self.length_normalize = length_normalize
 
         self.max_steps = max_steps
         if self.max_steps is None:
             self.max_steps = parent_decoder.max_output_len
 
         self.outputs = self.decoding_loop()
-
-    @property
-    def beam_size(self):
-        return self.beam_size
 
     @property
     def vocabulary(self):
@@ -108,10 +108,10 @@ class BeamSearchDecoder(ModelPart):
 
         final_state = tf.while_loop(cond, beam_body, next_bs_loop_state)
 
-        prefix_beam_ids = final_state.bs_output.prefix_beam_ids.stack()
-        symbols = final_state.bs_output.symbols.stack()
+        symbols = final_state.history.symbols.stack()
+        prefix_beam_ids = final_state.history.prefix_beam_ids.stack()
 
-        return prefix_beam_ids, symbols, final_state.finished_beam
+        return symbols, prefix_beam_ids, final_state.finished_beam
 
     def get_body(self) -> Callable:
         """Return a body function for ``tf.while_loop``."""
@@ -148,7 +148,7 @@ class BeamSearchDecoder(ModelPart):
                 on_value=tf.float32.min)
 
             # shape(logprobs) = beam x vocabulary
-            logprobs = tf.nn.log_softmax(decoder_ls.prev_logits)
+            logprobs = tf.nn.log_softmax(decoder_ls.feedables.prev_logits)
             entropy = -tf.reduce_sum(logprobs * tf.exp(logprobs), axis=1)
 
             # update hypothesis scores
@@ -160,21 +160,18 @@ class BeamSearchDecoder(ModelPart):
             hyp_probs_flat = tf.reshape(hyp_probs, [-1])
 
             # shape(both) = beam
-            topk_hyp_probs, topk_indices = tf.nn.top_k(
+            next_logprob_sum, topk_indices = tf.nn.top_k(
                 hyp_probs_flat, self.beam_size)
 
-            topk_hyp_probs.set_shape([self.beam_size])
-            topk_indices.set_shape([self.beam_size])
-
-            # select logprobs of the best hyps (disregard lenghts)
-            next_logprob_sum = tf.gather(hyp_probs_flat, topk_indices)
             next_logprob_sum.set_shape([self.beam_size])
+            topk_indices.set_shape([self.beam_size])
 
             next_symbol = tf.mod(topk_indices,
                                  len(self.parent_decoder.vocabulary))
 
             next_beam_id = tf.div(topk_indices,
                                   len(self.parent_decoder.vocabulary))
+            logprob_flat = tf.exp(tf.reshape(logprobs, [-1]))
 
             entropy_sum = unfinished_beam.entropy_sum + entropy
             next_entropy_sum = tf.gather(entropy_sum, next_beam_id)
@@ -221,18 +218,26 @@ class BeamSearchDecoder(ModelPart):
                 # If there is no previous finished beam, we construct it out
                 # of empty hypotheses.
                 next_finished_beam = FinishedBeam(
-                    score=tf.tile(entropy + logprobs[END_TOKEN_INDEX],
-                                  [self.beam_size]),
-                    length=tf.zeros(self.beam_size),
-                    prefix_beam_id=tf.zeros(self.beam_size))
+                    score=tf.fill([self.beam_size], tf.float32.min),
+                    length=tf.ones(self.beam_size, dtype=tf.int32),
+                    prefix_beam_id=tf.zeros(self.beam_size, dtype=tf.int32))
             else:
                 # Compute score of the newly finished hypotheses.
-                end_logprobs = logprobs[END_TOKEN_INDEX]
-                # TODO make score computation configurable
-                new_finished_score = (
-                    unfinished_beam.logprob_sum + end_logprobs
-                    + unfinished_beam.entropy_sum + entropy
-                    + tf.log(self.length_estimator.probability_around(step)))
+                end_logprobs = logprobs[:, END_TOKEN_INDEX]
+                new_finished_score = unfinished_beam.logprob_sum + end_logprobs#) /
+
+                if self.perplexity_scoring:
+                    new_finished_score += (
+                        unfinished_beam.entropy_sum + entropy)
+
+                if self.length_normalize:
+                    new_finished_score /= tf.to_float(step)
+
+                if self.length_estimator is not None:
+                    length_prob = self.length_estimator.probability_around(
+                            tf.to_float(step - 2))
+                    new_finished_score += tf.log(length_prob)
+
 
                 # We concatenate the best hypotheses so far with newly finished
                 # hypotheses and select the `beam_size` from them.
@@ -279,3 +284,9 @@ class BeamSearchDecoder(ModelPart):
         assert len(dataset) == 1
 
         return {}
+
+    def get_dependencies(self) -> Set[ModelPart]:
+        """Collect recusively all encoders and decoders."""
+        to_return = ModelPart.get_dependencies(self)
+
+        return to_return.union(self.length_estimator.get_dependencies())
