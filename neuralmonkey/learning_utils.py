@@ -424,7 +424,8 @@ def run_on_dataset(tf_manager: TensorFlowManager,
                 else:
                     with open(path, "w", encoding="utf-8") as f_out:
                         f_out.writelines(
-                            [" ".join(sent) + "\n" for sent in data])
+                            [" ".join([str(w) for w in sent]) + "\n"
+                             for sent in data])
                     log("Result saved as plain text '{}'".format(path))
             else:
                 log("There is no output file for dataset: {}"
