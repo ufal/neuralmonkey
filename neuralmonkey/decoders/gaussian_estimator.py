@@ -25,6 +25,7 @@ class GaussianEstimator(ModelPart):
                  data_id: str,
                  encoder_projection: EncoderProjection = None,
                  dropout_keep_prob: float = 1.0,
+                 oracle_estimation: bool = False,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None) -> None:
         """Initialize Gaussian scalar estimator.
@@ -33,6 +34,8 @@ class GaussianEstimator(ModelPart):
           encoders: List of encoders whose states are used for the estimation.
           encoder_projection: Function projection the encoder states into a
               single vector.
+          orcale_estimation: Flag whether the observed value should be used as
+              a mean instead of the trained value.
         """
         ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
         check_argument_types()
@@ -43,10 +46,14 @@ class GaussianEstimator(ModelPart):
         self.encoder_signal_size = encoder_signal_size
         self.data_id = data_id
         self.dropout_keep_prob = dropout_keep_prob
+        self.oracle_estimation = oracle_estimation
 
         if self.encoder_projection is None:
             self.encoder_projection = linear_encoder_projection(
                 self.dropout_keep_prob)
+
+        self.train_mode = tf.placeholder(tf.bool, shape=[], name="train_mode")
+        self.observed_value = tf.placeholder(tf.float32, shape=[None], name="observed_value")
     # pylint: enable=too-many-arguments
 
     @tensor
@@ -61,18 +68,11 @@ class GaussianEstimator(ModelPart):
                 self.train_mode)
         return encoder_signal
 
-    # pylint: disable=no-self-use
-    @tensor
-    def observed_value(self):
-        return tf.placeholder(tf.float32, shape=[None], name="observed_value")
-
-    @tensor
-    def train_mode(self) -> tf.Tensor:
-        return tf.placeholder(tf.bool, shape=[], name="train_mode")
-    # pylint: enable=no-self-use
-
     @tensor
     def distribution(self):
+        if self.oracle_estimation:
+            return tf.distributions.Normal(self.observed_value, 0.1)
+
         with tf.variable_scope("mean_and_variance"):
             mean_and_stddev = tf.layers.dense(
                 self.encoder_signal, 2, activation=tf.nn.elu) + 1
