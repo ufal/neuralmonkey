@@ -142,10 +142,10 @@ def from_nematus_json(path: str, max_size: int = None,
 # pylint: disable=too-many-arguments
 # helper function, this number of parameters is needed
 def from_dataset_char(datasets: List[Dataset], series_ids: List[str],
-                 max_size: int,
-                 save_file: str = None, overwrite: bool = False,
-                 min_freq: Optional[int] = None,
-                 unk_sample_prob: float = 0.5) -> "CharacterVocabulary":
+                      max_size: int,
+                      save_file: str = None, overwrite: bool = False,
+                      min_freq: Optional[int] = None,
+                      unk_sample_prob: float = 0.5) -> "CharacterVocabulary":
     """Load a vocabulary from a dataset with an option to save it.
 
     Arguments:

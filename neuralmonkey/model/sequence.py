@@ -351,6 +351,7 @@ class CharacterLevelSequence(EmbeddedSequence):
 
         with self.use_scope():
             # shape = (sent_len, batch_size, tok_len)
+            self.mask = tf.placeholder(tf.float32, [None, None, None], "mask")
             self.input_factors = [
                 tf.placeholder(tf.int32, [None, None, None],
                                "factor_{}".format(self.data_id))]
@@ -377,20 +378,20 @@ class CharacterLevelSequence(EmbeddedSequence):
                                                 self.inputs)
         embedded_chars = tf.reshape(
             embedded_chars,
-            [-1, input_shape[-1], self.embedding_sizes[0]])
+            [-1, input_shape[-1], self.char_emb_size])
 
         hidden_states, output_states = None, None
         if self.encoder_type == "recurrent":
             rnn_cell = \
                 RNN_CELL_TYPES[self._rnn_cell_str](self.char_emb_size)
             input_lens = tf.reduce_sum(
-                tf.reshape(self.mask, [-1, input_shape[-1]]), -1)
+                tf.reshape(self.mask, [-1, input_shape[2]]), 1)
 
             hidden_states, output_states = tf.nn.bidirectional_dynamic_rnn(
                 cell_fw=rnn_cell,
                 cell_bw=rnn_cell,
                 inputs=embedded_chars,
-                sequence_length=input_lens,
+                sequence_length=tf.cast(input_lens, tf.int32),
                 dtype=tf.float32)
 
             hidden_states = tf.concat(hidden_states, 2)
@@ -426,7 +427,7 @@ class CharacterLevelSequence(EmbeddedSequence):
 
     @tensor
     def temporal_mask(self) -> tf.Tensor:
-        return tf.argmax(self.mask, -1)
+        return tf.reduce_max(self.mask, 2)
 
     def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
         fd = {}
