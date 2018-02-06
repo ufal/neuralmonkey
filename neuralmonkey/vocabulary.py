@@ -333,7 +333,8 @@ class Vocabulary(collections.Sized):
 
         Arguments:
             word: The word to add. If it's already there, increment the count.
-            occurences: increment the count of word by the number of occurences
+            occurences: increment the count of word by the number
+                of occurences.
         """
         if word not in self:
             self.word_to_index[word] = len(self.index_to_word)
@@ -503,7 +504,8 @@ class Vocabulary(collections.Sized):
                 batch_max_len = min(max_len, batch_max_len)
 
         word_indices = np.full(
-            [batch_max_len, len(sentences)], self.get_word_index(PAD_TOKEN),
+            [batch_max_len, len(sentences)],
+            self.get_word_index(PAD_TOKEN),
             dtype=np.int32)
         weights = np.zeros([batch_max_len, len(sentences)])
 
@@ -557,6 +559,327 @@ class Vocabulary(collections.Sized):
                     sentence.append(self.index_to_word[word_i])
 
         return [s[:-1] if s and s[-1] == END_TOKEN else s for s in sentences]
+
+    def save_wordlist(self, path: str, overwrite: bool = False,
+                      save_frequencies: bool = False,
+                      encoding: str = "utf-8") -> None:
+        """Save the vocabulary as a wordlist.
+
+        The file is ordered by the ids of words.
+        This function is used mainly for embedding visualization.
+
+        Arguments:
+            path: The path to save the file to.
+            overwrite: Flag whether to overwrite existing file.
+                Defaults to False.
+            save_frequencies: flag if frequencies should be stored. This
+                parameter adds header into the output file.
+
+        Raises:
+            FileExistsError if the file exists and overwrite flag is
+            disabled.
+        """
+        if os.path.exists(path) and not overwrite:
+            raise FileExistsError("Cannot save vocabulary: File exists and "
+                                  "overwrite is disabled. {}".format(path))
+
+        with open(path, "w", encoding=encoding) as output_file:
+            if save_frequencies and self.correct_counts:
+                # this header is important for the TensorBoard to properly
+                # handle the frequencies.
+                #
+                # IMPORTANT NOTICE: when saving only wordlist without
+                # frequencies it MUST NOT contain the header. It is an
+                # exception from Tensorboard. More at
+                # https://www.tensorflow.org/get_started/embedding_viz
+                output_file.write("Word\tWord counts\n")
+            elif save_frequencies and not self.correct_counts:
+                log("Storing vocabulary without frequencies.")
+
+            for i in range(len(self.index_to_word)):
+                output_file.write(self.index_to_word[i])
+                if save_frequencies and self.correct_counts:
+                    output_file.write(
+                        "\t" + str(self.word_count[self.index_to_word[i]]))
+
+                output_file.write("\n")
+
+    def log_sample(self, size: int = 5) -> None:
+        """Log a sample of the vocabulary.
+
+        Arguments:
+            size: How many sample words to log.
+        """
+        if size > len(self):
+            log("Vocabulary: {}".format(self.index_to_word))
+        else:
+            sample_ids = np.random.permutation(np.arange(len(self)))[:size]
+            log("Sample of the vocabulary: {}".format(
+                [self.index_to_word[i] for i in sample_ids]))
+
+
+class CharacterVocabulary(collections.Sized):
+
+    def __init__(self, tokenized_text: List[List[str]] = None,
+                 unk_sample_prob: float = 0.0) -> None:
+
+        check_argument_types()
+        #Vocabulary.__init__(
+        #    self,
+        #    tokenized_text=tokenized_text,
+        #    unk_sample_prob=unk_sample_prob)
+
+        self.word_to_index = {}  # type: Dict[str, int]
+        self.index_to_word = []  # type: List[str]
+        self.word_count = {}  # type: Dict[str, int]
+
+        # flag if the word count are in use
+        self.correct_counts = False
+
+        self.unk_sample_prob = unk_sample_prob
+
+        self.add_word([PAD_TOKEN])
+        self.add_word([START_TOKEN])
+        self.add_word([END_TOKEN])
+        self.add_word([UNK_TOKEN])
+
+        if tokenized_text:
+            self.add_tokenized_text(tokenized_text)
+
+    def __len__(self) -> int:
+        """Get the size of the vocabulary.
+
+        Returns:
+            The number of distinct words in the vocabulary.
+        """
+        return len(self.index_to_word)
+
+    def __contains__(self, word: str) -> bool:
+        """Check if a word is in the vocabulary.
+
+        Arguments:
+            word: The word to look up.
+
+        Returns:
+            True if the word was added to the vocabulary, False otherwise.
+        """
+        return word in self.word_to_index
+
+    def add_tokenized_text(self, tokenized_text: List[List[str]]) -> None:
+        """Add words from a list to the vocabulary.
+
+        Arguments:
+            tokenized_text: The list of words to add.
+        """
+        for word in tokenized_text:
+            self.add_word(word)
+
+
+    def add_word(self, word: List[str], occurences: int = 1) -> None:
+        """Add a word, represented as a list of characters, to the vocabulary.
+
+        Arguments:
+            word: A sequence of characters to add. If present, increment
+                the count.
+            occurences: Increment the counts by the number of occurences.
+        """
+        for char in word:
+            if char not in self:
+                self.word_to_index[char] = len(self.index_to_word)
+                self.index_to_word.append(char)
+                self.word_count[char] = 0
+            self.word_count[char] += occurences
+
+    def get_word_index(self, word: str) -> int:
+        """Return index of the specified word.
+
+        Arguments:
+            word: The word to look up.
+
+        Returns:
+            Index of the word or index of the unknown token if the word is not
+            present in the vocabulary.
+        """
+        if word not in self:
+            return self.get_word_index(UNK_TOKEN)
+        return self.word_to_index[word]
+
+    def get_unk_sampled_word_index(self, word):
+        """Return index of the specified word with sampling of unknown words.
+
+        This method returns the index of the specified word in the vocabulary.
+        If the frequency of the word in the vocabulary is 1 (the word was only
+        seen once in the whole training dataset), with probability of
+        self.unk_sample_prob, generate the index of the unknown token instead.
+
+        Arguments:
+            word: The word to look up.
+
+        Returns:
+            Index of the word, index of the unknown token if sampled, or index
+            of the unknown token if the word is not present in the vocabulary.
+        """
+        idx = self.word_to_index.get(word, self.get_word_index(UNK_TOKEN))
+        freq = self.word_count.get(word, 0)
+
+        if freq <= 1 and random.random() < self.unk_sample_prob:
+            if not self.correct_counts:
+                raise ValueError("The vocabulary does not have correct "
+                                 "word_counts to use with unknown sampling")
+            return self.get_word_index(UNK_TOKEN)
+
+        return idx
+
+    def truncate(self, size: int) -> None:
+        """Truncate the vocabulary to the requested size.
+
+        The infrequent tokens are discarded.
+
+        Arguments:
+            size: The final size of the vocabulary
+        """
+
+        if not self.correct_counts:
+            raise ValueError("The vocabulary does not have correct "
+                             "word_counts to use for vocabulary truncate")
+
+        # sort by frequency
+        words_by_freq = sorted(list(self.word_count.keys()),
+                               key=lambda w: self.word_count[w])
+
+        # keep the least frequent words which are not special symbols
+        to_delete = len(self) - size
+        if to_delete < 0:
+            to_delete = 0
+            warn("Actual vocabulary size ({}) is smaller than max_size ({})"
+                 .format(len(self), size))
+        words_to_delete = []  # type: List[str]
+        for word in words_by_freq:
+            if len(words_to_delete) == to_delete:
+                break
+            if not _is_special_token(word):
+                words_to_delete.append(word)
+
+        # sort by index ... bigger indices needs to be removed first
+        # to keep the lists propertly shaped
+        delete_words_by_index = sorted(
+            [(w, self.word_to_index[w]) for w in words_to_delete],
+            key=lambda p: -p[1])
+
+        for word, index in delete_words_by_index:
+            del self.word_count[word]
+            del self.index_to_word[index]
+
+        self.word_to_index = {}
+        for index, word in enumerate(self.index_to_word):
+            self.word_to_index[word] = index
+
+    def truncate_by_min_freq(self, min_freq: int) -> None:
+        """Truncate the vocabulary only keeping words with a minimum frequency.
+
+        Arguments:
+            min_freq: The minimum frequency of included words.
+        """
+        if min_freq > 1:
+            # count how many words there are with frequency < min_freq
+            # ignoring special tokens
+            infreq_word_count = sum([1 for w in self.word_count
+                                     if self.word_count[w] < min_freq
+                                     and not _is_special_token(w)])
+            log("Removing {} infrequent (<{}) words from vocabulary".format(
+                infreq_word_count, min_freq))
+            new_size = len(self) - infreq_word_count
+            self.truncate(new_size)
+
+    # pylint: disable=too-many-locals
+    def sentences_to_tensor(
+            self,
+            sentences: List[List[List[str]]],
+            max_len: int = None,
+            pad_to_max_len: bool = True,
+            train_mode: bool = False,
+            add_start_symbol: bool = False,
+            add_end_symbol: bool = False) -> Tuple[np.ndarray, np.ndarray]:
+        """Generate the tensor representation for the provided sentences.
+
+        Arguments:
+            sentences: List of sentences as lists of tokens (represented by
+                lists of characters).
+            max_len: If specified, all sentences will be truncated to this
+                length.
+            pad_to_max_len: If True, the tensor will be padded to `max_len`,
+                even if all of the sentences are shorter. If False, the shape
+                of the tensor will be determined by the maximum length of the
+                sentences in the batch.
+            train_mode: Flag whether we are training or not
+                (enables/disables unk sampling).
+            add_start_symbol: If True, the `<s>` token will be added to the
+                beginning of each sentence vector. Enabling this option extends
+                the maximum length by one.
+            add_end_symbol: If True, the `</s>` token will be added to the end
+                of each sentence vector, provided that the sentence is shorter
+                than `max_len`. If not, the end token is not added. Unlike
+                `add_start_symbol`, enabling this option **does not alter**
+                the maximum length.
+
+        Returns:
+            A tuple of a sentence tensor and a padding weight vector.
+
+            The shape of the tensor representing the sentences is either
+            `(batch_max_len, batch_size, token_max_len)` or
+            `(batch_max_len+1, batch_size, token_max_len)`,
+            depending on the value of the `add_start_symbol` argument.
+            `batch_max_len` is the length of the longest sentence in the
+            batch (including the optional `</s>` token), limited by `max_len`
+            (if specified). `token_max_len` is the length of the longest
+            token in the batch.
+
+            The shape of the padding vector is the same as of the sentence
+            vector.
+        """
+        token_max_len = max(len(tok) for s in sentences for tok in s)
+        if pad_to_max_len and max_len is not None:
+            batch_max_len = max_len
+        else:
+            batch_max_len = max(len(s) for s in sentences)
+            if add_end_symbol:
+                batch_max_len += 1
+            if max_len is not None:
+                batch_max_len = min(max_len, batch_max_len)
+
+        word_indices = np.full(
+            [batch_max_len, len(sentences), token_max_len],
+            self.get_word_index(PAD_TOKEN),
+            dtype=np.int32)
+        weights = np.zeros([batch_max_len, len(sentences), token_max_len])
+
+        for i in range(batch_max_len):
+            for j, sent in enumerate(sentences):
+                if i < len(sent):
+                    for k in range(min(token_max_len, len(sent[i]))):
+                        w_idx = (
+                            self.get_unk_sampled_word_index(sent[i][k])
+                            if train_mode else self.get_word_index(sent[i][k]))
+                        word_indices[i, j, k] = w_idx
+                        weights[i, j, k] = 1
+                elif i == len(sent) and add_end_symbol:
+                    word_indices[i, j, 1] = self.get_word_index(END_TOKEN)
+                    weights[i, j, 1] = 1
+
+        if add_start_symbol:
+            start_symbol = np.insert(np.zeros(token_max_len - 1), 0,
+                                     self.get_word_index(START_TOKEN), axis=0)
+            word_indices = np.insert(word_indices, 0, start_symbol, axis=0)
+            weights = np.insert(weights, 0, start_symbol, axis=0)
+
+        return word_indices, weights
+    # pylint: enable=too-many-locals
+
+    def vectors_to_sentences(
+            self,
+            vectors: Union[List[np.ndarray], np.ndarray]) -> List[List[str]]:
+        raise NotImplementedError("CharacterVocabulary cannot be used "
+                                  "as an output vocabulary")
 
     def save_wordlist(self, path: str, overwrite: bool = False,
                       save_frequencies: bool = False,

@@ -1,19 +1,26 @@
 """Module which impements the sequence class and a few of its subclasses."""
 
 import os
-from typing import List
+from typing import List, Union
 
+import numpy as np
 import tensorflow as tf
 from tensorflow.contrib.tensorboard.plugins import projector
 from typeguard import check_argument_types
 
 from neuralmonkey.model.model_part import ModelPart, FeedDict, InitializerSpecs
 from neuralmonkey.model.stateful import TemporalStateful
-from neuralmonkey.vocabulary import Vocabulary
+from neuralmonkey.vocabulary import Vocabulary, CharacterVocabulary
 from neuralmonkey.decorators import tensor
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.tf_utils import get_variable
+from neuralmonkey.nn.ortho_gru_cell import OrthoGRUCell, NematusGRUCell
 
+RNN_CELL_TYPES = {
+    "NematusGRU": NematusGRUCell,
+    "GRU": OrthoGRUCell,
+    "LSTM": tf.contrib.rnn.LSTMCell
+}
 
 # pylint: disable=abstract-method
 class Sequence(ModelPart, TemporalStateful):
@@ -56,7 +63,7 @@ class EmbeddedFactorSequence(Sequence):
     # pylint: disable=too-many-arguments
     def __init__(self,
                  name: str,
-                 vocabularies: List[Vocabulary],
+                 vocabularies: List[Union[Vocabulary, CharacterVocabulary]],
                  data_ids: List[str],
                  embedding_sizes: List[int],
                  max_length: int = None,
@@ -215,7 +222,7 @@ class EmbeddedSequence(EmbeddedFactorSequence):
     # pylint: disable=too-many-arguments
     def __init__(self,
                  name: str,
-                 vocabulary: Vocabulary,
+                 vocabulary: Union[Vocabulary, CharacterVocabulary],
                  data_id: str,
                  embedding_size: int,
                  max_length: int = None,
@@ -239,6 +246,7 @@ class EmbeddedSequence(EmbeddedFactorSequence):
             save_checkpoint: The save_checkpoint parameter for `ModelPart`
             load_checkpoint: The load_checkpoint parameter for `ModelPart`
         """
+        check_argument_types()
         EmbeddedFactorSequence.__init__(
             self,
             name=name,
@@ -266,7 +274,7 @@ class EmbeddedSequence(EmbeddedFactorSequence):
     # pylint: enable=unsubscriptable-object
 
     @property
-    def vocabulary(self) -> Vocabulary:
+    def vocabulary(self) -> Union[Vocabulary, CharacterVocabulary]:
         """Return the input vocabulary."""
         return self.vocabularies[0]
 
@@ -274,3 +282,168 @@ class EmbeddedSequence(EmbeddedFactorSequence):
     def data_id(self) -> str:
         """Return the input data series indentifier."""
         return self.data_ids[0]
+
+
+class CharacterLevelSequence(EmbeddedSequence):
+
+    # pylint: disable=too-many-arguments,too-many-locals
+    def __init__(self,
+                 name: str,
+                 vocabulary: CharacterVocabulary,
+                 data_id: str,
+                 embedding_size: int,
+                 encoder_type: str = "recurrent",
+                 rnn_cell: str = "GRU",
+                 pooling: str = "maxpool",
+                 conv_filters: List[int] = None,
+                 max_length: int = None,
+                 add_start_symbol: bool = False,
+                 add_end_symbol: bool = False,
+                 save_checkpoint: str = None,
+                 load_checkpoint: str = None,
+                 initializers: InitializerSpecs = None) -> None:
+        check_argument_types()
+        EmbeddedSequence.__init__(
+            self,
+            name=name,
+            vocabulary=vocabulary,
+            data_id=data_id,
+            embedding_size=embedding_size,
+            max_length=max_length,
+            add_start_symbol=add_start_symbol,
+            add_end_symbol=add_end_symbol,
+            save_checkpoint=save_checkpoint,
+            load_checkpoint=load_checkpoint,
+            initializers=initializers)
+
+        self.encoder_type = encoder_type
+        self.pooling = pooling
+        self.conv_filters = conv_filters
+
+        self._rnn_cell_str = rnn_cell
+
+        if self.pooling is None:
+            raise ValueError("Pooling strategy must be specified")
+
+        if self.encoder_type == "recurrent":
+            if self._rnn_cell_str not in RNN_CELL_TYPES:
+                raise ValueError(
+                    "RNN cell must be a either 'GRU', 'LSTM', or "
+                    "'NematusGRU'. Not {}".format(self._rnn_cell_str))
+            if embedding_size % 2 != 0:
+                raise ValueError(
+                    "`embedding_size` for the character-level "
+                    "recurrent encoder must be divisible by 2")
+            self.char_emb_size = int(embedding_size / 2)
+        elif self.encoder_type == "convolutional":
+            if self.conv_filters is None:
+                raise ValueError("conv_filters must be specified for the "
+                                 "convolutional character-level encoder")
+            if embedding_size % len(self.conv_filters) != 0:
+                raise ValueError(
+                    "`embedding_size` for the characterl-level "
+                    "convolutional encoder must be divisible by the number "
+                    "of the convolutional fitlers")
+            self.char_emb_size = int(embedding_size / len(self.conv_filters))
+        else:
+            raise ValueError("Unknown encoder_type")
+
+        with self.use_scope():
+            # shape = (sent_len, batch_size, tok_len)
+            self.input_factors = [
+                tf.placeholder(tf.int32, [None, None, None],
+                               "factor_{}".format(self.data_id))]
+    # pylint: enable=too-many-arguments,too-many-locals
+
+    @tensor
+    def embedding_matrix(self) -> tf.Tensor:
+        """Return a list of embedding matrices for each factor."""
+
+        # Note: Embedding matrices are numbered rather than named by the data
+        # id so the data_id string does not need to be the same across
+        # experiments
+
+        return get_variable(
+            name="embedding_matrix",
+            shape=[len(self.vocabulary), self.char_emb_size],
+            initializer=tf.glorot_uniform_initializer())
+
+    @tensor
+    def temporal_states(self) -> tf.Tensor:
+        """Embed tokens by applying encoder on their character sequence.
+
+        """
+        input_shape = tf.shape(self.inputs)
+        embedded_chars = tf.nn.embedding_lookup(self.embedding_matrix,
+                                                self.inputs)
+        embedded_chars = tf.reshape(
+            embedded_chars,
+            [-1, input_shape[-1], self.embedding_sizes[0]])
+
+        hidden_states, output_states = None, None
+        if self.encoder_type == "recurrent":
+            rnn_cell = \
+                RNN_CELL_TYPES[self._rnn_cell_str](self.char_emb_size)
+            input_lens = tf.reduce_sum(
+                tf.reshape(self.mask, [-1, input_shape[-1]]), -1)
+
+            hidden_states, output_states = tf.nn.bidirectional_dynamic_rnn(
+                cell_fw=rnn_cell,
+                cell_bw=rnn_cell,
+                inputs=embedded_chars,
+                sequence_length=input_lens,
+                dtype=tf.float32)
+
+            hidden_states = tf.concat(hidden_states, 2)
+            output_states = tf.concat(output_states, 1)
+
+        elif self.encoder_type == "convolutional":
+            conv_layers = []
+            for filt_size in self.conv_filters:
+                filt = get_variable(
+                    name="conv_filter_{}".format(filt_size),
+                    shape=[filt_size, self.char_emb_size, self.char_emb_size],
+                    initializer=tf.glorot_uniform_initializer())
+                conv_layer = tf.nn.conv1d(
+                    value=embedded_chars,
+                    filters=filt,
+                    stride=1,
+                    padding="SAME",
+                    name="conv_{}".format(filt_size))
+            #maxpool_layer = tf.reduce_max(conv_layer,1,keep_dims=True)
+            conv_layers.append(conv_layer)
+            hidden_states = tf.concat(conv_layers, 3)
+
+        hidden_states = tf.reshape(
+            hidden_states,
+            [-1, input_shape[1], input_shape[2], self.embedding_sizes[0]])
+        output_states = tf.reshape(
+            output_states,
+            [-1, input_shape[1], self.embedding_sizes[0]])
+        if self.pooling == "maxpool":
+            return tf.reduce_max(hidden_states, axis=2)
+        elif self.pooling == "average":
+            return tf.reduce_mean(hidden_states, axis=2)
+        return output_states
+
+    @tensor
+    def temporal_mask(self) -> tf.Tensor:
+        return tf.argmax(self.mask, -1)
+
+    def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
+        fd = {}
+
+        vectors, paddings = self.vocabulary.sentences_to_tensor(
+            list(dataset.get_series(self.data_id)),
+            self.max_length,
+            pad_to_max_len=False,
+            train_mode=train,
+            add_start_symbol=self.add_start_symbol,
+            add_end_symbol=self.add_end_symbol)
+
+        # shape(vectors) = (sent_len, batch_size, tok_len)
+        # we need to transform the vectors to batch-major shape
+        fd[self.inputs] = np.swapaxes(vectors, 0, 1)
+        fd[self.mask] = np.swapaxes(paddings, 0, 1)
+
+        return fd
