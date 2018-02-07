@@ -72,6 +72,7 @@ class AutoregressiveDecoder(ModelPart):
                  dropout_keep_prob: float = 1.0,
                  embedding_size: int = None,
                  embeddings_source: EmbeddedSequence = None,
+                 tie_embeddings: bool = False,
                  label_smoothing: float = None,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None,
@@ -101,6 +102,7 @@ class AutoregressiveDecoder(ModelPart):
         self.embedding_size = embedding_size
         self.embeddings_source = embeddings_source
         self.label_smoothing = label_smoothing
+        self.tie_embeddings = tie_embeddings
 
         # check the values of the parameters (max_output_len, ...)
         if max_output_len <= 0:
@@ -142,6 +144,8 @@ class AutoregressiveDecoder(ModelPart):
     @tensor
     def decoding_w(self) -> tf.Variable:
         with tf.name_scope("output_projection"):
+            if self.tie_embeddings:
+                return tf.transpose(self.embedding_matrix)
             return get_variable(
                 "logit_matrix",
                 [self.output_dimension, len(self.vocabulary)],

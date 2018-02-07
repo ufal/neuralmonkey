@@ -60,6 +60,10 @@ def noam_decay(learning_rate: float,
                warmup_steps: int) -> tf.Tensor:
     """Return decay function as defined in Vaswani et al., 2017, Equation 3.
 
+    https://arxiv.org/abs/1706.03762
+
+    lrate = (d_model)^-0.5 * min(step_num^-0.5, step_num * warmup_steps^-1.5)
+
     Arguments:
         model_dimension: Size of the hidden states of decoder and encoder
         warmup_steps: Number of warm-up steps

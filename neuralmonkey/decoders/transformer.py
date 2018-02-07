@@ -51,6 +51,7 @@ class TransformerDecoder(AutoregressiveDecoder):
                  dropout_keep_prob: float = 1.0,
                  embedding_size: int = None,
                  embeddings_source: EmbeddedSequence = None,
+                 tie_embeddings: bool = True,
                  label_smoothing: float = None,
                  attention_dropout_keep_prob: float = 1.0,
                  save_checkpoint: str = None,
@@ -90,6 +91,7 @@ class TransformerDecoder(AutoregressiveDecoder):
             dropout_keep_prob=dropout_keep_prob,
             embedding_size=embedding_size,
             embeddings_source=embeddings_source,
+            tie_embeddings=tie_embeddings,
             label_smoothing=label_smoothing,
             save_checkpoint=save_checkpoint,
             load_checkpoint=load_checkpoint)
@@ -239,11 +241,11 @@ class TransformerDecoder(AutoregressiveDecoder):
         # See: https://arxiv.org/pdf/1608.05859.pdf
         #
         # shape (batch, time, vocab)
-        logits = tf.reshape(
-            tf.matmul(
-                last_layer_states,
-                tf.transpose(self.embedding_matrix)),
+        logits_unbiased = tf.reshape(
+            tf.matmul(last_layer_states, self.decoding_w),
             [last_layer_shape[0], last_layer_shape[1], len(self.vocabulary)])
+
+        logits = logits_unbiased + tf.reshape(self.decoding_b, [1, 1, -1])
 
         # return logits in time-major shape
         return tf.transpose(logits, perm=[1, 0, 2])
@@ -318,9 +320,10 @@ class TransformerDecoder(AutoregressiveDecoder):
                 output_state = last_layer.temporal_states[:, -1, :]
 
                 # See train_logits definition
-                logits = tf.matmul(
+                logits_unbiased = tf.matmul(
                     output_state,
-                    tf.transpose(self.embedding_matrix))
+                    self.decoding_w)
+                logits = logits_unbiased + self.decoding_b
 
                 if sample:
                     next_symbols = tf.multinomial(logits, num_samples=1)
