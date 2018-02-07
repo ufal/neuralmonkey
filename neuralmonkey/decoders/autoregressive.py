@@ -143,9 +143,15 @@ class AutoregressiveDecoder(ModelPart):
 
     @tensor
     def decoding_w(self) -> tf.Variable:
+        if (self.tie_embeddings
+                and self.embedding_size != self.output_dimension):
+            raise ValueError(
+                "`embedding_size must be equal to the output_projection "
+                "size when using the `tie_embeddings` option")
+
+        if self.tie_embeddings:
+            return tf.transpose(self.embedding_matrix)
         with tf.name_scope("output_projection"):
-            if self.tie_embeddings:
-                return tf.transpose(self.embedding_matrix)
             return get_variable(
                 "logit_matrix",
                 [self.output_dimension, len(self.vocabulary)],
