@@ -1,84 +1,9 @@
 import os
 import argparse
 
-from neuralmonkey.logging import log, log_print
 from neuralmonkey.config.configuration import Configuration
-from neuralmonkey.learning_utils import (evaluation, run_on_dataset,
-                                         print_final_evaluation)
-from neuralmonkey.tf_manager import get_default_tf_manager
-
-CONFIG = Configuration()
-CONFIG.add_argument("tf_manager", required=False, default=None)
-CONFIG.add_argument("output")
-CONFIG.add_argument("postprocess", required=False, default=None)
-CONFIG.add_argument("evaluation", required=False, default=None)
-CONFIG.add_argument("runners")
-CONFIG.add_argument("batch_size")
-CONFIG.add_argument("threads", required=False, default=4)
-CONFIG.add_argument("runners_batch_size", required=False, default=None)
-# ignore arguments which are just for training
-CONFIG.ignore_argument("val_dataset")
-CONFIG.ignore_argument("trainer")
-CONFIG.ignore_argument("name")
-CONFIG.ignore_argument("train_dataset")
-CONFIG.ignore_argument("epochs")
-CONFIG.ignore_argument("test_datasets")
-CONFIG.ignore_argument("initial_variables")
-CONFIG.ignore_argument("validation_period")
-CONFIG.ignore_argument("val_preview_input_series")
-CONFIG.ignore_argument("val_preview_output_series")
-CONFIG.ignore_argument("val_preview_num_examples")
-CONFIG.ignore_argument("logging_period")
-CONFIG.ignore_argument("visualize_embeddings")
-CONFIG.ignore_argument("minimize")
-CONFIG.ignore_argument("random_seed")
-CONFIG.ignore_argument("save_n_best")
-CONFIG.ignore_argument("overwrite_output_dir")
-
-
-def default_variable_file(output_dir):
-    variables_file = os.path.join(output_dir, "variables.data")
-    cont_index = 1
-
-    def continuation_file():
-        return os.path.join(output_dir,
-                            "variables.data.cont-{}".format(cont_index))
-    while os.path.exists(continuation_file() + ".best"):
-        variables_file = continuation_file()
-        cont_index += 1
-
-    return variables_file
-
-
-def initialize_for_running(output_dir, tf_manager, variable_files) -> None:
-    """Restore either default variables of from configuration.
-
-    Arguments:
-       output_dir: Training output directory.
-       tf_manager: TensorFlow manager.
-       variable_files: Files with variables to be restored or None if the
-           default variables should be used.
-    """
-    # pylint: disable=no-member
-    log_print("")
-
-    if variable_files is None:
-        default_varfile = default_variable_file(output_dir)
-
-        log("Default variable file '{}' will be used for loading variables."
-            .format(default_varfile))
-
-        variable_files = [default_varfile]
-
-    for vfile in variable_files:
-        if not os.path.exists("{}.index".format(vfile)):
-            log("Index file for var prefix {} does not exist".format(vfile),
-                color="red")
-            exit(1)
-
-    tf_manager.restore(variable_files)
-
-    log_print("")
+from neuralmonkey.experiment import Experiment
+from neuralmonkey.logging import log, log_print
 
 
 def main() -> None:
@@ -96,18 +21,11 @@ def main() -> None:
     test_datasets.add_argument("test_datasets")
     test_datasets.add_argument("variables", cond=lambda x: isinstance(x, list))
 
-    CONFIG.load_file(args.config)
-    CONFIG.build_model()
+    exp = Experiment(config_path=args.config, train_mode=False)
+
     test_datasets.load_file(args.datasets)
     test_datasets.build_model()
     datasets_model = test_datasets.model
-
-    tf_manager = CONFIG.model.tf_manager
-    if tf_manager is None:
-        tf_manager = get_default_tf_manager()
-
-    initialize_for_running(
-        CONFIG.model.output, tf_manager, datasets_model.variables)
 
     if args.grid and len(datasets_model.test_datasets) > 1:
         raise ValueError("Only one test dataset supported when using --grid")
@@ -133,23 +51,10 @@ def main() -> None:
 
             dataset = dataset.subset(start, length)
 
-        if CONFIG.model.runners_batch_size is None:
-            runners_batch_size = CONFIG.model.batch_size
+        if exp.model.evaluation is None:
+            exp.run_model(dataset, write_out=True)
         else:
-            runners_batch_size = CONFIG.model.runners_batch_size
+            exp.evaluate(dataset, write_out=True)
 
-        execution_results, output_data = run_on_dataset(
-            tf_manager, CONFIG.model.runners, dataset,
-            CONFIG.model.postprocess, write_out=True,
-            batch_size=runners_batch_size, log_progress=60)
-
-        if CONFIG.model.evaluation is not None:
-            evaluators = [(e[0], e[0], e[1]) if len(e) == 2 else e
-                          for e in CONFIG.model.evaluation]
-            eval_result = evaluation(evaluators, dataset, CONFIG.model.runners,
-                                     execution_results, output_data)
-            if eval_result:
-                print_final_evaluation(dataset.name, eval_result)
-
-    for _ in range(len(tf_manager.sessions)):
-        del tf_manager.sessions[0]
+    for session in exp.config.model.tf_manager.sessions:
+        session.close()

@@ -7,14 +7,12 @@ import flask
 from flask import Flask, request, Response, render_template
 
 from neuralmonkey.dataset import Dataset
-from neuralmonkey.learning_utils import run_on_dataset
-from neuralmonkey.run import CONFIG, initialize_for_running
-from neuralmonkey.tf_manager import get_default_tf_manager
+from neuralmonkey.experiment import Experiment
 
 
 APP = Flask(__name__)
 APP.config.from_object(__name__)
-APP.config["args"] = None
+APP.config["experiment"] = None
 
 
 def root_dir():  # pragma: no cover
@@ -27,14 +25,10 @@ def get_file(filename):  # pragma: no cover
 
 
 def run(data):  # pragma: no cover
-    args = APP.config["args"]
+    exp = APP.config["experiment"]
     dataset = Dataset("request", data, {})
-    # TODO check the dataset
-    # check_dataset_and_coders(dataset, args.encoders)
 
-    _, response_data = run_on_dataset(
-        args.tf_manager, args.runners,
-        dataset, args.postprocess, write_out=False)
+    _, response_data = exp.run_model(dataset, write_out=False)
 
     return response_data
 
@@ -87,18 +81,11 @@ def main() -> None:
     parser.add_argument("--port", type=int, default=5000)
     parser.add_argument("--host", type=str, default="127.0.0.1")
     parser.add_argument("--configuration", type=str, required=True)
-    cli_args = parser.parse_args()
+    args = parser.parse_args()
 
     print("")
 
-    # pylint: disable=no-member
-    CONFIG.load_file(cli_args.configuration)
-    CONFIG.build_model()
-
-    tf_manager = CONFIG.model.tf_manager
-    if tf_manager is None:
-        tf_manager = get_default_tf_manager()
-
-    initialize_for_running(CONFIG.model.output, tf_manager, None)
-    APP.config["args"] = CONFIG.model
-    APP.run(port=cli_args.port, host=cli_args.host)
+    exp = Experiment(config_path=args.configuration, train_mode=False)
+    exp.build_model()
+    APP.config["experiment"] = exp
+    APP.run(port=args.port, host=args.host)
