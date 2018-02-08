@@ -243,11 +243,10 @@ class TransformerDecoder(AutoregressiveDecoder):
         # See: https://arxiv.org/pdf/1608.05859.pdf
         #
         # shape (batch, time, vocab)
-        logits_unbiased = tf.reshape(
+        logits = tf.reshape(
             tf.matmul(last_layer_states, self.decoding_w),
             [last_layer_shape[0], last_layer_shape[1], len(self.vocabulary)])
-
-        logits = logits_unbiased + tf.reshape(self.decoding_b, [1, 1, -1])
+        logits += tf.reshape(self.decoding_b, [1, 1, -1])
 
         # return logits in time-major shape
         return tf.transpose(logits, perm=[1, 0, 2])
@@ -322,10 +321,8 @@ class TransformerDecoder(AutoregressiveDecoder):
                 output_state = last_layer.temporal_states[:, -1, :]
 
                 # See train_logits definition
-                logits_unbiased = tf.matmul(
-                    output_state,
-                    self.decoding_w)
-                logits = logits_unbiased + self.decoding_b
+                logits = tf.matmul(output_state, self.decoding_w)
+                logits += self.decoding_b
 
                 if sample:
                     next_symbols = tf.multinomial(logits, num_samples=1)
