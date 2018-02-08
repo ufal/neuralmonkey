@@ -5,7 +5,7 @@ Either for the recurrent decoder, or for the transformer decoder.
 The autoregressive decoder uses the while loop to get the outputs.
 Descendants should only specify the initial state and the while loop body.
 """
-from typing import (NamedTuple, Union, Callable, Tuple, cast, Iterable, Type,
+from typing import (NamedTuple, Callable, Tuple, cast, Iterable, Type,
                     List, Optional, Any)
 
 import numpy as np
@@ -283,7 +283,7 @@ class AutoregressiveDecoder(ModelPart):
         return tf.nn.log_softmax(self.runtime_logits)
 
     @property
-    def output_dimension(self) -> Union[int, tf.Tensor]:
+    def output_dimension(self) -> int:
         raise NotImplementedError("Abstract property")
 
     def get_initial_loop_state(self) -> LoopState:

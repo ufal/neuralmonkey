@@ -1,4 +1,4 @@
-from typing import List, Callable, Union, Tuple, cast
+from typing import List, Callable, Tuple, cast
 
 import tensorflow as tf
 from typeguard import check_argument_types
@@ -208,7 +208,7 @@ class Decoder(AutoregressiveDecoder):
         return initial_state
 
     @property
-    def output_dimension(self) -> Union[int, tf.Tensor]:
+    def output_dimension(self) -> int:
         return self.output_projection_size
 
     def _get_rnn_cell(self) -> tf.contrib.rnn.RNNCell:
