@@ -3,7 +3,7 @@ import argparse
 
 from neuralmonkey.config.configuration import Configuration
 from neuralmonkey.experiment import Experiment
-from neuralmonkey.logging import log, log_print
+from neuralmonkey.logging import log
 
 
 def main() -> None:
@@ -51,7 +51,7 @@ def main() -> None:
 
             dataset = dataset.subset(start, length)
 
-        if exp.model.evaluation is None:
+        if exp.config.args.evaluation is None:
             exp.run_model(dataset, write_out=True)
         else:
             exp.evaluate(dataset, write_out=True)

@@ -2,19 +2,12 @@
 
 import argparse
 import sys
-import random
 import os
 import shlex
 from shutil import copyfile
-import subprocess
 import traceback
-import numpy as np
-import tensorflow as tf
-from tensorflow.contrib.tensorboard.plugins import projector
 
-from neuralmonkey.checking import CheckingException
-from neuralmonkey.logging import Logging, log, debug
-from neuralmonkey.config.configuration import Configuration
+from neuralmonkey.logging import log, debug
 from neuralmonkey.experiment import Experiment
 
 
@@ -54,13 +47,13 @@ def _main() -> None:
             exit(1)
 
         exp.cont_index = 0
-        exp.config.save_file(exp.get_path('experiment.ini'))
-        copyfile(args.config, exp.get_path('original.ini'))
+        exp.config.save_file(exp.get_path("experiment.ini"))
+        copyfile(args.config, exp.get_path("original.ini"))
 
         log("Experiment directory initialized.")
 
         cmd = [os.path.basename(sys.argv[0]), "-f",
-               experiment.get_path("experiment.ini")]
+               exp.get_path("experiment.ini")]
         log("To start experiment, run: {}".format(" ".join(shlex.quote(a)
                                                            for a in cmd)))
         exit(0)

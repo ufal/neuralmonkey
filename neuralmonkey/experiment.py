@@ -1,19 +1,17 @@
-import argparse
 import os
 import random
 from shutil import copyfile
 import subprocess
-import sys
-import traceback
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 import numpy as np
 import tensorflow as tf
 from tensorflow.contrib.tensorboard.plugins import projector
+from typeguard import check_argument_types
 
-from neuralmonkey.checking import (CheckingException, check_dataset_and_coders,
+from neuralmonkey.checking import (check_dataset_and_coders,
                                    check_unused_initializers)
-from neuralmonkey.logging import Logging, log, debug
+from neuralmonkey.logging import Logging, log
 from neuralmonkey.config.configuration import Configuration
 from neuralmonkey.learning_utils import (training_loop, evaluation,
                                          run_on_dataset,
@@ -37,7 +35,7 @@ _EXPERIMENT_FILES = ["experiment.log", "experiment.ini", "original.ini",
                      "git_commit", "git_diff", "variables.data"]
 
 
-def create_config(train_mode: bool=True) -> Configuration:
+def create_config(train_mode: bool = True) -> Configuration:
     config = Configuration()
     config.add_argument("tf_manager", required=False, default=None)
     config.add_argument("batch_size", cond=lambda x: x > 0)
@@ -109,10 +107,11 @@ def visualize_embeddings(sequences: List[EmbeddedFactorSequence],
 
 
 class Experiment(object):
+    # pylint: disable=no-member
 
     def __init__(self,
                  config_path: str,
-                 config_changes: Optional[Iterable[str]] = None,
+                 config_changes: List[str] = None,
                  train_mode: bool = True,
                  overwrite_output_dir: bool = False) -> None:
         self.train_mode = train_mode
@@ -124,13 +123,14 @@ class Experiment(object):
         self._vars_loaded = False
 
         self.config = create_config(train_mode)
-        self.config.load_file(config_path)
+        self.config.load_file(config_path, config_changes)
         args = self.config.args
 
         if self.train_mode:
             # We may need to create the experiment directory.
             if (os.path.isdir(args.output) and
-                os.path.exists(os.path.join(args.output, "experiment.ini"))):
+                    os.path.exists(os.path.join(args.output,
+                                                "experiment.ini"))):
                 if args.overwrite_output_dir or overwrite_output_dir:
                     # we do not want to delete the directory contents
                     log("Directory with experiment.ini '{}' exists, "
@@ -144,11 +144,10 @@ class Experiment(object):
                 os.mkdir(args.output)
 
         # Find how many times the experiment has been continued.
-        cont_index = 0
-        while any(os.path.exists(self.get_path(f, cont_index))
+        self.cont_index = -1
+        while any(os.path.exists(self.get_path(f, cont_index + 1))
                   for f in _EXPERIMENT_FILES):
-            cont_index += 1
-        self.cont_index = cont_index - 1
+            self.cont_index += 1
 
     def build_model(self) -> None:
         if self._model_built:
@@ -191,10 +190,10 @@ class Experiment(object):
         self.cont_index += 1
 
         # Initialize the experiment directory.
-        self.config.save_file(self.get_path('experiment.ini'))
-        copyfile(self._config_path, self.get_path('original.ini'))
+        self.config.save_file(self.get_path("experiment.ini"))
+        copyfile(self._config_path, self.get_path("original.ini"))
         save_git_info(self.get_path("git_commit"), self.get_path("git_diff"))
-        Logging.set_log_file(self.get_path('experiment.log'))
+        Logging.set_log_file(self.get_path("experiment.log"))
 
         Logging.print_header(self.config.model.name, self.config.args.output)
 
@@ -250,8 +249,8 @@ class Experiment(object):
                   dataset: Dataset,
                   write_out: bool = False,
                   batch_size: Optional[int] = None,
-                  log_progress: int = 0) -> Tuple[
-                           List[ExecutionResult], Dict[str, List[Any]]]:
+                  log_progress: int = 0) -> Tuple[List[ExecutionResult],
+                                                  Dict[str, List[Any]]]:
         if not self._model_built:
             self.build_model()
         if not self._vars_loaded:
@@ -263,8 +262,7 @@ class Experiment(object):
             return run_on_dataset(
                 model.tf_manager, model.runners, dataset, model.postprocess,
                 write_out=write_out, log_progress=log_progress,
-                batch_size=batch_size or model.runners_batch_size
-                           or model.batch_size)
+                batch_size=batch_size or model.runners_batch_size)
 
     def evaluate(self,
                  dataset: Dataset,
@@ -285,8 +283,8 @@ class Experiment(object):
 
         return eval_result
 
-    def get_path(self, name: str, cont_index: int = None) -> str:
+    def get_path(self, filename: str, cont_index: int = None) -> str:
         if cont_index is None:
             cont_index = self.cont_index
         cont_suffix = ".cont-{}".format(cont_index) if cont_index > 0 else ""
-        return os.path.join(self.config.args.output, name + cont_suffix)
+        return os.path.join(self.config.args.output, filename + cont_suffix)
