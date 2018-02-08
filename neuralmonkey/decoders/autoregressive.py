@@ -88,6 +88,8 @@ class AutoregressiveDecoder(ModelPart):
             dropout_keep_prob: Probability of keeping a value during dropout.
             embedding_size: Size of embedding vectors for target words.
             embeddings_source: Embedded sequence to take embeddings from.
+            tie_embeddings: Use decoder.embedding_matrix also in place
+                of the output decoding matrix.
             label_smoothing: Label smoothing parameter.
         """
         ModelPart.__init__(self, name, save_checkpoint, load_checkpoint,
@@ -149,9 +151,10 @@ class AutoregressiveDecoder(ModelPart):
                 "`embedding_size must be equal to the output_projection "
                 "size when using the `tie_embeddings` option")
 
-        if self.tie_embeddings:
-            return tf.transpose(self.embedding_matrix)
         with tf.name_scope("output_projection"):
+            if self.tie_embeddings:
+                return tf.transpose(self.embedding_matrix)
+
             return get_variable(
                 "logit_matrix",
                 [self.output_dimension, len(self.vocabulary)],

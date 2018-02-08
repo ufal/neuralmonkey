@@ -83,6 +83,8 @@ class Decoder(AutoregressiveDecoder):
             dropout_keep_prob: Probability of keeping a value during dropout.
             embedding_size: Size of embedding vectors for target words.
             embeddings_source: Embedded sequence to take embeddings from.
+            tie_embeddings: Use decoder.embedding_matrix also in place
+                of the output decoding matrix.
 
         Keyword arguments:
             rnn_size: Size of the decoder hidden state, if None set
