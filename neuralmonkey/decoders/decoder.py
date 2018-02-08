@@ -1,4 +1,4 @@
-from typing import List, Callable, Union, Tuple, cast
+from typing import List, Callable, Tuple, cast
 
 import tensorflow as tf
 from typeguard import check_argument_types
@@ -12,7 +12,7 @@ from neuralmonkey.vocabulary import (
 from neuralmonkey.model.sequence import EmbeddedSequence
 from neuralmonkey.model.stateful import Stateful
 from neuralmonkey.model.model_part import InitializerSpecs
-from neuralmonkey.logging import log, warn
+from neuralmonkey.logging import log
 from neuralmonkey.nn.ortho_gru_cell import OrthoGRUCell, NematusGRUCell
 from neuralmonkey.nn.utils import dropout
 from neuralmonkey.decoders.encoder_projection import (
@@ -21,7 +21,6 @@ from neuralmonkey.decoders.encoder_projection import (
 from neuralmonkey.decoders.output_projection import (
     OutputProjectionSpec, OutputProjection, nonlinear_output)
 from neuralmonkey.decorators import tensor
-from neuralmonkey.tf_utils import get_variable
 
 
 RNN_CELL_TYPES = {
@@ -58,13 +57,14 @@ class Decoder(AutoregressiveDecoder):
                  name: str,
                  max_output_len: int,
                  dropout_keep_prob: float = 1.0,
+                 embedding_size: int = None,
+                 embeddings_source: EmbeddedSequence = None,
+                 tie_embeddings: bool = False,
                  label_smoothing: float = None,
                  rnn_size: int = None,
-                 embedding_size: int = None,
                  output_projection: OutputProjectionSpec = None,
                  encoder_projection: EncoderProjection = None,
                  attentions: List[BaseAttention] = None,
-                 embeddings_source: EmbeddedSequence = None,
                  attention_on_input: bool = True,
                  rnn_cell: str = "GRU",
                  conditional_gru: bool = False,
@@ -74,26 +74,28 @@ class Decoder(AutoregressiveDecoder):
         """Create a refactored version of monster decoder.
 
         Arguments:
-            encoders: Input encoders of the decoder
-            vocabulary: Target vocabulary
-            data_id: Target data series
+            encoders: Input encoders of the decoder.
+            vocabulary: Target vocabulary.
+            data_id: Target data series.
             name: Name of the decoder. Should be unique accross all Neural
-                Monkey objects
-            max_output_len: Maximum length of an output sequence
-            dropout_keep_prob: Probability of keeping a value during dropout
+                Monkey objects.
+            max_output_len: Maximum length of an output sequence.
+            dropout_keep_prob: Probability of keeping a value during dropout.
+            embedding_size: Size of embedding vectors for target words.
+            embeddings_source: Embedded sequence to take embeddings from.
+            tie_embeddings: Use decoder.embedding_matrix also in place
+                of the output decoding matrix.
 
         Keyword arguments:
             rnn_size: Size of the decoder hidden state, if None set
                 according to encoders.
-            embedding_size: Size of embedding vectors for target words
             output_projection: How to generate distribution over vocabulary
-                from decoder_outputs
-            encoder_projection: How to construct initial state from encoders
+                from decoder_outputs.
+            encoder_projection: How to construct initial state from encoders.
             attention: The attention object to use. Optional.
-            embeddings_source: Embedded sequence to take embeddings from
-            rnn_cell: RNN Cell used by the decoder (GRU or LSTM)
+            rnn_cell: RNN Cell used by the decoder (GRU or LSTM).
             conditional_gru: Flag whether to use the Conditional GRU
-                architecture
+                architecture.
             attention_on_input: Flag whether attention from previous decoding
                 step should be combined with the input in the next step.
         """
@@ -105,38 +107,25 @@ class Decoder(AutoregressiveDecoder):
             data_id=data_id,
             max_output_len=max_output_len,
             dropout_keep_prob=dropout_keep_prob,
+            embedding_size=embedding_size,
+            embeddings_source=embeddings_source,
+            tie_embeddings=tie_embeddings,
             label_smoothing=label_smoothing,
             save_checkpoint=save_checkpoint,
             load_checkpoint=load_checkpoint,
             initializers=initializers)
 
         self.encoders = encoders
-        self.embedding_size = embedding_size
         self.rnn_size = rnn_size
         self.output_projection_spec = output_projection
         self.encoder_projection = encoder_projection
         self.attentions = attentions
-        self.embeddings_source = embeddings_source
         self._conditional_gru = conditional_gru
         self._attention_on_input = attention_on_input
         self._rnn_cell_str = rnn_cell
 
         if self.attentions is None:
             self.attentions = []
-
-        if self.embedding_size is None and self.embeddings_source is None:
-            raise ValueError("You must specify either embedding size or the "
-                             "embedded sequence from which to reuse the "
-                             "embeddings (e.g. set either 'embedding_size' or "
-                             " 'embeddings_source' parameter)")
-
-        if self.embeddings_source is not None:
-            if self.embedding_size is not None:
-                warn("Overriding the embedding_size parameter with the"
-                     " size of the reused embeddings from the encoder.")
-
-            self.embedding_size = (
-                self.embeddings_source.embedding_matrix.get_shape()[1].value)
 
         if self.encoder_projection is None:
             if not self.encoders:
@@ -218,23 +207,8 @@ class Decoder(AutoregressiveDecoder):
 
         return initial_state
 
-    @tensor
-    def embedding_matrix(self) -> tf.Variable:
-        """Variables and operations for embedding of input words.
-
-        If we are reusing word embeddings, this function takes the embedding
-        matrix from the first encoder
-        """
-        if self.embeddings_source is not None:
-            return self.embeddings_source.embedding_matrix
-
-        return get_variable(
-            name="word_embeddings",
-            shape=[len(self.vocabulary), self.embedding_size],
-            initializer=tf.glorot_uniform_initializer())
-
     @property
-    def output_dimension(self) -> Union[int, tf.Tensor]:
+    def output_dimension(self) -> int:
         return self.output_projection_size
 
     def _get_rnn_cell(self) -> tf.contrib.rnn.RNNCell:

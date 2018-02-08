@@ -5,7 +5,7 @@ Either for the recurrent decoder, or for the transformer decoder.
 The autoregressive decoder uses the while loop to get the outputs.
 Descendants should only specify the initial state and the while loop body.
 """
-from typing import (NamedTuple, Union, Callable, Tuple, cast, Iterable, Type,
+from typing import (NamedTuple, Callable, Tuple, cast, Iterable, Type,
                     List, Optional, Any)
 
 import numpy as np
@@ -13,8 +13,9 @@ import tensorflow as tf
 
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.decorators import tensor
-from neuralmonkey.logging import log
 from neuralmonkey.model.model_part import ModelPart, FeedDict, InitializerSpecs
+from neuralmonkey.logging import log, warn
+from neuralmonkey.model.sequence import EmbeddedSequence
 from neuralmonkey.nn.utils import dropout
 from neuralmonkey.tf_utils import get_variable
 from neuralmonkey.vocabulary import Vocabulary, START_TOKEN
@@ -69,6 +70,9 @@ class AutoregressiveDecoder(ModelPart):
                  data_id: str,
                  max_output_len: int,
                  dropout_keep_prob: float = 1.0,
+                 embedding_size: int = None,
+                 embeddings_source: EmbeddedSequence = None,
+                 tie_embeddings: bool = False,
                  label_smoothing: float = None,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None,
@@ -82,6 +86,11 @@ class AutoregressiveDecoder(ModelPart):
             data_id: Target data series.
             max_output_len: Maximum length of an output sequence.
             dropout_keep_prob: Probability of keeping a value during dropout.
+            embedding_size: Size of embedding vectors for target words.
+            embeddings_source: Embedded sequence to take embeddings from.
+            tie_embeddings: Use decoder.embedding_matrix also in place
+                of the output decoding matrix.
+            label_smoothing: Label smoothing parameter.
         """
         ModelPart.__init__(self, name, save_checkpoint, load_checkpoint,
                            initializers)
@@ -92,7 +101,10 @@ class AutoregressiveDecoder(ModelPart):
         self.data_id = data_id
         self.max_output_len = max_output_len
         self.dropout_keep_prob = dropout_keep_prob
+        self.embedding_size = embedding_size
+        self.embeddings_source = embeddings_source
         self.label_smoothing = label_smoothing
+        self.tie_embeddings = tie_embeddings
 
         # check the values of the parameters (max_output_len, ...)
         if max_output_len <= 0:
@@ -102,6 +114,20 @@ class AutoregressiveDecoder(ModelPart):
         if dropout_keep_prob < 0.0 or dropout_keep_prob > 1.0:
             raise ValueError("Dropout keep probability must be"
                              "a real number in the interval [0,1].")
+
+        if self.embedding_size is None and self.embeddings_source is None:
+            raise ValueError("You must specify either embedding size or the "
+                             "embedded sequence from which to reuse the "
+                             "embeddings (e.g. set either 'embedding_size' or "
+                             " 'embeddings_source' parameter)")
+
+        if self.embeddings_source is not None:
+            if self.embedding_size is not None:
+                warn("Overriding the embedding_size parameter with the"
+                     " size of the reused embeddings from the encoder.")
+
+            self.embedding_size = (
+                self.embeddings_source.embedding_matrix.get_shape()[1].value)
 
         with self.use_scope():
             self.train_mode = tf.placeholder(tf.bool, [], "train_mode")
@@ -119,7 +145,16 @@ class AutoregressiveDecoder(ModelPart):
 
     @tensor
     def decoding_w(self) -> tf.Variable:
+        if (self.tie_embeddings
+                and self.embedding_size != self.output_dimension):
+            raise ValueError(
+                "`embedding_size must be equal to the output_projection "
+                "size when using the `tie_embeddings` option")
+
         with tf.name_scope("output_projection"):
+            if self.tie_embeddings:
+                return tf.transpose(self.embedding_matrix)
+
             return get_variable(
                 "logit_matrix",
                 [self.output_dimension, len(self.vocabulary)],
@@ -131,6 +166,21 @@ class AutoregressiveDecoder(ModelPart):
             return get_variable(
                 "logit_bias", [len(self.vocabulary)],
                 initializer=tf.zeros_initializer())
+
+    @tensor
+    def embedding_matrix(self) -> tf.Variable:
+        """Variables and operations for embedding of input words.
+
+        If we are reusing word embeddings, this function takes the embedding
+        matrix from the first encoder
+        """
+        if self.embeddings_source is not None:
+            return self.embeddings_source.embedding_matrix
+
+        return get_variable(
+            name="word_embeddings",
+            shape=[len(self.vocabulary), self.embedding_size],
+            initializer=tf.glorot_uniform_initializer())
 
     def get_logits(self, state: tf.Tensor) -> tf.Tensor:
         """Project the decoder's output layer to logits over the vocabulary."""
@@ -233,7 +283,7 @@ class AutoregressiveDecoder(ModelPart):
         return tf.nn.log_softmax(self.runtime_logits)
 
     @property
-    def output_dimension(self) -> Union[int, tf.Tensor]:
+    def output_dimension(self) -> int:
         raise NotImplementedError("Abstract property")
 
     def get_initial_loop_state(self) -> LoopState:
