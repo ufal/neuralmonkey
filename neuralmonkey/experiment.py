@@ -39,77 +39,6 @@ _EXPERIMENT_FILES = ["experiment.log", "experiment.ini", "original.ini",
                      "git_commit", "git_diff", "variables.data.best"]
 
 
-def create_config(train_mode: bool = True) -> Configuration:
-    config = Configuration()
-    config.add_argument("tf_manager", required=False, default=None)
-    config.add_argument("batch_size", cond=lambda x: x > 0)
-    config.add_argument("output")
-    config.add_argument("runners")
-    config.add_argument("runners_batch_size", required=False, default=None)
-
-    if train_mode:
-        config.add_argument("epochs", cond=lambda x: x >= 0)
-        config.add_argument("trainer")
-        config.add_argument("train_dataset")
-        config.add_argument("val_dataset")
-        config.add_argument("postprocess")
-        config.add_argument("evaluation")
-        config.add_argument("test_datasets", required=False, default=[])
-        config.add_argument("logging_period", required=False, default=20)
-        config.add_argument("validation_period", required=False, default=500)
-        config.add_argument("visualize_embeddings", required=False,
-                            default=None)
-        config.add_argument("val_preview_input_series",
-                            required=False, default=None)
-        config.add_argument("val_preview_output_series",
-                            required=False, default=None)
-        config.add_argument("val_preview_num_examples",
-                            required=False, default=15)
-        config.add_argument("train_start_offset", required=False, default=0)
-        config.add_argument("name", required=False,
-                            default="Neural Monkey Experiment")
-        config.add_argument("random_seed", required=False, default=2574600)
-        config.add_argument("initial_variables", required=False, default=None)
-        config.add_argument("overwrite_output_dir", required=False,
-                            default=False)
-    else:
-        config.add_argument("postprocess", required=False, default=None)
-        config.add_argument("evaluation", required=False, default=None)
-        for argument in _TRAIN_ARGS:
-            config.ignore_argument(argument)
-
-    return config
-
-
-def save_git_info(git_commit_file: str, git_diff_file: str,
-                  branch: str = "HEAD", repo_dir: str = None) -> None:
-    if repo_dir is None:
-        # This points inside the neuralmonkey/ dir inside the repo, but
-        # it does not matter for git.
-        repo_dir = os.path.dirname(os.path.realpath(__file__))
-
-    with open(git_commit_file, "wb") as file:
-        subprocess.run(["git", "log", "-1", "--format=%H", branch],
-                       cwd=repo_dir, stdout=file)
-
-    with open(git_diff_file, "wb") as file:
-        subprocess.run(["git", "--no-pager", "diff", "--color=always", branch],
-                       cwd=repo_dir, stdout=file)
-
-
-def visualize_embeddings(sequences: List[EmbeddedFactorSequence],
-                         output_dir: str) -> None:
-    check_argument_types()
-
-    tb_projector = projector.ProjectorConfig()
-
-    for sequence in sequences:
-        sequence.tb_embedding_visualization(output_dir, tb_projector)
-
-    summary_writer = tf.summary.FileWriter(output_dir)
-    projector.visualize_embeddings(summary_writer, tb_projector)
-
-
 class Experiment(object):
     # pylint: disable=no-member
 
@@ -376,6 +305,48 @@ class Experiment(object):
         return cls._current_experiment or _DUMMY_EXPERIMENT
 
 
+def create_config(train_mode: bool = True) -> Configuration:
+    config = Configuration()
+    config.add_argument("tf_manager", required=False, default=None)
+    config.add_argument("batch_size", cond=lambda x: x > 0)
+    config.add_argument("output")
+    config.add_argument("runners")
+    config.add_argument("runners_batch_size", required=False, default=None)
+
+    if train_mode:
+        config.add_argument("epochs", cond=lambda x: x >= 0)
+        config.add_argument("trainer")
+        config.add_argument("train_dataset")
+        config.add_argument("val_dataset")
+        config.add_argument("postprocess")
+        config.add_argument("evaluation")
+        config.add_argument("test_datasets", required=False, default=[])
+        config.add_argument("logging_period", required=False, default=20)
+        config.add_argument("validation_period", required=False, default=500)
+        config.add_argument("visualize_embeddings", required=False,
+                            default=None)
+        config.add_argument("val_preview_input_series",
+                            required=False, default=None)
+        config.add_argument("val_preview_output_series",
+                            required=False, default=None)
+        config.add_argument("val_preview_num_examples",
+                            required=False, default=15)
+        config.add_argument("train_start_offset", required=False, default=0)
+        config.add_argument("name", required=False,
+                            default="Neural Monkey Experiment")
+        config.add_argument("random_seed", required=False, default=2574600)
+        config.add_argument("initial_variables", required=False, default=None)
+        config.add_argument("overwrite_output_dir", required=False,
+                            default=False)
+    else:
+        config.add_argument("postprocess", required=False, default=None)
+        config.add_argument("evaluation", required=False, default=None)
+        for argument in _TRAIN_ARGS:
+            config.ignore_argument(argument)
+
+    return config
+
+
 class _DummyExperiment(Experiment):
     """A dummy Experiment.
 
@@ -409,3 +380,32 @@ class _DummyExperiment(Experiment):
 
 
 _DUMMY_EXPERIMENT = _DummyExperiment()
+
+
+def save_git_info(git_commit_file: str, git_diff_file: str,
+                  branch: str = "HEAD", repo_dir: str = None) -> None:
+    if repo_dir is None:
+        # This points inside the neuralmonkey/ dir inside the repo, but
+        # it does not matter for git.
+        repo_dir = os.path.dirname(os.path.realpath(__file__))
+
+    with open(git_commit_file, "wb") as file:
+        subprocess.run(["git", "log", "-1", "--format=%H", branch],
+                       cwd=repo_dir, stdout=file)
+
+    with open(git_diff_file, "wb") as file:
+        subprocess.run(["git", "--no-pager", "diff", "--color=always", branch],
+                       cwd=repo_dir, stdout=file)
+
+
+def visualize_embeddings(sequences: List[EmbeddedFactorSequence],
+                         output_dir: str) -> None:
+    check_argument_types()
+
+    tb_projector = projector.ProjectorConfig()
+
+    for sequence in sequences:
+        sequence.tb_embedding_visualization(output_dir, tb_projector)
+
+    summary_writer = tf.summary.FileWriter(output_dir)
+    projector.visualize_embeddings(summary_writer, tb_projector)
