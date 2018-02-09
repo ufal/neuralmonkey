@@ -253,7 +253,7 @@ class Experiment(object):
 
             self._vars_loaded = True
 
-    def load_variables(self, variable_files: List[str] = None):
+    def load_variables(self, variable_files: List[str] = None) -> None:
         if not self._model_built:
             self.build_model()
 
@@ -277,6 +277,18 @@ class Experiment(object):
                   batch_size: int = None,
                   log_progress: int = 0) -> Tuple[List[ExecutionResult],
                                                   Dict[str, List[Any]]]:
+        """Run the model on a given dataset.
+
+        Args:
+            dataset: The dataset on which the model will be executed.
+            write_out: Flag whether the outputs should be printed to a file
+                defined in the dataset object.
+            batch_size: size of the minibatch
+            log_progress: log progress every X seconds
+
+        Returns:
+            A list of `ExecutionResult`s and a dictionary of the output series.
+        """
         if not self._model_built:
             self.build_model()
         if not self._vars_loaded:
@@ -294,7 +306,21 @@ class Experiment(object):
                  dataset: Dataset,
                  write_out: bool = False,
                  batch_size: int = None,
-                 log_progress: int = 0):
+                 log_progress: int = 0) -> Dict[str, Any]:
+        """Run the model on a given dataset and evaluate the outputs.
+
+        Args:
+            dataset: The dataset on which the model will be executed.
+            write_out: Flag whether the outputs should be printed to a file
+                defined in the dataset object.
+            batch_size: size of the minibatch
+            log_progress: log progress every X seconds
+
+        Returns:
+            Dictionary of evaluation names and their values which includes the
+            metrics applied on respective series loss and loss values from the
+            run.
+        """
         execution_results, output_data = self.run_model(
             dataset, write_out, batch_size, log_progress)
 
@@ -304,7 +330,7 @@ class Experiment(object):
             eval_result = evaluation(
                 evaluators, dataset, self.model.runners,
                 execution_results, output_data)
-        if eval_result and write_out:
+        if eval_result:
             print_final_evaluation(dataset.name, eval_result)
 
         return eval_result
