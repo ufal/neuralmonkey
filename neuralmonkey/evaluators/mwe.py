@@ -1,4 +1,5 @@
 from typing import Dict, List, Tuple
+from munkres import Munkres
 
 import itertools
 
@@ -13,10 +14,12 @@ class MWEEvaluator(object):
     def __init__(self,
                  name: str = "mwe_evaluator",
                  mode: str = "mwe_based",
-                 metric: str = "f-measure") -> None:
+                 metric: str = "f-measure",
+                 tractable: bool = False) -> None:
         self.name = name
         self.mode = mode
         self.metric = metric
+        self.tractable = tractable
         self.total_hyp = 0
         self.total_ref = 0
         self.correct = 0
@@ -34,14 +37,18 @@ class MWEEvaluator(object):
                 pairing = {x: x for x in set(h_mwes) & set(r_mwes)}
                 self._increment(len(h_mwes), len(r_mwes), len(pairing))
             elif self.mode == "tok_based":
-                pairing = _tok_based_pairing(h_mwes, r_mwes)
+                pairing = _tok_based_pairing(h_mwes, r_mwes, self.tractable)
                 self._increment(
                     sum(len(m) for m in h_mwes if m),
                     sum(len(m) for m in r_mwes if m),
                     sum(len(a & b) for (a, b) in pairing.items()))
 
-        precision = self.correct / (self.total_hyp or 1.0)
-        recall = self.correct / (self.total_ref or 1.0)
+        precision, recall = 1.0, 1.0
+        if self.total_hyp > 0:
+            precision = self.correct / self.total_hyp
+        if self.total_ref > 0:
+            recall = self.correct / self.total_ref
+        
         f_measure = 0.0
         if precision > 0.0:
             f_measure = 2.0 * precision * recall / (precision + recall)
@@ -82,11 +89,15 @@ def _to_mwes(sent) -> List[int]:
     return sorted(mwe_set, key=lambda x: list(x))
 
 
-def _tok_based_pairing(h_mwes, r_mwes):
+def _tok_based_pairing(h_mwes, r_mwes, tractable):
     """Look for the largest possible pairing.
 
     The simplest straightforward O(n!) algorithm.
     """
+    if tractable:
+        if not h_mwes or not r_mwes: return {}
+        return _bipartite_graph_mapping(h_mwes, r_mwes)
+
     h_mwes += [None] * (len(r_mwes) - len(h_mwes))
     r_mwes += [None] * (len(h_mwes) - len(r_mwes))
     ret, ret_count = {}, 0
@@ -97,3 +108,13 @@ def _tok_based_pairing(h_mwes, r_mwes):
         if pairing_count > ret_count:
             ret, ret_count = pairing, pairing_count
     return ret
+
+def _bipartite_graph_mapping(r_mwes, h_mwes):
+        cost_mtx = [
+            [-len(r & h) for h in h_mwes]
+            for r in r_mwes]
+
+        m = Munkres()
+        result_indexes = m.compute(cost_mtx)
+
+        return {r_mwes[a]: h_mwes[b] for (a, b) in result_indexes}

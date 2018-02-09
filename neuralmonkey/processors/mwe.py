@@ -29,20 +29,20 @@ class MWELabelPreprocessor(object):
 class MWELabelPostprocessor(object):
 
     def __init__(self) -> None:
-        self.count = 1
+        pass
 
     def __call__(self, decoded_sentences: List[List[str]]) -> List[List[str]]:
         outputs = []
         for sentence in decoded_sentences:
             processed = []
+            count = 0
             for tok in sentence:
                 if tok == "CONT":
-                    processed.append("{}".format(self.count))
+                    processed.append("{}".format(count))
                 elif tok != "_":
-                    processed.append("{}:{}".format(self.count, tok))
-                    self.count += 1
+                    count += 1
+                    processed.append("{}:{}".format(count, tok))
                 else:
                     processed.append(tok)
             outputs.append(processed)
-            self.count = 1
         return outputs
