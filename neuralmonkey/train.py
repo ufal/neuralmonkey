@@ -47,14 +47,13 @@ def _main() -> None:
             log("The experiment directory already exists.", color="red")
             exit(1)
 
-        exp.cont_index = 0
-        exp.config.save_file(exp.get_path("experiment.ini"))
-        copyfile(args.config, exp.get_path("original.ini"))
+        exp.config.save_file(exp.get_path("experiment.ini", 0))
+        copyfile(args.config, exp.get_path("original.ini", 0))
 
         log("Experiment directory initialized.")
 
         cmd = [os.path.basename(sys.argv[0]), "-f",
-               exp.get_path("experiment.ini")]
+               exp.get_path("experiment.ini", 0)]
         log("To start experiment, run: {}".format(" ".join(shlex.quote(a)
                                                            for a in cmd)))
         exit(0)
