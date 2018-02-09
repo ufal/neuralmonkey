@@ -5,10 +5,10 @@ from typing import Dict, Set
 # pylint: enable=unused-import
 import tensorflow as tf
 
-from neuralmonkey.logging import debug
 
-
-current_experiment = None
+# pylint: disable=invalid-name
+current_experiment = None  # type: ignore
+# pylint: enable=invalid-name
 
 
 def update_initializers(initializers: Iterable[Tuple[str, Callable]]) -> None:
@@ -24,8 +24,7 @@ def get_initializer(var_name: str,
     """
     if current_experiment:
         return current_experiment.get_initializer(var_name, default)
-    else:
-        return default
+    return default
 
 
 def get_variable(name: str,

@@ -3,6 +3,7 @@ import random
 from shutil import copyfile
 import subprocess
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
+from typing import Set  # pylint: disable=unused-import
 
 import numpy as np
 import tensorflow as tf
@@ -132,8 +133,8 @@ class Experiment(object):
         self._config_path = config_path
 
         self.graph = tf.Graph()
-        self._initializers = {}
-        self._initialized_variables = set()
+        self._initializers = {}  # type: Dict[str, Callable]
+        self._initialized_variables = set()  # type: Set[str]
         self.cont_index = None
         self._model_built = False
         self._vars_loaded = False
@@ -175,9 +176,9 @@ class Experiment(object):
         with self.graph.as_default():
             tf.set_random_seed(self.config.args.random_seed)
 
-            tf_utils.current_experiment = self
+            tf_utils.current_experiment = self  # type: ignore
             self.config.build_model(warn_unused=self.train_mode)
-            tf_utils.current_experiment =  None
+            tf_utils.current_experiment = None
 
             model = self.config.model
             self._model_built = True
