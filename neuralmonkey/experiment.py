@@ -2,7 +2,7 @@ import os
 import random
 from shutil import copyfile
 import subprocess
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 
 import numpy as np
 import tensorflow as tf
@@ -10,8 +10,8 @@ from tensorflow.contrib.tensorboard.plugins import projector
 from typeguard import check_argument_types
 
 from neuralmonkey.checking import (check_dataset_and_coders,
-                                   check_unused_initializers)
-from neuralmonkey.logging import Logging, log
+                                   CheckingException)
+from neuralmonkey.logging import Logging, log, debug
 from neuralmonkey.config.configuration import Configuration
 from neuralmonkey.learning_utils import (training_loop, evaluation,
                                          run_on_dataset,
@@ -109,6 +109,8 @@ def visualize_embeddings(sequences: List[EmbeddedFactorSequence],
 class Experiment(object):
     # pylint: disable=no-member
 
+    _current_experiment = None
+
     def __init__(self,
                  config_path: str,
                  train_mode: bool = True,
@@ -129,6 +131,8 @@ class Experiment(object):
         self._config_path = config_path
 
         self.graph = tf.Graph()
+        self._initializers = {}
+        self._initialized_variables = set()
         self.cont_index = None
         self._model_built = False
         self._vars_loaded = False
@@ -168,7 +172,12 @@ class Experiment(object):
         np.random.seed(self.config.args.random_seed)
 
         with self.graph.as_default():
+            tf.set_random_seed(self.config.args.random_seed)
+
+            Experiment._current_experiment = self
             self.config.build_model(warn_unused=self.train_mode)
+            Experiment._current_experiment = None
+
             model = self.config.model
             self._model_built = True
 
@@ -186,10 +195,10 @@ class Experiment(object):
                     for val_dataset in model.val_dataset:
                         check_dataset_and_coders(val_dataset, model.runners)
 
-            check_unused_initializers()
-
             if self.train_mode and model.visualize_embeddings:
                 visualize_embeddings(model.visualize_embeddings, model.output)
+
+        self._check_unused_initializers()
 
     def train(self) -> None:
         if not self.train_mode:
@@ -209,8 +218,6 @@ class Experiment(object):
         Logging.print_header(self.config.model.name, self.config.args.output)
 
         with self.graph.as_default():
-            tf.set_random_seed(self.config.args.random_seed)
-
             model = self.config.model
 
             model.tf_manager.init_saving(self.get_path("variables.data"))
@@ -252,8 +259,7 @@ class Experiment(object):
                     "Index file for var prefix {} does not exist"
                     .format(vfile))
 
-        with self.graph.as_default():
-            self.config.model.tf_manager.restore(variable_files)
+        self.config.model.tf_manager.restore(variable_files)
         self._vars_loaded = True
 
     def run_model(self,
@@ -306,3 +312,35 @@ class Experiment(object):
             new_filename = filename + cont_suffix
 
         return os.path.join(self.config.args.output, new_filename)
+
+    def update_initializers(
+            self, initializers: Iterable[Tuple[str, Callable]]) -> None:
+        self._initializers.update(initializers)
+
+    def get_initializer(self, var_name: str,
+                        default: Callable = None) -> Optional[Callable]:
+        """Return the initializer associated with the given variable name."""
+        full_name = tf.get_variable_scope().name + "/" + var_name
+        initializer = self._initializers.get(full_name, default)
+        if initializer is not default:
+            debug("Using {} for variable {}".format(initializer, full_name))
+        self._initialized_variables.add(full_name)
+        return initializer
+
+    def _check_unused_initializers(self) -> None:
+        unused_initializers = [name for name in self._initializers
+                               if name not in self._initialized_variables]
+        if unused_initializers:
+            raise CheckingException(
+                "Initializers were specified for the following non-existent "
+                "variables: " + ", ".join(unused_initializers))
+
+    @classmethod
+    def get_current(cls) -> "Experiment":
+        """Return the experiment that is currently being built."""
+        return cls._current_experiment
+
+
+def get_current() -> Experiment:
+    """Return the experiment that is currently being built."""
+    return Experiment.get_current()

@@ -5,34 +5,20 @@ from typing import Dict, Set
 # pylint: enable=unused-import
 import tensorflow as tf
 
+from neuralmonkey import experiment
 from neuralmonkey.logging import debug
 
-
-# pylint: disable=invalid-name
-_initializers = {}  # type: Dict[str, Callable]
-_initialized_variables = set()  # type: Set[str]
-# pylint: enable=invalid-name
-
-
 def update_initializers(initializers: Iterable[Tuple[str, Callable]]) -> None:
-    _initializers.update(initializers)
+    experiment.get_current().update_initializers(initializers)
 
 
 def get_initializer(var_name: str,
                     default: Callable = None) -> Optional[Callable]:
-    """Return the initializer associated with the given variable name."""
-    full_name = tf.get_variable_scope().name + "/" + var_name
-    initializer = _initializers.get(full_name, default)
-    if initializer is not default:
-        debug("Using {} for variable {}".format(initializer, full_name))
-    _initialized_variables.add(full_name)
-    return initializer
+    """Return the initializer associated with the given variable name.
 
-
-def get_unused_initializers() -> List[str]:
-    """Return the names of unused initializers."""
-    return [name for name in _initializers
-            if name not in _initialized_variables]
+    This should only be called during model building.
+    """
+    return experiment.get_current().get_initializer(var_name, default)
 
 
 def get_variable(name: str,
@@ -45,6 +31,8 @@ def get_variable(name: str,
     This is a wrapper around `tf.get_variable`. The `initializer` parameter is
     treated as a default which can be overriden by a call to
     `update_initializers`.
+
+    This should only be called during model building.
     """
     return tf.get_variable(
         name=name, shape=shape, dtype=dtype,

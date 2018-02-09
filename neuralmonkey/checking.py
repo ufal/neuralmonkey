@@ -63,14 +63,6 @@ def check_dataset_and_coders(dataset: Dataset,
                                 .format(dataset.name, ", ".join(formated)))
 
 
-def check_unused_initializers() -> None:
-    unused_initializers = tf_utils.get_unused_initializers()
-    if unused_initializers:
-        raise CheckingException(
-            "Initializers were specified for the following non-existent "
-            "variables: " + ", ".join(unused_initializers))
-
-
 def assert_shape(tensor: tf.Tensor,
                  expected_shape: List[Optional[int]]) -> None:
     """Check shape of a tensor.
