@@ -128,7 +128,8 @@ class ImageNet(ModelPart, SpatialStatefulWithOutput):
         """
         check_argument_types()
 
-        ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
+        ModelPart.__init__(self, name, load_checkpoint=load_checkpoint,
+                           initializers=initializers, save_checkpoint=None)
         sys.path.insert(0, slim_models_path)
 
         self.data_id = data_id
