@@ -1,5 +1,6 @@
-"""This module provides a high-level API for training and using a model."""
+"""Provides a high-level API for training and using a model."""
 
+from argparse import Namespace  # pylint: disable=unused-import
 import os
 import random
 from shutil import copyfile
@@ -133,7 +134,7 @@ class Experiment(object):
         self.train_mode = train_mode
         self._config_path = config_path
 
-        self.model = None
+        self.model = None  # type: Namespace
         self.graph = tf.Graph()
         self._initializers = {}  # type: Dict[str, Callable]
         self._initialized_variables = set()  # type: Set[str]
@@ -178,6 +179,7 @@ class Experiment(object):
         with self.graph.as_default():
             tf.set_random_seed(self.config.args.random_seed)
 
+            # Enable the created model parts to find this experiment.
             type(self)._current_experiment = self  # type: ignore
             self.config.build_model(warn_unused=self.train_mode)
             type(self)._current_experiment = None
@@ -249,13 +251,14 @@ class Experiment(object):
                 runners_batch_size=self.model.runners_batch_size,
                 initial_variables=self.model.initial_variables)
 
+            self._vars_loaded = True
+
     def load_variables(self, variable_files: List[str] = None):
         if not self._model_built:
             self.build_model()
 
         if variable_files is None:
             variable_files = [self.get_path("variables.data")]
-
             log("Default variable file '{}' will be used for loading "
                 "variables.".format(variable_files[0]))
 
@@ -271,7 +274,7 @@ class Experiment(object):
     def run_model(self,
                   dataset: Dataset,
                   write_out: bool = False,
-                  batch_size: Optional[int] = None,
+                  batch_size: int = None,
                   log_progress: int = 0) -> Tuple[List[ExecutionResult],
                                                   Dict[str, List[Any]]]:
         if not self._model_built:
@@ -290,7 +293,7 @@ class Experiment(object):
     def evaluate(self,
                  dataset: Dataset,
                  write_out: bool = False,
-                 batch_size: Optional[int] = None,
+                 batch_size: int = None,
                  log_progress: int = 0):
         execution_results, output_data = self.run_model(
             dataset, write_out, batch_size, log_progress)
@@ -341,7 +344,6 @@ class Experiment(object):
                 "Initializers were specified for the following non-existent "
                 "variables: " + ", ".join(unused_initializers))
 
-
     @classmethod
     def get_current(cls) -> "Experiment":
         """Return the experiment that is currently being built."""
@@ -371,7 +373,7 @@ class _DummyExperiment(Experiment):
                         default: Callable = None) -> Optional[Callable]:
         """Return the initializer associated with the given variable name."""
         self._warn()
-        super().get_initializer(var_name, default)
+        return super().get_initializer(var_name, default)
 
     def _warn(self) -> None:
         if not self._warned:
