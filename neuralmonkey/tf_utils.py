@@ -24,7 +24,8 @@ def get_initializer(var_name: str,
     """
     if current_experiment:
         return current_experiment.get_initializer(var_name, default)
-    return default
+    else:
+        return default
 
 
 def get_variable(name: str,

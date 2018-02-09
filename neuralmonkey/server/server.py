@@ -85,7 +85,7 @@ def main() -> None:
 
     print("")
 
-    exp = Experiment(config_path=args.configuration, train_mode=False)
+    exp = Experiment(config_path=args.configuration)
     exp.build_model()
     APP.config["experiment"] = exp
     APP.run(port=args.port, host=args.host)

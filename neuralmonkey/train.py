@@ -36,6 +36,7 @@ def _main() -> None:
 
     exp = Experiment(config_path=args.config,
                      config_changes=args.config_changes,
+                     train_mode=True,
                      overwrite_output_dir=args.overwrite)
 
     with open(exp.get_path("args", exp.cont_index + 1), "w") as file:

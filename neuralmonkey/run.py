@@ -25,7 +25,7 @@ def main() -> None:
     test_datasets.build_model()
     datasets_model = test_datasets.model
 
-    exp = Experiment(config_path=args.config, train_mode=False)
+    exp = Experiment(config_path=args.config)
     exp.build_model()
     exp.load_variables(datasets_model.variables)
 

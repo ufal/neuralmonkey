@@ -115,7 +115,7 @@ class Experiment(object):
 
     def __init__(self,
                  config_path: str,
-                 train_mode: bool = True,
+                 train_mode: bool = False,
                  overwrite_output_dir: bool = False,
                  config_changes: List[str] = None) -> None:
         """Initialize a Neural Monkey experiment.
@@ -180,25 +180,29 @@ class Experiment(object):
             self.config.build_model(warn_unused=self.train_mode)
             tf_utils.current_experiment = None
 
-            model = self.config.model
+            self.model = self.config.model
             self._model_built = True
 
-            if model.runners_batch_size is None:
-                model.runners_batch_size = model.batch_size
+            if self.model.runners_batch_size is None:
+                self.model.runners_batch_size = self.model.batch_size
 
-            if model.tf_manager is None:
-                model.tf_manager = get_default_tf_manager()
+            if self.model.tf_manager is None:
+                self.model.tf_manager = get_default_tf_manager()
 
             if self.train_mode:
-                check_dataset_and_coders(model.train_dataset, model.runners)
-                if isinstance(model.val_dataset, Dataset):
-                    check_dataset_and_coders(model.val_dataset, model.runners)
+                check_dataset_and_coders(self.model.train_dataset,
+                                         self.model.runners)
+                if isinstance(self.model.val_dataset, Dataset):
+                    check_dataset_and_coders(self.model.val_dataset,
+                                             self.model.runners)
                 else:
-                    for val_dataset in model.val_dataset:
-                        check_dataset_and_coders(val_dataset, model.runners)
+                    for val_dataset in self.model.val_dataset:
+                        check_dataset_and_coders(val_dataset,
+                                                 self.model.runners)
 
-            if self.train_mode and model.visualize_embeddings:
-                visualize_embeddings(model.visualize_embeddings, model.output)
+            if self.train_mode and self.model.visualize_embeddings:
+                visualize_embeddings(self.model.visualize_embeddings,
+                                     self.model.output)
 
         self._check_unused_initializers()
 
@@ -217,33 +221,31 @@ class Experiment(object):
         save_git_info(self.get_path("git_commit"), self.get_path("git_diff"))
         Logging.set_log_file(self.get_path("experiment.log"))
 
-        Logging.print_header(self.config.model.name, self.config.args.output)
+        Logging.print_header(self.model.name, self.model.output)
 
         with self.graph.as_default():
-            model = self.config.model
-
-            model.tf_manager.init_saving(self.get_path("variables.data"))
+            self.model.tf_manager.init_saving(self.get_path("variables.data"))
 
             training_loop(
-                tf_manager=model.tf_manager,
-                epochs=model.epochs,
-                trainer=model.trainer,
-                batch_size=model.batch_size,
-                log_directory=model.output,
-                evaluators=model.evaluation,
-                runners=model.runners,
-                train_dataset=model.train_dataset,
-                val_dataset=model.val_dataset,
-                test_datasets=model.test_datasets,
-                logging_period=model.logging_period,
-                validation_period=model.validation_period,
-                val_preview_input_series=model.val_preview_input_series,
-                val_preview_output_series=model.val_preview_output_series,
-                val_preview_num_examples=model.val_preview_num_examples,
-                postprocess=model.postprocess,
-                train_start_offset=model.train_start_offset,
-                runners_batch_size=model.runners_batch_size,
-                initial_variables=model.initial_variables)
+                tf_manager=self.model.tf_manager,
+                epochs=self.model.epochs,
+                trainer=self.model.trainer,
+                batch_size=self.model.batch_size,
+                log_directory=self.model.output,
+                evaluators=self.model.evaluation,
+                runners=self.model.runners,
+                train_dataset=self.model.train_dataset,
+                val_dataset=self.model.val_dataset,
+                test_datasets=self.model.test_datasets,
+                logging_period=self.model.logging_period,
+                validation_period=self.model.validation_period,
+                val_preview_input_series=self.model.val_preview_input_series,
+                val_preview_output_series=self.model.val_preview_output_series,
+                val_preview_num_examples=self.model.val_preview_num_examples,
+                postprocess=self.model.postprocess,
+                train_start_offset=self.model.train_start_offset,
+                runners_batch_size=self.model.runners_batch_size,
+                initial_variables=self.model.initial_variables)
 
     def load_variables(self, variable_files: List[str] = None):
         if not self._model_built:
@@ -261,7 +263,7 @@ class Experiment(object):
                     "Index file for var prefix {} does not exist"
                     .format(vfile))
 
-        self.config.model.tf_manager.restore(variable_files)
+        self.model.tf_manager.restore(variable_files)
         self._vars_loaded = True
 
     def run_model(self,
@@ -275,13 +277,13 @@ class Experiment(object):
         if not self._vars_loaded:
             self.load_variables()
 
-        model = self.config.model
         with self.graph.as_default():
-            # TODO: check_dataset_and_coders(dataset, model.runners)
+            # TODO: check_dataset_and_coders(dataset, self.model.runners)
             return run_on_dataset(
-                model.tf_manager, model.runners, dataset, model.postprocess,
+                self.model.tf_manager, self.model.runners, dataset,
+                self.model.postprocess,
                 write_out=write_out, log_progress=log_progress,
-                batch_size=batch_size or model.runners_batch_size)
+                batch_size=batch_size or self.model.runners_batch_size)
 
     def evaluate(self,
                  dataset: Dataset,
@@ -292,10 +294,10 @@ class Experiment(object):
             dataset, write_out, batch_size, log_progress)
 
         evaluators = [(e[0], e[0], e[1]) if len(e) == 2 else e
-                      for e in self.config.model.evaluation]
+                      for e in self.model.evaluation]
         with self.graph.as_default():
             eval_result = evaluation(
-                evaluators, dataset, self.config.model.runners,
+                evaluators, dataset, self.model.runners,
                 execution_results, output_data)
         if eval_result and write_out:
             print_final_evaluation(dataset.name, eval_result)
