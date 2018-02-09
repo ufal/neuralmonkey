@@ -21,11 +21,13 @@ def main() -> None:
     test_datasets.add_argument("test_datasets")
     test_datasets.add_argument("variables", cond=lambda x: isinstance(x, list))
 
-    exp = Experiment(config_path=args.config, train_mode=False)
-
     test_datasets.load_file(args.datasets)
     test_datasets.build_model()
     datasets_model = test_datasets.model
+
+    exp = Experiment(config_path=args.config, train_mode=False)
+    exp.build_model()
+    exp.load_variables(datasets_model.variables)
 
     if args.grid and len(datasets_model.test_datasets) > 1:
         raise ValueError("Only one test dataset supported when using --grid")

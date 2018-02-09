@@ -32,7 +32,7 @@ _TRAIN_ARGS = [
 
 
 _EXPERIMENT_FILES = ["experiment.log", "experiment.ini", "original.ini",
-                     "git_commit", "git_diff", "variables.data"]
+                     "git_commit", "git_diff", "variables.data.best"]
 
 
 def create_config(train_mode: bool = True) -> Configuration:
@@ -295,8 +295,14 @@ class Experiment(object):
         return eval_result
 
     def get_path(self, filename: str, cont_index: int = None) -> str:
-        """Returns the path to the most recent version of the given file."""
+        """Return the path to the most recent version of the given file."""
         if cont_index is None:
             cont_index = self.cont_index
         cont_suffix = ".cont-{}".format(cont_index) if cont_index > 0 else ""
-        return os.path.join(self.config.args.output, filename + cont_suffix)
+
+        if filename.startswith("variables.data"):
+            new_filename = "variables.data" + cont_suffix + filename[14:]
+        else:
+            new_filename = filename + cont_suffix
+
+        return os.path.join(self.config.args.output, new_filename)

@@ -58,7 +58,13 @@ def _main() -> None:
                                                            for a in cmd)))
         exit(0)
 
-    exp.train()
+    try:
+        exp.train()
+    except KeyboardInterrupt:
+        raise
+    except Exception:  # pylint: disable=broad-except
+        log(traceback.format_exc(), color="red")
+        exit(1)
 
 
 def main() -> None:
