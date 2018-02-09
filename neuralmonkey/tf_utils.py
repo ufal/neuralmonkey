@@ -6,14 +6,14 @@ from typing import Dict, Set
 import tensorflow as tf
 
 
-# pylint: disable=invalid-name
-current_experiment = None  # type: ignore
-# pylint: enable=invalid-name
+def _get_current_experiment():
+    # This is needed to avoid circular imports.
+    from neuralmonkey.experiment import Experiment
+    return Experiment.get_current()
 
 
 def update_initializers(initializers: Iterable[Tuple[str, Callable]]) -> None:
-    if current_experiment:
-        current_experiment.update_initializers(initializers)
+    _get_current_experiment().update_initializers(initializers)
 
 
 def get_initializer(var_name: str,
@@ -22,10 +22,7 @@ def get_initializer(var_name: str,
 
     This should only be called during model building.
     """
-    if current_experiment:
-        return current_experiment.get_initializer(var_name, default)
-    else:
-        return default
+    return _get_current_experiment().get_initializer(var_name, default)
 
 
 def get_variable(name: str,

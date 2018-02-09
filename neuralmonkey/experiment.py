@@ -1,3 +1,5 @@
+"""This module provides a high-level API for training and using a model."""
+
 import os
 import random
 from shutil import copyfile
@@ -21,7 +23,6 @@ from neuralmonkey.dataset import Dataset
 from neuralmonkey.model.sequence import EmbeddedFactorSequence
 from neuralmonkey.runners.base_runner import ExecutionResult
 from neuralmonkey.tf_manager import get_default_tf_manager
-from neuralmonkey import tf_utils
 
 
 _TRAIN_ARGS = [
@@ -132,6 +133,7 @@ class Experiment(object):
         self.train_mode = train_mode
         self._config_path = config_path
 
+        self.model = None
         self.graph = tf.Graph()
         self._initializers = {}  # type: Dict[str, Callable]
         self._initialized_variables = set()  # type: Set[str]
@@ -176,9 +178,9 @@ class Experiment(object):
         with self.graph.as_default():
             tf.set_random_seed(self.config.args.random_seed)
 
-            tf_utils.current_experiment = self  # type: ignore
+            type(self)._current_experiment = self  # type: ignore
             self.config.build_model(warn_unused=self.train_mode)
-            tf_utils.current_experiment = None
+            type(self)._current_experiment = None
 
             self.model = self.config.model
             self._model_built = True
@@ -338,3 +340,44 @@ class Experiment(object):
             raise CheckingException(
                 "Initializers were specified for the following non-existent "
                 "variables: " + ", ".join(unused_initializers))
+
+
+    @classmethod
+    def get_current(cls) -> "Experiment":
+        """Return the experiment that is currently being built."""
+        return cls._current_experiment or _DUMMY_EXPERIMENT
+
+
+class _DummyExperiment(Experiment):
+    """A dummy Experiment.
+
+    An instance of this class takes care of initializers when no other
+    experiment is the current experiment. This is needed when someone creates
+    a model part outside an experiment (e.g. in a unit test).
+    """
+
+    def __init__(self):
+        # pylint: disable=super-init-not-called
+        self._initializers = {}  # type: Dict[str, Callable]
+        self._initialized_variables = set()  # type: Set[str]
+        self._warned = False
+
+    def update_initializers(
+            self, initializers: Iterable[Tuple[str, Callable]]) -> None:
+        self._warn()
+        super().update_initializers(initializers)
+
+    def get_initializer(self, var_name: str,
+                        default: Callable = None) -> Optional[Callable]:
+        """Return the initializer associated with the given variable name."""
+        self._warn()
+        super().get_initializer(var_name, default)
+
+    def _warn(self) -> None:
+        if not self._warned:
+            log("Warning: Creating a model part outside of an experiment.",
+                color="red")
+            self._warned = True
+
+
+_DUMMY_EXPERIMENT = _DummyExperiment()
