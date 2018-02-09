@@ -2,7 +2,7 @@ import os
 import random
 from shutil import copyfile
 import subprocess
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import tensorflow as tf
@@ -111,9 +111,20 @@ class Experiment(object):
 
     def __init__(self,
                  config_path: str,
-                 config_changes: List[str] = None,
                  train_mode: bool = True,
-                 overwrite_output_dir: bool = False) -> None:
+                 overwrite_output_dir: bool = False,
+                 config_changes: List[str] = None) -> None:
+        """Initialize a Neural Monkey experiment.
+
+        Arguments:
+            config_path: The path to the experiment configuration file.
+            train_mode: Indicates whether the model should be prepared for
+                training.
+            overwrite_output_dir: Indicates whether an existing experiment
+                should be reused.
+            config_changes: A list of modifications that will be made to the
+                loaded configuration file before parsing.
+        """
         self.train_mode = train_mode
         self._config_path = config_path
 
@@ -145,7 +156,7 @@ class Experiment(object):
 
         # Find how many times the experiment has been continued.
         self.cont_index = -1
-        while any(os.path.exists(self.get_path(f, cont_index + 1))
+        while any(os.path.exists(self.get_path(f, self.cont_index + 1))
                   for f in _EXPERIMENT_FILES):
             self.cont_index += 1
 
@@ -227,7 +238,7 @@ class Experiment(object):
 
     def load_variables(self, variable_files: List[str] = None):
         if not self._model_built:
-            raise RuntimeError("load_variables() called before build_model()")
+            self.build_model()
 
         if variable_files is None:
             variable_files = [self.get_path("variables.data")]
@@ -284,6 +295,7 @@ class Experiment(object):
         return eval_result
 
     def get_path(self, filename: str, cont_index: int = None) -> str:
+        """Returns the path to the most recent version of the given file."""
         if cont_index is None:
             cont_index = self.cont_index
         cont_suffix = ".cont-{}".format(cont_index) if cont_index > 0 else ""
