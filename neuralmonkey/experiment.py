@@ -20,6 +20,7 @@ from neuralmonkey.dataset import Dataset
 from neuralmonkey.model.sequence import EmbeddedFactorSequence
 from neuralmonkey.runners.base_runner import ExecutionResult
 from neuralmonkey.tf_manager import get_default_tf_manager
+from neuralmonkey import tf_utils
 
 
 _TRAIN_ARGS = [
@@ -174,9 +175,9 @@ class Experiment(object):
         with self.graph.as_default():
             tf.set_random_seed(self.config.args.random_seed)
 
-            Experiment._current_experiment = self
+            tf_utils.current_experiment = self
             self.config.build_model(warn_unused=self.train_mode)
-            Experiment._current_experiment = None
+            tf_utils.current_experiment =  None
 
             model = self.config.model
             self._model_built = True
@@ -202,8 +203,8 @@ class Experiment(object):
 
     def train(self) -> None:
         if not self.train_mode:
-            raise RuntimeError("train() was called, but the experiment was"
-                               "not created in training mode")
+            raise RuntimeError("train() was called, but the experiment was "
+                               "created with train_mode=False")
         if not self._model_built:
             self.build_model()
 
@@ -334,13 +335,3 @@ class Experiment(object):
             raise CheckingException(
                 "Initializers were specified for the following non-existent "
                 "variables: " + ", ".join(unused_initializers))
-
-    @classmethod
-    def get_current(cls) -> "Experiment":
-        """Return the experiment that is currently being built."""
-        return cls._current_experiment
-
-
-def get_current() -> Experiment:
-    """Return the experiment that is currently being built."""
-    return Experiment.get_current()

@@ -12,7 +12,6 @@ import tensorflow as tf
 from neuralmonkey.logging import log, debug
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.runners.base_runner import BaseRunner
-from neuralmonkey import tf_utils
 
 
 class CheckingException(Exception):

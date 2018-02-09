@@ -5,11 +5,15 @@ from typing import Dict, Set
 # pylint: enable=unused-import
 import tensorflow as tf
 
-from neuralmonkey import experiment
 from neuralmonkey.logging import debug
 
+
+current_experiment = None
+
+
 def update_initializers(initializers: Iterable[Tuple[str, Callable]]) -> None:
-    experiment.get_current().update_initializers(initializers)
+    if current_experiment:
+        current_experiment.update_initializers(initializers)
 
 
 def get_initializer(var_name: str,
@@ -18,7 +22,10 @@ def get_initializer(var_name: str,
 
     This should only be called during model building.
     """
-    return experiment.get_current().get_initializer(var_name, default)
+    if current_experiment:
+        return current_experiment.get_initializer(var_name, default)
+    else:
+        return default
 
 
 def get_variable(name: str,
