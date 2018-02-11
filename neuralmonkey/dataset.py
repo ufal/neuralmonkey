@@ -40,8 +40,11 @@ class Dataset(collections.Sized):
     A data series is either a list of strings or a numpy array.
     """
 
-    def __init__(self, name: str, series: Dict[str, List],
-                 series_outputs: Dict[str, str]) -> None:
+    def __init__(self,
+                 name: str, series: Dict[str, List],
+                 series_outputs: Dict[str, str],
+                 preprocessors: List[Tuple[str, str, Callable]] = None
+                ) -> None:
         """Create a dataset from the provided series of data.
 
         The data is already preprocessed.
@@ -50,10 +53,24 @@ class Dataset(collections.Sized):
             name: The name for the dataset
             series: Dictionary from the series name to the actual data.
             series_outputs: Output files for target series.
+            preprocessors: The definition of the preprocessors.
         """
         self.name = name
-        self._series = series
+        self._series = dict(series)
         self.series_outputs = series_outputs
+
+        if preprocessors is not None:
+            for src_id, tgt_id, function in preprocessors:
+                if src_id == tgt_id:
+                    raise Exception(
+                        "Attempt to rewrite series '{}'".format(src_id))
+                if src_id not in self._series:
+                    raise Exception(
+                        ("The source series ({}) of the '{}' preprocessor "
+                         "is not defined in the dataset.").format(
+                             src_id, str(function)))
+                self._series[tgt_id] = [
+                    function(item) for item in self._series[src_id]]
 
         self._check_series_lengths()
 
@@ -270,8 +287,9 @@ class LazyDataset(Dataset):
             return reader(paths)
         elif name in self.preprocess_series:
             src_id, func = self.preprocess_series[name]
-            paths, reader = self.series_paths_and_readers[src_id]
-            src_series = reader(paths)
+            src_series = self.get_series(src_id, allow_none)
+            if src_series is None:
+                return None
             return (func(item) for item in src_series)
         else:
             raise Exception("Series '{}' is not in the dataset.".format(name))
@@ -361,19 +379,7 @@ def from_files(
         series = {key: list(reader(paths))
                   for key, (paths, reader) in series_paths_and_readers.items()}
 
-        if preprocessors is not None:
-            for src_id, tgt_id, function in preprocessors:
-                if src_id == tgt_id:
-                    raise Exception(
-                        "Attempt to rewrite series '{}'".format(src_id))
-                if src_id not in series:
-                    raise Exception(
-                        ("The source series ({}) of the '{}' preprocessor "
-                         "is not defined in the dataset.").format(
-                             src_id, str(function)))
-                series[tgt_id] = [function(item) for item in series[src_id]]
-
-        dataset = Dataset(name, series, series_outputs)
+        dataset = Dataset(name, series, series_outputs, preprocessors)
         log("Dataset length: {}".format(len(dataset)))
 
     _preprocessed_datasets(dataset, kwargs)
