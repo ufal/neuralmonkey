@@ -20,9 +20,12 @@ def get_initializer(var_name: str,
                     default: Callable = None) -> Optional[Callable]:
     """Return the initializer associated with the given variable name.
 
+    The name of the current variable scope is prepended to the variable name.
+
     This should only be called during model building.
     """
-    return _get_current_experiment().get_initializer(var_name, default)
+    full_name = tf.get_variable_scope().name + "/" + var_name
+    return _get_current_experiment().get_initializer(full_name, default)
 
 
 def get_variable(name: str,

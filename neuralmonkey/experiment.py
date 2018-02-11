@@ -279,16 +279,19 @@ class Experiment(object):
 
     def update_initializers(
             self, initializers: Iterable[Tuple[str, Callable]]) -> None:
+        """Update the dictionary mapping variable names to initializers."""
         self._initializers.update(initializers)
 
     def get_initializer(self, var_name: str,
                         default: Callable = None) -> Optional[Callable]:
-        """Return the initializer associated with the given variable name."""
-        full_name = tf.get_variable_scope().name + "/" + var_name
-        initializer = self._initializers.get(full_name, default)
+        """Return the initializer associated with the given variable name.
+
+        Calling the method marks the given initializer as used.
+        """
+        initializer = self._initializers.get(var_name, default)
         if initializer is not default:
-            debug("Using {} for variable {}".format(initializer, full_name))
-        self._initialized_variables.add(full_name)
+            debug("Using {} for variable {}".format(initializer, var_name))
+        self._initialized_variables.add(var_name)
         return initializer
 
     def _check_unused_initializers(self) -> None:
