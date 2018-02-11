@@ -47,8 +47,6 @@ class Dataset(collections.Sized):
                 ) -> None:
         """Create a dataset from the provided series of data.
 
-        The data is already preprocessed.
-
         Arguments:
             name: The name for the dataset
             series: Dictionary from the series name to the actual data.
@@ -190,10 +188,8 @@ class Dataset(collections.Sized):
 
     def subset(self, start: int, length: int) -> "Dataset":
         subset_name = "{}.{}.{}".format(self.name, start, length)
-
         subset_outputs = {k: "{}.{:010}".format(v, start)
                           for k, v in self.series_outputs.items()}
-
         subset_series = {k: v[start:start + length]
                          for k, v in self._series.items()}
 
@@ -312,7 +308,6 @@ class LazyDataset(Dataset):
 
     def subset(self, start: int, length: int) -> Dataset:
         subset_name = "{}.{}.{}".format(self.name, start, length)
-
         subset_outputs = {k: "{}.{:010}".format(v, start)
                           for k, v in self.series_outputs.items()}
 
