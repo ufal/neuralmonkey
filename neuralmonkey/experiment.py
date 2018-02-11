@@ -56,7 +56,8 @@ class Experiment(object):
             train_mode: Indicates whether the model should be prepared for
                 training.
             overwrite_output_dir: Indicates whether an existing experiment
-                should be reused.
+                should be reused. If `True`, this overrides the setting in
+                the configuration file.
             config_changes: A list of modifications that will be made to the
                 loaded configuration file before parsing.
         """
