@@ -314,6 +314,7 @@ def create_config(train_mode: bool = True) -> Configuration:
     config.add_argument("tf_manager", required=False, default=None)
     config.add_argument("batch_size", cond=lambda x: x > 0)
     config.add_argument("output")
+    config.add_argument("postprocess", required=False, default=None)
     config.add_argument("runners")
     config.add_argument("runners_batch_size", required=False, default=None)
 
@@ -322,7 +323,6 @@ def create_config(train_mode: bool = True) -> Configuration:
         config.add_argument("trainer")
         config.add_argument("train_dataset")
         config.add_argument("val_dataset")
-        config.add_argument("postprocess")
         config.add_argument("evaluation")
         config.add_argument("test_datasets", required=False, default=[])
         config.add_argument("logging_period", required=False, default=20)
@@ -343,7 +343,6 @@ def create_config(train_mode: bool = True) -> Configuration:
         config.add_argument("overwrite_output_dir", required=False,
                             default=False)
     else:
-        config.add_argument("postprocess", required=False, default=None)
         config.add_argument("evaluation", required=False, default=None)
         for argument in _TRAIN_ARGS:
             config.ignore_argument(argument)
