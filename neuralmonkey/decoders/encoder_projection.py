@@ -115,17 +115,19 @@ def nematus_projection(dropout_keep_prob: float = 1.0) -> EncoderProjection:
         if len(encoders) != 1:
             raise ValueError("Exactly one encoder required for this type of "
                              "projection. {} given.".format(len(encoders)))
-        encoder = encoders[0]
+        encoder_means = []
+        for encoder in encoders:
+            # shape (batch, time)
+            masked_sum = tf.reduce_sum(
+                encoder.temporal_states
+                * tf.expand_dims(encoder.temporal_mask, 2), 1)
 
-        # shape (batch, time)
-        masked_sum = tf.reduce_sum(
-            encoder.temporal_states
-            * tf.expand_dims(encoder.temporal_mask, 2), 1)
+            # shape (batch, 1)
+            lengths = tf.reduce_sum(encoder.temporal_mask, 1, keep_dims=True)
 
-        # shape (batch, 1)
-        lengths = tf.reduce_sum(encoder.temporal_mask, 1, keep_dims=True)
-
-        means = masked_sum / lengths
+            mean = masked_sum / lengths
+            encoder_means.append(mean)
+        means = tf.concat(encoder_means, axis=1)
         means = dropout(means, dropout_keep_prob, train_mode)
 
         encoder_rnn_size = means.get_shape()[1].value
