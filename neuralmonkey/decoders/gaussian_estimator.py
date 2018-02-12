@@ -1,5 +1,5 @@
 import numbers
-from typing import List, cast
+from typing import List, cast, Optional
 
 import numpy as np
 import tensorflow as tf
@@ -21,8 +21,13 @@ class GaussianEstimator(ModelPart):
     def __init__(self,
                  name: str,
                  encoders: List[TemporalStatefulWithOutput],
-                 encoder_signal_size: int,
+                 encoder_signal_size: Optional[int],
                  data_id: str,
+                 use_gauss_density_loss: bool = True,
+                 use_mse_loss: bool = True,
+                 use_stddev_value_loss: bool = True,
+                 fixed_stddev: float = None,
+                 add_hidden_layer: bool = False,
                  encoder_projection: EncoderProjection = None,
                  dropout_keep_prob: float = 1.0,
                  oracle_estimation: bool = False,
@@ -38,13 +43,21 @@ class GaussianEstimator(ModelPart):
               a mean instead of the trained value.
         """
         ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
-        check_argument_types()
+        # check_argument_types()
+
+        # TODO: checks at least one loss is used, fixed stddev is used during
+        #       oracle estimation
 
         self.encoders = encoders
         self.__casted_encoders = [cast(Stateful, e) for e in self.encoders]
         self.encoder_projection = encoder_projection
         self.encoder_signal_size = encoder_signal_size
         self.data_id = data_id
+        self.use_gauss_density_loss = use_gauss_density_loss
+        self.use_mse_loss = use_mse_loss
+        self.use_stddev_value_loss = use_stddev_value_loss
+        self.fixed_stddev = fixed_stddev
+        self.add_hidden_layer = add_hidden_layer
         self.dropout_keep_prob = dropout_keep_prob
         self.oracle_estimation = oracle_estimation
 
@@ -66,24 +79,65 @@ class GaussianEstimator(ModelPart):
                                         self.__casted_encoders),
                 self.dropout_keep_prob,
                 self.train_mode)
+            if self.add_hidden_layer:
+                encoder_signal = dropout(tf.layers.dense(
+                    encoder_signal, self.encoder_signal_size,
+                    activation=tf.nn.relu), self.dropout_keep_prob, self.train_mode)
+
         return encoder_signal
 
     @tensor
-    def distribution(self):
-        if self.oracle_estimation:
-            return tf.distributions.Normal(self.observed_value, 0.1)
+    def mean(self) -> tf.Tensor:
+        scale_and_shift = tf.layers.dense(
+            self.encoder_signal, 2, name="mean_estimation")
+        mean_scale = scale_and_shift[:, 0]
+        mean_shift = scale_and_shift[:, 1]
+        return mean_scale * tf.to_float(self.encoders[0].lengths) + mean_shift
 
-        with tf.variable_scope("mean_and_variance"):
-            mean_and_stddev = tf.layers.dense(
-                self.encoder_signal, 2, activation=tf.nn.elu) + 1
-        return tf.distributions.Normal(mean_and_stddev[:, 0],
-                                       mean_and_stddev[:, 1])
+    @tensor
+    def stddev(self) -> tf.Tensor:
+        stddev = tf.layers.dense(
+            self.encoder_signal, 1, name="stddev_estimation",
+            activation=tf.nn.elu) + 1
+        return tf.squeeze(stddev, axis=1)
+
+    @tensor
+    def distribution(self):
+        mean = self.mean
+        stddev = self.stddev
+        if self.oracle_estimation:
+            mean = self.observed_value
+
+        if self.fixed_stddev is not None:
+            stddev = self.fixed_stddev
+
+        return tf.distributions.Normal(mean, stddev)
 
     # pylint: disable=no-member
     @tensor
-    def cost(self):
-        # TODO: is this the right cost?
+    def gauss_density_loss(self) -> tf.Tensor:
         return -tf.reduce_mean(self.distribution.log_prob(self.observed_value))
+
+    @tensor
+    def mse_loss(self) -> tf.Tensor:
+        return tf.losses.mean_squared_error(self.observed_value, self.mean)
+
+    @tensor
+    def stddev_value_loss(self) -> tf.Tensor:
+        return tf.reduce_sum(self.stddev)
+
+    @tensor
+    def cost(self) -> tf.Tensor:
+        costs = []
+
+        if self.use_gauss_density_loss:
+            costs.append(self.gauss_density_loss)
+        if self.use_mse_loss:
+            costs.append(self.mse_loss)
+        if self.use_stddev_value_loss:
+            costs.append(self.stddev_value_loss)
+
+        return sum(costs)
 
     def probability_around(self, value: tf.Tensor, interval: float = 0.5):
         return (self.distribution.cdf(value + interval) -

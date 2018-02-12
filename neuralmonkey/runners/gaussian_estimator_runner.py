@@ -9,9 +9,13 @@ from neuralmonkey.logging import log
 from neuralmonkey.model.model_part import ModelPart
 from neuralmonkey.runners.base_runner import (BaseRunner, Executable,
                                               ExecutionResult, NextExecute)
+
+
+_LOSS_NAMES = ["neg_log_density", "mean_squared_error", "stddev_value_loss",
+               "cost"]
+
+
 # pylint: disable=too-few-public-methods
-
-
 class GaussianEstimatorRunner(BaseRunner):
 
     def __init__(self,
@@ -28,7 +32,11 @@ class GaussianEstimatorRunner(BaseRunner):
         decoder = cast(GaussianEstimator, self._decoder)
 
         if compute_losses:
-            fetches = {"neg_log_density": decoder.cost}
+            fetches = {
+                "neg_log_density": decoder.gauss_density_loss,
+                "mean_squared_error": decoder.mse_loss,
+                "stddev_value_loss": decoder.stddev_value_loss,
+                "cost": decoder.cost}
         else:
             fetches = {}
 
@@ -40,7 +48,7 @@ class GaussianEstimatorRunner(BaseRunner):
 
     @property
     def loss_names(self) -> List[str]:
-        return ["neg_log_density"]
+        return _LOSS_NAMES
 
 
 class GaussianEstimatorRunExecutable(Executable):
@@ -64,9 +72,10 @@ class GaussianEstimatorRunExecutable(Executable):
         stddevs_sum = np.zeros_like(results[0]["stddev"])
         neg_density_loss = 0.
 
+        losses = [0. for _ in _LOSS_NAMES]
         for sess_result in results:
-            if "neg_log_density" in sess_result:
-                neg_density_loss += sess_result["neg_log_density"]
+            losses = [loss + sess_result[name]
+                      for loss, name in zip(losses, _LOSS_NAMES)]
 
             means_sum += sess_result["mean"]
             stddevs_sum += sess_result["stddev"]
@@ -79,7 +88,7 @@ class GaussianEstimatorRunExecutable(Executable):
 
         self.result = ExecutionResult(
             outputs=list(zip(means, stddevs)),
-            losses=[neg_density_loss],
+            losses=losses,
             scalar_summaries=None,
             histogram_summaries=None,
             image_summaries=None)
