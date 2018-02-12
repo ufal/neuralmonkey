@@ -65,6 +65,8 @@ class BeamSearchExecutable(Executable):
 
         if self._postprocess is not None:
             output_tokens = self._postprocess([output_tokens])
+        else:
+            output_tokens = [output_tokens]
 
         self.result = ExecutionResult(
             outputs=output_tokens,
