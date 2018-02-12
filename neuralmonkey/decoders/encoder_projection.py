@@ -19,7 +19,7 @@ from typing import List, Callable, cast
 import tensorflow as tf
 from typeguard import check_argument_types
 
-from neuralmonkey.model.stateful import Stateful, TemporalStatefulWithOutput
+from neuralmonkey.model.stateful import Stateful, TemporalStatefulWithOutput, TemporalStateful
 from neuralmonkey.nn.utils import dropout
 from neuralmonkey.nn.ortho_gru_cell import orthogonal_initializer
 from neuralmonkey.logging import log, warn
@@ -93,6 +93,13 @@ def concat_encoder_projection(
 
     encoded_concat = tf.concat([e.output for e in encoders], 1)
     return encoded_concat
+
+
+def average_projection(
+        train_mode: tf.Tensor,
+        rnn_size: int = None,
+        encoders: List[TemporalStateful] = None) -> tf.Tensor:
+    return tf.reduce_sum(encoders[0].temporal_states * tf.expand_dims(encoders[0].temporal_mask, 2), axis=1) / tf.expand_dims(tf.to_float(encoders[0].lengths), 1)
 
 
 def nematus_projection(dropout_keep_prob: float = 1.0) -> EncoderProjection:
