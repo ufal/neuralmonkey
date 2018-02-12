@@ -91,7 +91,8 @@ class TensorFlowManager(object):
         self.loader = tf.train.Saver(
             max_to_keep=self.saver_max_to_keep,
             var_list=[g for g in tf.global_variables()
-                      if "length_estim" not in g.name])
+                      if "length_estim" not in g.name
+                      and not g.name.startswith("trainer")])
         self.saver = tf.train.Saver(max_to_keep=self.saver_max_to_keep)
 
         if variable_files:
