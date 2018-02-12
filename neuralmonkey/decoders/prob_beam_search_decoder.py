@@ -235,7 +235,7 @@ class BeamSearchDecoder(ModelPart):
 
                 if self.length_estimator is not None:
                     length_prob = self.length_estimator.probability_around(
-                            tf.to_float(step - 2))
+                            tf.to_float(step))
                     new_finished_score += tf.log(length_prob)
 
 
