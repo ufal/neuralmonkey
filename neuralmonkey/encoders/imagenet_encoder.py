@@ -105,7 +105,7 @@ class ImageNet(ModelPart, SpatialStatefulWithOutput):
                  network_type: str,
                  slim_models_path: str,
                  load_checkpoint: str = None,
-                 spacial_layer: str = None,
+                 spatial_layer: str = None,
                  encoded_layer: str = None,
                  initializers: InitializerSpecs = None) -> None:
         """Initialize pre-trained ImageNet network.
@@ -115,7 +115,7 @@ class ImageNet(ModelPart, SpatialStatefulWithOutput):
                 scope, independently on `name`).
             data_id: Id of series with images (list of 3D numpy arrays)
             network_type: Identifier of ImageNet network from TFSlim.
-            spacial_layer: String identifier of the convolutional map
+            spatial_layer: String identifier of the convolutional map
                 (model's endpoint). Check
                 TFSlim documentation for end point specifications.
             encoded_layer: String id of the network layer that will be used as
@@ -134,7 +134,7 @@ class ImageNet(ModelPart, SpatialStatefulWithOutput):
 
         self.data_id = data_id
         self.network_type = network_type
-        self.spacial_layer = spacial_layer
+        self.spatial_layer = spatial_layer
         self.encoded_layer = encoded_layer
 
         if self.network_type not in SUPPORTED_NETWORKS:
@@ -148,19 +148,19 @@ class ImageNet(ModelPart, SpatialStatefulWithOutput):
         with tf_slim.arg_scope(net_specification.scope()):
             _, self.end_points = net_specification.apply_net(self.input_image)
 
-        if (self.spacial_layer is not None and
-                self.spacial_layer not in self.end_points):
+        if (self.spatial_layer is not None and
+                self.spatial_layer not in self.end_points):
             raise ValueError(
                 "Network '{}' does not contain endpoint '{}'".format(
-                    self.network_type, self.spacial_layer))
+                    self.network_type, self.spatial_layer))
 
-        if spacial_layer is not None:
-            net_output = self.end_points[self.spacial_layer]
+        if spatial_layer is not None:
+            net_output = self.end_points[self.spatial_layer]
             if len(net_output.get_shape()) != 4:
                 raise ValueError(
                     ("Endpoint '{}' for network '{}' cannot be "
                      "a convolutional map, its dimensionality is: {}."
-                    ).format(self.spacial_layer, self.network_type,
+                    ).format(self.spatial_layer, self.network_type,
                              ", ".join([str(d.value) for d in
                                         net_output.get_shape()])))
 
@@ -177,16 +177,16 @@ class ImageNet(ModelPart, SpatialStatefulWithOutput):
 
     @tensor
     def spatial_states(self) -> Optional[tf.Tensor]:
-        if self.spacial_layer is None:
+        if self.spatial_layer is None:
             return None
 
-        net_output = self.end_points[self.spacial_layer]
+        net_output = self.end_points[self.spatial_layer]
         net_output = tf.stop_gradient(net_output)
         return net_output
 
     @tensor
     def spatial_mask(self) -> tf.Tensor:
-        if self.spacial_layer is None:
+        if self.spatial_layer is None:
             return None
         mask = tf.ones(tf.shape(self.spatial_states)[:3])
         # pylint: disable=no-member
