@@ -81,10 +81,34 @@ def image_reader(prefix="",
     return load
 
 
+# Mean pixel values from preprocessing of the VGG network
+VGG_RGB_MEANS = [[[123.68, 116.779, 103.939]]]
+
+
 def imagenet_reader(prefix: str,
                     target_width: int = 227,
-                    target_height: int = 227) -> Callable:
-    """Load and prepare image the same way as Caffe scripts."""
+                    target_height: int = 227,
+                    vgg_normalization: bool = False,
+                    zero_one_normalization: bool = False) -> Callable:
+    """Load and prepare image the same way as Caffe scripts.
+
+    The image preprocessing first rescales the image such that smaller edge has
+    the target length. Then the middle rectangle is cropped from the resized
+    image, such that the cropped image has the target size.
+
+    Args:
+        prefix: Prefix of the paths that are listed in a image files.
+        target_width: Width of the image fed into an ImageNet network.
+        target_height: Height of the image fed into an ImageNet network.
+        vgg_normalization: If true, a mean pixel value will subtracted
+            from all pixels. This is used for VGG nets.
+        zero_one_normalization: If true, all pixel values are divided by 255
+            such that they are in [0, 1] range. This is used for ResNet.
+
+    Yield:
+        An numpy array with the resized and cropped image for every image file
+        in the list.
+    """
     check_argument_types()
 
     def load(list_files: List[str]) -> Iterable[np.ndarray]:
@@ -119,6 +143,12 @@ def imagenet_reader(prefix: str,
                     res = _pad(np.array(cropped_image),
                                target_width, target_height, 3)
                     assert res.shape == (target_width, target_height, 3)
+
+                    if vgg_normalization:
+                        res -= VGG_RGB_MEANS
+                    if zero_one_normalization:
+                        res /= 255.
+
                     yield res
     return load
 
