@@ -78,12 +78,12 @@ def get_resnet_by_type(resnet_type: str) -> Callable[[], ImageNetSpec]:
 
 
 SUPPORTED_NETWORKS = {
-    "AlexNet": get_alexnet,
-    "VGG16": get_vgg_by_type("vgg16"),
-    "VGG19": get_vgg_by_type("vgg19"),
-    "ResNet_50": get_resnet_by_type("resnet_50"),
-    "ResNet_101": get_resnet_by_type("resnet_101"),
-    "ResNet_152": get_resnet_by_type("resnet_152")
+    "alexnet_v2": get_alexnet,
+    "vgg_16": get_vgg_by_type("vgg16"),
+    "vgg_19": get_vgg_by_type("vgg19"),
+    "resnet_v2_50": get_resnet_by_type("resnet_50"),
+    "resnet_v2_101": get_resnet_by_type("resnet_101"),
+    "resnet_v2_152": get_resnet_by_type("resnet_152")
 }
 
 
