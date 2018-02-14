@@ -15,7 +15,16 @@ def main() -> None:
                         help="the configuration of the test datasets")
     parser.add_argument("-g", "--grid", dest="grid", action="store_true",
                         help="look at the SGE variables for slicing the data")
+    parser.add_argument("-s", "--set", type=str, metavar="SETTING",
+                        action="append", dest="config_changes", default=[],
+                        help="override an option in the configuration; the "
+                        "syntax is [section.]option=value")
+    parser.add_argument("-v", "--var", type=str, metavar="VAR", default=[],
+                        action="append", dest="config_vars",
+                        help="set a variable in the configuration; the syntax "
+                        "is var=value (shorthand for -s vars.var=value)")
     args = parser.parse_args()
+    args.config_changes.extend("vars.{}".format(s) for s in args.config_vars)
 
     test_datasets = Configuration()
     test_datasets.add_argument("test_datasets")
@@ -25,7 +34,8 @@ def main() -> None:
     test_datasets.build_model()
     datasets_model = test_datasets.model
 
-    exp = Experiment(config_path=args.config)
+    exp = Experiment(config_path=args.config,
+                     config_changes=args.config_changes)
     exp.build_model()
     exp.load_variables(datasets_model.variables)
 
