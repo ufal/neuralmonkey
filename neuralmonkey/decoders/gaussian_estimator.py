@@ -88,6 +88,9 @@ class GaussianEstimator(ModelPart):
 
     @tensor
     def mean(self) -> tf.Tensor:
+        if self.oracle_estimation:
+            return self.observed_value
+
         scale_and_shift = tf.layers.dense(
             self.encoder_signal, 2, name="mean_estimation")
         mean_scale = scale_and_shift[:, 0]
@@ -96,6 +99,9 @@ class GaussianEstimator(ModelPart):
 
     @tensor
     def stddev(self) -> tf.Tensor:
+        if self.fixed_stddev is not None:
+            return tf.constant(self.fixed_stddev)
+
         stddev = tf.layers.dense(
             self.encoder_signal, 1, name="stddev_estimation",
             activation=tf.nn.elu) + 1
@@ -103,24 +109,16 @@ class GaussianEstimator(ModelPart):
 
     @tensor
     def distribution(self):
-        mean = self.mean
-        stddev = self.stddev
-        if self.oracle_estimation:
-            mean = self.observed_value
-
-        if self.fixed_stddev is not None:
-            stddev = self.fixed_stddev
-
-        return tf.distributions.Normal(mean, stddev)
+        return tf.distributions.Normal(self.mean, self.stddev)
 
     # pylint: disable=no-member
     @tensor
     def gauss_density_loss(self) -> tf.Tensor:
-        return -tf.reduce_mean(self.distribution.log_prob(self.observed_value))
+        return -tf.reduce_sum(self.distribution.log_prob(self.observed_value))
 
     @tensor
     def mse_loss(self) -> tf.Tensor:
-        return tf.losses.mean_squared_error(self.observed_value, self.mean)
+        return tf.reduce_sum((self.observed_value - self.mean) ** 2)
 
     @tensor
     def stddev_value_loss(self) -> tf.Tensor:
