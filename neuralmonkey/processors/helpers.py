@@ -35,3 +35,7 @@ def pipeline(processors: List[Callable]) -> Callable:
         return data
 
     return process
+
+
+def lengths(sentence: List[str]) -> Generator[List[float], None, None]:
+    return [len(sentence)]
