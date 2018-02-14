@@ -1,6 +1,7 @@
 """Beam search decoder with gaussian length estimation."""
 from typing import NamedTuple, Callable, Optional, Tuple, Set
 
+import numpy as np
 import tensorflow as tf
 from typeguard import check_argument_types
 
