@@ -12,7 +12,7 @@ from neuralmonkey.logging import log
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.decorators import tensor
 from neuralmonkey.nn.projection import glu
-from neuralmonkey.model.sequence import EmbeddedSequence
+from neuralmonkey.model.sequence import EmbeddedFactorSequence
 from neuralmonkey.model.stateful import TemporalStatefulWithOutput
 from neuralmonkey.tf_utils import get_variable
 
@@ -22,7 +22,7 @@ class SentenceEncoder(ModelPart, TemporalStatefulWithOutput):
     # pylint: disable=too-many-arguments
     def __init__(self,
                  name: str,
-                 input_sequence: EmbeddedSequence,
+                 input_sequence: EmbeddedFactorSequence,
                  conv_features: int,
                  encoder_layers: int,
                  kernel_width: int = 5,
@@ -82,7 +82,7 @@ class SentenceEncoder(ModelPart, TemporalStatefulWithOutput):
         with tf.variable_scope("input_projection"):
             return get_variable(
                 "order_embeddings", [self.input_sequence.max_length,
-                                     self.input_sequence.embedding_sizes[0]],
+                                     sum(self.input_sequence.embedding_sizes)],
                 initializer=tf.glorot_normal_initializer())
 
     @tensor

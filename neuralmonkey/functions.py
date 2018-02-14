@@ -4,7 +4,6 @@ from typing import Optional
 
 import math
 import tensorflow as tf
-from typeguard import check_argument_types
 
 
 def inverse_sigmoid_decay(param, rate, min_value: float = 0.,

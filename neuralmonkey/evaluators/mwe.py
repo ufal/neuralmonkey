@@ -1,7 +1,7 @@
-from typing import Dict, List, Tuple
-from munkres import Munkres
-
 import itertools
+
+from typing import List
+from munkres import Munkres
 
 
 # pylint: disable=too-few-public-methods
@@ -48,7 +48,7 @@ class MWEEvaluator(object):
             precision = self.correct / self.total_hyp
         if self.total_ref > 0:
             recall = self.correct / self.total_ref
-        
+
         f_measure = 0.0
         if precision > 0.0:
             f_measure = 2.0 * precision * recall / (precision + recall)
@@ -86,7 +86,7 @@ def _to_mwes(sent) -> List[int]:
             mwe_info[1].append(tok_idx)
 
     mwe_set = set(frozenset(i + 1 for i in x[1]) for x in mwe_infos.values())
-    return sorted(mwe_set, key=lambda x: list(x))
+    return sorted(mwe_set, key=list)
 
 
 def _tok_based_pairing(h_mwes, r_mwes, tractable):
@@ -95,7 +95,8 @@ def _tok_based_pairing(h_mwes, r_mwes, tractable):
     The simplest straightforward O(n!) algorithm.
     """
     if tractable:
-        if not h_mwes or not r_mwes: return {}
+        if not h_mwes or not r_mwes:
+            return {}
         return _bipartite_graph_mapping(h_mwes, r_mwes)
 
     h_mwes += [None] * (len(r_mwes) - len(h_mwes))
@@ -110,11 +111,11 @@ def _tok_based_pairing(h_mwes, r_mwes, tractable):
     return ret
 
 def _bipartite_graph_mapping(r_mwes, h_mwes):
-        cost_mtx = [
-            [-len(r & h) for h in h_mwes]
-            for r in r_mwes]
+    cost_mtx = [
+        [-len(r & h) for h in h_mwes]
+        for r in r_mwes]
 
-        m = Munkres()
-        result_indexes = m.compute(cost_mtx)
+    m = Munkres()
+    result_indexes = m.compute(cost_mtx)
 
-        return {r_mwes[a]: h_mwes[b] for (a, b) in result_indexes}
+    return {r_mwes[a]: h_mwes[b] for (a, b) in result_indexes}

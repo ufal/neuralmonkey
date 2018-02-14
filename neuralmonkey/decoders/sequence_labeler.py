@@ -17,7 +17,7 @@ class SequenceLabeler(ModelPart):
     # pylint: disable=too-many-arguments
     def __init__(self,
                  name: str,
-                 encoder: Union[RecurrentEncoder, SentenceEncoder],
+                 encoders: List[Union[RecurrentEncoder, SentenceEncoder]],
                  vocabulary: Vocabulary,
                  data_id: str,
                  dropout_keep_prob: float = 1.0,
@@ -27,12 +27,14 @@ class SequenceLabeler(ModelPart):
         ModelPart.__init__(self, name, save_checkpoint, load_checkpoint,
                            initializers)
 
-        self.encoder = encoder
+        self.encoders = encoders
         self.vocabulary = vocabulary
         self.data_id = data_id
         self.dropout_keep_prob = dropout_keep_prob
 
-        self.rnn_size = int(self.encoder.temporal_states.get_shape()[-1])
+        self.rnn_size = sum(
+            [int(enc.temporal_states.get_shape()[-1])
+             for enc in self.encoders])
     # pylint: enable=too-many-arguments
 
     # pylint: disable=no-self-use
@@ -67,7 +69,8 @@ class SequenceLabeler(ModelPart):
 
     @tensor
     def decoding_residual_w(self) -> tf.Variable:
-        input_dim = self.encoder.input_sequence.dimension
+        input_dim = sum(
+            [enc.input_sequence.dimension for enc in self.encoders])
         return get_variable(
             name="emb_to_word_W",
             shape=[input_dim, len(self.vocabulary)],
@@ -81,7 +84,10 @@ class SequenceLabeler(ModelPart):
 
         # TODO dropout needs to be revisited
 
-        encoder_states = tf.expand_dims(self.encoder.temporal_states, 2)
+        encoder_states = [enc.temporal_states for enc in self.encoders]
+        encoder_states = tf.concat(encoder_states, 2)
+        encoder_states = tf.expand_dims(encoder_states, 2)
+
         weights_4d = tf.expand_dims(tf.expand_dims(self.decoding_w, 0), 0)
 
         multiplication = tf.nn.conv2d(
@@ -90,8 +96,10 @@ class SequenceLabeler(ModelPart):
 
         biases_3d = tf.expand_dims(tf.expand_dims(self.decoding_b, 0), 0)
 
-        embedded_inputs = tf.expand_dims(
-            self.encoder.input_sequence.temporal_states, 2)
+        embedded_inputs = [
+            enc.input_sequence.temporal_states for enc in self.encoders]
+        embedded_inputs = tf.concat(embedded_inputs, 2)
+        embedded_inputs = tf.expand_dims(embedded_inputs, 2)
         dweights_4d = tf.expand_dims(
             tf.expand_dims(self.decoding_residual_w, 0), 0)
 
@@ -152,13 +160,13 @@ class CRFLabeler(SequenceLabeler):
 
     def __init__(self,
                  name: str,
-                 encoder: Union[RecurrentEncoder, SentenceEncoder],
+                 encoders: List[Union[RecurrentEncoder, SentenceEncoder]],
                  vocabulary: Vocabulary,
                  data_id: str,
                  dropout_keep_prob: float = 1.0,
                  save_checkpoint: Optional[str] = None,
                  load_checkpoint: Optional[str] = None) -> None:
-        SequenceLabeler.__init__(self, name, encoder, vocabulary, data_id,
+        SequenceLabeler.__init__(self, name, encoders, vocabulary, data_id,
                                  dropout_keep_prob, save_checkpoint,
                                  load_checkpoint)
 
@@ -177,7 +185,7 @@ class CRFLabeler(SequenceLabeler):
         return tf.contrib.crf.crf_decode(
             potentials=self.logits[:, :, 3:],
             transition_params=self.transition_params,
-            sequence_length=self.encoder.lengths)
+            sequence_length=self.encoders[0].lengths)
 
     @tensor
     def decoded(self) -> tf.Tensor:
@@ -196,7 +204,7 @@ class CRFLabeler(SequenceLabeler):
             tf.contrib.crf.crf_log_likelihood(
                 inputs=self.logits[:, :, 3:],
                 tag_indices=targets,
-                sequence_lengths=self.encoder.lengths,
+                sequence_lengths=self.encoders[0].lengths,
                 transition_params=self.transition_params)
         loss = tf.reduce_mean(-log_likelihood)
 

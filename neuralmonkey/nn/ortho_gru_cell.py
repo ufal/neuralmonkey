@@ -64,11 +64,11 @@ class NematusGRUCell(tf.contrib.rnn.GRUCell):
     precision errors.
     """
 
-    def __init__(self, rnn_size, use_state_bias=False, use_input_bias=True):
+    def __init__(self, num_units, use_state_bias=False, use_input_bias=True):
         self.use_state_bias = use_state_bias
         self.use_input_bias = use_input_bias
 
-        tf.contrib.rnn.GRUCell.__init__(self, rnn_size)
+        tf.contrib.rnn.GRUCell.__init__(self, num_units)
 
     def call(self, inputs, state):
         """Gated recurrent unit (GRU) with nunits cells."""

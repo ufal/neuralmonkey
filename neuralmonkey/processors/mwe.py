@@ -28,8 +28,15 @@ class MWELabelPreprocessor(object):
 
 class MWELabelPostprocessor(object):
 
-    def __init__(self) -> None:
-        pass
+    def __init__(self, default_label="") -> None:
+        """Initialize processor.
+
+        Arguments:
+            default_label: Label used, when only `CONT` tokens
+                are produced.
+        """
+
+        self.default_label = default_label
 
     def __call__(self, decoded_sentences: List[List[str]]) -> List[List[str]]:
         outputs = []
@@ -37,6 +44,9 @@ class MWELabelPostprocessor(object):
             processed = []
             count = 0
             for tok in sentence:
+                if count == 0 and tok == "CONT":
+                    tok = self.default_label
+
                 if tok == "CONT":
                     processed.append("{}".format(count))
                 elif tok != "_":

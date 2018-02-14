@@ -86,8 +86,9 @@ class CRFRunner(BaseRunner[CRFLabeler]):
         fetches = {
             "decoded_sequence": self._decoder.decoded,
             "sequence_score": self._decoder.sequence_score,
-            "input_mask": self._decoder.encoder.input_sequence.temporal_mask,
-            "seq_len": self._decoder.encoder.lengths,
+            "input_mask":
+                self._decoder.encoders[0].input_sequence.temporal_mask,
+            "seq_len": self._decoder.encoders[0].lengths,
             "logits": self._decoder.logits}
 
         if compute_losses:
