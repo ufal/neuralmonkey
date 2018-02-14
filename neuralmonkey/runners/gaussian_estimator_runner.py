@@ -87,7 +87,7 @@ class GaussianEstimatorRunExecutable(Executable):
         #                     for m, s in zip(means, stddevs)]
 
         self.result = ExecutionResult(
-            outputs=list(zip(means, stddevs)),
+            outputs=np.expand_dims(means, 1).tolist(),
             losses=losses,
             scalar_summaries=None,
             histogram_summaries=None,
