@@ -44,9 +44,12 @@ class BeamSearchDecoder(ModelPart):
                  name: str,
                  parent_decoder: Decoder,
                  beam_size: int,
+                 perplexity_scoring: bool,
+                 length_normalize: bool,
+                 simple_gaussian: bool,
+                 gaussian_with_length_reward: bool,
+                 length_reward_coef: float,
                  length_estimator: GaussianEstimator = None,
-                 perplexity_scoring: bool = True,
-                 length_normalize: bool = False,
                  max_steps: int = None,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None) -> None:
@@ -58,6 +61,9 @@ class BeamSearchDecoder(ModelPart):
         self.length_estimator = length_estimator
         self.perplexity_scoring = perplexity_scoring
         self.length_normalize = length_normalize
+        self.simple_gaussian = simple_gaussian
+        self.gaussian_with_length_reward = gaussian_with_length_reward
+        self.length_reward_coef = length_reward_coef
 
         self.max_steps = max_steps
         if self.max_steps is None:
@@ -224,20 +230,45 @@ class BeamSearchDecoder(ModelPart):
             else:
                 # Compute score of the newly finished hypotheses.
                 end_logprobs = logprobs[:, END_TOKEN_INDEX]
-                new_finished_score = unfinished_beam.logprob_sum + end_logprobs#) /
+                new_finished_score = unfinished_beam.logprob_sum + end_logprobs
+                hyp_len = tf.to_float(step)
 
                 if self.perplexity_scoring:
                     new_finished_score += (
                         unfinished_beam.entropy_sum + entropy)
 
                 if self.length_normalize:
-                    new_finished_score /= tf.to_float(step)
+                    new_finished_score /= hyp_len
 
                 if self.length_estimator is not None:
-                    length_prob = self.length_estimator.probability_around(
-                            tf.to_float(step))
-                    new_finished_score += tf.log(length_prob)
 
+                    # TODO udělat pořádně
+                    assert not (self.simple_gaussian
+                                and self.gaussian_with_length_reward)
+
+                    if self.simple_gaussian:
+                        length_prob = self.length_estimator.probability_around(
+                            hyp_len)
+                        new_finished_score += tf.log(length_prob)
+
+                    if self.gaussian_with_length_reward:
+                        # - (x - M) ^ 2 / 2*var + log(k) (x - var log(k)/2 - M)
+                        # x: hyp_len
+                        # M: self.length_estimator.mean(s)(())
+                        # k: self.length_reward_coef (pocet bonbonku, pripadne perplexita)
+                        # var: self.length_estimator.stddev ** 2
+
+                        mean = self.length_estimator.mean
+                        var = self.length_estimator.stddev ** 2
+                        log_reward_coef = np.log(self.length_reward_coef)
+
+                        log_length_reward = (
+                            -(hyp_len - mean) ** 2 / (2 * var)
+                            + log_reward_coef * (hyp_len - mean
+                                                 - 0.5 * var * log_reward_coef)
+                        )
+
+                        new_finished_score += log_length_reward
 
                 # We concatenate the best hypotheses so far with newly finished
                 # hypotheses and select the `beam_size` from them.
