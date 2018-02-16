@@ -119,9 +119,6 @@ def nematus_projection(dropout_keep_prob: float = 1.0) -> EncoderProjection:
             rnn_size: int,
             encoders: List[TemporalStatefulWithOutput]) -> tf.Tensor:
 
-        if len(encoders) != 1:
-            raise ValueError("Exactly one encoder required for this type of "
-                             "projection. {} given.".format(len(encoders)))
         encoder_means = []
         for encoder in encoders:
             # shape (batch, time)
