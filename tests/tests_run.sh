@@ -22,9 +22,11 @@ bin/neuralmonkey-train tests/self-critical.ini
 bin/neuralmonkey-train tests/bandit.ini
 bin/neuralmonkey-train tests/transformer.ini
 
-bin/neuralmonkey-train tests/small.ini
+# Testing environment variable substitution in config file
+NM_EXPERIMENT_NAME=small bin/neuralmonkey-train tests/small.ini
+NM_EXPERIMENT_NAME=small bin/neuralmonkey-run tests/small.ini tests/test_data.ini
+
 bin/neuralmonkey-train tests/small_sent_cnn.ini
-bin/neuralmonkey-run tests/small.ini tests/test_data.ini
 
 # Ensembles testing
 score_single=$(bin/neuralmonkey-run tests/beamsearch.ini tests/test_data_ensembles_single.ini 2>&1 | grep 'target_beam.rank001/beam_search_score' | cut -d" " -f5)

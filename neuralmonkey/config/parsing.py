@@ -213,7 +213,7 @@ def parse_file(config_file: Iterable[str],
         for key, (lineno, value_string) in config[section].items():
             try:
                 value = _parse_value(value_string, vars_dict)
-            except (IniError, KeyError) as exc:
+            except IniError as exc:
                 raise
             except Exception as exc:
                 raise IniError(
