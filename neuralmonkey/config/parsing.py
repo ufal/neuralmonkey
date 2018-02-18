@@ -2,6 +2,7 @@
 
 from collections import OrderedDict
 import configparser
+import os
 import re
 import time
 # pylint: disable=unused-import
@@ -39,14 +40,30 @@ def _keyval_parser_dict() -> Dict[Any, Callable]:
     return {
         INTEGER: lambda x, _: int(x),
         FLOAT: lambda x, _: float(x),
-        STRING:
-            lambda x, vars_dict: STRING.match(x).group(1).format(**vars_dict),
+        STRING: _parse_string,
         VAR_REF: lambda x, vars_dict: vars_dict[VAR_REF.match(x).group(1)],
         CLASS_NAME: _parse_class_name,
         OBJECT_REF: lambda x, _: ObjectRef(OBJECT_REF.match(x).group(1)),
         LIST: _parse_list,
         TUPLE: _parse_tuple
     }
+
+
+class VarsDict(OrderedDict, Dict[str, Any]):
+
+    def __missing__(self, key):
+        """Try to fetch and parse the variable value from `os.environ`."""
+        if key in os.environ:
+            try:
+                value = _parse_value(os.environ[key], self)
+            except Exception:  # pylint: disable=broad-except
+                # If we cannot parse it, use it as a string.
+                value = os.environ[key]
+            log("Variable {}={!r} taken from the environment."
+                .format(key, value))
+            return value
+
+        raise KeyError("Undefined variable: {}".format(key))
 
 
 def _split_on_commas(string: str) -> List[str]:
@@ -82,7 +99,11 @@ def _split_on_commas(string: str) -> List[str]:
     return items
 
 
-def _parse_list(string: str, vars_dict: Dict[str, Any]) -> List[Any]:
+def _parse_string(string: str, vars_dict: VarsDict) -> str:
+    return STRING.match(string).group(1).format_map(vars_dict)
+
+
+def _parse_list(string: str, vars_dict: VarsDict) -> List[Any]:
     """Parse the string recursively as a list."""
 
     matched_content = LIST.match(string).group(1)
@@ -99,7 +120,7 @@ def _parse_list(string: str, vars_dict: Dict[str, Any]) -> List[Any]:
     return values
 
 
-def _parse_tuple(string: str, vars_dict: Dict[str, Any]) -> Tuple[Any, ...]:
+def _parse_tuple(string: str, vars_dict: VarsDict) -> Tuple[Any, ...]:
     """Parse the string recursively as a tuple."""
 
     items = _split_on_commas(TUPLE.match(string).group(1))
@@ -108,13 +129,13 @@ def _parse_tuple(string: str, vars_dict: Dict[str, Any]) -> Tuple[Any, ...]:
     return tuple(values)
 
 
-def _parse_class_name(string: str, vars_dict: Dict[str, Any]) -> ClassSymbol:
+def _parse_class_name(string: str, vars_dict: VarsDict) -> ClassSymbol:
     """Parse the string as a module or class name."""
     del vars_dict
     return ClassSymbol(string)
 
 
-def _parse_value(string: str, vars_dict: Dict[str, Any]) -> Any:
+def _parse_value(string: str, vars_dict: VarsDict) -> Any:
     """Parse the value recursively according to the Nerualmonkey grammar.
 
     Arguments:
@@ -185,14 +206,14 @@ def parse_file(config_file: Iterable[str],
         for change in changes:
             _apply_change(config, change)
 
-    vars_dict = OrderedDict()  # type: Dict[str, Any]
+    vars_dict = VarsDict()
     vars_dict["TIME"] = time.strftime("%Y-%m-%d-%H-%M-%S")
 
     def parse_section(section: str, output_dict: Dict[str, Any]):
         for key, (lineno, value_string) in config[section].items():
             try:
                 value = _parse_value(value_string, vars_dict)
-            except IniError as exc:
+            except (IniError, KeyError) as exc:
                 raise
             except Exception as exc:
                 raise IniError(
