@@ -49,6 +49,7 @@ class BeamSearchDecoder(ModelPart):
                  length_normalize: bool,
                  simple_gaussian: bool,
                  gaussian_with_length_reward: bool,
+                 poisson_with_length_reward: bool,
                  length_reward_coef: float,
                  length_estimator: GaussianEstimator = None,
                  max_steps: int = None,
@@ -64,6 +65,7 @@ class BeamSearchDecoder(ModelPart):
         self.length_normalize = length_normalize
         self.simple_gaussian = simple_gaussian
         self.gaussian_with_length_reward = gaussian_with_length_reward
+        self.poisson_with_length_reward = poisson_with_length_reward
         self.length_reward_coef = length_reward_coef
 
         self.max_steps = max_steps
@@ -269,6 +271,15 @@ class BeamSearchDecoder(ModelPart):
                                                  - 0.5 * var * log_reward_coef)
                         )
 
+                        new_finished_score += log_length_reward
+
+                    if self.poisson_with_length_reward:
+                        log_hyp_len_factorial = tf.lgamma(hyp_len)
+                        mean = self.length_estimator.mean
+
+                        log_length_reward = (
+                            hyp_len * tf.log(self.length_reward_coef + mean)
+                            - log_hyp_len_factorial)
                         new_finished_score += log_length_reward
 
                 # We concatenate the best hypotheses so far with newly finished
