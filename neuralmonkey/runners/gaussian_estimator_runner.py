@@ -21,7 +21,7 @@ class GaussianEstimatorRunner(BaseRunner):
     def __init__(self,
                  output_series: str,
                  decoder: GaussianEstimator) -> None:
-        check_argument_types()
+        #check_argument_types()
         BaseRunner.__init__(self, output_series, decoder)
         log("Decoder cost: {}".format(decoder.cost))
 

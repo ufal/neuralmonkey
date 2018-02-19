@@ -6,6 +6,7 @@ import tensorflow as tf
 from typeguard import check_argument_types
 
 from neuralmonkey.dataset import Dataset
+from neuralmonkey.decoders.autoregressive import AutoregressiveDecoder
 from neuralmonkey.decoders.encoder_projection import (
     EncoderProjection, linear_encoder_projection)
 from neuralmonkey.decorators import tensor
@@ -168,4 +169,28 @@ class GaussianEstimator(ModelPart):
                     .format(type(values_list[0])))
             fd[self.observed_value] = targets
 
+        return fd
+
+
+class GreedyDecderLenEstimator(ModelPart):
+    def __init__(self,
+                 name: str,
+                 greedy_decoder: AutoregressiveDecoder,
+                 fixed_stddev: float = 1.0) -> None:
+        ModelPart.__init__(self, name, None, None)
+
+        self.greedy_decoder = greedy_decoder
+        self.fixed_stddev = fixed_stddev
+
+    @tensor
+    def mean(self) -> tf.Tensor:
+        decoded_len = tf.reduce_sum(tf.to_float(self.greedy_decoder.runtime_mask), 0)
+        return tf.to_float(decoded_len)
+
+    @tensor
+    def stddev(self) -> tf.Tensor:
+        return self.fixed_stddev
+
+    def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
+        fd = {}  # type: FeedDict
         return fd
