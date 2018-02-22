@@ -28,7 +28,7 @@ class MWELabelPreprocessor(object):
 
 class MWELabelPostprocessor(object):
 
-    def __init__(self, default_label="") -> None:
+    def __init__(self, default_label="ID") -> None:
         """Initialize processor.
 
         Arguments:
