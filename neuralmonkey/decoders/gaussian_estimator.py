@@ -175,12 +175,17 @@ class GaussianEstimator(ModelPart):
 class GreedyDecderLenEstimator(ModelPart):
     def __init__(self,
                  name: str,
+                 data_id: str,
                  greedy_decoder: AutoregressiveDecoder,
                  fixed_stddev: float = 1.0) -> None:
         ModelPart.__init__(self, name, None, None)
 
+        self.data_id = data_id
         self.greedy_decoder = greedy_decoder
+        self.encoder = self.greedy_decoder
         self.fixed_stddev = fixed_stddev
+
+        self.observed_value = tf.placeholder(tf.float32, shape=[None], name="observed_value")
 
     @tensor
     def mean(self) -> tf.Tensor:
@@ -191,6 +196,57 @@ class GreedyDecderLenEstimator(ModelPart):
     def stddev(self) -> tf.Tensor:
         return self.fixed_stddev
 
+    @tensor
+    def distribution(self):
+        return tf.distributions.Normal(self.mean, self.stddev)
+
+    @tensor
+    def gauss_density_loss(self) -> tf.Tensor:
+        return -tf.reduce_sum(self.distribution.log_prob(self.observed_value))
+
+    @tensor
+    def mse_loss(self) -> tf.Tensor:
+        return tf.reduce_sum((self.observed_value - self.mean) ** 2)
+
+    @tensor
+    def stddev_value_loss(self) -> tf.Tensor:
+        return tf.reduce_sum(self.stddev)
+
+    @tensor
+    def cost(self) -> tf.Tensor:
+        costs = []
+
+        costs.append(self.gauss_density_loss)
+        costs.append(self.mse_loss)
+        costs.append(self.stddev_value_loss)
+
+        return sum(costs)
+
+
     def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
         fd = {}  # type: FeedDict
+        assert not train  # one just dont simply train this
+
+        values = dataset.get_series(self.data_id, allow_none=True)
+
+        if values is None and train:
+            raise ValueError("Series '{}' must be provided in train mode."
+                             .format(self.data_id))
+
+        if values:
+            values_list = list(values) if values else None
+            if isinstance(values_list[0], numbers.Real):
+                targets = np.array(values_list)
+            elif isinstance(values_list[0], list):
+                targets = np.array([len(l) for l in values_list])
+            else:
+                raise ValueError(
+                    "Provided data series must consist either "
+                    "of numbers or lists, but was '{}''."
+                    .format(type(values_list[0])))
+            fd[self.observed_value] = targets
+
+        return fd
+
+
         return fd
