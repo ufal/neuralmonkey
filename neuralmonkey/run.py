@@ -5,7 +5,6 @@ import argparse
 
 from neuralmonkey.config.configuration import Configuration
 from neuralmonkey.experiment import Experiment
-from neuralmonkey.learning_utils import print_final_evaluation
 from neuralmonkey.logging import log
 
 
