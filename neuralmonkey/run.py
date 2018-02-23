@@ -1,6 +1,5 @@
 import json
 import os
-import sys
 import argparse
 
 from neuralmonkey.config.configuration import Configuration
