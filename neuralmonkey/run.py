@@ -1,4 +1,6 @@
+import json
 import os
+import sys
 import argparse
 
 from neuralmonkey.logging import log, log_print
@@ -87,6 +89,7 @@ def main() -> None:
                         help="the configuration file of the experiment")
     parser.add_argument("datasets", metavar="INI-TEST-DATASETS",
                         help="the configuration of the test datasets")
+    parser.add_argument("--json", action="store_true")
     parser.add_argument("-g", "--grid", dest="grid", action="store_true",
                         help="look at the SGE variables for slicing the data")
     args = parser.parse_args()
@@ -102,8 +105,6 @@ def main() -> None:
     datasets_model = test_datasets.model
     initialize_for_running(CONFIG.model.output, CONFIG.model.tf_manager,
                            datasets_model.variables)
-
-    print("")
 
     evaluators = [(e[0], e[0], e[1]) if len(e) == 2 else e
                   for e in CONFIG.model.evaluation]
@@ -145,7 +146,10 @@ def main() -> None:
         eval_result = evaluation(evaluators, dataset, CONFIG.model.runners,
                                  execution_results, output_data)
         if eval_result:
-            print_final_evaluation(dataset.name, eval_result)
+            if args.json:
+                json.dump(eval_result, sys.stdout)
+            else:
+                print_final_evaluation(dataset.name, eval_result)
 
     for _ in range(len(CONFIG.model.tf_manager.sessions)):
         del CONFIG.model.tf_manager.sessions[0]
