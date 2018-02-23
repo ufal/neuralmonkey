@@ -26,7 +26,8 @@ bin/neuralmonkey-train tests/transformer.ini
 NM_EXPERIMENT_NAME=small bin/neuralmonkey-train tests/small.ini
 export NM_EXPERIMENT_NAME='"small"'
 bin/neuralmonkey-run tests/small.ini tests/test_data.ini
-bin/neuralmonkey-run tests/small.ini tests/test_data.ini --json | python -c 'import sys,json; print(json.load(sys.stdin))'
+bin/neuralmonkey-run tests/small.ini tests/test_data.ini --json \
+    | python -c 'import sys,json; print(json.load(sys.stdin)[0]["target/BLEU-4"])'
 unset NM_EXPERIMENT_NAME
 
 bin/neuralmonkey-train tests/small_sent_cnn.ini
