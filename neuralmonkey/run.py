@@ -15,7 +15,8 @@ def main() -> None:
                         help="the configuration file of the experiment")
     parser.add_argument("datasets", metavar="INI-TEST-DATASETS",
                         help="the configuration of the test datasets")
-    parser.add_argument("--json", action="store_true")
+    parser.add_argument("--json", type=str, help="write the evaluation "
+                        "results to this file in JSON format")
     parser.add_argument("-g", "--grid", dest="grid", action="store_true",
                         help="look at the SGE variables for slicing the data")
     args = parser.parse_args()
@@ -64,8 +65,9 @@ def main() -> None:
             results.append(eval_result)
 
     if args.json:
-        json.dump(results, sys.stdout)
-        print()
+        with open(args.json, "w") as f_out:
+            json.dump(results, f_out)
+            f_out.write("\n")
 
     for session in exp.config.model.tf_manager.sessions:
         session.close()
