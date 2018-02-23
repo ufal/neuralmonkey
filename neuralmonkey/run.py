@@ -1,8 +1,11 @@
+import json
 import os
+import sys
 import argparse
 
 from neuralmonkey.config.configuration import Configuration
 from neuralmonkey.experiment import Experiment
+from neuralmonkey.learning_utils import print_final_evaluation
 from neuralmonkey.logging import log
 
 
@@ -13,6 +16,7 @@ def main() -> None:
                         help="the configuration file of the experiment")
     parser.add_argument("datasets", metavar="INI-TEST-DATASETS",
                         help="the configuration of the test datasets")
+    parser.add_argument("--json", action="store_true")
     parser.add_argument("-g", "--grid", dest="grid", action="store_true",
                         help="look at the SGE variables for slicing the data")
     args = parser.parse_args()
@@ -32,6 +36,7 @@ def main() -> None:
     if args.grid and len(datasets_model.test_datasets) > 1:
         raise ValueError("Only one test dataset supported when using --grid")
 
+    results = []
     for dataset in datasets_model.test_datasets:
         if args.grid:
             if ("SGE_TASK_FIRST" not in os.environ
@@ -56,7 +61,12 @@ def main() -> None:
         if exp.config.args.evaluation is None:
             exp.run_model(dataset, write_out=True)
         else:
-            exp.evaluate(dataset, write_out=True)
+            eval_result = exp.evaluate(dataset, write_out=True)
+            results.append(eval_result)
+
+    if args.json:
+        json.dump(results, sys.stdout)
+        print()
 
     for session in exp.config.model.tf_manager.sessions:
         session.close()
