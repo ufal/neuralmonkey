@@ -40,13 +40,11 @@ class StatefulContext(BaseAttention):
     @property
     def context_vector_size(self) -> int:
         return self.attention_states.get_shape()[2].value
+    # pylint: enable=no-member
 
     @property
     def state_size(self) -> int:
-        if self._state_size is not None:
-            return self._state_size
         return self.context_vector_size
-    # pylint: enable=no-member
 
     def attention(self,
                   query: tf.Tensor,
