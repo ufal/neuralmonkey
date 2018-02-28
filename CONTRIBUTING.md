@@ -6,8 +6,8 @@ of the workflow](https://guides.github.com/introduction/flow/) and [a quick
 tutorial on forking and requesting
 pulls](https://gist.github.com/Chaser324/ce0505fbed06b947d962).
 
-Please read and follow [Neural Monkey Developer
-Guidelines](http://neural-monkey.readthedocs.io/en/latest/development.html).
+Please read and follow the [Neural Monkey Developer
+Guidelines](http://neural-monkey.readthedocs.io/en/latest/internal_dev.html).
 
 Any code monkey willing to work for peanuts is more than welcome to see our
 [issues labelled
