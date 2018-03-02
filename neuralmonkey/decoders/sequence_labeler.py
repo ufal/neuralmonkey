@@ -79,17 +79,19 @@ class SequenceLabeler(ModelPart):
         multiplication_3d = tf.squeeze(multiplication, squeeze_dims=[2])
 
         biases_3d = tf.expand_dims(tf.expand_dims(self.decoding_b, 0), 0)
+        logits = multiplication_3d + biases_3d
 
-        embedded_inputs = tf.expand_dims(
-            self.encoder.input_sequence.temporal_states, 2)
-        dweights_4d = tf.expand_dims(
-            tf.expand_dims(self.decoding_residual_w, 0), 0)
+        if hasattr(self.encoder, "input_sequence"):
+            embedded_inputs = tf.expand_dims(
+                self.encoder.input_sequence.temporal_states, 2)
+            dweights_4d = tf.expand_dims(
+                tf.expand_dims(self.decoding_residual_w, 0), 0)
 
-        dmultiplication = tf.nn.conv2d(
-            embedded_inputs, dweights_4d, [1, 1, 1, 1], "SAME")
-        dmultiplication_3d = tf.squeeze(dmultiplication, squeeze_dims=[2])
+            dmultiplication = tf.nn.conv2d(
+                embedded_inputs, dweights_4d, [1, 1, 1, 1], "SAME")
+            dmultiplication_3d = tf.squeeze(dmultiplication, squeeze_dims=[2])
 
-        logits = multiplication_3d + dmultiplication_3d + biases_3d
+            logits += dmultiplication_3d
         return logits
 
     @tensor
@@ -102,13 +104,15 @@ class SequenceLabeler(ModelPart):
 
     @tensor
     def cost(self) -> tf.Tensor:
-        loss = tf.nn.sparse_softmax_cross_entropy_with_logits(
-            labels=self.train_targets, logits=self.logits)
+        min_time = tf.minimum(tf.shape(self.train_targets)[1],
+                              tf.shape(self.logits)[1])
 
-        # loss is now of shape [batch, time]. Need to mask it now by
-        # element-wise multiplication with weights placeholder
-        weighted_loss = loss * self.train_weights
-        return tf.reduce_sum(weighted_loss)
+        # pylint: disable=unsubscriptable-object
+        return tf.contrib.seq2seq.sequence_loss(
+            logits=self.logits[:, :min_time],
+            targets=self.train_targets[:, :min_time],
+            weights=self.encoder.temporal_mask[:, :min_time])
+        # pylint: enable=unsubscriptable-object
 
     @property
     def train_loss(self) -> tf.Tensor:
