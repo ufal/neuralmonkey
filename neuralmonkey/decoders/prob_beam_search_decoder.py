@@ -278,7 +278,8 @@ class BeamSearchDecoder(ModelPart):
                         mean = self.length_estimator.mean
 
                         log_length_reward = (
-                            hyp_len * tf.log(self.length_reward_coef + mean)
+                            hyp_len * tf.log(self.length_reward_coef * mean)
+                            - self.length_reward_coef * mean
                             - log_hyp_len_factorial)
                         new_finished_score += log_length_reward
 
