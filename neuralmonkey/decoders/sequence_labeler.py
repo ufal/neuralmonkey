@@ -1,11 +1,9 @@
-from typing import Optional, Union
-
 import tensorflow as tf
+from typeguard import check_argument_types
 
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.model.model_part import ModelPart, FeedDict, InitializerSpecs
-from neuralmonkey.encoders.recurrent import RecurrentEncoder
-from neuralmonkey.encoders.facebook_conv import SentenceEncoder
+from neuralmonkey.model.stateful import TemporalStateful
 from neuralmonkey.vocabulary import Vocabulary
 from neuralmonkey.decorators import tensor
 from neuralmonkey.tf_utils import get_variable
@@ -17,22 +15,24 @@ class SequenceLabeler(ModelPart):
     # pylint: disable=too-many-arguments
     def __init__(self,
                  name: str,
-                 encoder: Union[RecurrentEncoder, SentenceEncoder],
+                 input_sequence: TemporalStateful,
                  vocabulary: Vocabulary,
                  data_id: str,
                  dropout_keep_prob: float = 1.0,
-                 save_checkpoint: Optional[str] = None,
-                 load_checkpoint: Optional[str] = None,
+                 save_checkpoint: str = None,
+                 load_checkpoint: str = None,
                  initializers: InitializerSpecs = None) -> None:
+        check_argument_types()
         ModelPart.__init__(self, name, save_checkpoint, load_checkpoint,
                            initializers)
 
-        self.encoder = encoder
+        self.input_sequence = input_sequence
         self.vocabulary = vocabulary
         self.data_id = data_id
         self.dropout_keep_prob = dropout_keep_prob
 
-        self.rnn_size = int(self.encoder.temporal_states.get_shape()[-1])
+        self.input_size = int(
+            self.input_sequence.temporal_states.get_shape()[-1])
 
         with self.use_scope():
             self.train_targets = tf.placeholder(
@@ -45,7 +45,7 @@ class SequenceLabeler(ModelPart):
     def decoding_w(self) -> tf.Variable:
         return get_variable(
             name="state_to_word_W",
-            shape=[self.rnn_size, len(self.vocabulary)],
+            shape=[self.input_size, len(self.vocabulary)],
             initializer=tf.glorot_normal_initializer())
 
     @tensor
@@ -57,7 +57,7 @@ class SequenceLabeler(ModelPart):
 
     @tensor
     def decoding_residual_w(self) -> tf.Variable:
-        input_dim = self.encoder.input_sequence.dimension
+        input_dim = self.input_sequence.input_sequence.dimension
         return get_variable(
             name="emb_to_word_W",
             shape=[input_dim, len(self.vocabulary)],
@@ -71,19 +71,19 @@ class SequenceLabeler(ModelPart):
 
         # TODO dropout needs to be revisited
 
-        encoder_states = tf.expand_dims(self.encoder.temporal_states, 2)
+        intpus_states = tf.expand_dims(self.input_sequence.temporal_states, 2)
         weights_4d = tf.expand_dims(tf.expand_dims(self.decoding_w, 0), 0)
 
         multiplication = tf.nn.conv2d(
-            encoder_states, weights_4d, [1, 1, 1, 1], "SAME")
+            intpus_states, weights_4d, [1, 1, 1, 1], "SAME")
         multiplication_3d = tf.squeeze(multiplication, squeeze_dims=[2])
 
         biases_3d = tf.expand_dims(tf.expand_dims(self.decoding_b, 0), 0)
         logits = multiplication_3d + biases_3d
 
-        if hasattr(self.encoder, "input_sequence"):
+        if hasattr(self.input_sequence, "input_sequence"):
             embedded_inputs = tf.expand_dims(
-                self.encoder.input_sequence.temporal_states, 2)
+                self.input_sequence.input_sequence.temporal_states, 2)
             dweights_4d = tf.expand_dims(
                 tf.expand_dims(self.decoding_residual_w, 0), 0)
 
@@ -111,7 +111,7 @@ class SequenceLabeler(ModelPart):
         return tf.contrib.seq2seq.sequence_loss(
             logits=self.logits[:, :min_time],
             targets=self.train_targets[:, :min_time],
-            weights=self.encoder.temporal_mask[:, :min_time])
+            weights=self.input_sequence.temporal_mask[:, :min_time])
         # pylint: enable=unsubscriptable-object
 
     @property
