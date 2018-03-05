@@ -107,6 +107,11 @@ class SequenceLabeler(ModelPart):
         min_time = tf.minimum(tf.shape(self.train_targets)[1],
                               tf.shape(self.logits)[1])
 
+        # In case the labeler is stacked on a decoder which emits also an end
+        # symbol (or for some reason emits more symbol than we have in the
+        # ground truth labels), we trim the sequences to the length of a
+        # shorter one.
+
         # pylint: disable=unsubscriptable-object
         return tf.contrib.seq2seq.sequence_loss(
             logits=self.logits[:, :min_time],
