@@ -57,7 +57,8 @@ class SequenceLabeler(ModelPart):
 
     @tensor
     def decoding_residual_w(self) -> tf.Variable:
-        input_dim = self.input_sequence.input_sequence.dimension
+        input_dim = (
+            self.input_sequence.input_sequence.dimension)  # type: ignore
         return get_variable(
             name="emb_to_word_W",
             shape=[input_dim, len(self.vocabulary)],
@@ -82,8 +83,8 @@ class SequenceLabeler(ModelPart):
         logits = multiplication_3d + biases_3d
 
         if hasattr(self.input_sequence, "input_sequence"):
-            embedded_inputs = tf.expand_dims(
-                self.input_sequence.input_sequence.temporal_states, 2)
+            inputs_input = self.input_sequence.input_sequence  # type: ignore
+            embedded_inputs = tf.expand_dims(inputs_input.temporal_states, 2)
             dweights_4d = tf.expand_dims(
                 tf.expand_dims(self.decoding_residual_w, 0), 0)
 
