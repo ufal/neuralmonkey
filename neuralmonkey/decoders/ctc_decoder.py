@@ -25,6 +25,7 @@ class CTCDecoder(ModelPart):
                  encoder: TemporalStateful,
                  vocabulary: Vocabulary,
                  data_id: str,
+                 max_length: int = None,
                  merge_repeated_targets: bool = False,
                  merge_repeated_outputs: bool = True,
                  beam_width: int = 1,
@@ -38,6 +39,7 @@ class CTCDecoder(ModelPart):
         self.encoder = encoder
         self.vocabulary = vocabulary
         self.data_id = data_id
+        self.max_length = max_length
 
         self.merge_repeated_targets = merge_repeated_targets
         self.merge_repeated_outputs = merge_repeated_outputs
@@ -132,7 +134,7 @@ class CTCDecoder(ModelPart):
 
         if sentences is not None:
             vectors, paddings = self.vocabulary.sentences_to_tensor(
-                list(sentences), train_mode=train)
+                list(sentences), train_mode=train, max_len=self.max_length)
 
             # sentences_to_tensor returns time-major tensors, targets need to
             # be batch-major
