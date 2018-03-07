@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
 """Script to average values of variables in a list of checkpoint files.
+
+Given a list of model checkpoints, it generates a new checkpoint wiht
+parameters which are an arithmetic average of them.
+
 This is based on a script from Tensor2Tensor:
 https://github.com/tensorflow/tensor2tensor/blob/master/tensor2tensor/utils/avg_checkpoints.py
 """
@@ -18,7 +22,7 @@ from neuralmonkey.logging import log
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("checkpoints", type=str, nargs="+",
-                        help="Comma-separated list of checkpoints to average.")
+                        help="Space-separated list of checkpoints to average.")
     parser.add_argument("output_path", type=str,
                         help="Path to output the averaged checkpoint to.")
     args = parser.parse_args()
@@ -61,8 +65,7 @@ def main() -> None:
 
     # Build a model only with variables, set them to the average values.
     with tf.Session() as sess:
-        init_op = tf.global_variables_initializer()
-        sess.run(init_op)
+        sess.run(tf.global_variables_initializer())
         for p, assign_op, (name, value) in zip(placeholders, assign_ops,
                                                six.iteritems(var_values)):
             sess.run(assign_op, {p: value})
