@@ -126,10 +126,15 @@ class TransformerDecoder(AutoregressiveDecoder):
 
         self.encoder_states = get_attention_states(self.encoder)
         self.encoder_mask = get_attention_mask(self.encoder)
-        self.dimension = (
-            self.encoder_states.get_shape()[2].value)  # type: ignore
 
-        if self.embedding_size != self.dimension:
+        # This assertion (and the "int" type declaration below) here is because
+        # of mypy not being able to handle the tf.Tensor type.
+        assert self.encoder_states is not None
+
+        self.model_dimension = (
+            self.encoder_states.get_shape()[2].value)  # type: int
+
+        if self.embedding_size != self.model_dimension:
             raise ValueError("Model dimension and input embedding size"
                              "do not match")
 
@@ -140,7 +145,7 @@ class TransformerDecoder(AutoregressiveDecoder):
 
     @property
     def output_dimension(self) -> int:
-        return self.dimension
+        return self.model_dimension
 
     def embed_inputs(self, inputs: tf.Tensor) -> tf.Tensor:
         embedded = tf.nn.embedding_lookup(self.embedding_matrix, inputs)
@@ -156,7 +161,7 @@ class TransformerDecoder(AutoregressiveDecoder):
             embedded *= math.sqrt(embedding_size)
 
         length = tf.shape(inputs)[1]
-        return embedded + position_signal(self.dimension, length)
+        return embedded + position_signal(self.model_dimension, length)
 
     @tensor
     def embedded_train_inputs(self) -> tf.Tensor:
@@ -241,7 +246,8 @@ class TransformerDecoder(AutoregressiveDecoder):
         ff_hidden = dropout(ff_hidden, self.dropout_keep_prob, self.train_mode)
 
         # Feed-forward output projection
-        ff_output = tf.layers.dense(ff_hidden, self.dimension, name="output")
+        ff_output = tf.layers.dense(
+            ff_hidden, self.model_dimension, name="output")
 
         # Apply dropout on the output projection
         ff_output = dropout(ff_output, self.dropout_keep_prob, self.train_mode)
