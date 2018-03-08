@@ -1,10 +1,14 @@
 """Training script for sequence to sequence learning."""
 
+# pylint: disable=unused-import, wrong-import-order
+import neuralmonkey.checkpython
+# pylint: enable=unused-import, wrong-import-order
+
 import argparse
-import sys
 import os
 import shlex
 from shutil import copyfile
+import sys
 import traceback
 
 from neuralmonkey.logging import log, debug

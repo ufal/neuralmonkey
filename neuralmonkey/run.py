@@ -1,6 +1,10 @@
+# pylint: disable=unused-import, wrong-import-order
+import neuralmonkey.checkpython
+# pylint: enable=unused-import, wrong-import-order
+
+import argparse
 import json
 import os
-import argparse
 
 from neuralmonkey.config.configuration import Configuration
 from neuralmonkey.experiment import Experiment

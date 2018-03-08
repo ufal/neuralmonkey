@@ -1,3 +1,7 @@
+# pylint: disable=unused-import, wrong-import-order
+import neuralmonkey.checkpython
+# pylint: enable=unused-import, wrong-import-order
+
 import argparse
 import os
 import html
