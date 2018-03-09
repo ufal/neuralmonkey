@@ -122,35 +122,45 @@ def imagenet_reader(prefix: str,
                             "Image file '{}' no. {} does not exist."
                             .format(path, i + 1))
 
-                    image = Image.open(path).convert("RGB")
-
-                    width, height = image.size
-                    if width == height:
-                        _rescale_or_crop(image, target_width, target_height,
-                                         True, True, False)
-                    elif height < width:
-                        _rescale_or_crop(
-                            image,
-                            int(width * float(target_height) / height),
-                            target_height, True, True, False)
-                    else:
-                        _rescale_or_crop(
-                            image, target_width,
-                            int(height * float(target_width) / width),
-                            True, True, False)
-                    cropped_image = _crop(image, target_width, target_height)
-
-                    res = _pad(np.array(cropped_image),
-                               target_width, target_height, 3)
-                    assert res.shape == (target_width, target_height, 3)
-
-                    if vgg_normalization:
-                        res -= VGG_RGB_MEANS
-                    if zero_one_normalization:
-                        res /= 255.
+                    res = single_image_for_imagenet(
+                        path, target_height, target_width,
+                        vgg_normalization, zero_one_normalization)
 
                     yield res
     return load
+
+
+def single_image_for_imagenet(
+        path: str, target_height: int, target_width: int,
+        vgg_normalization: bool, zero_one_normalization: bool) -> np.ndarray:
+    image = Image.open(path).convert("RGB")
+
+    width, height = image.size
+    if width == height:
+        _rescale_or_crop(image, target_width, target_height,
+                         True, True, False)
+    elif height < width:
+        _rescale_or_crop(
+            image,
+            int(width * float(target_height) / height),
+            target_height, True, True, False)
+    else:
+        _rescale_or_crop(
+            image, target_width,
+            int(height * float(target_width) / width),
+            True, True, False)
+    cropped_image = _crop(image, target_width, target_height)
+
+    res = _pad(np.array(cropped_image),
+               target_width, target_height, 3)
+    assert res.shape == (target_width, target_height, 3)
+
+    if vgg_normalization:
+        res -= VGG_RGB_MEANS
+    if zero_one_normalization:
+        res /= 255.
+
+    return res
 
 
 def _rescale_or_crop(image: Image.Image, pad_w: int, pad_h: int,
