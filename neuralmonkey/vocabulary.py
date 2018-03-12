@@ -110,6 +110,7 @@ def from_wordlist(path: str,
     vocabulary.log_sample()
     return vocabulary
 
+
 def from_t2t_vocabulary(path: str,
                         encoding: str = "utf-8") -> "Vocabulary":
     """Load a vocabulary generated during tensor2tensor training.
@@ -372,7 +373,7 @@ class Vocabulary(collections.Sized):
             self.word_to_index[word] = len(self.index_to_word)
             self.index_to_word.append(word)
             self.word_count[word] = 0
-            if not word in _SPECIAL_TOKENS:
+            if word not in _SPECIAL_TOKENS:
                 self.add_characters(word)
         self.word_count[word] += occurences
 
