@@ -2,66 +2,108 @@
 
 Original code:
 https://github.com/tensorflow/tensor2tensor/blob/v1.5.5/tensor2tensor/data_generators/tokenizer.py
-"""
-from typing import List
-import sys
-import unicodedata
 
-from neuralmonkey.logging import log
+Provides a WordpiecePreprocessor, a higher order function which takes a
+vocabulary object and returns a preprocessor, and a WordpiecePostprocessor.
+
+Note that the latter is not a higher order function and can be used directly
+without making a new section in the configuration.
+"""
+from typing import List, Callable, Set
+import re
+
+from typeguard import check_argument_types
 from neuralmonkey.vocabulary import Vocabulary
 
 
-ALNUM_CHAR_SET = set(
-    chr(i) for i in range(sys.maxunicode)
-    if (unicodedata.category(chr(i)).startswith("L") or
-        unicodedata.category(chr(i)).startswith("N")))
+UNESCAPE_REGEX = re.compile(r"\\u|\\\\|\\([0-9]+);")
+
+
+def escape_token(token: str, alphabet: Set[str]) -> str:
+    """Escapes the token in the t2t fasion.
+
+    Underscores are regarded as an end of a token, so they must be escaped.
+    Additionally, they/we escape also the OOA (out-of-alphabet) characters
+    using their unicode code.
+    """
+    esc_token = token.replace("\\", "\\\\")  # replace 1 backslash with 2
+    esc_token = esc_token.replace("_", "\\u")  # replace underscore with "\u"
+
+    # replace OOA symbol `s` with \1234; where 1234 is `ord(s)`
+    characters = [c if c in alphabet and c != "\n" else "\\{};".format(ord(c))
+                  for c in token]  # not sure about the "\n"-part
+
+    return "".join(characters) + "_"
+
+
+def unescape_token(escaped_token: str) -> str:
+    """Inverse function for escape_token."""
+
+    # Ends with underscore -> remove it
+    token = escaped_token
+    token = token[:-1] if token.endswith("_") else token
+
+    def match(m):
+        if m.group(1) is None:
+            return "_" if m.group(0) == "\\u" else "\\"
+
+        try:
+            return chr(int(m.group(1)))
+        except (ValueError, OverflowError):
+            return u"\u3013"  # Unicode for undefined character.
+
+    # The substitution works because of the left-to-right nature of matching
+    return UNESCAPE_REGEX.sub(match, token)
 
 
 def wordpiece_encode(sentence: List[str], vocabulary: Vocabulary) -> List[str]:
-    sent = " ".join(sentence)
-    tokens_str = sent[0]
-    for i in range(1, len(sent)):
-        if sent[i] == " ":
-            continue
+    """Convert tokens to subtokens using a vocabulary of subtokens.
 
-        if ((sent[i] in ALNUM_CHAR_SET) != (sent[i - 1] in ALNUM_CHAR_SET)
-                or sent[i - 1] == " "):
-            tokens_str += " "
-            tokens_str += sent[i]
+    A greedy implementation, as in t2t referenced above.
 
-    # Mark the end of each token
-    # TODO (#669): escape the characters properly
-    tokens = [tok + "_" for tok in tokens_str.split(" ")]
+    We search for the longest subtoken available in the vocabulary from left to
+    right.
+    """
+    tokens = []
+    for token in sentence:
+        esc_token = escape_token(token, vocabulary.alphabet)
 
-    output = []  # type: List[str]
-    for tok in tokens:
-        tok_start = 0
-        ret = []
-        while tok_start < len(tok):
-            for tok_end in range(len(tok), tok_start, -1):
-                subtoken = tok[tok_start:tok_end]
-                if subtoken in vocabulary:
-                    ret.append(subtoken)
-                    tok_start = tok_end
+        subtokens = []
+        current_subtoken_start = 0
+        token_len = len(esc_token)
+
+        while current_subtoken_start < len(esc_token):
+
+            # TODO: they optimize this by ranging from
+            # min(token_len, max_subtoken_len + start)
+            # this can be achieved by saving the len of longest word in vocab
+            for end in range(token_len, current_subtoken_start, -1):
+                subtoken = esc_token[current_subtoken_start:end]
+
+                if subtoken in vocabulary.word_to_index:
+                    subtokens.append(subtoken)
+                    current_subtoken_start = end
                     break
-            else:
-                raise ValueError(
-                    "Subword '{}' (from '{}') is not in the vocabulary"
-                    .format(tok[tok_start:len(tok)], tok))
-        output += ret
+            else:  # executed if the loop is not exited by the break statement
+                raise AssertionError(
+                    "No token substring found in the vocab ({})."
+                    .format(esc_token[current_subtoken_start:]))
 
-    return output
+        # TODO: they also optimize this by caching the segmentation of the
+        # escaped tokens.
+        tokens.extend(subtokens)
+    return tokens
 
 
 def wordpiece_decode(sentence: List[str]) -> List[str]:
-    output = []
-    for tok in sentence:
-        if tok.endswith("_"):
-            output.append(tok[:-1] + " ")
-        else:
-            output.append(tok)
+    """Postprocess the wordpieces into a sentence.
 
-    return "".join(output).rstrip(" ").split(" ")
+    First, retokenize the sentence - join and split around underscores.
+    Second, unescape tokens throwing away any empty tokens encountered.
+    """
+    retokenized = "".join(sentence).split("_")
+    unescaped = [unescape_token(tok) for tok in retokenized if tok]
+    return [tok for tok in unescaped if tok]
 
 
 def wordpiece_decode_batch(sentences: List[List[str]]) -> List[List[str]]:
@@ -76,8 +118,5 @@ def get_wordpiece_preprocessor(
 
 # pylint: disable=invalid-name
 # Syntactic sugar for configuration
-
 WordpiecePreprocessor = get_wordpiece_preprocessor
-WordpiecePostprocessor = lambda: wordpiece_decode_batch
-
-DefaultWordpiecePostprocessor = wordpiece_decode_batch
+WordpiecePostprocessor = wordpiece_decode_batch

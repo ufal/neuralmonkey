@@ -1,6 +1,4 @@
 #!/usr/bin/env python3.5
-
-
 import unittest
 
 from neuralmonkey.vocabulary import Vocabulary
@@ -15,7 +13,7 @@ CORPUS = [
     "walrus for president"
 ]
 
-TOKENIZED_CORPUS = [s.split(" ") for s in CORPUS]
+TOKENIZED_CORPUS = [[a + "_" for a in s.split()] for s in CORPUS]
 
 # Create list of characters required to process the CORPUS with wordpieces
 CORPUS_CHARS = [x for c in set("".join(CORPUS)) for x in [c, c + "_"]]
@@ -24,28 +22,35 @@ VOCABULARY = Vocabulary()
 for w in CORPUS_CHARS:
     VOCABULARY.add_word(w)
 
+for sent in TOKENIZED_CORPUS:
+    VOCABULARY.add_tokenized_text(sent)
+
+
 PREPROCESSOR = WordpiecePreprocessor(VOCABULARY)
-POSTPROCESSOR = WordpiecePostprocessor()
+POSTPROCESSOR = WordpiecePostprocessor
 
 
 class TestWordpieces(unittest.TestCase):
 
-    def test_vocabulary_size(self):
-        self.assertTrue(len(VOCABULARY) == len(CORPUS_CHARS) + 4)
+    def test_preprocess_ok(self):
+        raw = "I am the walrus".split()
+        gold = "I_ am_ the_ walrus_".split()
 
-    def process(self):
-        preprocessed = PREPROCESSOR(TOKENIZED_CORPUS)
-        postprocessed = POSTPROCESSOR(preprocessed)
+        preprocessed = PREPROCESSOR(raw)
+        self.assertSequenceEqual(preprocessed, gold)
 
-        for orig_sent, postprocessed_sent in \
-                zip(TOKENIZED_CORPUS, postprocessed):
-            self.assertSequenceEqual(orig_sent, postprocessed_sent)
+    def test_preprocess_split(self):
+        raw = "Ich bin der walrus".split()
+        gold = "I c h_ b i n_ d e r_ walrus_".split()
 
-    # TODO: test encoding of UNK char/word
+        preprocessed = PREPROCESSOR(raw)
+        self.assertSequenceEqual(preprocessed, gold)
+
+    # TODO (#669): test encoding of UNK char/word
     def process_unk(self):
         pass
 
-    # TODO: implement wordpiece generator
+    # TODO (#669): implement wordpiece generator
     def create_wordpieces(self):
         pass
 
