@@ -6,8 +6,6 @@ import copy
 
 from typing import Dict, List, Any, Iterable
 
-from neuralmonkey.encoders.numpy_encoder import (VectorEncoder,
-                                                 PostCNNImageEncoder)
 from neuralmonkey.encoders.recurrent import SentenceEncoder
 from neuralmonkey.encoders.sentence_cnn_encoder import SentenceCNNEncoder
 from neuralmonkey.model.sequence import EmbeddedSequence
@@ -78,37 +76,6 @@ SENTENCE_CNN_ENCODER_BAD = {
                 [(None, None)]],
     "dropout_keep_prob": [0.0, 0, -1.0, 2.0, "ahoj", VOCABULARY, None],
     "use_noisy_activations": [None, SentenceEncoder]
-}
-
-VECTOR_ENCODER_GOOD = {
-    "name": ["vector_encoder"],
-    "dimension": [10],
-    "data_id": ["marmelade"],
-    "output_shape": [1, None, 100]
-}
-
-VECTOR_ENCODER_BAD = {
-    "nonexistent": ["ahoj"],
-    "name": [None, 1],
-    "dimension": [0, -1, "ahoj", 3.14, VOCABULARY, SentenceEncoder, None],
-    "data_id": [3.14, VOCABULARY, None],
-    "output_shape": [0, -1, "ahoj", 3.14, VOCABULARY]
-}
-
-POST_CNN_IMAGE_ENCODER_GOOD = {
-    "name": ["vector_encoder"],
-    "input_shape": [[1, 2, 3], [10, 20, 3]],
-    "output_shape": [10],
-    "data_id": ["marmelade"],
-}
-
-POST_CNN_IMAGE_ENCODER_BAD = {
-    "nonexistent": ["ahoj"],
-    "name": [None, 1],
-    "data_id": [3.14, VOCABULARY, None],
-    "output_shape": [0, -1, "hoj", 3.14, None, VOCABULARY, SentenceEncoder],
-    "input_shape": [3, [10, 20], [-1, 10, 20], "123", "ahoj", 3.14,
-                    VOCABULARY, []]
 }
 
 
@@ -186,28 +153,6 @@ class TestEncodersInit(unittest.TestCase):
         self._run_constructors(SentenceCNNEncoder,
                                SENTENCE_CNN_ENCODER_GOOD,
                                SENTENCE_CNN_ENCODER_BAD)
-
-    def test_vector_encoder(self):
-        with self.assertRaises(Exception):
-            # pylint: disable=no-value-for-parameter
-            # on purpose, should fail
-            VectorEncoder()
-            # pylint: enable=no-value-for-parameter
-
-        self._run_constructors(VectorEncoder,
-                               VECTOR_ENCODER_GOOD,
-                               VECTOR_ENCODER_BAD)
-
-    def test_post_cnn_encoder(self):
-        with self.assertRaises(Exception):
-            # pylint: disable=no-value-for-parameter
-            # on purpose, should fail
-            PostCNNImageEncoder()
-            # pylint: enable=no-value-for-parameter
-
-        self._run_constructors(PostCNNImageEncoder,
-                               POST_CNN_IMAGE_ENCODER_GOOD,
-                               POST_CNN_IMAGE_ENCODER_BAD)
 
 
 if __name__ == "__main__":

@@ -13,7 +13,7 @@ from neuralmonkey.tf_utils import get_variable
 # pylint: disable=too-few-public-methods
 
 
-class VectorEncoder(ModelPart, Stateful):
+class StatefulFiller(ModelPart, Stateful):
 
     def __init__(self,
                  name: str,
@@ -59,12 +59,11 @@ class VectorEncoder(ModelPart, Stateful):
         return {self.vector: dataset.get_series(self.data_id)}
 
 
-class PostCNNImageEncoder(ModelPart, SpatialStatefulWithOutput):
+class SpatialFiller(ModelPart, SpatialStatefulWithOutput):
     # pylint: disable=too-many-arguments
     def __init__(self,
                  name: str,
                  input_shape: List[int],
-                 output_shape: int,
                  data_id: str,
                  save_checkpoint: Optional[str] = None,
                  load_checkpoint: Optional[str] = None,
@@ -74,40 +73,24 @@ class PostCNNImageEncoder(ModelPart, SpatialStatefulWithOutput):
                            initializers)
 
         assert len(input_shape) == 3
-        if output_shape <= 0:
-            raise ValueError("Output vector dimension must be postive.")
 
         self.data_id = data_id
-
-        with self.use_scope():
-            features_shape = [None] + input_shape  # type: ignore
-            self.image_features = tf.placeholder(tf.float32,
-                                                 shape=features_shape,
-                                                 name="image_input")
-
-            self.flat = tf.reduce_mean(self.image_features,
-                                       axis=[1, 2],
-                                       name="average_image")
-
-            self.project_w = get_variable(
-                name="img_init_proj_W",
-                shape=[input_shape[2], output_shape],
-                initializer=tf.glorot_normal_initializer())
-            self.project_b = get_variable(
-                name="img_init_b", shape=[output_shape],
-                initializer=tf.zeros_initializer())
+        self.input_shape = input_shape
 
     @tensor
     def output(self) -> tf.Tensor:
-        return tf.tanh(tf.matmul(self.flat, self.project_w) + self.project_b)
+        return tf.reduce_mean(
+            self.spatial_states, axis=[1, 2], name="average_image")
 
     @tensor
     def spatial_states(self) -> tf.Tensor:
-        return self.image_features
+        features_shape = [None] + self.input_shape  # type: ignore
+        return tf.placeholder(
+            tf.float32, shape=features_shape, name="spatial_states")
 
     @tensor
     def spatial_mask(self) -> tf.Tensor:
         return tf.ones(tf.shape(self.spatial_states)[:3])
 
     def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
-        return {self.image_features: dataset.get_series(self.data_id)}
+        return {self.spatial_states: dataset.get_series(self.data_id)}
