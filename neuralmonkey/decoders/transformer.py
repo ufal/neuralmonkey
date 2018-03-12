@@ -143,12 +143,14 @@ class TransformerDecoder(AutoregressiveDecoder):
                        self.dropout_keep_prob,
                        self.train_mode)
 
-    def masked_self_attention(
-            self, level: int, prev_layer: TransformerLayer) -> tf.Tensor:
+    def self_attention_sublayer(
+            self, prev_layer: TransformerLayer) -> tf.Tensor:
+        """Create the decoder self-attention sublayer with output mask."""
 
-        with tf.variable_scope("dec_self_att_level_{}".format(level),
+        with tf.variable_scope("self_attention",
                                reuse=tf.AUTO_REUSE):
             # TODO handle histories
+            # Run self-attention
             self_context, _ = attention(
                 queries=prev_layer.temporal_states,
                 keys=prev_layer.temporal_states,
@@ -159,17 +161,23 @@ class TransformerDecoder(AutoregressiveDecoder):
                 dropout_callback=lambda x: dropout(
                     x, self.attention_dropout_keep_prob, self.train_mode))
 
-            return dropout(
+            self_context = dropout(
                 self_context, self.dropout_keep_prob, self.train_mode)
 
-    def encoder_attention(self, level: int, queries: tf.Tensor) -> tf.Tensor:
+            # Residual connections + layer normalization
+            return tf.contrib.layers.layer_norm(
+                self_context + prev_layer.temporal_states, begin_norm_axis=2)
 
-        with tf.variable_scope("dec_inter_att_level_{}".format(level),
+    def encoder_attention_sublayer(
+            self, queries: tf.Tensor) -> tf.Tensor:
+
+        with tf.variable_scope("encoder_attention",
                                reuse=tf.AUTO_REUSE):
             encoder_att_states = get_attention_states(self.encoder)
             encoder_att_mask = get_attention_mask(self.encoder)
 
             # TODO handle histories
+            # Attend to the encoder
             encoder_context, _ = attention(
                 queries=queries,
                 keys=encoder_att_states,
@@ -179,51 +187,58 @@ class TransformerDecoder(AutoregressiveDecoder):
                 dropout_callback=lambda x: dropout(
                     x, self.attention_dropout_keep_prob, self.train_mode))
 
-            return dropout(
+            encoder_context = dropout(
                 encoder_context, self.dropout_keep_prob, self.train_mode)
+
+            # Residual connections + layer normalization
+            return tf.contrib.layers.layer_norm(
+                encoder_context + queries, begin_norm_axis=2)
+
+    def feedforward_sublayer(
+            self, layer_input: tf.Tensor) -> tf.Tensor:
+
+        with tf.variable_scope("feedforward"):
+            # Feed-forward network hidden layer + ReLU + dropout
+            ff_hidden = tf.layers.dense(layer_input,
+                                        self.ff_hidden_size,
+                                        activation=tf.nn.relu,
+                                        name="hidden_state")
+            ff_hidden_drop = dropout(ff_hidden,
+                                     self.dropout_keep_prob,
+                                     self.train_mode)
+
+            # Feed-forward output projection + dropout
+            ff_output = tf.layers.dense(ff_hidden_drop,
+                                        self.dimension,
+                                        name="output")
+            ff_output = dropout(ff_output,
+                                self.dropout_keep_prob,
+                                self.train_mode)
+
+            # Residual connections + layer normalization
+            return tf.contrib.layers.layer_norm(
+                ff_output + layer_input, begin_norm_axis=2)
+
 
     def layer(self, level: int, inputs: tf.Tensor,
               mask: tf.Tensor) -> TransformerLayer:
-        # Recursive implementation. Outputs of the zeroth layer are the inputs
-        if level == 0:
-            norm_inputs = tf.contrib.layers.layer_norm(
-                inputs, begin_norm_axis=2)
-            return TransformerLayer(norm_inputs, mask)
+        with tf.variable_scope("input_layer"):
+            # Recursive implementation. Outputs of the zeroth layer
+            # are the inputs
+            if level == 0:
+                norm_inputs = tf.contrib.layers.layer_norm(
+                    inputs, begin_norm_axis=2)
+                return TransformerLayer(norm_inputs, mask)
 
         # Compute the outputs of the previous layer
         prev_layer = self.layer(level - 1, inputs, mask)
 
-        # Run self-attention
-        self_context = self.masked_self_attention(level, prev_layer)
-
-        # Residual connections + layer normalization
-        encoder_queries = tf.contrib.layers.layer_norm(
-            self_context + prev_layer.temporal_states, begin_norm_axis=2)
-
-        # Attend to the encoder
-        encoder_context = self.encoder_attention(level, encoder_queries)
-
-        # Residual connections + layer normalization
-        ff_input = tf.contrib.layers.layer_norm(
-            encoder_context + encoder_queries, begin_norm_axis=2)
-
-        # Feed-forward network hidden layer + ReLU + dropout
-        ff_hidden = tf.layers.dense(
-            ff_input, self.ff_hidden_size, activation=tf.nn.relu,
-            name="ff_hidden_{}".format(level))
-        ff_hidden_drop = dropout(
-            ff_hidden, self.dropout_keep_prob, self.train_mode)
-
-        # Feed-forward output projection + dropout
-        ff_output = tf.layers.dense(
-            ff_hidden_drop, self.dimension, name="ff_out_{}".format(level))
-        ff_output = dropout(ff_output, self.dropout_keep_prob, self.train_mode)
-
-        # Residual connections + layer normalization
-        output_states = tf.contrib.layers.layer_norm(
-            ff_output + ff_input, begin_norm_axis=2)
-
-        return TransformerLayer(states=output_states, mask=mask)
+        with tf.variable_scope("layer_{}".format(level)):
+            self_context = self.self_attention_sublayer(prev_layer)
+            encoder_context = self.encoder_attention_sublayer(self_context)
+            output_states = self.feedforward_sublayer(encoder_context)
+            return TransformerLayer(states=output_states,
+                                    mask=mask)
 
     @tensor
     def train_logits(self) -> tf.Tensor:

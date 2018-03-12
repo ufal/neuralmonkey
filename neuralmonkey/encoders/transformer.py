@@ -126,10 +126,11 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
         return dropout(self.input_sequence.temporal_states + signal,
                        self.dropout_keep_prob, self.train_mode)
 
-    def self_attention(
-            self, level: int, prev_layer: TransformerLayer) -> tf.Tensor:
+    def self_attention_sublayer(
+            self, prev_layer: TransformerLayer) -> tf.Tensor:
 
-        with tf.variable_scope("self_attention_{}".format(level)):
+        with tf.variable_scope("self_attention"):
+            # Run self-attention
             self_context, _ = attention(
                 queries=prev_layer.temporal_states,
                 keys=prev_layer.temporal_states,
@@ -138,46 +139,55 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
                 num_heads=self.n_heads,
                 dropout_callback=lambda x: dropout(
                     x, self.attention_dropout_keep_prob, self.train_mode))
-
-            return dropout(
+            self_context = dropout(
                 self_context, self.dropout_keep_prob, self.train_mode)
 
+            # Residual connections + layer normalization
+            return tf.contrib.layers.layer_norm(
+                self_context + prev_layer.temporal_states, begin_norm_axis=2)
+
+    def feedforward_sublayer(
+            self, layer_input: tf.Tensor) -> tf.Tensor:
+
+        with tf.variable_scope("feedforward"):
+            # Feed-forward network hidden layer + ReLU + dropout
+            ff_hidden = tf.layers.dense(layer_input,
+                                        self.ff_hidden_size,
+                                        activation=tf.nn.relu,
+                                        name="hidden_state")
+            ff_hidden = dropout(ff_hidden,
+                                self.dropout_keep_prob,
+                                self.train_mode)
+
+            # Feed-forward output projection + dropout
+            ff_output = tf.layers.dense(ff_hidden,
+                                        self.model_dimension,
+                                        name="output")
+            ff_output = dropout(ff_output,
+                                self.dropout_keep_prob,
+                                self.train_mode)
+
+            # Residual connections + layer normalization
+            return tf.contrib.layers.layer_norm(
+                ff_output + layer_input, begin_norm_axis=2)
+
     def layer(self, level: int) -> TransformerLayer:
-        # Recursive implementation. Outputs of the zeroth layer are normalized
-        # inputs.
-        if level == 0:
-            norm_inputs = tf.contrib.layers.layer_norm(
-                self.encoder_inputs, begin_norm_axis=2)
-            return TransformerLayer(norm_inputs, self.temporal_mask)
+        with tf.variable_scope("input_layer"):
+            # Recursive implementation. Outputs of the zeroth layer
+            # are normalized inputs.
+            if level == 0:
+                norm_inputs = tf.contrib.layers.layer_norm(
+                    self.encoder_inputs, begin_norm_axis=2)
+                return TransformerLayer(norm_inputs, self.temporal_mask)
 
         # Compute the outputs of the previous layer
         prev_layer = self.layer(level - 1)
 
-        # Run self-attention
-        self_context = self.self_attention(level, prev_layer)
-
-        # Residual connections + layer normalization
-        ff_input = tf.contrib.layers.layer_norm(
-            self_context + prev_layer.temporal_states, begin_norm_axis=2)
-
-        # Feed-forward network hidden layer + ReLU + dropout
-        ff_hidden = tf.layers.dense(
-            ff_input, self.ff_hidden_size, activation=tf.nn.relu,
-            name="ff_hidden_{}".format(level))
-        ff_hidden_drop = dropout(
-            ff_hidden, self.dropout_keep_prob, self.train_mode)
-
-        # Feed-forward output projection + dropout
-        ff_output = tf.layers.dense(
-            ff_hidden_drop, self.model_dimension,
-            name="ff_out_{}".format(level))
-        ff_output = dropout(ff_output, self.dropout_keep_prob, self.train_mode)
-
-        # Residual connections + layer normalization
-        output_states = tf.contrib.layers.layer_norm(
-            ff_input + ff_output, begin_norm_axis=2)
-
-        return TransformerLayer(states=output_states, mask=self.temporal_mask)
+        with tf.variable_scope("layer_{}".format(level)):
+            self_context = self.self_attention_sublayer(prev_layer)
+            output_states = self.feedforward_sublayer(self_context)
+            return TransformerLayer(states=output_states,
+                                    mask=self.temporal_mask)
 
     @tensor
     def temporal_states(self) -> tf.Tensor:
