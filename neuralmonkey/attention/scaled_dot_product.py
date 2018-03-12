@@ -154,9 +154,18 @@ def attention(
 
     # For multi-head attention, queries, keys and values are linearly projected
     if num_heads > 1:
-        queries = tf.layers.dense(queries, queries_dim, name="query_proj")
-        keys = tf.layers.dense(keys, queries_dim, name="keys_proj")
-        values = tf.layers.dense(values, queries_dim, name="vals_proj")
+        queries = tf.layers.dense(queries,
+                                  queries_dim,
+                                  use_bias=False,
+                                  name="query_proj")
+        keys = tf.layers.dense(keys,
+                               queries_dim,
+                               use_bias=False,
+                               name="keys_proj")
+        values = tf.layers.dense(values,
+                                 queries_dim,
+                                 use_bias=False,
+                                 name="vals_proj")
 
     # Scale first:
     queries_scaled = queries / math.sqrt(head_dim)
@@ -194,7 +203,10 @@ def attention(
         [context_shape[0], context_shape[2], queries_dim])
 
     if num_heads > 1:
-        context = tf.layers.dense(context, queries_dim, name="output_proj")
+        context = tf.layers.dense(context,
+                                  queries_dim,
+                                  use_bias=False,
+                                  name="output_proj")
 
     return context, weights
 

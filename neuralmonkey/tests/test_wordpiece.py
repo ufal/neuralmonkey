@@ -22,6 +22,7 @@ C_CARON = "\\269;"
 A_ACUTE = "225"
 
 
+
 class TestWordpieces(unittest.TestCase):
 
     @classmethod

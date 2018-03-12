@@ -164,7 +164,8 @@ class AutoregressiveDecoder(ModelPart):
     def decoding_b(self) -> tf.Variable:
         with tf.name_scope("output_projection"):
             return get_variable(
-                "state_to_word_b", [len(self.vocabulary)],
+                "state_to_word_b",
+                [len(self.vocabulary)],
                 initializer=tf.zeros_initializer())
 
     @tensor
@@ -185,7 +186,10 @@ class AutoregressiveDecoder(ModelPart):
     def get_logits(self, state: tf.Tensor) -> tf.Tensor:
         """Project the decoder's output layer to logits over the vocabulary."""
         state = dropout(state, self.dropout_keep_prob, self.train_mode)
-        return tf.matmul(state, self.decoding_w) + self.decoding_b
+        logits = tf.matmul(state, self.decoding_w)
+        if self.decoding_b:
+            logits += self.decoding_b
+        return logits
 
     @tensor
     def train_loop_result(self) -> Tuple[tf.Tensor, tf.Tensor,

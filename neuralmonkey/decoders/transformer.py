@@ -219,7 +219,6 @@ class TransformerDecoder(AutoregressiveDecoder):
             return tf.contrib.layers.layer_norm(
                 ff_output + layer_input, begin_norm_axis=2)
 
-
     def layer(self, level: int, inputs: tf.Tensor,
               mask: tf.Tensor) -> TransformerLayer:
         with tf.variable_scope("input_layer"):
@@ -233,7 +232,7 @@ class TransformerDecoder(AutoregressiveDecoder):
         # Compute the outputs of the previous layer
         prev_layer = self.layer(level - 1, inputs, mask)
 
-        with tf.variable_scope("layer_{}".format(level)):
+        with tf.variable_scope("layer_{}".format(level - 1)):
             self_context = self.self_attention_sublayer(prev_layer)
             encoder_context = self.encoder_attention_sublayer(self_context)
             output_states = self.feedforward_sublayer(encoder_context)
@@ -261,7 +260,8 @@ class TransformerDecoder(AutoregressiveDecoder):
         logits = tf.reshape(
             tf.matmul(last_layer_states, self.decoding_w),
             [last_layer_shape[0], last_layer_shape[1], len(self.vocabulary)])
-        logits += tf.reshape(self.decoding_b, [1, 1, -1])
+        if self.decoding_b:
+            logits += tf.reshape(self.decoding_b, [1, 1, -1])
 
         # return logits in time-major shape
         return tf.transpose(logits, perm=[1, 0, 2])
@@ -337,7 +337,8 @@ class TransformerDecoder(AutoregressiveDecoder):
 
                 # See train_logits definition
                 logits = tf.matmul(output_state, self.decoding_w)
-                logits += self.decoding_b
+                if self.decoding_b:
+                    logits += self.decoding_b
 
                 if sample:
                     next_symbols = tf.multinomial(logits, num_samples=1)

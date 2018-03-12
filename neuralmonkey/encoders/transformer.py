@@ -183,7 +183,7 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
         # Compute the outputs of the previous layer
         prev_layer = self.layer(level - 1)
 
-        with tf.variable_scope("layer_{}".format(level)):
+        with tf.variable_scope("layer_{}".format(level - 1)):
             self_context = self.self_attention_sublayer(prev_layer)
             output_states = self.feedforward_sublayer(self_context)
             return TransformerLayer(states=output_states,
