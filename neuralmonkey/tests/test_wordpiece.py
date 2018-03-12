@@ -27,6 +27,7 @@ for w in CORPUS_CHARS:
 PREPROCESSOR = WordpiecePreprocessor(VOCABULARY)
 POSTPROCESSOR = WordpiecePostprocessor()
 
+
 class TestWordpieces(unittest.TestCase):
 
     def test_vocabulary_size(self):
@@ -47,6 +48,7 @@ class TestWordpieces(unittest.TestCase):
     # TODO: implement wordpiece generator
     def create_wordpieces(self):
         pass
+
 
 if __name__ == "__main__":
     unittest.main()
