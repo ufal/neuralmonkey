@@ -3,6 +3,7 @@ import gzip
 import csv
 import io
 import sys
+import unicodedata
 
 from neuralmonkey.logging import warn
 
@@ -36,6 +37,52 @@ def tokenized_text_reader(encoding: str = "utf-8") -> PlainTextFileReader:
         lines = string_reader(encoding)
         for line in lines(files):
             yield line.strip().split()
+
+    return reader
+
+
+def t2t_tokenized_text_reader(encoding: str = "utf-8") -> PlainTextFileReader:
+    """Get a tokenizing reader for plain text.
+
+    Tokenization is inspired by the tensor2tensor tokenizer:
+    https://github.com/tensorflow/tensor2tensor/blob/v1.5.5/tensor2tensor/data_generators/text_encoder.py
+
+    The text is split to groups of consecutive alphanumeric or non-alphanumeric
+    tokens, dropping single spaces inside the text. Basically the goal here is
+    to preserve the whitespace around weird characters and whitespace on weird
+    positions (beginning and end of the text).
+    """
+    alphanumeric_charset = set(
+        chr(i) for i in range(sys.maxunicode)
+        if (unicodedata.category(chr(i)).startswith("L") or
+            unicodedata.category(chr(i)).startswith("N")))
+
+    def reader(files: List[str]) -> Iterable[List[str]]:
+        lines = string_reader(encoding)
+        for line in lines(files):
+            if not line:
+                yield []
+
+            tokens = []
+            is_alnum = [ch in alphanumeric_charset for ch in line]
+            current_token_start = 0
+
+            for pos in range(1, len(line)):
+                # Boundary of alnum and non-alnum character groups
+                if is_alnum[pos] != is_alnum[pos - 1]:
+                    token = line[current_token_start:pos]
+
+                    # Drop single space if it's not on the beginning
+                    if token != " " or current_token_start == 0:
+                        tokens.append(token)
+
+                    current_token_start = pos
+
+            # Add a final token (even if it's a single space)
+            final_token = line[current_token_start:]
+            tokens.append(final_token)
+
+            yield tokens
 
     return reader
 
