@@ -66,7 +66,7 @@ def from_wordlist(path: str,
 
     Arguments:
         path: The path to the wordlist file
-        encoding: The encoding of the merge file (defaults to UTF-8)
+        encoding: The encoding of the wordlist file (defaults to UTF-8)
         contains_header: if the file have a header on first line
         contains_frequencies: if the file contains frequencies in second column
 
@@ -106,6 +106,38 @@ def from_wordlist(path: str,
             line_number += 1
 
     log("Vocabulary from wordlist loaded, containing {} words"
+        .format(len(vocabulary)))
+    vocabulary.log_sample()
+    return vocabulary
+
+def from_t2t_vocabulary(path: str,
+                        encoding: str = "utf-8") -> "Vocabulary":
+    """Load a vocabulary generated during tensor2tensor training.
+
+    Arguments:
+        path: The path to the vocabulary file.
+        encoding: The encoding of the vocabulary file (defaults to UTF-8).
+
+    Returns:
+        The new Vocabulary instantce.
+    """
+    vocabulary = Vocabulary()
+
+    with open(path, encoding=encoding) as wordlist:
+        for line in wordlist:
+            line = line.strip()
+
+            # T2T vocab tends to wrap words in single quotes
+            if ((line.startswith("'") and line.endswith("'")) or
+                    (line.startswith('"') and line.endswith('"'))):
+                line = line[1:-1]
+
+            if line in ["<pad>", "<EOS>"]:
+                continue
+
+            vocabulary.add_word(line)
+
+    log("Vocabulary form wordlist loaded, containing {} words"
         .format(len(vocabulary)))
     vocabulary.log_sample()
     return vocabulary
@@ -295,6 +327,7 @@ class Vocabulary(collections.Sized):
         self.word_to_index = {}  # type: Dict[str, int]
         self.index_to_word = []  # type: List[str]
         self.word_count = {}  # type: Dict[str, int]
+        self.alphabet = {tok for tok in _SPECIAL_TOKENS}
 
         # flag if the word count are in use
         self.correct_counts = False
@@ -339,7 +372,12 @@ class Vocabulary(collections.Sized):
             self.word_to_index[word] = len(self.index_to_word)
             self.index_to_word.append(word)
             self.word_count[word] = 0
+            if not word in _SPECIAL_TOKENS:
+                self.add_characters(word)
         self.word_count[word] += occurences
+
+    def add_characters(self, word: str) -> None:
+        self.alphabet |= {c for c in word}
 
     def add_tokenized_text(self, tokenized_text: List[str]) -> None:
         """Add words from a list to the vocabulary.
