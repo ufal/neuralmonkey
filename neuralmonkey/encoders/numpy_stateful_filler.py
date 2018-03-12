@@ -13,7 +13,7 @@ from neuralmonkey.tf_utils import get_variable
 # pylint: disable=too-few-public-methods
 
 
-class StatefulNumberEncoder(ModelPart, Stateful):
+class StatefulFiller(ModelPart, Stateful):
 
     def __init__(self,
                  name: str,
@@ -59,13 +59,12 @@ class StatefulNumberEncoder(ModelPart, Stateful):
         return {self.vector: dataset.get_series(self.data_id)}
 
 
-class SpatialNumpyEncoder(ModelPart, SpatialStatefulWithOutput):
+class SpatialFiller(ModelPart, SpatialStatefulWithOutput):
     # pylint: disable=too-many-arguments
     def __init__(self,
                  name: str,
                  input_shape: List[int],
                  data_id: str,
-                 output_shape: int = None,
                  save_checkpoint: Optional[str] = None,
                  load_checkpoint: Optional[str] = None,
                  initializers: InitializerSpecs = None) -> None:
@@ -74,8 +73,6 @@ class SpatialNumpyEncoder(ModelPart, SpatialStatefulWithOutput):
                            initializers)
 
         assert len(input_shape) == 3
-        if output_shape is not None and output_shape <= 0:
-            raise ValueError("Output vector dimension must be postive.")
 
         self.data_id = data_id
         self.input_shape = input_shape
