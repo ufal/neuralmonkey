@@ -170,11 +170,12 @@ class TransformerDecoder(AutoregressiveDecoder):
             encoder_att_mask = get_attention_mask(self.encoder)
 
             # TODO handle histories
+            beam=20
             encoder_context, _ = attention(
                 queries=queries,
-                keys=encoder_att_states,
-                values=encoder_att_states,
-                keys_mask=encoder_att_mask,
+                keys=tf.tile(encoder_att_states, [beam,1,1]),
+                values=tf.tile(encoder_att_states, [beam,1,1]),
+                keys_mask=tf.tile(encoder_att_mask, [beam,1]),
                 num_heads=self.n_heads_enc,
                 dropout_callback=lambda x: dropout(
                     x, self.attention_dropout_keep_prob, self.train_mode))
@@ -274,7 +275,7 @@ class TransformerDecoder(AutoregressiveDecoder):
             clear_after_read=False, name="input_mask")
 
         histories["input_mask"] = input_mask.write(
-            0, tf.ones_like(self.go_symbols, dtype=tf.float32))
+            0, tf.ones([20], dtype=tf.float32))
 
         # TransformerHistories is a type and should be callable
         # pylint: disable=not-callable

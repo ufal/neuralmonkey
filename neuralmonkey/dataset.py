@@ -238,11 +238,12 @@ class LazyDataset(Dataset):
                 if src_id == tgt_id:
                     raise Exception(
                         "Attempt to rewrite series '{}'".format(src_id))
-                if src_id not in series_paths_and_readers:
-                    raise Exception(
-                        ("The source series ({}) of the '{}' preprocessor "
-                         "is not defined in the dataset.").format(
-                             src_id, str(func)))
+                if (src_id not in series_paths_and_readers
+                    and src_id not in self.preprocess_series):
+                        raise Exception(
+                            ("The source series ({}) of the '{}' preprocessor "
+                             "is not defined in the dataset.").format(
+                                 src_id, str(func)))
                 self.preprocess_series[tgt_id] = (src_id, func)
 
     def has_series(self, name: str) -> bool:

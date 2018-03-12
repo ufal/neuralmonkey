@@ -34,7 +34,7 @@ from neuralmonkey.model.model_part import ModelPart, FeedDict, InitializerSpecs
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.decoders.autoregressive import (
     LoopState, AutoregressiveDecoder)
-from neuralmonkey.vocabulary import (END_TOKEN_INDEX, PAD_TOKEN_INDEX)
+from neuralmonkey.vocabulary import (END_TOKEN_INDEX, PAD_TOKEN_INDEX, START_TOKEN_INDEX)
 from neuralmonkey.decorators import tensor
 
 # pylint: disable=invalid-name
@@ -150,18 +150,26 @@ class BeamSearchDecoder(ModelPart):
 
         # We run the decoder once to get logits for ensembling
         dec_ls = self.parent_decoder.get_initial_loop_state()
+
+        ext_dict = dict()
+        ext_dict["input_symbol"] = tf.one_hot(indices=0, depth=self.beam_size, on_value=START_TOKEN_INDEX, off_value=END_TOKEN_INDEX)
+
+        import numpy as np
+        extended_feedables = dec_ls.feedables._replace(**ext_dict)
+        dec_ls = dec_ls._replace(feedables=extended_feedables)
+
         decoder_body = self.parent_decoder.get_body(False)
         dec_ls = decoder_body(*dec_ls)
 
         # We want to feed these values in ensembles
         self._search_state = SearchState(
             input_beam_size=tf.placeholder_with_default(
-                input=1, shape=[], name="input_beam_size"),
+                input=self.beam_size, shape=[], name="input_beam_size"),
             logprob_sum=tf.placeholder_with_default(
-                input=[0.0], shape=[None], name="bs_logprob_sum"),
+                input=[0.0] + [-np.inf] * (self.beam_size - 1), shape=[None], name="bs_logprob_sum"),
             prev_logprobs=tf.nn.log_softmax(dec_ls.feedables.prev_logits),
             lengths=tf.placeholder_with_default(
-                input=[0], shape=[None], name="bs_lengths"),
+                input=[0] * self.beam_size, shape=[None], name="bs_lengths"),
             finished=tf.zeros([self.batch_size], dtype=tf.bool))
 
         self._decoder_state = dec_ls.feedables

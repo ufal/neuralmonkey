@@ -93,6 +93,12 @@ class BeamSearchDecoder(ModelPart):
 
         dec_loop_state = self.parent_decoder.get_initial_loop_state()
 
+        ext_dict = dict()
+        ext_dict["input_symbol"] = tf.one_hot(indices=0, depth=self.beam_size, on_value=START_TOKEN_INDEX, off_value=END_TOKEN_INDEX)
+
+        extended_feedables = dec_loop_state.feedables._replace(**ext_dict)
+        dec_loop_state = dec_loop_state._replace(feedables=extended_feedables)
+
         return BeamSearchLoopState(
             unfinished_beam=search_state,
             finished_beam=finished_beam,
@@ -142,7 +148,7 @@ class BeamSearchDecoder(ModelPart):
             prev_decoder_ls = loop_state.decoder_loop_state
 
             # don't want to use this decoder with uninitialized parent
-            assert self.parent_decoder.step_scope.reuse
+            # assert self.parent_decoder.step_scope.reuse
 
             # CALL THE DECODER BODY FUNCTION
             # TODO figure out why mypy throws too-many-arguments on this
