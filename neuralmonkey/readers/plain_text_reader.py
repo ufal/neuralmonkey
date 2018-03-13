@@ -134,4 +134,5 @@ def tsv_reader(column: int):
 
 # pylint: disable=invalid-name
 UtfPlainTextReader = tokenized_text_reader()
+T2TReader = t2t_tokenized_text_reader()
 # pylint: enable=invalid-name
