@@ -479,14 +479,16 @@ class AutoregressiveDecoder(ModelPart, TemporalStateful):
 
     @tensor
     def temporal_states(self) -> tf.Tensor:
+        # strip the last symbol which is </s>
         return tf.cond(
             self.train_mode,
-            lambda: tf.transpose(self.train_output_states, [1, 0, 2])[:, :-2],
+            lambda: tf.transpose(self.train_output_states, [1, 0, 2])[:, :-1],
             lambda: tf.transpose(
-                self.runtime_output_states, [1, 0, 2])[:, :-2])
+                self.runtime_output_states, [1, 0, 2])[:, :-1])
 
     @tensor
     def temporal_mask(self) -> tf.Tensor:
+        # strip the last symbol which is </s>
         return tf.cond(
             self.train_mode,
             lambda: tf.transpose(self.train_mask, [1, 0])[:, :-1],
