@@ -203,12 +203,12 @@ class TransformerDecoder(AutoregressiveDecoder):
                                         self.ff_hidden_size,
                                         activation=tf.nn.relu,
                                         name="hidden_state")
-            ff_hidden_drop = dropout(ff_hidden,
-                                     self.dropout_keep_prob,
-                                     self.train_mode)
+            ff_hidden = dropout(ff_hidden,
+                                self.dropout_keep_prob,
+                                self.train_mode)
 
             # Feed-forward output projection + dropout
-            ff_output = tf.layers.dense(ff_hidden_drop,
+            ff_output = tf.layers.dense(ff_hidden,
                                         self.dimension,
                                         name="output")
             ff_output = dropout(ff_output,
