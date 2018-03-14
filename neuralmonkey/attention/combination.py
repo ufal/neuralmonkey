@@ -134,6 +134,7 @@ class FlatMultiAttention(MultiAttention):
             load_checkpoint=load_checkpoint,
             initializers=initializers)
         self._encoders = encoders
+        self.dropout_keep_prob = dropout_keep_prob
 
         # pylint: disable=protected-access
         self._encoders_tensors = [
