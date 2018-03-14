@@ -23,6 +23,7 @@ from neuralmonkey.attention.base_attention import (
     get_attention_states, get_attention_mask, Attendable)
 from neuralmonkey.checking import assert_shape
 from neuralmonkey.model.model_part import InitializerSpecs
+from neuralmonkey.nn.utils import dropout
 from neuralmonkey.tf_utils import get_variable
 
 
@@ -118,6 +119,7 @@ class FlatMultiAttention(MultiAttention):
                  attention_state_size: int,
                  share_attn_projections: bool = False,
                  use_sentinels: bool = False,
+                 dropout_keep_prob: float = 1.0,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None,
                  initializers: InitializerSpecs = None) -> None:
@@ -200,6 +202,9 @@ class FlatMultiAttention(MultiAttention):
                     projected_2d, [encoder_tensor_shape[0],
                                    encoder_tensor_shape[1],
                                    self.attention_state_size])
+
+                projection = dropout(
+                    projection, self.dropout_keep_prob, self.train_mode)
 
                 encoder_projections.append(projection)
             return encoder_projections
