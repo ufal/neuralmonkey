@@ -7,7 +7,7 @@ specified by the experiment configuration.
 import collections
 import importlib
 from argparse import Namespace
-from inspect import signature, isclass, isfunction
+from inspect import signature, isclass, isfunction, _empty
 from typing import Any, Dict, Set, Tuple
 
 from neuralmonkey.logging import debug, warn
@@ -93,7 +93,6 @@ def build_object(value: str,
         all_dicts: Configuration dictionaries used to find configuration
                    of unconstructed objects.
         existing_objects: Dictionary of already constructed objects.
-        ignore_names: Set of names that shoud be ignored.
         depth: The current depth of recursion. Used to prevent an infinite
         recursion.
     """
@@ -166,6 +165,25 @@ def instantiate_class(name: str,
 
     # get a signature of the constructing function
     construct_sig = signature(clazz)
+
+    # if a signature contains a "name" attribute which is not in arguments,
+    # replace it with the name of the section
+    if "name" in construct_sig.parameters and "name" not in arguments:
+        annotation = construct_sig.parameters["name"].annotation
+
+        if annotation == _empty:
+            warn("No type annotation for the 'name' parameter in "
+                "class/function {}. Default value will not be used."
+                .format(this_dict["class"].clazz))
+        elif annotation != str:
+            warn("Type annotation for the 'name' parameter in class/function "
+                "{} is not 'str'. Default value will not be used."
+                .format(this_dict["class"].clazz))
+            warn("Annotation is {}".format(str(annotation)))
+        else:
+            debug("Using default 'name' for object {}"
+                  .format(this_dict["class"].clazz), "configBuild")
+            arguments["name"] = name
 
     try:
         # try to bound the arguments to the signature
