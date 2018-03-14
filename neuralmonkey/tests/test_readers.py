@@ -6,6 +6,7 @@ import tempfile
 import numpy as np
 
 from neuralmonkey.readers.string_vector_reader import get_string_vector_reader
+from neuralmonkey.readers.plain_text_reader import T2TReader
 
 STRING_INTS = """
 1   2 3
@@ -94,6 +95,28 @@ class TestStringVectorReader(unittest.TestCase):
         self.tmpfile_ints.close()
         self.tmpfile_floats.close()
         self.tmpfile_ints_fine.close()
+
+
+class TestT2TReader(unittest.TestCase):
+
+    def setUp(self):
+        self.reader = T2TReader
+
+    def test_reader(self):
+        text = "Ich bin  der čermák -=- - !!! alfonso "
+        gold_tokens = ["Ich", "bin", "  ", "der", "čermák", " -=- - !!! ",
+                       "alfonso", " "]
+
+        tmpfile = _make_file(text)
+
+        read = []
+        for line in self.reader([tmpfile.name]):
+            read.append(line)
+
+        tmpfile.close()
+
+        self.assertEqual(len(read), 1)
+        self.assertSequenceEqual(read[0], gold_tokens)
 
 
 if __name__ == "__main__":
