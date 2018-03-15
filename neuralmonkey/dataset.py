@@ -320,7 +320,7 @@ class LazyDataset(Dataset):
 
 
 def from_files(
-        name: str, lazy: bool = False,
+        name: str = None, lazy: bool = False,
         preprocessors: List[Tuple[str, str, Callable]] = None,
         **kwargs) -> Dataset:
     """Load a dataset from the files specified by the provided arguments.

@@ -7,7 +7,7 @@ specified by the experiment configuration.
 import collections
 import importlib
 from argparse import Namespace
-from inspect import signature, isclass, isfunction, _empty
+from inspect import signature, isclass, isfunction, Parameter
 from typing import Any, Dict, Set, Tuple
 
 from neuralmonkey.logging import debug, warn
@@ -171,14 +171,14 @@ def instantiate_class(name: str,
     if "name" in construct_sig.parameters and "name" not in arguments:
         annotation = construct_sig.parameters["name"].annotation
 
-        if annotation == _empty:
+        if annotation == Parameter.empty:
             warn("No type annotation for the 'name' parameter in "
-                "class/function {}. Default value will not be used."
-                .format(this_dict["class"].clazz))
+                 "class/function {}. Default value will not be used."
+                 .format(this_dict["class"].clazz))
         elif annotation != str:
             warn("Type annotation for the 'name' parameter in class/function "
-                "{} is not 'str'. Default value will not be used."
-                .format(this_dict["class"].clazz))
+                 "{} is not 'str'. Default value will not be used."
+                 .format(this_dict["class"].clazz))
             warn("Annotation is {}".format(str(annotation)))
         else:
             debug("Using default 'name' for object {}"
