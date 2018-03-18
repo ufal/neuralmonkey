@@ -172,14 +172,14 @@ def instantiate_class(name: str,
         annotation = construct_sig.parameters["name"].annotation
 
         if annotation == Parameter.empty:
-            warn("No type annotation for the 'name' parameter in "
-                 "class/function {}. Default value will not be used."
-                 .format(this_dict["class"].clazz))
+            debug("No type annotation for the 'name' parameter in "
+                  "class/function {}. Default value will not be used."
+                  .format(this_dict["class"].clazz), "configBuild")
         elif annotation != str:
-            warn("Type annotation for the 'name' parameter in class/function "
-                 "{} is not 'str'. Default value will not be used."
-                 .format(this_dict["class"].clazz))
-            warn("Annotation is {}".format(str(annotation)))
+            debug("Type annotation for the 'name' parameter in class/function "
+                  "{} is not 'str'. Default value will not be used."
+                  .format(this_dict["class"].clazz), "configBuild")
+            debug("Annotation is {}".format(str(annotation)))
         else:
             debug("Using default 'name' for object {}"
                   .format(this_dict["class"].clazz), "configBuild")
