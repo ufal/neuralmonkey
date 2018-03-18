@@ -9,7 +9,7 @@ from neuralmonkey.model.stateful import (
 from neuralmonkey.tf_utils import get_variable
 
 
-class SpatialEbmeddingsAdder(ModelPart, SpatialStatefulWithOutput):
+class SpatialEmbeddingsAdder(ModelPart, SpatialStatefulWithOutput):
 
     def __init__(
             self,
@@ -36,14 +36,18 @@ class SpatialEbmeddingsAdder(ModelPart, SpatialStatefulWithOutput):
     def spatial_embeddings(self) -> tf.Tensor:
         shape = self.input_map.spatial_states.get_shape().as_list()
         assert len(shape) == 4
+        shape[0] = 1
         shape[3] = self.embedding_size
         return get_variable("spatial_embeddings", shape=shape)
 
     @tensor
     def spatial_states(self) -> tf.Tensor:
+        batch_size = tf.shape(self.input_map.spatial_states)[0]
+        tiled_embeddings = tf.tile(
+            self.spatial_embeddings, [batch_size, 1, 1, 1])
+
         concat = tf.concat(
-            [self.spatial_embeddings, self.input_map.spatial_states],
-            axis=3)
+            [tiled_embeddings, self.input_map.spatial_states], axis=3)
 
         if self.additional_projection is not None:
             return tf.layers.conv2d(
