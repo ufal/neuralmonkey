@@ -26,6 +26,7 @@ def main() -> None:
 
     test_datasets = Configuration()
     test_datasets.add_argument("test_datasets")
+    test_datasets.add_argument("batch_size", cond=lambda x: x > 0)
     test_datasets.add_argument("variables", cond=lambda x: isinstance(x, list))
 
     test_datasets.load_file(args.datasets)
@@ -62,9 +63,13 @@ def main() -> None:
             dataset = dataset.subset(start, length)
 
         if exp.config.args.evaluation is None:
-            exp.run_model(dataset, write_out=True)
+            exp.run_model(dataset,
+                          write_out=True,
+                          batch_size=datasets_model.batch_size)
         else:
-            eval_result = exp.evaluate(dataset, write_out=True)
+            eval_result = exp.evaluate(dataset,
+                                       write_out=True,
+                                       batch_size=datasets_model.batch_size)
             results.append(eval_result)
 
     if args.json:
