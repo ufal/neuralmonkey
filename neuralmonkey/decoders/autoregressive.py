@@ -156,7 +156,7 @@ class AutoregressiveDecoder(ModelPart):
                 return tf.transpose(self.embedding_matrix)
 
             return get_variable(
-                "logit_matrix",
+                "state_to_word_W",
                 [self.output_dimension, len(self.vocabulary)],
                 initializer=tf.glorot_uniform_initializer())
 
@@ -164,7 +164,7 @@ class AutoregressiveDecoder(ModelPart):
     def decoding_b(self) -> tf.Variable:
         with tf.name_scope("output_projection"):
             return get_variable(
-                "logit_bias", [len(self.vocabulary)],
+                "state_to_word_b", [len(self.vocabulary)],
                 initializer=tf.zeros_initializer())
 
     @tensor
