@@ -62,6 +62,7 @@ class EmbeddedFactorSequence(Sequence):
                  max_length: int = None,
                  add_start_symbol: bool = False,
                  add_end_symbol: bool = False,
+                 multiply_embedding_mode: str = None,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None,
                  initializers: InitializerSpecs = None) -> None:
@@ -82,6 +83,8 @@ class EmbeddedFactorSequence(Sequence):
             max_length: The maximum length of the sequences
             add_start_symbol: Includes <s> in the sequence
             add_end_symbol: Includes </s> in the sequence
+            multiply_embedding_mode: value="sqrt_depth" for tensor2tensor
+                default model import compatibility.
             save_checkpoint: The save_checkpoint parameter for `ModelPart`
             load_checkpoint: The load_checkpoint parameter for `ModelPart`
         """
@@ -96,6 +99,7 @@ class EmbeddedFactorSequence(Sequence):
         self.embedding_sizes = embedding_sizes
         self.add_start_symbol = add_start_symbol
         self.add_end_symbol = add_end_symbol
+        self.multiply_embedding_mode = multiply_embedding_mode
 
         if not (len(self.data_ids)
                 == len(self.vocabularies)
@@ -165,6 +169,14 @@ class EmbeddedFactorSequence(Sequence):
             for factor, embedding_matrix in zip(
                 self.input_factors, self.embedding_matrices)]
 
+        # see: https://tinyurl.com/ycpgz6cu
+        # TODO: better link
+        if self.multiply_embedding_mode == "sqrt_depth":
+            embedded_factors = [
+                emb * emb_size**0.5
+                for emb, emb_size in zip(
+                    embedded_factors, self.embedding_sizes)]
+
         return tf.concat(embedded_factors, 2)
 
     @tensor
@@ -221,6 +233,7 @@ class EmbeddedSequence(EmbeddedFactorSequence):
                  max_length: int = None,
                  add_start_symbol: bool = False,
                  add_end_symbol: bool = False,
+                 multiply_embedding_mode: str = None,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None,
                  initializers: InitializerSpecs = None) -> None:
@@ -248,6 +261,7 @@ class EmbeddedSequence(EmbeddedFactorSequence):
             max_length=max_length,
             add_start_symbol=add_start_symbol,
             add_end_symbol=add_end_symbol,
+            multiply_embedding_mode=multiply_embedding_mode,
             save_checkpoint=save_checkpoint,
             load_checkpoint=load_checkpoint,
             initializers=initializers)

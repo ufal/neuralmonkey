@@ -27,8 +27,6 @@ def create_variable_map(hparams: Dict, np_vars) -> Dict:
         # This one is added to the source embeddings
         "TODO: Not Implemented": (["body/target_space_embedding/kernel"], None),
         "encoder_input/embedding_matrix_0": (get_shared_emb_vars(np_vars), emb_fix),
-        # TODO: aren't these (scale/bias - beta/gamma) the other way around?
-        # TODO2: change the naming in nmonkey - remove input_layer and include output_layer
         "encoder/LayerNorm/beta": (["transformer/body/encoder/layer_prepostprocess/layer_norm/layer_norm_bias"], None),
         "encoder/LayerNorm/gamma": (["transformer/body/encoder/layer_prepostprocess/layer_norm/layer_norm_scale"], None),
         "decoder/LayerNorm/beta": (["transformer/body/decoder/layer_prepostprocess/layer_norm/layer_norm_bias"], None),
@@ -105,7 +103,7 @@ def emb_fix(variables: List[tf.Tensor]) -> tf.Tensor:
 
     emb_shape = concat.shape[-1]
     return np.concatenate([concat_split[0],
-                           np.zeros([1, emb_shape]),
+                           concat_split[0],
                            concat_split[1],
                            np.zeros([1, emb_shape]),
                            concat_split[2]], axis=0)
@@ -118,19 +116,13 @@ path="{}"
 """
 
 ENCODER_TEMPLATE = """\
-[wp_preprocess]
-class=processors.wordpiece.WordpiecePreprocessor
-vocabulary=<vocabulary>
-
-[wp_postprocess]
-class=processors.wordpiece.WordpiecePostProcessor
-
 [input_sequence]
 class=model.sequence.EmbeddedSequence
 name="{}"
 vocabulary=<vocabulary>
 data_id="source_wp"
 embedding_size={}
+multiply_embedding_mode="{}"
 max_length={}
 
 [encoder]
@@ -155,7 +147,8 @@ def build_encoder(hparams: Dict,
         name=inp_seq_name,
         vocabulary=vocabulary,
         data_id="source_wp",
-        embedding_size=hparams["embedding_size"])
+        embedding_size=hparams["embedding_size"],
+        multiply_embedding_mode=hparams["multiply_embedding_mode"])
 
     encoder = TransformerEncoder(
         name=ENCODER_NAME,
@@ -165,7 +158,8 @@ def build_encoder(hparams: Dict,
         n_heads=hparams["n_heads"])
 
     encoder_ini = ENCODER_TEMPLATE.format(
-        inp_seq_name, hparams["embedding_size"], hparams["max_length"],
+        inp_seq_name, hparams["embedding_size"],
+        hparams["multiply_embedding_mode"], hparams["max_length"],
         ENCODER_NAME, hparams["ff_hidden_size"], hparams["depth"],
         hparams["n_heads"])
 
@@ -174,7 +168,7 @@ def build_encoder(hparams: Dict,
 
 DECODER_TEMPLATE = """\
 [decoder]
-class=decoder.transformer.TransformerDecoder
+class=decoders.transformer.TransformerDecoder
 name="{}"
 vocabulary=<vocabulary>
 data_id="target"
@@ -184,7 +178,7 @@ n_heads_self={}
 n_heads_enc={}
 depth={}
 embedding_size={}
-embdeddings_source=<input_sequence>
+embeddings_source=<input_sequence>
 max_output_len=50
 dropout_keep_prob=1.0
 attention_dropout_keep_prob=1.0
@@ -236,7 +230,8 @@ def load_hparams(path: str) -> Dict:
         "embedding_size": contents["hidden_size"],
         "max_length": contents["max_length"],
         "label_smoothing": contents["label_smoothing"],
-        "depth": contents["num_hidden_layers"]
+        "depth": contents["num_hidden_layers"],
+        "multiply_embedding_mode": contents["multiply_embedding_mode"]
     }
 
     # TODO: check, whether the hparams that we do not set in NeuralMonkey
@@ -259,7 +254,6 @@ def assign_vars(hparams: Dict, np_vars: Dict) -> List[tf.Tensor]:
 
         for t2t_var in t2t_var_list:
             if t2t_var not in np_vars:
-                import pdb; pdb.set_trace()
                 raise ValueError("Alleged transformer var {} not found "
                                  "in loaded transformer vars. For neuralmonkey"
                                  " var {}.".format(t2t_var, map_key))
@@ -339,6 +333,7 @@ class=runners.runner.GreedyRunner
 decoder=<decoder>
 postprocess=<wp_postprocess>
 output_series="target"
+
 """
 
 
