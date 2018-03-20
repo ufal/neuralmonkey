@@ -1,12 +1,12 @@
 from collections import Counter
-from typing import List, Tuple, Optional
+from typing import List, Tuple
 import numpy as np
 
 
 class BLEUEvaluator(object):
 
     def __init__(self, n: int = 4, deduplicate: bool = False,
-                 name: Optional[str] = None) -> None:
+                 name: str = None) -> None:
         self.n = n
         self.deduplicate = deduplicate
 

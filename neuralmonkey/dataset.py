@@ -364,9 +364,6 @@ def from_files(
     log("Initializing dataset with: {}".format(
         ", ".join(series_paths_and_readers)))
 
-    if name is None:
-        name = _get_name_from_paths(series_paths_and_readers)
-
     if lazy:
         dataset = LazyDataset(name, series_paths_and_readers, series_outputs,
                               preprocessors)  # type: Dataset
@@ -383,23 +380,6 @@ def from_files(
 
 
 load_dataset_from_files = from_files  # pylint: disable=invalid-name
-
-
-def _get_name_from_paths(series_paths: Dict[str, Tuple[List[str],
-                                                       Reader]]) -> str:
-    """Construct name for a dataset using the paths to its files.
-
-    Arguments:
-        series_paths: A dictionary which maps serie names to the paths
-                      of their input files.
-
-    Returns:
-        The name for the dataset.
-    """
-    name = "dataset"
-    for paths, _ in series_paths.values():
-        name += "-{}".format("+".join(paths))
-    return name
 
 
 def _get_series_paths_and_readers(
