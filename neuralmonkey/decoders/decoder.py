@@ -97,7 +97,7 @@ class Decoder(AutoregressiveDecoder):
                  output_projection: OutputProjectionSpec = None,
                  encoder_projection: EncoderProjection = None,
                  attentions: List[BaseAttention] = None,
-                 attention_on_input: bool = True,
+                 attention_on_input: bool = False,
                  rnn_cell: str = "GRU",
                  conditional_gru: bool = False,
                  supress_unk: bool = False,
