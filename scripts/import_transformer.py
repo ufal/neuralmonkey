@@ -102,7 +102,7 @@ def emb_fix(variables: List[tf.Tensor]) -> tf.Tensor:
 
     emb_shape = concat.shape[-1]
     return np.concatenate([concat_split[0],
-                           concat_split[0],
+                           np.zeros([1, emb_shape]),
                            concat_split[1],
                            np.zeros([1, emb_shape]),
                            concat_split[2]], axis=0)

@@ -167,8 +167,6 @@ class EmbeddedFactorSequence(Sequence):
         embedded_factors = []
         for (factor, embedding_matrix) in zip(
                 self.input_factors, self.embedding_matrices):
-            factor = tf.Print(factor, [factor], "3d=", summarize=30)
-            factor = tf.Print(factor, [tf.shape(factor)], "shape=", summarize=15)
             emb_factor = tf.nn.embedding_lookup(embedding_matrix, factor)
             # see: https://tinyurl.com/ycpgz6cu
             # TODO: better link

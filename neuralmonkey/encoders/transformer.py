@@ -18,7 +18,7 @@ from neuralmonkey.model.model_part import FeedDict, ModelPart
 from neuralmonkey.model.stateful import (TemporalStateful,
                                          TemporalStatefulWithOutput)
 from neuralmonkey.nn.utils import dropout
-from neuralmonkey.tf_utils import get_variable
+from neuralmonkey.tf_utils import get_variable, layer_norm
 
 
 def position_signal(dimension: int, length: tf.Tensor) -> tf.Tensor:
@@ -33,7 +33,7 @@ def position_signal(dimension: int, length: tf.Tensor) -> tf.Tensor:
     # see: https://tinyurl.com/yck5etfo
     magic = math.log(1.0e4 / 1.0)
     log_timescale_increment = (
-        tf.to_float(magic) / 
+        tf.to_float(magic) /
         (tf.to_float(num_timescales) - 1))
 
     inv_timescales = tf.exp(tf.to_float(tf.range(num_timescales))
@@ -178,15 +178,7 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
 
         with tf.variable_scope("self_attention"):
             # Layer normalization
-            normalized_states = prev_layer.temporal_states
-            #normalized_states = tf.contrib.layers.layer_norm(
-            #    prev_layer.temporal_states, begin_norm_axis=2)
-            inputs = normalized_states
-            inputs = tf.Print(inputs, [inputs], "norm=")
-            inputs = tf.transpose(inputs, perm=[0,2,1])
-            inputs = tf.Print(inputs, [inputs], "norm_tr==")
-            normalized_states = tf.transpose(inputs, perm=[0,2,1])
-
+            normalized_states = layer_norm(prev_layer.temporal_states)
 
             # Run self-attention
             self_context, _ = attention(
@@ -197,11 +189,6 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
                 num_heads=self.n_heads,
                 dropout_callback=lambda x: dropout(
                     x, self.attention_dropout_keep_prob, self.train_mode))
-            inputs = self_context
-            inputs = tf.Print(inputs, [inputs], "cont=")
-            inputs = tf.transpose(inputs, perm=[0,2,1])
-            inputs = tf.Print(inputs, [inputs], "cont_tr==")
-            self_context = tf.transpose(inputs, perm=[0,2,1])
 
             self_context = dropout(
                 self_context, self.dropout_keep_prob, self.train_mode)
@@ -214,9 +201,7 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
 
         with tf.variable_scope("feedforward"):
             # Layer normalization
-            normalized_input = layer_input
-            #normalized_input = tf.contrib.layers.layer_norm(
-            #    layer_input, begin_norm_axis=2)
+            normalized_input = layer_norm(layer_input)
 
             # Feed-forward network hidden layer + ReLU + dropout
             ff_hidden = tf.layers.dense(normalized_input,
@@ -242,12 +227,7 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
         # Recursive implementation. Outputs of the zeroth layer
         # are normalized inputs.
         if level == 0:
-            inputs = self.encoder_inputs
-            inputs = tf.Print(inputs, [inputs], "input=")
-            inputs = tf.transpose(inputs, perm=[0,2,1])
-            inputs = tf.Print(inputs, [inputs], "transposed=")
-            inputs = tf.transpose(inputs, perm=[0,2,1])
-            return TransformerLayer(inputs, self.temporal_mask)
+            return TransformerLayer(self.encoder_inputs, self.temporal_mask)
 
         # Compute the outputs of the previous layer
         prev_layer = self.layer(level - 1)
@@ -258,19 +238,16 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
 
         # Layer normalization on the encoder outputs
         if self.depth == level:
-            output_states = tf.contrib.layers.layer_norm(
-                output_states, begin_norm_axis=2)
+            output_states = layer_norm(output_states)
+
         return TransformerLayer(states=output_states,
                                 mask=self.temporal_mask)
 
     @tensor
     def temporal_states(self) -> tf.Tensor:
-        out = self.layer(self.depth).temporal_states
-        #out = tf.Print(out, [out], "out=")
-        #out = tf.transpose(out, perm=[0,2,1])
-        #out = tf.Print(out, [out], "out_tr=")
-        #out = tf.transpose(out, perm=[0,2,1])
-        return out
+        return self.layer(self.depth).temporal_states
+
+        #return self.layer(self.depth).temporal_states
 
     @tensor
     def temporal_mask(self) -> tf.Tensor:

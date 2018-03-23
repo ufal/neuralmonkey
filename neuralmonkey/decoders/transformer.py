@@ -22,6 +22,7 @@ from neuralmonkey.logging import log
 from neuralmonkey.nn.utils import dropout
 from neuralmonkey.vocabulary import (
     Vocabulary, PAD_TOKEN_INDEX, END_TOKEN_INDEX)
+from neuralmonkey.tf_utils import layer_norm
 
 # pylint: disable=invalid-name
 TransformerHistories = extend_namedtuple(
@@ -123,7 +124,14 @@ class TransformerDecoder(AutoregressiveDecoder):
         return self.dimension
 
     def embed_inputs(self, inputs: tf.Tensor) -> tf.Tensor:
-        embedded = tf.nn.embedding_lookup(self.embedding_matrix, inputs)
+        emb_matrix = self.embedding_matrix
+        embedded = tf.nn.embedding_lookup(emb_matrix, inputs)
+        # pylint: disable=line-too-long
+        if (self.embeddings_source is not None and
+                self.embeddings_source.multiply_embedding_mode == "sqrt_depth"):
+        # pylint: enable=line-too-long
+            emb_size = emb_matrix.shape.as_list()[-1]
+            embedded *= emb_size**0.5
         length = tf.shape(inputs)[1]
         return embedded + position_signal(self.dimension, length)
 
@@ -150,8 +158,7 @@ class TransformerDecoder(AutoregressiveDecoder):
         with tf.variable_scope("self_attention",
                                reuse=tf.AUTO_REUSE):
             # Layer normalization
-            normalized_states = tf.contrib.layers.layer_norm(
-                prev_layer.temporal_states, begin_norm_axis=2)
+            normalized_states = layer_norm(prev_layer.temporal_states)
 
             # TODO handle histories
             # Run self-attention
@@ -180,8 +187,7 @@ class TransformerDecoder(AutoregressiveDecoder):
             encoder_att_mask = get_attention_mask(self.encoder)
 
             # Layer normalization
-            normalized_queries = tf.contrib.layers.layer_norm(
-                queries, begin_norm_axis=2)
+            normalized_queries = layer_norm(queries)
 
             # TODO handle histories
             # Attend to the encoder
@@ -205,8 +211,7 @@ class TransformerDecoder(AutoregressiveDecoder):
 
         with tf.variable_scope("feedforward"):
             # Layer normalization
-            normalized_input = tf.contrib.layers.layer_norm(
-                layer_input, begin_norm_axis=2)
+            normalized_input = layer_norm(layer_input)
 
             # Feed-forward network hidden layer + ReLU + dropout
             ff_hidden = tf.layers.dense(normalized_input,
@@ -232,6 +237,7 @@ class TransformerDecoder(AutoregressiveDecoder):
               mask: tf.Tensor) -> TransformerLayer:
         # Recursive implementation. Outputs of the zeroth layer
         # are the inputs
+
         if level == 0:
             return TransformerLayer(inputs, mask)
 
@@ -245,8 +251,7 @@ class TransformerDecoder(AutoregressiveDecoder):
 
         # Layer normalization on the decoder output
         if self.depth == level:
-            output_states = tf.contrib.layers.layer_norm(
-                output_states, begin_norm_axis=2)
+            output_states = layer_norm(output_states)
         return TransformerLayer(states=output_states,
                                 mask=mask)
 
@@ -330,7 +335,7 @@ class TransformerDecoder(AutoregressiveDecoder):
             decoded_symbols.set_shape([None, None])
             decoded_symbols_in_batch = tf.transpose(decoded_symbols)
 
-            # MASKA (time, batch)
+            # MASK (time, batch)
             mask = histories.input_mask.stack()
             mask.set_shape([None, None])
 

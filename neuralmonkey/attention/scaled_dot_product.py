@@ -61,7 +61,7 @@ def mask_energies(energies_4d: tf.Tensor, mask: tf.Tensor) -> tf.Tensor:
     """
     mask_4d = tf.expand_dims(tf.expand_dims(mask, 1), 1)
     energies_all = energies_4d * mask_4d
-    return energies_all + (1.0 - mask_4d) * 1e-9
+    return energies_all + (1.0 - mask_4d) * -1e9
 
 
 
@@ -81,7 +81,7 @@ def mask_future(energies: tf.Tensor) -> tf.Tensor:
     """
     triangular_mask = tf.matrix_band_part(tf.ones_like(energies), -1, 0)
     mask_area = tf.equal(triangular_mask, 1)
-    masked_value = tf.fill(tf.shape(energies), -np.inf)
+    masked_value = tf.fill(tf.shape(energies), -1e9)
     return tf.where(mask_area, energies, masked_value)
 
 
@@ -140,12 +140,14 @@ def attention(
 
     # Query and keys should match in the last dimension
     if queries_shape[-1] != keys_shape[-1]:
-        raise ValueError("Queries and keys do not match in the last dimension. "
-                         "Query: {}, Key: {}".format(queries_shape[-1], keys_shape[-1]))
+        raise ValueError("Queries and keys do not match in the last dimension."
+                         " Query: {}, Key: {}".format(queries_shape[-1],
+                                                      keys_shape[-1]))
 
     if keys_shape[1] != values_shape[1]:
         raise ValueError("Keys and values 'time' dimension does not match. "
-                         "Keys: {}, Value: {}".format(keys_shape[1], values_shape[1]))
+                         "Keys: {}, Value: {}".format(keys_shape[1],
+                                                      values_shape[1]))
 
     queries_dim = queries_shape[-1]
 
@@ -207,7 +209,6 @@ def attention(
         tf.transpose(context, perm=[0, 2, 1, 3]),
         [context_shape[0], context_shape[2], queries_dim])
 
-    #context = tf.Print(context, [context], "{}.ctx=".format(tf.get_variable_scope().name))
     if num_heads > 1:
         context = tf.layers.dense(context,
                                   queries_dim,

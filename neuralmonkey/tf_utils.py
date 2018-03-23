@@ -85,3 +85,29 @@ def tf_print(tensor: tf.Tensor,
         res = tf.identity(tensor)
 
     return res
+
+
+def layer_norm(x, epsilon=1e-6):
+    """Layer normalize the tensor x, averaging over the last dimension.
+
+    Implementation based on tensor2tensor.
+    """
+    with tf.variable_scope("LayerNorm"):
+        gamma = get_variable(
+            name="gamma",
+            shape=[x.get_shape()[-1]],
+            dtype=tf.float32,
+            initializer=tf.ones_initializer())
+        beta = get_variable(
+            name="beta",
+            shape=[x.get_shape()[-1]],
+            dtype=tf.float32,
+            initializer=tf.zeros_initializer())
+
+        mean = tf.reduce_mean(x, axis=[-1], keep_dims=True)
+        variance = tf.reduce_mean(
+            tf.square(x - mean),
+            axis=[-1],
+            keep_dims=True)
+        norm_x = (x - mean) * tf.rsqrt(variance + epsilon)
+        return norm_x * gamma + beta
