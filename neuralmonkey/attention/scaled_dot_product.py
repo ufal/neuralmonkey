@@ -46,25 +46,23 @@ def split_for_heads(x: tf.Tensor, n_heads: int, head_dim: int) -> tf.Tensor:
     return tf.transpose(x_4d, perm=[0, 2, 1, 3])
 
 
-def mask_weights(weights_4d: tf.Tensor, mask: tf.Tensor) -> tf.Tensor:
-    """Apply mask to softmax weights and renormalize.
+#def mask_weights(weights_4d: tf.Tensor, mask: tf.Tensor) -> tf.Tensor:
+def mask_energies(energies_4d: tf.Tensor, mask: tf.Tensor) -> tf.Tensor:
+    """Apply mask to the energies before passing to softmax.
 
     Arguments:
-        weights_4d: Softmax weights of shape(batch, n_heads, time(q), time(k))
-            to renormalize.
+        energies_4d: Energies of shape(batch, n_heads, time(q), time(k)).
         mask: Float Tensor of zeros and ones of shape(batch_time(k)),
             specifies valid positions in the weight tensor.
 
     Returns:
-        Renormalized distribution over valid positions,
+        Energies over valid positions,
         has the same shape as weights_4d.
     """
-    weights_all = weights_4d * tf.expand_dims(tf.expand_dims(mask, 1), 1)
+    mask_4d = tf.expand_dims(tf.expand_dims(mask, 1), 1)
+    energies_all = energies_4d * mask_4d
+    return energies_all + (1.0 - mask_4d) * 1e-9
 
-    # normalization along time(k)
-    # norm shape: batch, head, time(q), 1
-    norm = tf.reduce_sum(weights_all, 3, keep_dims=True) + 1e-8
-    return weights_all / norm
 
 
 def mask_future(energies: tf.Tensor) -> tf.Tensor:
@@ -136,13 +134,20 @@ def attention(
     if num_heads <= 0:
         raise ValueError("Number of heads must be greater than zero.")
 
-    queries_dim = queries.get_shape()[-1].value
-    keys_dim = keys.get_shape()[-1].value
+    queries_shape = queries.shape.as_list()
+    keys_shape = keys.shape.as_list()
+    values_shape = values.shape.as_list()
 
     # Query and keys should match in the last dimension
-    if queries_dim != keys_dim:
-        raise ValueError("Queries and keys do not match in the last dimension."
-                         "Query: {}, Key: {}".format(queries_dim, keys_dim))
+    if queries_shape[-1] != keys_shape[-1]:
+        raise ValueError("Queries and keys do not match in the last dimension. "
+                         "Query: {}, Key: {}".format(queries_shape[-1], keys_shape[-1]))
+
+    if keys_shape[1] != values_shape[1]:
+        raise ValueError("Keys and values 'time' dimension does not match. "
+                         "Keys: {}, Value: {}".format(keys_shape[1], values_shape[1]))
+
+    queries_dim = queries_shape[-1]
 
     # Last dimension must be divisible by num_heads
     if queries_dim % num_heads != 0:
@@ -184,12 +189,12 @@ def attention(
     if masked:
         energies = mask_future(energies)
 
+    if keys_mask is not None:
+        energies = mask_energies(energies, keys_mask)
+
     # Softmax along the last axis
     # shape: batch, head, time(q), time(k)
     weights = tf.nn.softmax(energies)
-
-    if keys_mask is not None:
-        weights = mask_weights(weights, keys_mask)
 
     # apply dropout to the weights (Attention Dropout)
     weights = dropout_callback(weights)
@@ -202,6 +207,7 @@ def attention(
         tf.transpose(context, perm=[0, 2, 1, 3]),
         [context_shape[0], context_shape[2], queries_dim])
 
+    #context = tf.Print(context, [context], "{}.ctx=".format(tf.get_variable_scope().name))
     if num_heads > 1:
         context = tf.layers.dense(context,
                                   queries_dim,

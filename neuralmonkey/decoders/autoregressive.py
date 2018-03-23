@@ -162,6 +162,9 @@ class AutoregressiveDecoder(ModelPart):
 
     @tensor
     def decoding_b(self) -> tf.Variable:
+        if self.tie_embeddings:
+            return None
+
         with tf.name_scope("output_projection"):
             return get_variable(
                 "state_to_word_b",

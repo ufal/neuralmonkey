@@ -64,6 +64,7 @@ def wordpiece_encode(sentence: List[str], vocabulary: Vocabulary) -> List[str]:
     We search for the longest subtoken available in the vocabulary from left to
     right.
     """
+    print(sentence)
     tokens = []
     for token in sentence:
         esc_token = escape_token(token, vocabulary.alphabet)
@@ -92,6 +93,7 @@ def wordpiece_encode(sentence: List[str], vocabulary: Vocabulary) -> List[str]:
         # TODO: they also optimize this by caching the segmentation of the
         # escaped tokens.
         tokens.extend(subtokens)
+    print(tokens)
     return tokens
 
 

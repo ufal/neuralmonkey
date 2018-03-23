@@ -6,6 +6,7 @@ Described in Vaswani et al. (2017), arxiv.org/abs/1706.03762
 from typing import Set, Optional, List
 # pylint: enable=unused-import
 
+import math
 import tensorflow as tf
 from typeguard import check_argument_types
 
@@ -17,6 +18,7 @@ from neuralmonkey.model.model_part import FeedDict, ModelPart
 from neuralmonkey.model.stateful import (TemporalStateful,
                                          TemporalStatefulWithOutput)
 from neuralmonkey.nn.utils import dropout
+from neuralmonkey.tf_utils import get_variable
 
 
 def position_signal(dimension: int, length: tf.Tensor) -> tf.Tensor:
@@ -27,7 +29,12 @@ def position_signal(dimension: int, length: tf.Tensor) -> tf.Tensor:
     positions = tf.to_float(tf.range(length))
 
     num_timescales = dimension // 2
-    log_timescale_increment = 4 / (tf.to_float(num_timescales) - 1)
+
+    # see: https://tinyurl.com/yck5etfo
+    magic = math.log(1.0e4 / 1.0)
+    log_timescale_increment = (
+        tf.to_float(magic) / 
+        (tf.to_float(num_timescales) - 1))
 
     inv_timescales = tf.exp(tf.to_float(tf.range(num_timescales))
                             * -log_timescale_increment)
@@ -67,6 +74,7 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
                  n_heads: int,
                  dropout_keep_prob: float = 1.0,
                  attention_dropout_keep_prob: float = 1.0,
+                 target_space_id: int = None,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None) -> None:
         """Create an encoder of the Transformer model.
@@ -96,6 +104,7 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
         self.n_heads = n_heads
         self.dropout_keep_prob = dropout_keep_prob
         self.attention_dropout_keep_prob = attention_dropout_keep_prob
+        self.target_space_id = target_space_id
 
         if self.depth <= 0:
             raise ValueError("Depth must be a positive integer.")
@@ -120,19 +129,64 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
         return tf.reduce_sum(self.temporal_states, axis=1)
 
     @tensor
+    def modality_matrix(self) -> tf.Tensor:
+        """Create an embedding matrix for varyining target modalities.
+
+        Used to embed different target space modalities in the tensor2tensor
+        models (e.g. during the zero-shot translation).
+
+        TODO:
+            Move this to the model.sequence as an optional network parameter.
+        """
+        emb_size = self.input_sequence.temporal_states.shape.as_list()[-1]
+        return get_variable(
+            name="target_modality_embedding_matrix",
+            shape=[32, emb_size],
+            dtype=tf.float32,
+            initializer=tf.glorot_uniform_initializer())
+
+    @tensor
+    def target_modality_embedding(self) -> tf.Tensor:
+        """Gather correct embedding of the target space modality.
+
+        See TransformerEncoder.modality_matrix for more information.
+
+        TODO:
+            Make a target_space_id an optional parameter of the experiment.
+            Move it either to a runner or experiment configuration.
+        """
+
+        # TODO: add dropout?
+        return tf.gather(self.modality_matrix,
+                         tf.constant(self.target_space_id))
+
+    @tensor
     def encoder_inputs(self) -> tf.Tensor:
-        length = tf.shape(self.input_sequence.temporal_states)[1]
+        inputs = self.input_sequence.temporal_states
+        if self.target_space_id is not None:
+            assert(self.target_space_id >= 0 and self.target_space_id < 32)
+            inputs += tf.reshape(self.target_modality_embedding, [1, 1, -1])
+
+        length = tf.shape(inputs)[1]
         signal = position_signal(self.model_dimension, length)
-        return dropout(self.input_sequence.temporal_states + signal,
-                       self.dropout_keep_prob, self.train_mode)
+        return dropout(inputs + signal,
+                       self.dropout_keep_prob,
+                       self.train_mode)
 
     def self_attention_sublayer(
             self, prev_layer: TransformerLayer) -> tf.Tensor:
 
         with tf.variable_scope("self_attention"):
             # Layer normalization
-            normalized_states = tf.contrib.layers.layer_norm(
-                prev_layer.temporal_states, begin_norm_axis=2)
+            normalized_states = prev_layer.temporal_states
+            #normalized_states = tf.contrib.layers.layer_norm(
+            #    prev_layer.temporal_states, begin_norm_axis=2)
+            inputs = normalized_states
+            inputs = tf.Print(inputs, [inputs], "norm=")
+            inputs = tf.transpose(inputs, perm=[0,2,1])
+            inputs = tf.Print(inputs, [inputs], "norm_tr==")
+            normalized_states = tf.transpose(inputs, perm=[0,2,1])
+
 
             # Run self-attention
             self_context, _ = attention(
@@ -143,6 +197,12 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
                 num_heads=self.n_heads,
                 dropout_callback=lambda x: dropout(
                     x, self.attention_dropout_keep_prob, self.train_mode))
+            inputs = self_context
+            inputs = tf.Print(inputs, [inputs], "cont=")
+            inputs = tf.transpose(inputs, perm=[0,2,1])
+            inputs = tf.Print(inputs, [inputs], "cont_tr==")
+            self_context = tf.transpose(inputs, perm=[0,2,1])
+
             self_context = dropout(
                 self_context, self.dropout_keep_prob, self.train_mode)
 
@@ -154,8 +214,9 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
 
         with tf.variable_scope("feedforward"):
             # Layer normalization
-            normalized_input = tf.contrib.layers.layer_norm(
-                layer_input, begin_norm_axis=2)
+            normalized_input = layer_input
+            #normalized_input = tf.contrib.layers.layer_norm(
+            #    layer_input, begin_norm_axis=2)
 
             # Feed-forward network hidden layer + ReLU + dropout
             ff_hidden = tf.layers.dense(normalized_input,
@@ -181,7 +242,12 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
         # Recursive implementation. Outputs of the zeroth layer
         # are normalized inputs.
         if level == 0:
-            return TransformerLayer(self.encoder_inputs, self.temporal_mask)
+            inputs = self.encoder_inputs
+            inputs = tf.Print(inputs, [inputs], "input=")
+            inputs = tf.transpose(inputs, perm=[0,2,1])
+            inputs = tf.Print(inputs, [inputs], "transposed=")
+            inputs = tf.transpose(inputs, perm=[0,2,1])
+            return TransformerLayer(inputs, self.temporal_mask)
 
         # Compute the outputs of the previous layer
         prev_layer = self.layer(level - 1)
@@ -199,7 +265,12 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
 
     @tensor
     def temporal_states(self) -> tf.Tensor:
-        return self.layer(self.depth).temporal_states
+        out = self.layer(self.depth).temporal_states
+        #out = tf.Print(out, [out], "out=")
+        #out = tf.transpose(out, perm=[0,2,1])
+        #out = tf.Print(out, [out], "out_tr=")
+        #out = tf.transpose(out, perm=[0,2,1])
+        return out
 
     @tensor
     def temporal_mask(self) -> tf.Tensor:

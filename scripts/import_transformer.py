@@ -24,9 +24,8 @@ def create_variable_map(hparams: Dict, np_vars) -> Dict:
 
     # Always present
     VARIABLE_MAP = {
-        # This one is added to the source embeddings
-        "TODO: Not Implemented": (["body/target_space_embedding/kernel"], None),
         "encoder_input/embedding_matrix_0": (get_shared_emb_vars(np_vars), emb_fix),
+        "encoder/target_modality_embedding_matrix": (["transformer/body/target_space_embedding/kernel"], None),
         "encoder/LayerNorm/beta": (["transformer/body/encoder/layer_prepostprocess/layer_norm/layer_norm_bias"], None),
         "encoder/LayerNorm/gamma": (["transformer/body/encoder/layer_prepostprocess/layer_norm/layer_norm_scale"], None),
         "decoder/LayerNorm/beta": (["transformer/body/decoder/layer_prepostprocess/layer_norm/layer_norm_bias"], None),
@@ -124,6 +123,7 @@ data_id="source_wp"
 embedding_size={}
 multiply_embedding_mode="{}"
 max_length={}
+add_end_symbol=True
 
 [encoder]
 class=encoders.transformer.TransformerEncoder
@@ -134,6 +134,7 @@ depth={}
 n_heads={}
 dropout_keep_prob=1.0
 attention_dropout_keep_prob=1.0
+target_space_id=21
 """
 
 
@@ -148,14 +149,16 @@ def build_encoder(hparams: Dict,
         vocabulary=vocabulary,
         data_id="source_wp",
         embedding_size=hparams["embedding_size"],
-        multiply_embedding_mode=hparams["multiply_embedding_mode"])
+        multiply_embedding_mode=hparams["multiply_embedding_mode"],
+        add_end_symbol=True)
 
     encoder = TransformerEncoder(
         name=ENCODER_NAME,
         input_sequence=inp_seq,
         ff_hidden_size=hparams["ff_hidden_size"],
         depth=hparams["depth"],
-        n_heads=hparams["n_heads"])
+        n_heads=hparams["n_heads"],
+        target_space_id=21)
 
     encoder_ini = ENCODER_TEMPLATE.format(
         inp_seq_name, hparams["embedding_size"],
@@ -301,20 +304,17 @@ runners_batch_size=1
 class=processors.wordpiece.WordpiecePreprocessor
 vocabulary=<vocabulary>
 
-[wp_postprocess]
-class=processors.wordpiece.WordpiecePostprocessor
-
 ; [train_data]
 ; class=dataset.load_dataset_from_files
-; s_source="PATH/TO/DATA" ; TODO do not forget to fill this out!
-; s_target="PATH/TO/DATA" ; TODO do not forget to fill this out!
+; s_source=("PATH/TO/DATA", readers.plain_text_reader.T2TReader); TODO do not forget to fill this out!
+; s_target=("PATH/TO/DATA", readers.plain_text_reader.T2TReader); TODO do not forget to fill this out!
 ; preprocessors=[("source", "source_wp", <wp_preprocess>), ("target", "target_wp", <wp_postprocess>)]
 ; lazy=True
 
 ; [val_data]
 ; class=dataset.load_dataset_from_files
-; s_source="PATH/TO/DATA" ; TODO do not forget to fill this out!
-; s_target="PATH/TO/DATA" ; TODO do not forget to fill this out!
+; s_source=("PATH/TO/DATA", readers.plain_text_reader.T2TReader); TODO do not forget to fill this out!
+; s_target=("PATH/TO/DATA", readers.plain_text_reader.T2TReader); TODO do not forget to fill this out!
 ; preprocessors=[("source", "source_wp", <wp_preprocess>), ("target", "target_wp", <wp_postprocess>)]
 
 ; [trainer]
@@ -331,7 +331,7 @@ num_sessions=1
 [runner]
 class=runners.runner.GreedyRunner
 decoder=<decoder>
-postprocess=<wp_postprocess>
+postprocess=processors.wordpiece.WordpiecePostprocessor
 output_series="target"
 
 """

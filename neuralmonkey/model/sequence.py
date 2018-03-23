@@ -164,18 +164,21 @@ class EmbeddedFactorSequence(Sequence):
         where dimension is the sum of the embedding sizes supplied to the
         constructor.
         """
-        embedded_factors = [
-            tf.nn.embedding_lookup(embedding_matrix, factor)
-            for factor, embedding_matrix in zip(
-                self.input_factors, self.embedding_matrices)]
-
-        # see: https://tinyurl.com/ycpgz6cu
-        # TODO: better link
-        if self.multiply_embedding_mode == "sqrt_depth":
-            embedded_factors = [
-                emb * emb_size**0.5
-                for emb, emb_size in zip(
-                    embedded_factors, self.embedding_sizes)]
+        embedded_factors = []
+        for (factor, embedding_matrix) in zip(
+                self.input_factors, self.embedding_matrices):
+            factor = tf.Print(factor, [factor], "3d=", summarize=30)
+            factor = tf.Print(factor, [tf.shape(factor)], "shape=", summarize=15)
+            emb_factor = tf.nn.embedding_lookup(embedding_matrix, factor)
+            # see: https://tinyurl.com/ycpgz6cu
+            # TODO: better link
+            if self.multiply_embedding_mode == "sqrt_depth":
+                emb_size = embedding_matrix.shape.as_list()[-1]
+                emb_factor *= emb_size**0.5
+            # We explicitly set paddings to zero-value vectors
+            # TODO: remove unnecessary masking in the subesquent modules
+            emb_factor = emb_factor * tf.expand_dims(self.mask, -1)
+            embedded_factors.append(emb_factor)
 
         return tf.concat(embedded_factors, 2)
 
