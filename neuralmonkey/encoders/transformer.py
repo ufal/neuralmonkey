@@ -32,12 +32,8 @@ def position_signal(dimension: int, length: tf.Tensor) -> tf.Tensor:
 
     # see: github.com/tensorflow/tensor2tensor/blob/v1.5.5/tensor2tensor/
     #      layers/common_attention.py#L425
-    # TODO have a (maybe not so) serious discussion about the following line
-    # replacing the expression "4":
-    magic = tf.to_float(math.log(1.0e4 / 1.0))
-    log_timescale_increment = magic / (tf.to_float(num_timescales) - 1)
-
-    inv_timescales = tf.exp(tf.to_float(tf.range(num_timescales))
+    log_timescale_increment = math.log(1.0e4) / (num_timescales - 1)
+    inv_timescales = tf.exp(tf.range(num_timescales, dtype=tf.float32)
                             * -log_timescale_increment)
 
     scaled_time = tf.expand_dims(positions, 1) * tf.expand_dims(
