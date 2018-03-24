@@ -161,7 +161,7 @@ class AutoregressiveDecoder(ModelPart):
                 initializer=tf.glorot_uniform_initializer())
 
     @tensor
-    def decoding_b(self) -> tf.Variable:
+    def decoding_b(self) -> Optional[tf.Variable]:
         if self.tie_embeddings:
             return None
 
@@ -189,9 +189,11 @@ class AutoregressiveDecoder(ModelPart):
     def get_logits(self, state: tf.Tensor) -> tf.Tensor:
         """Project the decoder's output layer to logits over the vocabulary."""
         state = dropout(state, self.dropout_keep_prob, self.train_mode)
+
         logits = tf.matmul(state, self.decoding_w)
-        if self.decoding_b:
+        if self.decoding_b is not None:
             logits += self.decoding_b
+
         return logits
 
     @tensor
