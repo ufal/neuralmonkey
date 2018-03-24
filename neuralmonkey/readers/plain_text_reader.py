@@ -60,7 +60,6 @@ def t2t_tokenized_text_reader(encoding: str = "utf-8") -> PlainTextFileReader:
     def reader(files: List[str]) -> Iterable[List[str]]:
         lines = string_reader(encoding)
         for line in lines(files):
-            line = line.strip()
             if not line:
                 yield []
 
