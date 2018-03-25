@@ -7,4 +7,5 @@ from .plain_runner import PlainRunner
 from .regression_runner import RegressionRunner
 from .representation_runner import RepresentationRunner
 from .runner import GreedyRunner
+from .tensor_runner import TensorRunner
 from .word_alignment_runner import WordAlignmentRunner

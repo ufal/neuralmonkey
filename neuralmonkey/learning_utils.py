@@ -421,6 +421,15 @@ def run_on_dataset(tf_manager: TensorFlowManager,
                 if isinstance(data, np.ndarray):
                     np.save(path, data)
                     log("Result saved as numpy array to '{}'".format(path))
+                elif (isinstance(data, list)
+                      and data
+                      and isinstance(data[0], dict)):
+
+                    unbatched = dict(
+                        zip(data[0], zip(*[d.values() for d in data])))
+
+                    np.savez(path, **unbatched)
+                    log("Result saved as numpy data to '{}.npz'".format(path))
                 else:
                     with open(path, "w", encoding="utf-8") as f_out:
                         f_out.writelines(
