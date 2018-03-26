@@ -414,6 +414,27 @@ def run_on_dataset(tf_manager: TensorFlowManager,
                  "len(dataset) == {}".format(series_id, dataset.name,
                                              len(data), len(dataset)))
 
+    def _check_savable_dict(data):
+        """Checks if the data is of savable type.
+
+        Checks for type List[Dict[str, np.ndarray]] and if neither the argument
+        list or its first dict is not empty.
+        """
+        if not (data and data[0]):
+            return False
+
+        # NOTE: this could be replaced by
+        # from typeguard import check_type
+        # try:
+        #     check_type("data", data, List[Dict[str, np.ndarray]], None]
+        # except TypeError:
+        #     return False
+        # return True
+        return (isinstance(data, list)
+                and isinstance(data[0], dict)
+                and isinstance(next(iter(data[0].keys())), str)
+                and isinstance(next(iter(data[0].values())), np.ndarray))
+
     if write_out:
         for series_id, data in result_data.items():
             if series_id in dataset.series_outputs:
@@ -421,10 +442,7 @@ def run_on_dataset(tf_manager: TensorFlowManager,
                 if isinstance(data, np.ndarray):
                     np.save(path, data)
                     log("Result saved as numpy array to '{}'".format(path))
-                elif (isinstance(data, list)
-                      and data
-                      and isinstance(data[0], dict)):
-
+                elif _check_savable_dict(data):
                     unbatched = dict(
                         zip(data[0], zip(*[d.values() for d in data])))
 
