@@ -169,9 +169,6 @@ def training_loop(tf_manager: TensorFlowManager,
                 seen_instances += len(batch_dataset)
                 if _is_logging_time(step, log_period_batch,
                                     last_log_time, log_period_time):
-                    trainer_result = tf_manager.execute(
-                        batch_dataset, [trainer], train=True,
-                        summaries=True)
                     train_results, train_outputs = run_on_dataset(
                         tf_manager, runners, batch_dataset,
                         postprocess, write_out=False,
@@ -182,12 +179,16 @@ def training_loop(tf_manager: TensorFlowManager,
                     train_evaluation = evaluation(
                         evaluators, batch_dataset, runners,
                         train_results, train_outputs)
+                    trainer_result = tf_manager.execute(
+                        batch_dataset, [trainer], train=True,
+                        summaries=True)
 
                     _log_continuous_evaluation(
                         tb_writer, main_metric, train_evaluation,
                         seen_instances, epoch_n, epochs, trainer_result,
                         train=True)
                     last_log_time = time.process_time()
+
                 else:
                     tf_manager.execute(batch_dataset, [trainer],
                                        train=True, summaries=False)
