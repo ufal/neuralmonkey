@@ -63,10 +63,10 @@ class SequenceSplitter(TemporalStateful, ModelPart):
         return to_return
 
 
-def split_by_factor(tensor: tf.Tensor, factor: int) -> tf.Tensor:
-    orig_shape = tf.shape(tensor)
+def split_by_factor(tensor_3d: tf.Tensor, factor: int) -> tf.Tensor:
+    orig_shape = tf.shape(tensor_3d)
     batch_size = orig_shape[0]
     max_time = orig_shape[1]
-    state_dim = tensor.get_shape()[2].value
+    state_dim = tensor_3d.get_shape()[2].value
     return tf.reshape(
-        tensor, [batch_size, max_time * factor, state_dim // factor])
+        tensor_3d, [batch_size, max_time * factor, state_dim // factor])
