@@ -15,10 +15,13 @@ import re
 import numpy as np
 import tensorflow as tf
 
-from neuralmonkey.logging import log
-
+from neuralmonkey.logging import log as _log
 
 IGNORED_PATTERNS = ["global_step"]
+
+
+def log(message: str, color: str = "blue") -> None:
+    _log(message, color)
 
 
 def main() -> None:
@@ -56,7 +59,7 @@ def main() -> None:
         var_values[name] /= len(args.checkpoints)
 
     tf_vars = [
-        tf.get_variable(v, shape=var_values[v].shape, dtype=var_dtypes[name])
+        tf.get_variable(v, shape=var_values[v].shape, dtype=var_dtypes[v])
         for v in var_values
     ]
     placeholders = [tf.placeholder(v.dtype, shape=v.shape) for v in tf_vars]
