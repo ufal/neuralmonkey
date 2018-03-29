@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 
-"""Extract variables of one model part into a single checkpoint file that can
-be used to load the model part in a different setup."""
+"""Extract variables of one model part into a single checkpoint file.
+
+Can be used to load the model part in a different setup."""
 
 import argparse
 import os
@@ -21,7 +22,7 @@ def main() -> None:
     parser.add_argument("model_part_name", metavar="MODEL-PART",
                         help="name of the extracted model part")
     parser.add_argument("output_path", metavar="OUTPUT-CHECKPOINT",
-                        help="checkpoint file with the model output")
+                        help="output checkopint file")
     args = parser.parse_args()
 
     if not os.path.exists("{}.index".format(args.orig_checkpoint)):
@@ -36,7 +37,7 @@ def main() -> None:
         if name.startswith("{}/".format(args.model_part_name))]
 
     if not var_list:
-        log("There are no variables for '{}' model part in '{}'.".format(
+        log("No variables for model part '{}' in checkpoint '{}'.".format(
             args.model_part_name, args.orig_checkpoint), color="red")
         exit(1)
 
