@@ -56,6 +56,7 @@ class TransformerDecoder(AutoregressiveDecoder):
                  tie_embeddings: bool = True,
                  label_smoothing: float = None,
                  attention_dropout_keep_prob: float = 1.0,
+                 use_att_transform_bias: bool = False,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None) -> None:
         """Create a decoder of the Transformer model.
@@ -106,6 +107,7 @@ class TransformerDecoder(AutoregressiveDecoder):
         self.n_heads_enc = n_heads_enc
         self.depth = depth
         self.attention_dropout_keep_prob = attention_dropout_keep_prob
+        self.use_att_transform_bias = use_att_transform_bias
 
         self.encoder_states = get_attention_states(self.encoder)
         self.encoder_mask = get_attention_mask(self.encoder)
@@ -174,7 +176,8 @@ class TransformerDecoder(AutoregressiveDecoder):
             num_heads=self.n_heads_self,
             masked=True,
             dropout_callback=lambda x: dropout(
-                x, self.attention_dropout_keep_prob, self.train_mode))
+                x, self.attention_dropout_keep_prob, self.train_mode),
+            use_bias=self.use_att_transform_bias)
 
         # Apply dropout
         self_context = dropout(
@@ -201,7 +204,8 @@ class TransformerDecoder(AutoregressiveDecoder):
             keys_mask=encoder_att_mask,
             num_heads=self.n_heads_enc,
             dropout_callback=lambda x: dropout(
-                x, self.attention_dropout_keep_prob, self.train_mode))
+                x, self.attention_dropout_keep_prob, self.train_mode),
+            use_bias=self.use_att_transform_bias)
 
         # Apply dropout
         encoder_context = dropout(

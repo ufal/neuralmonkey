@@ -97,7 +97,8 @@ def attention(
         keys_mask: tf.Tensor,
         num_heads: int,
         dropout_callback: Callable[[tf.Tensor], tf.Tensor],
-        masked: bool = False) -> tf.Tensor:
+        masked: bool = False,
+        use_bias: bool = False) -> tf.Tensor:
     """Run multi-head scaled dot-product attention.
 
     See arxiv.org/abs/1706.03762
@@ -164,11 +165,11 @@ def attention(
     # For multi-head attention, queries, keys and values are linearly projected
     if num_heads > 1:
         queries = tf.layers.dense(
-            queries, queries_dim, use_bias=False, name="query_proj")
+            queries, queries_dim, use_bias=use_bias, name="query_proj")
         keys = tf.layers.dense(
-            keys, queries_dim, use_bias=False, name="keys_proj")
+            keys, queries_dim, use_bias=use_bias, name="keys_proj")
         values = tf.layers.dense(
-            values, queries_dim, use_bias=False, name="vals_proj")
+            values, queries_dim, use_bias=use_bias, name="vals_proj")
 
     # Scale first:
     queries_scaled = queries / math.sqrt(head_dim)
@@ -209,7 +210,7 @@ def attention(
 
     if num_heads > 1:
         context = tf.layers.dense(
-            context, queries_dim, use_bias=False, name="output_proj")
+            context, queries_dim, use_bias=use_bias, name="output_proj")
 
     return context, weights
 # pylint: enable=too-many-locals

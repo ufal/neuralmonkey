@@ -72,6 +72,7 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
                  dropout_keep_prob: float = 1.0,
                  attention_dropout_keep_prob: float = 1.0,
                  target_space_id: int = None,
+                 use_att_transform_bias: bool = False,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None) -> None:
         """Create an encoder of the Transformer model.
@@ -102,6 +103,7 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
         self.dropout_keep_prob = dropout_keep_prob
         self.attention_dropout_keep_prob = attention_dropout_keep_prob
         self.target_space_id = target_space_id
+        self.use_att_transform_bias = use_att_transform_bias
 
         if self.depth <= 0:
             raise ValueError("Depth must be a positive integer.")
@@ -188,7 +190,8 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
             keys_mask=prev_layer.temporal_mask,
             num_heads=self.n_heads,
             dropout_callback=lambda x: dropout(
-                x, self.attention_dropout_keep_prob, self.train_mode))
+                x, self.attention_dropout_keep_prob, self.train_mode),
+            use_bias=self.use_att_transform_bias)
 
         # Apply dropout
         self_context = dropout(
