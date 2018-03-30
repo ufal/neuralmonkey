@@ -415,11 +415,7 @@ def run_on_dataset(tf_manager: TensorFlowManager,
                                              len(data), len(dataset)))
 
     def _check_savable_dict(data):
-        """Checks if the data is of savable type.
-
-        Checks for type List[Dict[str, np.ndarray]] and if neither the argument
-        list or its first dict is not empty.
-        """
+        """Check if the data is of savable type."""
         if not (data and data[0]):
             return False
 

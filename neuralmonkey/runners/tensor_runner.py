@@ -157,6 +157,7 @@ class RepresentationRunner(TensorRunner):
     Use this runner to get input / other data representation out from one of
     Neural Monkey encoders.
     """
+
     def __init__(self,
                  output_series: str,
                  encoder: ModelPart,
