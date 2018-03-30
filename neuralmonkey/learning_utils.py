@@ -12,7 +12,7 @@ from datetime import timedelta
 import numpy as np
 import tensorflow as tf
 from termcolor import colored
-from typeguard import check_argument_types
+from typeguard import check_argument_types, check_type
 
 from neuralmonkey.logging import log, log_print, warn, notice
 from neuralmonkey.dataset import Dataset, LazyDataset
@@ -423,17 +423,15 @@ def run_on_dataset(tf_manager: TensorFlowManager,
         if not (data and data[0]):
             return False
 
-        # NOTE: this could be replaced by
-        # from typeguard import check_type
-        # try:
-        #     check_type("data", data, List[Dict[str, np.ndarray]], None]
-        # except TypeError:
-        #     return False
-        # return True
-        return (isinstance(data, list)
-                and isinstance(data[0], dict)
-                and isinstance(next(iter(data[0].keys())), str)
-                and isinstance(next(iter(data[0].values())), np.ndarray))
+        supported_type = Union[
+            List[Dict[str, np.ndarray]],
+            List[List[Dict[str, np.ndarray]]]]
+
+        try:
+            check_type("data", data, supported_type, None)
+        except TypeError:
+            return False
+        return True
 
     if write_out:
         for series_id, data in result_data.items():
