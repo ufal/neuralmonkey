@@ -379,6 +379,7 @@ runners=[<runner>]
 postprocess=None
 evaluation=[("target", evaluators.bleu.BLEU)]
 runners_batch_size=1
+random_seed=1234
 
 ; TODO Set these additional attributes for further training
 ; batch_size=80
@@ -388,7 +389,6 @@ runners_batch_size=1
 ; trainer=<trainer>
 ; logging_period=20
 ; validation_period=60
-; random_seed=1234
 
 ; [train_data]
 ; class=dataset.load_dataset_from_files
