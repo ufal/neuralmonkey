@@ -3,7 +3,7 @@ import sys
 import os
 
 # pylint: disable=unused-import
-from typing import Any, Optional, List
+from typing import Any, List
 # pylint: enable=unused-import
 
 from termcolor import colored
@@ -11,13 +11,13 @@ from termcolor import colored
 
 class Logging(object):
 
-    log_file = None  # type: Optional[Any]
+    log_file = None  # type: Any
 
     # 'all' and 'none' are special symbols,
     # others are filtered according the labels
-    debug_enabled = [
+    debug_enabled_for = [
         os.environ.get("NEURALMONKEY_DEBUG_ENABLE", "none")]  # type: List[str]
-    debug_disabled = [
+    debug_disabled_for = [
         os.environ.get("NEURALMONKEY_DEBUG_DISABLE", "")]  # type: List[str]
     strict_mode = os.environ.get("NEURALMONKEY_STRICT")  # type: str
 
@@ -76,15 +76,8 @@ class Logging(object):
         log_print("")
 
     @staticmethod
-    def debug(message: str, label: Optional[str] = None):
-        if "none" in Logging.debug_enabled:
-            return
-
-        if (label not in Logging.debug_enabled and
-                "all" not in Logging.debug_enabled):
-            return
-
-        if label in Logging.debug_disabled:
+    def debug(message: str, label: str = None):
+        if not debug_enabled(label):
             return
 
         if label:
@@ -94,6 +87,21 @@ class Logging(object):
 
         log_print("{}{}".format(colored(prefix, color="cyan"), message))
 
+    @staticmethod
+    def debug_enabled(label: str = None):
+        if "none" in Logging.debug_enabled_for:
+            return False
+
+        if label is None:
+            return True
+
+        if (label in Logging.debug_disabled_for
+                or ("all" not in Logging.debug_enabled_for
+                    and label not in Logging.debug_enabled_for)):
+            return False
+
+        return True
+
 
 # pylint: disable=invalid-name
 # we want these helper functions to have this exact name
@@ -102,3 +110,4 @@ log_print = Logging.log_print
 debug = Logging.debug
 warn = Logging.warn
 notice = Logging.notice
+debug_enabled = Logging.debug_enabled
