@@ -81,9 +81,9 @@ class Logging(object):
             return
 
         if label:
-            prefix = "DEBUG ({}):".format(label)
+            prefix = "{}: DEBUG ({}): ".format(Logging._get_time(), label)
         else:
-            prefix = "DEBUG:"
+            prefix = "{}: DEBUG: ".format(Logging._get_time())
 
         log_print("{}{}".format(colored(prefix, color="cyan"), message))
 

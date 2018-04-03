@@ -3,7 +3,9 @@ from typing import Callable, Iterable, List, Optional, Tuple
 # pylint: disable=unused-import
 from typing import Dict, Set
 # pylint: enable=unused-import
+import numpy as np
 import tensorflow as tf
+
 from neuralmonkey.logging import debug, debug_enabled
 
 
@@ -63,11 +65,12 @@ def tf_print(tensor: tf.Tensor, message: str = None) -> tf.Tensor:
         As tf.Print, this function returns a tensor identical to the input
         tensor, with the printing side-effect added.
     """
-    def print_tensor(x: tf.Tensor) -> tf.Tensor:
+    def print_tensor(x: np.ndarray) -> tf.Tensor:
         if message is not None:
-            debug("{}: {}".format(message, x), "tensorval")
+            debug(
+                "{}, shape: {}:\n{}".format(message, x.shape, x), "tensorval")
         else:
-            debug(x, "tensorval")
+            debug("Shape: {}\n{}".format(x.shape, x), "tensorval")
         return x
 
     # To save time, check if debug will print something
