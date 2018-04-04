@@ -45,16 +45,23 @@ def split_for_heads(x: tf.Tensor, n_heads: int, head_dim: int) -> tf.Tensor:
     return tf.transpose(x_4d, perm=[0, 2, 1, 3])
 
 
-def mask_energies(energies_4d: tf.Tensor, mask: tf.Tensor) -> tf.Tensor:
+def mask_energies(energies_4d: tf.Tensor,
+                  mask: tf.Tensor,
+                  mask_value=-1e9) -> tf.Tensor:
     """Apply mask to the attention energies before passing to softmax.
 
     Arguments:
         energies_4d: Energies of shape ``(batch, n_heads, time(q), time(k))``.
         mask: Float Tensor of zeros and ones of shape ``(batch, time(k))``,
             specifies valid positions in the energies tensor.
+        mask_value: Value used to mask energies. Default taken value
+            from tensor2tensor.
 
     Returns:
         Energies (logits) of valid positions. Same shape as ``energies_4d``.
+
+    NOTE:
+        We do not use ``mask_value=-np.inf`` to avoid potential underflow.
     """
     mask_4d = tf.expand_dims(tf.expand_dims(mask, 1), 1)
     energies_all = energies_4d * mask_4d
@@ -62,10 +69,10 @@ def mask_energies(energies_4d: tf.Tensor, mask: tf.Tensor) -> tf.Tensor:
     # Energies are log probabilities, so setting the invalid energies to
     # negative infinity (aka -1e9 for compatibility with tensor2tensor) yields
     # probability of zero to the padded positions.
-    return energies_all + (1.0 - mask_4d) * -1e9
+    return energies_all + (1.0 - mask_4d) * mask_value
 
 
-def mask_future(energies: tf.Tensor) -> tf.Tensor:
+def mask_future(energies: tf.Tensor, mask_value=-1e9) -> tf.Tensor:
     """Mask energies of keys using lower triangular matrix.
 
     Mask simulates autoregressive decoding, such that it prevents
@@ -75,6 +82,7 @@ def mask_future(energies: tf.Tensor) -> tf.Tensor:
 
     Arguments:
         energies: A tensor to mask.
+        mask_value: Value used to mask energies.
 
     Returns:
         Masked energies tensor.
@@ -84,7 +92,7 @@ def mask_future(energies: tf.Tensor) -> tf.Tensor:
 
     # Note that for compatibility with tensor2tensor, we use -1e9 for negative
     # infinity.
-    masked_value = tf.fill(tf.shape(energies), -1e9)
+    masked_value = tf.fill(tf.shape(energies), mask_value)
     return tf.where(mask_area, energies, masked_value)
 
 

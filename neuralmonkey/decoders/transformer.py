@@ -250,10 +250,10 @@ class TransformerDecoder(AutoregressiveDecoder):
 
         with tf.variable_scope("layer_{}".format(level - 1)):
 
-            with tf.variable_scope("self_attention", reuse=tf.AUTO_REUSE):
+            with tf.variable_scope("self_attention"):
                 self_context = self.self_attention_sublayer(prev_layer)
 
-            with tf.variable_scope("encdec_attention", reuse=tf.AUTO_REUSE):
+            with tf.variable_scope("encdec_attention"):
                 encoder_context = self.encoder_attention_sublayer(self_context)
 
             with tf.variable_scope("feedforward"):
@@ -285,8 +285,7 @@ class TransformerDecoder(AutoregressiveDecoder):
         logits = tf.reshape(
             tf.matmul(last_layer_states, self.decoding_w),
             [last_layer_shape[0], last_layer_shape[1], len(self.vocabulary)])
-        if self.decoding_b is not None:
-            logits += tf.reshape(self.decoding_b, [1, 1, -1])
+        logits += tf.reshape(self.decoding_b, [1, 1, -1])
 
         # return logits in time-major shape
         return tf.transpose(logits, perm=[1, 0, 2])
@@ -361,8 +360,7 @@ class TransformerDecoder(AutoregressiveDecoder):
 
                 # See train_logits definition
                 logits = tf.matmul(output_state, self.decoding_w)
-                if self.decoding_b is not None:
-                    logits += self.decoding_b
+                logits += self.decoding_b
 
                 if sample:
                     next_symbols = tf.multinomial(logits, num_samples=1)

@@ -163,7 +163,7 @@ class AutoregressiveDecoder(ModelPart):
     @tensor
     def decoding_b(self) -> Optional[tf.Variable]:
         if self.tie_embeddings:
-            return None
+            return tf.zeros(len(self.vocabulary))
 
         with tf.name_scope("output_projection"):
             return get_variable(
@@ -191,8 +191,7 @@ class AutoregressiveDecoder(ModelPart):
         state = dropout(state, self.dropout_keep_prob, self.train_mode)
 
         logits = tf.matmul(state, self.decoding_w)
-        if self.decoding_b is not None:
-            logits += self.decoding_b
+        logits += self.decoding_b
 
         return logits
 

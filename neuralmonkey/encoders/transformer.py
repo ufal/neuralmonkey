@@ -161,7 +161,6 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
             Move it either to a runner or experiment configuration.
         """
 
-        # TODO: add dropout?
         return tf.gather(self.modality_matrix,
                          tf.constant(self.target_space_id))
 
@@ -179,6 +178,8 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
 
     def self_attention_sublayer(
             self, prev_layer: TransformerLayer) -> tf.Tensor:
+        """Create the encoder self-attention sublayer."""
+
         # Layer normalization
         normalized_states = layer_norm(prev_layer.temporal_states)
 
@@ -201,6 +202,8 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
         return self_context + prev_layer.temporal_states
 
     def feedforward_sublayer(self, layer_input: tf.Tensor) -> tf.Tensor:
+        """Create the feed-forward network sublayer."""
+
         # Layer normalization
         normalized_input = layer_norm(layer_input)
 
