@@ -167,7 +167,7 @@ class RepresentationRunner(TensorRunner):
 
         Args:
             output_series: Name of the output series with vectors.
-            encoder: The encoder to use.
+            encoder: The encoder to use. This can be any ``ModelPart`` object.
             attribute: The name of the encoder attribute that contains the
                 data.
             used_session: Id of the TensorFlow session used in case of model
