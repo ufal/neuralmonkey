@@ -17,7 +17,8 @@ def tensor(func):
                     value = func(self, *args, **kwargs)
                     if isinstance(value, tf.Tensor):
                         value = tf_print(
-                            value, "<{}.{}>".format(self.name, func.__name__))
+                            value, "<{}.{}>".format(self.name, func.__name__),
+                            "tensorval")
             else:
                 value = func(self, *args, **kwargs)
             setattr(self, attribute_name, value)

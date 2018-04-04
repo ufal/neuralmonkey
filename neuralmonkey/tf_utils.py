@@ -50,7 +50,9 @@ def get_variable(name: str,
         **kwargs)
 
 
-def tf_print(tensor: tf.Tensor, message: str = None) -> tf.Tensor:
+def tf_print(tensor: tf.Tensor,
+             message: str = None,
+             debug_label: str = None) -> tf.Tensor:
     """Print the value of a tensor to the debug log.
 
     Better than tf.Print, logs to console only when the "tensorval" debug
@@ -68,13 +70,13 @@ def tf_print(tensor: tf.Tensor, message: str = None) -> tf.Tensor:
     def print_tensor(x: np.ndarray) -> tf.Tensor:
         if message is not None:
             debug(
-                "{}, shape: {}:\n{}".format(message, x.shape, x), "tensorval")
+                "{}, shape: {}:\n{}".format(message, x.shape, x), debug_label)
         else:
-            debug("Shape: {}\n{}".format(x.shape, x), "tensorval")
+            debug("Shape: {}\n{}".format(x.shape, x), debug_label)
         return x
 
     # To save time, check if debug will print something
-    if not debug_enabled("tensorval"):
+    if not debug_enabled(debug_label):
         return tensor
 
     log_op = tf.py_func(print_tensor, [tensor], [tensor.dtype])[0]
