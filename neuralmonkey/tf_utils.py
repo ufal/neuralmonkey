@@ -3,7 +3,10 @@ from typing import Callable, Iterable, List, Optional, Tuple
 # pylint: disable=unused-import
 from typing import Dict, Set
 # pylint: enable=unused-import
+import numpy as np
 import tensorflow as tf
+
+from neuralmonkey.logging import debug, debug_enabled
 
 
 def _get_current_experiment():
@@ -45,3 +48,40 @@ def get_variable(name: str,
         name=name, shape=shape, dtype=dtype,
         initializer=get_initializer(name, initializer),
         **kwargs)
+
+
+def tf_print(tensor: tf.Tensor,
+             message: str = None,
+             debug_label: str = None) -> tf.Tensor:
+    """Print the value of a tensor to the debug log.
+
+    Better than tf.Print, logs to console only when the "tensorval" debug
+    subject is turned on.
+
+    Idea found at: https://stackoverflow.com/a/39649614
+
+    Args:
+        tensor: The tensor whose value to print
+
+    Returns:
+        As tf.Print, this function returns a tensor identical to the input
+        tensor, with the printing side-effect added.
+    """
+    def print_tensor(x: np.ndarray) -> tf.Tensor:
+        if message is not None:
+            debug(
+                "{}, shape: {}:\n{}".format(message, x.shape, x), debug_label)
+        else:
+            debug("Shape: {}\n{}".format(x.shape, x), debug_label)
+        return x
+
+    # To save time, check if debug will print something
+    if not debug_enabled(debug_label):
+        return tensor
+
+    log_op = tf.py_func(print_tensor, [tensor], [tensor.dtype])[0]
+
+    with tf.control_dependencies([log_op]):
+        res = tf.identity(tensor)
+
+    return res
