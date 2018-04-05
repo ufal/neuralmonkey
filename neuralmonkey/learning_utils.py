@@ -12,7 +12,7 @@ from datetime import timedelta
 import numpy as np
 import tensorflow as tf
 from termcolor import colored
-from typeguard import check_argument_types
+from typeguard import check_argument_types, check_type
 
 from neuralmonkey.logging import log, log_print, warn, notice
 from neuralmonkey.dataset import Dataset, LazyDataset
@@ -414,6 +414,21 @@ def run_on_dataset(tf_manager: TensorFlowManager,
                  "len(dataset) == {}".format(series_id, dataset.name,
                                              len(data), len(dataset)))
 
+    def _check_savable_dict(data):
+        """Check if the data is of savable type."""
+        if not (data and data[0]):
+            return False
+
+        supported_type = Union[
+            List[Dict[str, np.ndarray]],
+            List[List[Dict[str, np.ndarray]]]]
+
+        try:
+            check_type("data", data, supported_type, None)
+        except TypeError:
+            return False
+        return True
+
     if write_out:
         for series_id, data in result_data.items():
             if series_id in dataset.series_outputs:
@@ -421,6 +436,12 @@ def run_on_dataset(tf_manager: TensorFlowManager,
                 if isinstance(data, np.ndarray):
                     np.save(path, data)
                     log("Result saved as numpy array to '{}'".format(path))
+                elif _check_savable_dict(data):
+                    unbatched = dict(
+                        zip(data[0], zip(*[d.values() for d in data])))
+
+                    np.savez(path, **unbatched)
+                    log("Result saved as numpy data to '{}.npz'".format(path))
                 else:
                     with open(path, "w", encoding="utf-8") as f_out:
                         f_out.writelines(

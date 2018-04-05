@@ -5,6 +5,6 @@ from .logits_runner import LogitsRunner
 from .perplexity_runner import PerplexityRunner
 from .plain_runner import PlainRunner
 from .regression_runner import RegressionRunner
-from .representation_runner import RepresentationRunner
 from .runner import GreedyRunner
+from .tensor_runner import TensorRunner, RepresentationRunner
 from .word_alignment_runner import WordAlignmentRunner
