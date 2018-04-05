@@ -160,14 +160,10 @@ def from_nematus_json(path: str, max_size: int = None,
         contents = json.load(f_json)
 
     vocabulary = Vocabulary()
-    added = 2
-
     for word in sorted(contents.keys(), key=lambda x: contents[x]):
         if contents[word] < 2:
             continue
-
         vocabulary.add_word(word)
-        added += 1
 
     if pad_to_max_size:
         current_length = len(vocabulary)
