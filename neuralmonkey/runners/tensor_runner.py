@@ -87,6 +87,12 @@ class TensorRunner(BaseRunner[ModelPart]):
                  select_session: int = None) -> None:
         """Construct a new ``TensorRunner`` object.
 
+        Note that at this time, one must specify the toplevel objects so that
+        it is ensured that the graph is built. The reason for this behavior is
+        that the graph is constructed lazily and therefore if the tensors to
+        store are provided by indirect reference (name), the system does not
+        know early enough that it needs to create them.
+
         Args:
             output_series: The name of the generated output data series.
             toplevel_modelpart: A ``ModelPart`` object that is used as the
