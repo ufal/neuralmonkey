@@ -164,6 +164,8 @@ def from_nematus_json(path: str, max_size: int = None,
         if contents[word] < 2:
             continue
         vocabulary.add_word(word)
+        if len(vocabulary) == max_size:
+            break
 
     if pad_to_max_size:
         current_length = len(vocabulary)
