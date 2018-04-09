@@ -75,7 +75,6 @@ class NematusGRUCell(tf.contrib.rnn.GRUCell):
         with tf.variable_scope("gates"):
             input_to_gates = tf.layers.dense(
                 inputs, 2 * self._num_units, name="input_proj",
-                kernel_initializer=tf.glorot_normal_initializer(),
                 use_bias=self.use_input_bias)
 
             # Nematus does the orthogonal initialization probably differently
@@ -92,7 +91,6 @@ class NematusGRUCell(tf.contrib.rnn.GRUCell):
         with tf.variable_scope("candidate"):
             input_to_candidate = tf.layers.dense(
                 inputs, self._num_units, use_bias=self.use_input_bias,
-                kernel_initializer=tf.glorot_normal_initializer(),
                 name="input_proj")
 
             state_to_candidate = tf.layers.dense(

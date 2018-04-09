@@ -55,8 +55,7 @@ class SequenceLabeler(ModelPart):
     def decoding_w(self) -> tf.Variable:
         return get_variable(
             name="state_to_word_W",
-            shape=[self.rnn_size, len(self.vocabulary)],
-            initializer=tf.glorot_normal_initializer())
+            shape=[self.rnn_size, len(self.vocabulary)])
 
     @tensor
     def decoding_b(self) -> tf.Variable:
@@ -70,8 +69,7 @@ class SequenceLabeler(ModelPart):
         input_dim = self.encoder.input_sequence.dimension
         return get_variable(
             name="emb_to_word_W",
-            shape=[input_dim, len(self.vocabulary)],
-            initializer=tf.glorot_normal_initializer())
+            shape=[input_dim, len(self.vocabulary)])
 
     @tensor
     def logits(self) -> tf.Tensor:
