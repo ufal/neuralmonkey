@@ -15,7 +15,9 @@ class SpatialEmbeddingsAdder(ModelPart, SpatialStatefulWithOutput):
             self,
             name: str,
             input_map: SpatialStateful,
-            embedding_size: int,
+            position_embedding_size: int = None,
+            horizontal_embedding_size: int = None,
+            vertical_embedding_size: int = None,
             additional_projection: int = None,
             save_checkpoint: str = None,
             load_checkpoint: str = None,
@@ -24,8 +26,16 @@ class SpatialEmbeddingsAdder(ModelPart, SpatialStatefulWithOutput):
         ModelPart.__init__(self, name, save_checkpoint, load_checkpoint,
                            initializers)
 
+        if (position_embedding_size is None and
+                horizontal_embedding_size is None
+                and vertical_embedding_size is None):
+            raise ValueEror(
+                "At least one type of position embeedings must be specified.")
+
         self.input_map = input_map
-        self.embedding_size = embedding_size
+        self.position_embedding_size = position_embedding_size
+        self.horizontal_embedding_size = horizontal_embedding_size
+        self.vertical_embedding_size = vertical_embedding_size
         self.additional_projection = additional_projection
 
     @tensor
@@ -34,11 +44,31 @@ class SpatialEmbeddingsAdder(ModelPart, SpatialStatefulWithOutput):
 
     @tensor
     def spatial_embeddings(self) -> tf.Tensor:
-        shape = self.input_map.spatial_states.get_shape().as_list()
-        assert len(shape) == 4
+        shape = self.input_map.spatial_states.get_shape().as_list()[:3]
+        assert len(shape) == 3
         shape[0] = 1
-        shape[3] = self.embedding_size
-        return get_variable("spatial_embeddings", shape=shape)
+
+        embeddings = []
+
+        if self.vertical_embedding_size is not None:
+            vertical_embedding = get_variable(
+                name="vertical_embeddings",
+                shape=[1, shape[1], 1, self.vertical_embedding_size])
+            tiled_to_width = tf.tile(vertical_embedding, [1, 1, shape[2], 1])
+            embeddings.append(tiled_to_width)
+
+        if self.horizontal_embedding_size is not None:
+            horizontal_embedding = get_variable(
+                name="horizontal_embedding",
+                shape=[1, 1, shape[2], self.horizontal_embedding_size])
+            tiled_to_height = tf.tile(horizontal_embedding, [1, shape[1], 1, 1])
+            embeddings.append(tiled_to_height)
+
+        if self.position_embedding_size is not None:
+            embeddings.append(get_variable(
+                "spatial_embeddings", shape=shape + [self.position_embedding_size]))
+
+        return tf.concat(embeddings, axis=3)
 
     @tensor
     def spatial_states(self) -> tf.Tensor:
