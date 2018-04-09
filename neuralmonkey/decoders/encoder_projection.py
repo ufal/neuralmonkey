@@ -22,7 +22,7 @@ from typeguard import check_argument_types
 from neuralmonkey.model.stateful import Stateful, TemporalStatefulWithOutput
 from neuralmonkey.nn.utils import dropout
 from neuralmonkey.nn.ortho_gru_cell import orthogonal_initializer
-from neuralmonkey.logging import log, warn
+from neuralmonkey.logging import log
 from neuralmonkey.tf_utils import get_initializer
 
 
