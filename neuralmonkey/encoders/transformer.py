@@ -73,6 +73,7 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
                  attention_dropout_keep_prob: float = 1.0,
                  target_space_id: int = None,
                  use_att_transform_bias: bool = False,
+                 use_position_encoding: bool = True,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None) -> None:
         """Create an encoder of the Transformer model.
@@ -107,6 +108,7 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
         self.attention_dropout_keep_prob = attention_dropout_keep_prob
         self.target_space_id = target_space_id
         self.use_att_transform_bias = use_att_transform_bias
+        self.use_position_encoding = use_position_encoding
 
         if self.depth <= 0:
             raise ValueError("Depth must be a positive integer.")
@@ -172,9 +174,11 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
             inputs += tf.reshape(self.target_modality_embedding, [1, 1, -1])
 
         length = tf.shape(inputs)[1]
-        pos = position_signal(self.model_dimension, length)
 
-        return dropout(inputs + pos, self.dropout_keep_prob, self.train_mode)
+        if self.use_position_encoding:
+            inputs += position_signal(self.model_dimension, length)
+
+        return dropout(inputs, self.dropout_keep_prob, self.train_mode)
 
     def self_attention_sublayer(
             self, prev_layer: TransformerLayer) -> tf.Tensor:
