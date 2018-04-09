@@ -1,5 +1,5 @@
 """Split temporal states such that the sequence is n-times longer."""
-from typing import Set
+from typing import Callable, Set
 import tensorflow as tf
 from typeguard import check_argument_types
 
@@ -14,7 +14,8 @@ class SequenceSplitter(TemporalStateful, ModelPart):
             self,
             parent: TemporalStateful,
             factor: int,
-            projection_size: int = None) -> None:
+            projection_size: int = None,
+            projection_activation: Callable = None) -> None:
         """Initialize SetenceSplitter.
 
         Args:
@@ -30,6 +31,7 @@ class SequenceSplitter(TemporalStateful, ModelPart):
         self.parent = parent
         self.factor = factor
         self.projection_size = projection_size
+        self.activation = activation
 
         state_dim = parent.temporal_states.get_shape()[2].value
         if state_dim % factor != 0:
@@ -43,7 +45,7 @@ class SequenceSplitter(TemporalStateful, ModelPart):
         states = self.parent.temporal_states
         if self.projection_size:
             states = tf.layers.dense(
-                states, self.projection_size, activation=tf.nn.relu)
+                states, self.projection_size, activation=self.activation)
 
         return split_by_factor(self.parent.temporal_states, self.factor)
 
