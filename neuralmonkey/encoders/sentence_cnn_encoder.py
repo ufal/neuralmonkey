@@ -111,7 +111,8 @@ class SentenceCNNEncoder(ModelPart, TemporalStatefulWithOutput):
                                 num_filters]
                 w_filter = get_variable(
                     "conv_W", filter_shape,
-                    initializer=tf.glorot_uniform_initializer())
+                    initializer=tf.variance_scaling_initializer(
+                        distribution="uniform"))
                 b_filter = get_variable(
                     "conv_bias", [num_filters],
                     initializer=tf.zeros_initializer())

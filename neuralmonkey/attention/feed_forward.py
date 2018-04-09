@@ -69,22 +69,19 @@ class Attention(BaseAttention):
         with tf.variable_scope("Attention"):
             return get_variable(
                 name="attn_query_projection",
-                shape=[self.query_state_size, self.state_size],
-                initializer=tf.glorot_normal_initializer())
+                shape=[self.query_state_size, self.state_size])
 
     @tensor
     def key_projection_matrix(self) -> tf.Variable:
         return get_variable(
             name="attn_key_projection",
             # TODO tohle neni spravne
-            shape=[self.context_vector_size, self.state_size],
-            initializer=tf.glorot_normal_initializer())
+            shape=[self.context_vector_size, self.state_size])
 
     @tensor
     def similarity_bias_vector(self) -> tf.Variable:
         return get_variable(
-            name="attn_similarity_v", shape=[self.state_size],
-            initializer=tf.glorot_normal_initializer())
+            name="attn_similarity_v", shape=[self.state_size])
 
     @tensor
     def projection_bias_vector(self) -> tf.Variable:
