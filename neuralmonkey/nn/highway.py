@@ -35,23 +35,13 @@ def highway(inputs, activation=tf.nn.relu, scope="HighwayNetwork"):
         W_shape = [vec_size, vec_size]
         b_shape = [vec_size]
 
-        W_H = get_variable(
-            "weight_H",
-            shape=W_shape,
-            initializer=tf.glorot_normal_initializer())
-        b_H = get_variable(
-            "bias_H",
-            shape=b_shape,
-            initializer=tf.constant_initializer(-1.0))
+        W_H = get_variable("weight_H", shape=W_shape)
+        b_H = get_variable("bias_H", shape=b_shape,
+                           initializer=tf.constant_initializer(-1.0))
 
-        W_T = get_variable(
-            "weight_T",
-            shape=W_shape,
-            initializer=tf.glorot_normal_initializer())
-        b_T = get_variable(
-            "bias_T",
-            shape=b_shape,
-            initializer=tf.constant_initializer(-1.0))
+        W_T = get_variable("weight_T", shape=W_shape)
+        b_T = get_variable("bias_T", shape=b_shape,
+                           initializer=tf.constant_initializer(-1.0))
 
         T = tf.sigmoid(
             tf.add(tf.matmul(inputs, W_T), b_T),

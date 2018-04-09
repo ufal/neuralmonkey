@@ -151,7 +151,8 @@ class EmbeddedFactorSequence(Sequence):
             get_variable(
                 name="embedding_matrix_{}".format(i),
                 shape=[vocab_size, emb_size],
-                initializer=tf.glorot_uniform_initializer())
+                initializer=tf.variance_scaling_initializer(
+                    distribution="uniform"))
             for i, (data_id, vocab_size, emb_size) in enumerate(zip(
                 self.data_ids, self.vocabulary_sizes, self.embedding_sizes))]
 
