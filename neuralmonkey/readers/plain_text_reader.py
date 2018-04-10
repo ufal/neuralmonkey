@@ -62,6 +62,7 @@ def t2t_tokenized_text_reader(encoding: str = "utf-8") -> PlainTextFileReader:
         for line in lines(files):
             if not line:
                 yield []
+            line = line.rstrip("\n")
 
             tokens = []
             is_alnum = [ch in alphanumeric_charset for ch in line]
