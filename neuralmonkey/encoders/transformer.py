@@ -142,9 +142,6 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
 
         Used to embed different target space modalities in the tensor2tensor
         models (e.g. during the zero-shot translation).
-
-        TODO:
-            Move this to the model.sequence as an optional network parameter.
         """
         emb_size = self.input_sequence.temporal_states.shape.as_list()[-1]
         return get_variable(
@@ -158,12 +155,7 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
         """Gather correct embedding of the target space modality.
 
         See TransformerEncoder.modality_matrix for more information.
-
-        TODO:
-            Make a target_space_id an optional parameter of the experiment.
-            Move it either to a runner or experiment configuration.
         """
-
         return tf.gather(self.modality_matrix,
                          tf.constant(self.target_space_id))
 
