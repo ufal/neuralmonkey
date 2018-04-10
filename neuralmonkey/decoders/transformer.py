@@ -3,6 +3,7 @@
 Described in Vaswani et al. (2017), arxiv.org/abs/1706.03762
 """
 from typing import Callable, Set, List, Tuple  # pylint: disable=unused-import
+import math
 
 import tensorflow as tf
 from typeguard import check_argument_types
@@ -22,6 +23,7 @@ from neuralmonkey.logging import log
 from neuralmonkey.nn.utils import dropout
 from neuralmonkey.vocabulary import (
     Vocabulary, PAD_TOKEN_INDEX, END_TOKEN_INDEX)
+from neuralmonkey.tf_utils import layer_norm
 
 # pylint: disable=invalid-name
 TransformerHistories = extend_namedtuple(
@@ -54,6 +56,7 @@ class TransformerDecoder(AutoregressiveDecoder):
                  tie_embeddings: bool = True,
                  label_smoothing: float = None,
                  attention_dropout_keep_prob: float = 1.0,
+                 use_att_transform_bias: bool = False,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None) -> None:
         """Create a decoder of the Transformer model.
@@ -104,6 +107,7 @@ class TransformerDecoder(AutoregressiveDecoder):
         self.n_heads_enc = n_heads_enc
         self.depth = depth
         self.attention_dropout_keep_prob = attention_dropout_keep_prob
+        self.use_att_transform_bias = use_att_transform_bias
 
         self.encoder_states = get_attention_states(self.encoder)
         self.encoder_mask = get_attention_mask(self.encoder)
@@ -124,6 +128,17 @@ class TransformerDecoder(AutoregressiveDecoder):
 
     def embed_inputs(self, inputs: tf.Tensor) -> tf.Tensor:
         embedded = tf.nn.embedding_lookup(self.embedding_matrix, inputs)
+
+        if (self.embeddings_source is not None
+                and self.embeddings_source.scale_embeddings_by_depth):
+
+            # Pylint @property-related bug
+            # pylint: disable=no-member
+            embedding_size = self.embedding_matrix.shape.as_list()[-1]
+            # pylint: enable=no-member
+
+            embedded *= math.sqrt(embedding_size)
+
         length = tf.shape(inputs)[1]
         return embedded + position_signal(self.dimension, length)
 
@@ -143,85 +158,109 @@ class TransformerDecoder(AutoregressiveDecoder):
                        self.dropout_keep_prob,
                        self.train_mode)
 
-    def masked_self_attention(
-            self, level: int, prev_layer: TransformerLayer) -> tf.Tensor:
+    def self_attention_sublayer(
+            self, prev_layer: TransformerLayer) -> tf.Tensor:
+        """Create the decoder self-attention sublayer with output mask."""
 
-        with tf.variable_scope("dec_self_att_level_{}".format(level),
-                               reuse=tf.AUTO_REUSE):
-            # TODO handle histories
-            self_context, _ = attention(
-                queries=prev_layer.temporal_states,
-                keys=prev_layer.temporal_states,
-                values=prev_layer.temporal_states,
-                keys_mask=prev_layer.temporal_mask,
-                num_heads=self.n_heads_self,
-                masked=True,
-                dropout_callback=lambda x: dropout(
-                    x, self.attention_dropout_keep_prob, self.train_mode))
+        # Layer normalization
+        normalized_states = layer_norm(prev_layer.temporal_states)
 
-            return dropout(
-                self_context, self.dropout_keep_prob, self.train_mode)
+        # Run self-attention
+        # TODO handle histories
+        self_context, _ = attention(
+            queries=normalized_states,
+            keys=normalized_states,
+            values=normalized_states,
+            keys_mask=prev_layer.temporal_mask,
+            num_heads=self.n_heads_self,
+            masked=True,
+            dropout_callback=lambda x: dropout(
+                x, self.attention_dropout_keep_prob, self.train_mode),
+            use_bias=self.use_att_transform_bias)
 
-    def encoder_attention(self, level: int, queries: tf.Tensor) -> tf.Tensor:
+        # Apply dropout
+        self_context = dropout(
+            self_context, self.dropout_keep_prob, self.train_mode)
 
-        with tf.variable_scope("dec_inter_att_level_{}".format(level),
-                               reuse=tf.AUTO_REUSE):
-            encoder_att_states = get_attention_states(self.encoder)
-            encoder_att_mask = get_attention_mask(self.encoder)
+        # Add residual connections
+        return self_context + prev_layer.temporal_states
 
-            # TODO handle histories
-            encoder_context, _ = attention(
-                queries=queries,
-                keys=encoder_att_states,
-                values=encoder_att_states,
-                keys_mask=encoder_att_mask,
-                num_heads=self.n_heads_enc,
-                dropout_callback=lambda x: dropout(
-                    x, self.attention_dropout_keep_prob, self.train_mode))
+    def encoder_attention_sublayer(self, queries: tf.Tensor) -> tf.Tensor:
+        """Create the encoder-decoder attention sublayer."""
 
-            return dropout(
-                encoder_context, self.dropout_keep_prob, self.train_mode)
+        encoder_att_states = get_attention_states(self.encoder)
+        encoder_att_mask = get_attention_mask(self.encoder)
+
+        # Layer normalization
+        normalized_queries = layer_norm(queries)
+
+        # Attend to the encoder
+        # TODO handle histories
+        encoder_context, _ = attention(
+            queries=normalized_queries,
+            keys=encoder_att_states,
+            values=encoder_att_states,
+            keys_mask=encoder_att_mask,
+            num_heads=self.n_heads_enc,
+            dropout_callback=lambda x: dropout(
+                x, self.attention_dropout_keep_prob, self.train_mode),
+            use_bias=self.use_att_transform_bias)
+
+        # Apply dropout
+        encoder_context = dropout(
+            encoder_context, self.dropout_keep_prob, self.train_mode)
+
+        # Add residual connections
+        return encoder_context + queries
+
+    def feedforward_sublayer(self, layer_input: tf.Tensor) -> tf.Tensor:
+        """Create the feed-forward network sublayer."""
+
+        # Layer normalization
+        normalized_input = layer_norm(layer_input)
+
+        # Feed-forward network hidden layer + ReLU
+        ff_hidden = tf.layers.dense(
+            normalized_input, self.ff_hidden_size, activation=tf.nn.relu,
+            name="hidden_state")
+
+        # Apply dropout on the activations
+        ff_hidden = dropout(ff_hidden, self.dropout_keep_prob, self.train_mode)
+
+        # Feed-forward output projection
+        ff_output = tf.layers.dense(ff_hidden, self.dimension, name="output")
+
+        # Apply dropout on the output projection
+        ff_output = dropout(ff_output, self.dropout_keep_prob, self.train_mode)
+
+        # Add residual connections
+        return ff_output + layer_input
 
     def layer(self, level: int, inputs: tf.Tensor,
               mask: tf.Tensor) -> TransformerLayer:
-        # Recursive implementation. Outputs of the zeroth layer are the inputs
+        # Recursive implementation. Outputs of the zeroth layer
+        # are the inputs
+
         if level == 0:
-            norm_inputs = tf.contrib.layers.layer_norm(
-                inputs, begin_norm_axis=2)
-            return TransformerLayer(norm_inputs, mask)
+            return TransformerLayer(inputs, mask)
 
         # Compute the outputs of the previous layer
         prev_layer = self.layer(level - 1, inputs, mask)
 
-        # Run self-attention
-        self_context = self.masked_self_attention(level, prev_layer)
+        with tf.variable_scope("layer_{}".format(level - 1)):
 
-        # Residual connections + layer normalization
-        encoder_queries = tf.contrib.layers.layer_norm(
-            self_context + prev_layer.temporal_states, begin_norm_axis=2)
+            with tf.variable_scope("self_attention"):
+                self_context = self.self_attention_sublayer(prev_layer)
 
-        # Attend to the encoder
-        encoder_context = self.encoder_attention(level, encoder_queries)
+            with tf.variable_scope("encdec_attention"):
+                encoder_context = self.encoder_attention_sublayer(self_context)
 
-        # Residual connections + layer normalization
-        ff_input = tf.contrib.layers.layer_norm(
-            encoder_context + encoder_queries, begin_norm_axis=2)
+            with tf.variable_scope("feedforward"):
+                output_states = self.feedforward_sublayer(encoder_context)
 
-        # Feed-forward network hidden layer + ReLU + dropout
-        ff_hidden = tf.layers.dense(
-            ff_input, self.ff_hidden_size, activation=tf.nn.relu,
-            name="ff_hidden_{}".format(level))
-        ff_hidden_drop = dropout(
-            ff_hidden, self.dropout_keep_prob, self.train_mode)
-
-        # Feed-forward output projection + dropout
-        ff_output = tf.layers.dense(
-            ff_hidden_drop, self.dimension, name="ff_out_{}".format(level))
-        ff_output = dropout(ff_output, self.dropout_keep_prob, self.train_mode)
-
-        # Residual connections + layer normalization
-        output_states = tf.contrib.layers.layer_norm(
-            ff_output + ff_input, begin_norm_axis=2)
+        # Layer normalization on the decoder output
+        if self.depth == level:
+            output_states = layer_norm(output_states)
 
         return TransformerLayer(states=output_states, mask=mask)
 
@@ -229,14 +268,13 @@ class TransformerDecoder(AutoregressiveDecoder):
     def train_logits(self) -> tf.Tensor:
         last_layer = self.layer(self.depth, self.embedded_train_inputs,
                                 tf.transpose(self.train_mask))
+
         # t_states shape: (batch, time, channels)
         # dec_w shape: (channels, vocab)
         last_layer_shape = tf.shape(last_layer.temporal_states)
         last_layer_states = tf.reshape(
             last_layer.temporal_states,
             [-1, last_layer_shape[-1]])
-
-        # TODO: Add bias after matmul by embedding_matrix?
 
         # Reusing input embedding matrix for generating logits
         # significantly reduces the overall size of the model.
@@ -305,12 +343,11 @@ class TransformerDecoder(AutoregressiveDecoder):
             decoded_symbols.set_shape([None, None])
             decoded_symbols_in_batch = tf.transpose(decoded_symbols)
 
-            # MASKA (time, batch)
+            # mask (time, batch)
             mask = histories.input_mask.stack()
             mask.set_shape([None, None])
 
             with tf.variable_scope(self._variable_scope, reuse=tf.AUTO_REUSE):
-
                 # shape (batch, time, dimension)
                 embedded_inputs = self.embed_inputs(decoded_symbols_in_batch)
 

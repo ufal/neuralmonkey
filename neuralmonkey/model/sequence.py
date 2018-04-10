@@ -62,6 +62,7 @@ class EmbeddedFactorSequence(Sequence):
                  max_length: int = None,
                  add_start_symbol: bool = False,
                  add_end_symbol: bool = False,
+                 scale_embeddings_by_depth: bool = False,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None,
                  initializers: InitializerSpecs = None) -> None:
@@ -82,6 +83,7 @@ class EmbeddedFactorSequence(Sequence):
             max_length: The maximum length of the sequences
             add_start_symbol: Includes <s> in the sequence
             add_end_symbol: Includes </s> in the sequence
+            scale_embeddings_by_depth: Set to True for T2T import compatibility
             save_checkpoint: The save_checkpoint parameter for `ModelPart`
             load_checkpoint: The load_checkpoint parameter for `ModelPart`
         """
@@ -96,6 +98,7 @@ class EmbeddedFactorSequence(Sequence):
         self.embedding_sizes = embedding_sizes
         self.add_start_symbol = add_start_symbol
         self.add_end_symbol = add_end_symbol
+        self.scale_embeddings_by_depth = scale_embeddings_by_depth
 
         if not (len(self.data_ids)
                 == len(self.vocabularies)
@@ -160,10 +163,21 @@ class EmbeddedFactorSequence(Sequence):
         where dimension is the sum of the embedding sizes supplied to the
         constructor.
         """
-        embedded_factors = [
-            tf.nn.embedding_lookup(embedding_matrix, factor)
-            for factor, embedding_matrix in zip(
-                self.input_factors, self.embedding_matrices)]
+        embedded_factors = []
+        for (factor, embedding_matrix) in zip(
+                self.input_factors, self.embedding_matrices):
+            emb_factor = tf.nn.embedding_lookup(embedding_matrix, factor)
+
+            # github.com/tensorflow/tensor2tensor/blob/v1.5.6/tensor2tensor/
+            #            layers/modalities.py#L104
+            if self.scale_embeddings_by_depth:
+                emb_size = embedding_matrix.shape.as_list()[-1]
+                emb_factor *= emb_size**0.5
+
+            # We explicitly set paddings to zero-value vectors
+            # TODO: remove unnecessary masking in the subesquent modules
+            emb_factor = emb_factor * tf.expand_dims(self.mask, -1)
+            embedded_factors.append(emb_factor)
 
         return tf.concat(embedded_factors, 2)
 
@@ -221,6 +235,7 @@ class EmbeddedSequence(EmbeddedFactorSequence):
                  max_length: int = None,
                  add_start_symbol: bool = False,
                  add_end_symbol: bool = False,
+                 scale_embeddings_by_depth: bool = False,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None,
                  initializers: InitializerSpecs = None) -> None:
@@ -236,6 +251,7 @@ class EmbeddedSequence(EmbeddedFactorSequence):
             max_length: The maximum length of the sequences
             add_start_symbol: Includes <s> in the sequence
             add_end_symbol: Includes </s> in the sequence
+            scale_embeddings_by_depth: Set to True for T2T import compatibility
             save_checkpoint: The save_checkpoint parameter for `ModelPart`
             load_checkpoint: The load_checkpoint parameter for `ModelPart`
         """
@@ -248,6 +264,7 @@ class EmbeddedSequence(EmbeddedFactorSequence):
             max_length=max_length,
             add_start_symbol=add_start_symbol,
             add_end_symbol=add_end_symbol,
+            scale_embeddings_by_depth=scale_embeddings_by_depth,
             save_checkpoint=save_checkpoint,
             load_checkpoint=load_checkpoint,
             initializers=initializers)

@@ -10,7 +10,6 @@ import math
 from typing import Tuple, List, NamedTuple, Callable
 
 import tensorflow as tf
-import numpy as np
 from typeguard import check_argument_types
 
 from neuralmonkey.nn.utils import dropout
@@ -28,16 +27,16 @@ MultiHeadLoopStateTA = NamedTuple("MultiHeadLoopStateTA",
 def split_for_heads(x: tf.Tensor, n_heads: int, head_dim: int) -> tf.Tensor:
     """Split a tensor for multi-head attention.
 
-    Split last dimension of 3D vector of shape(batch, time, dim) and return
-    a 4D vector with shape(batch, n_heads, time, dim/n_heads).
+    Split last dimension of 3D vector of shape ``(batch, time, dim)`` and
+    return a 4D vector with shape ``(batch, n_heads, time, dim/n_heads)``.
 
     Arguments:
-        x: input Tensor of shape(batch, time, dim).
+        x: input Tensor of shape ``(batch, time, dim)``.
         n_heads: Number of attention heads.
         head_dim: Dimension of the attention heads.
 
     Returns:
-        4D vector of shape(batch, n_heads, time, head_dim/n_heads)
+        A 4D Tensor of shape ``(batch, n_heads, time, head_dim/n_heads)``
     """
     x_shape = tf.shape(x)
     x_4d = tf.reshape(tf.expand_dims(x, 2),
@@ -46,28 +45,34 @@ def split_for_heads(x: tf.Tensor, n_heads: int, head_dim: int) -> tf.Tensor:
     return tf.transpose(x_4d, perm=[0, 2, 1, 3])
 
 
-def mask_weights(weights_4d: tf.Tensor, mask: tf.Tensor) -> tf.Tensor:
-    """Apply mask to softmax weights and renormalize.
+def mask_energies(energies_4d: tf.Tensor,
+                  mask: tf.Tensor,
+                  mask_value=-1e9) -> tf.Tensor:
+    """Apply mask to the attention energies before passing to softmax.
 
     Arguments:
-        weights_4d: Softmax weights of shape(batch, n_heads, time(q), time(k))
-            to renormalize.
-        mask: Float Tensor of zeros and ones of shape(batch_time(k)),
-            specifies valid positions in the weight tensor.
+        energies_4d: Energies of shape ``(batch, n_heads, time(q), time(k))``.
+        mask: Float Tensor of zeros and ones of shape ``(batch, time(k))``,
+            specifies valid positions in the energies tensor.
+        mask_value: Value used to mask energies. Default taken value
+            from tensor2tensor.
 
     Returns:
-        Renormalized distribution over valid positions,
-        has the same shape as weights_4d.
+        Energies (logits) of valid positions. Same shape as ``energies_4d``.
+
+    NOTE:
+        We do not use ``mask_value=-np.inf`` to avoid potential underflow.
     """
-    weights_all = weights_4d * tf.expand_dims(tf.expand_dims(mask, 1), 1)
+    mask_4d = tf.expand_dims(tf.expand_dims(mask, 1), 1)
+    energies_all = energies_4d * mask_4d
 
-    # normalization along time(k)
-    # norm shape: batch, head, time(q), 1
-    norm = tf.reduce_sum(weights_all, 3, keep_dims=True) + 1e-8
-    return weights_all / norm
+    # Energies are log probabilities, so setting the invalid energies to
+    # negative infinity (aka -1e9 for compatibility with tensor2tensor) yields
+    # probability of zero to the padded positions.
+    return energies_all + (1.0 - mask_4d) * mask_value
 
 
-def mask_future(energies: tf.Tensor) -> tf.Tensor:
+def mask_future(energies: tf.Tensor, mask_value=-1e9) -> tf.Tensor:
     """Mask energies of keys using lower triangular matrix.
 
     Mask simulates autoregressive decoding, such that it prevents
@@ -77,16 +82,22 @@ def mask_future(energies: tf.Tensor) -> tf.Tensor:
 
     Arguments:
         energies: A tensor to mask.
+        mask_value: Value used to mask energies.
 
     Returns:
         Masked energies tensor.
     """
     triangular_mask = tf.matrix_band_part(tf.ones_like(energies), -1, 0)
     mask_area = tf.equal(triangular_mask, 1)
-    masked_value = tf.fill(tf.shape(energies), -np.inf)
+
+    # Note that for compatibility with tensor2tensor, we use -1e9 for negative
+    # infinity.
+    masked_value = tf.fill(tf.shape(energies), mask_value)
     return tf.where(mask_area, energies, masked_value)
 
 
+# pylint: disable=too-many-locals
+# TODO split this to more functions
 def attention(
         queries: tf.Tensor,
         keys: tf.Tensor,
@@ -94,7 +105,8 @@ def attention(
         keys_mask: tf.Tensor,
         num_heads: int,
         dropout_callback: Callable[[tf.Tensor], tf.Tensor],
-        masked: bool = False) -> tf.Tensor:
+        masked: bool = False,
+        use_bias: bool = False) -> tf.Tensor:
     """Run multi-head scaled dot-product attention.
 
     See arxiv.org/abs/1706.03762
@@ -106,43 +118,49 @@ def attention(
     the transformed triple of query, key and value. The resulting contexts
     from each head are then concatenated and a linear layer is applied
     on this concatenated output. The following can be summed by following
-    equations:
+    equations::
 
-    MultiHead(Q, K, V) = Concat(head_1, ..., head_h) * W_o
-    head_i = Attention(Q * W_Q_i, K * W_K_i, V * W_V_i)
+        MultiHead(Q, K, V) = Concat(head_1, ..., head_h) * W_o
+        head_i = Attention(Q * W_Q_i, K * W_K_i, V * W_V_i)
 
     The scaled dot-product attention is a simple dot-product between
     the query and a transposed key vector. The result is then scaled
     using square root of the vector dimensions and a softmax layer is applied.
     Finally, the output of the softmax layer is multiplied by the value vector.
-    See the following equation:
+    See the following equation::
 
-    Attention(Q, K, V) = softmax(Q * K^T / √(d_k)) * V
+        Attention(Q, K, V) = softmax(Q * K^T / √(d_k)) * V
 
     Arguments:
-        queries: Input queries of shape(batch, time(q), k_channels).
-        keys: Input keys of shape(batch, time(k), k_channels).
-        values: Input values of shape(batch, time(k), v_channels).
+        queries: Input queries of shape ``(batch, time(q), k_channels)``.
+        keys: Input keys of shape ``(batch, time(k), k_channels)``.
+        values: Input values of shape ``(batch, time(k), v_channels)``.
         keys_mask: A float Tensor for masking sequences in keys.
         num_heads: Number of attention heads.
         dropout_callback: Callable function implementing dropout.
         masked: Boolean indicating whether we want to mask future energies.
 
     Returns:
-        Contexts of shape(batch, time(q), v_channels) and
-        weights of shape(batch, time(q), time(k)).
+        Contexts of shape ``(batch, time(q), v_channels)`` and
+        weights of shape ``(batch, time(q), time(k))``.
     """
-
     if num_heads <= 0:
         raise ValueError("Number of heads must be greater than zero.")
 
-    queries_dim = queries.get_shape()[-1].value
-    keys_dim = keys.get_shape()[-1].value
+    queries_dim = queries.shape.as_list()[-1]
+    keys_shape = keys.shape.as_list()
+    values_shape = values.shape.as_list()
 
     # Query and keys should match in the last dimension
-    if queries_dim != keys_dim:
-        raise ValueError("Queries and keys do not match in the last dimension."
-                         "Query: {}, Key: {}".format(queries_dim, keys_dim))
+    if queries_dim != keys_shape[-1]:
+        raise ValueError(
+            "Queries and keys do not match in the last dimension."
+            " Queries: {}, Keys: {}".format(queries_dim, keys_shape[-1]))
+
+    if keys_shape[1] != values_shape[1]:
+        raise ValueError(
+            "Keys and values 'time' dimension does not match. "
+            "Keys: {}, Values: {}".format(keys_shape[1], values_shape[1]))
 
     # Last dimension must be divisible by num_heads
     if queries_dim % num_heads != 0:
@@ -154,9 +172,12 @@ def attention(
 
     # For multi-head attention, queries, keys and values are linearly projected
     if num_heads > 1:
-        queries = tf.layers.dense(queries, queries_dim, name="query_proj")
-        keys = tf.layers.dense(keys, queries_dim, name="keys_proj")
-        values = tf.layers.dense(values, queries_dim, name="vals_proj")
+        queries = tf.layers.dense(
+            queries, queries_dim, use_bias=use_bias, name="query_proj")
+        keys = tf.layers.dense(
+            keys, queries_dim, use_bias=use_bias, name="keys_proj")
+        values = tf.layers.dense(
+            values, queries_dim, use_bias=use_bias, name="vals_proj")
 
     # Scale first:
     queries_scaled = queries / math.sqrt(head_dim)
@@ -170,17 +191,19 @@ def attention(
     # shape: batch, head, time(q), time(k) (k_channels is the matmul axis)
     energies = tf.matmul(queries, keys, transpose_b=True)
 
-    # To protect the attention from looking ahead of time, we must
-    # replace the energies of future keys with negative infinity
+    # To protect the attention from looking ahead of time, we must replace the
+    # energies of future keys with negative infinity
     if masked:
         energies = mask_future(energies)
+
+    # To exclude the padded positions (those after the end of sentence),
+    # we mask the attention energies given this mask.
+    if keys_mask is not None:
+        energies = mask_energies(energies, keys_mask)
 
     # Softmax along the last axis
     # shape: batch, head, time(q), time(k)
     weights = tf.nn.softmax(energies)
-
-    if keys_mask is not None:
-        weights = mask_weights(weights, keys_mask)
 
     # apply dropout to the weights (Attention Dropout)
     weights = dropout_callback(weights)
@@ -194,9 +217,11 @@ def attention(
         [context_shape[0], context_shape[2], queries_dim])
 
     if num_heads > 1:
-        context = tf.layers.dense(context, queries_dim, name="output_proj")
+        context = tf.layers.dense(
+            context, queries_dim, use_bias=use_bias, name="output_proj")
 
     return context, weights
+# pylint: enable=too-many-locals
 
 
 def empty_multi_head_loop_state(num_heads: int) -> MultiHeadLoopStateTA:

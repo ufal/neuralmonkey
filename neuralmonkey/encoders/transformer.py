@@ -6,6 +6,7 @@ Described in Vaswani et al. (2017), arxiv.org/abs/1706.03762
 from typing import Set, Optional, List
 # pylint: enable=unused-import
 
+import math
 import tensorflow as tf
 from typeguard import check_argument_types
 
@@ -17,19 +18,22 @@ from neuralmonkey.model.model_part import FeedDict, ModelPart
 from neuralmonkey.model.stateful import (TemporalStateful,
                                          TemporalStatefulWithOutput)
 from neuralmonkey.nn.utils import dropout
+from neuralmonkey.tf_utils import get_variable, layer_norm
 
 
 def position_signal(dimension: int, length: tf.Tensor) -> tf.Tensor:
-    # code simplified and copied from github.com/tensorflow/tensor2tensor
+    # Code simplified and copied from github.com/tensorflow/tensor2tensor
 
     # TODO write this down on a piece of paper and understand the code and
     # compare it to the paper
     positions = tf.to_float(tf.range(length))
 
     num_timescales = dimension // 2
-    log_timescale_increment = 4 / (tf.to_float(num_timescales) - 1)
 
-    inv_timescales = tf.exp(tf.to_float(tf.range(num_timescales))
+    # see: github.com/tensorflow/tensor2tensor/blob/v1.5.5/tensor2tensor/
+    #      layers/common_attention.py#L425
+    log_timescale_increment = math.log(1.0e4) / (num_timescales - 1)
+    inv_timescales = tf.exp(tf.range(num_timescales, dtype=tf.float32)
                             * -log_timescale_increment)
 
     scaled_time = tf.expand_dims(positions, 1) * tf.expand_dims(
@@ -67,6 +71,8 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
                  n_heads: int,
                  dropout_keep_prob: float = 1.0,
                  attention_dropout_keep_prob: float = 1.0,
+                 target_space_id: int = None,
+                 use_att_transform_bias: bool = False,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None) -> None:
         """Create an encoder of the Transformer model.
@@ -78,6 +84,9 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
             name: Name of the decoder. Should be unique accross all Neural
                 Monkey objects.
             dropout_keep_prob: Probability of keeping a value during dropout.
+            target_space_id: Specifies the modality of the target space.
+            use_att_transform_bias: Add bias when transforming qkv vectors
+                for attention.
 
         Keyword arguments:
             ff_hidden_size: Size of the feedforward sublayers.
@@ -96,6 +105,8 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
         self.n_heads = n_heads
         self.dropout_keep_prob = dropout_keep_prob
         self.attention_dropout_keep_prob = attention_dropout_keep_prob
+        self.target_space_id = target_space_id
+        self.use_att_transform_bias = use_att_transform_bias
 
         if self.depth <= 0:
             raise ValueError("Depth must be a positive integer.")
@@ -111,6 +122,12 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
                 or self.attention_dropout_keep_prob > 1.0):
             raise ValueError("Dropout keep prob for attn must be in (0,1].")
 
+        if self.target_space_id is not None and (self.target_space_id >= 32
+                                                 or self.target_space_id < 0):
+            raise ValueError(
+                "If provided, the target space ID should be between 0 and 31. "
+                "Was: {}".format(self.target_space_id))
+
         self.train_mode = tf.placeholder(tf.bool, [], "train_mode")
         log("Output op: {}".format(self.output))
     # pylint: enable=too-many-arguments
@@ -120,62 +137,108 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
         return tf.reduce_sum(self.temporal_states, axis=1)
 
     @tensor
+    def modality_matrix(self) -> tf.Tensor:
+        """Create an embedding matrix for varyining target modalities.
+
+        Used to embed different target space modalities in the tensor2tensor
+        models (e.g. during the zero-shot translation).
+        """
+        emb_size = self.input_sequence.temporal_states.shape.as_list()[-1]
+        return get_variable(
+            name="target_modality_embedding_matrix",
+            shape=[32, emb_size],
+            dtype=tf.float32,
+            initializer=tf.glorot_uniform_initializer())
+
+    @tensor
+    def target_modality_embedding(self) -> tf.Tensor:
+        """Gather correct embedding of the target space modality.
+
+        See TransformerEncoder.modality_matrix for more information.
+        """
+        return tf.gather(self.modality_matrix,
+                         tf.constant(self.target_space_id))
+
+    @tensor
     def encoder_inputs(self) -> tf.Tensor:
-        length = tf.shape(self.input_sequence.temporal_states)[1]
-        signal = position_signal(self.model_dimension, length)
-        return dropout(self.input_sequence.temporal_states + signal,
-                       self.dropout_keep_prob, self.train_mode)
+        inputs = self.input_sequence.temporal_states
 
-    def self_attention(
-            self, level: int, prev_layer: TransformerLayer) -> tf.Tensor:
+        if self.target_space_id is not None:
+            inputs += tf.reshape(self.target_modality_embedding, [1, 1, -1])
 
-        with tf.variable_scope("self_attention_{}".format(level)):
-            self_context, _ = attention(
-                queries=prev_layer.temporal_states,
-                keys=prev_layer.temporal_states,
-                values=prev_layer.temporal_states,
-                keys_mask=prev_layer.temporal_mask,
-                num_heads=self.n_heads,
-                dropout_callback=lambda x: dropout(
-                    x, self.attention_dropout_keep_prob, self.train_mode))
+        length = tf.shape(inputs)[1]
+        pos = position_signal(self.model_dimension, length)
 
-            return dropout(
-                self_context, self.dropout_keep_prob, self.train_mode)
+        return dropout(inputs + pos, self.dropout_keep_prob, self.train_mode)
+
+    def self_attention_sublayer(
+            self, prev_layer: TransformerLayer) -> tf.Tensor:
+        """Create the encoder self-attention sublayer."""
+
+        # Layer normalization
+        normalized_states = layer_norm(prev_layer.temporal_states)
+
+        # Run self-attention
+        self_context, _ = attention(
+            queries=normalized_states,
+            keys=normalized_states,
+            values=normalized_states,
+            keys_mask=prev_layer.temporal_mask,
+            num_heads=self.n_heads,
+            dropout_callback=lambda x: dropout(
+                x, self.attention_dropout_keep_prob, self.train_mode),
+            use_bias=self.use_att_transform_bias)
+
+        # Apply dropout
+        self_context = dropout(
+            self_context, self.dropout_keep_prob, self.train_mode)
+
+        # Add residual connections
+        return self_context + prev_layer.temporal_states
+
+    def feedforward_sublayer(self, layer_input: tf.Tensor) -> tf.Tensor:
+        """Create the feed-forward network sublayer."""
+
+        # Layer normalization
+        normalized_input = layer_norm(layer_input)
+
+        # Feed-forward network hidden layer + ReLU
+        ff_hidden = tf.layers.dense(
+            normalized_input, self.ff_hidden_size, activation=tf.nn.relu,
+            name="hidden_state")
+
+        # Apply dropout on hidden layer activations
+        ff_hidden = dropout(ff_hidden, self.dropout_keep_prob, self.train_mode)
+
+        # Feed-forward output projection
+        ff_output = tf.layers.dense(
+            ff_hidden, self.model_dimension, name="output")
+
+        # Apply dropout on feed-forward output projection
+        ff_output = dropout(ff_output, self.dropout_keep_prob, self.train_mode)
+
+        # Add residual connections
+        return ff_output + layer_input
 
     def layer(self, level: int) -> TransformerLayer:
-        # Recursive implementation. Outputs of the zeroth layer are normalized
-        # inputs.
+        # Recursive implementation. Outputs of the zeroth layer
+        # are normalized inputs.
         if level == 0:
-            norm_inputs = tf.contrib.layers.layer_norm(
-                self.encoder_inputs, begin_norm_axis=2)
-            return TransformerLayer(norm_inputs, self.temporal_mask)
+            return TransformerLayer(self.encoder_inputs, self.temporal_mask)
 
         # Compute the outputs of the previous layer
         prev_layer = self.layer(level - 1)
 
-        # Run self-attention
-        self_context = self.self_attention(level, prev_layer)
+        with tf.variable_scope("layer_{}".format(level - 1)):
+            with tf.variable_scope("self_attention"):
+                self_context = self.self_attention_sublayer(prev_layer)
 
-        # Residual connections + layer normalization
-        ff_input = tf.contrib.layers.layer_norm(
-            self_context + prev_layer.temporal_states, begin_norm_axis=2)
+            with tf.variable_scope("feedforward"):
+                output_states = self.feedforward_sublayer(self_context)
 
-        # Feed-forward network hidden layer + ReLU + dropout
-        ff_hidden = tf.layers.dense(
-            ff_input, self.ff_hidden_size, activation=tf.nn.relu,
-            name="ff_hidden_{}".format(level))
-        ff_hidden_drop = dropout(
-            ff_hidden, self.dropout_keep_prob, self.train_mode)
-
-        # Feed-forward output projection + dropout
-        ff_output = tf.layers.dense(
-            ff_hidden_drop, self.model_dimension,
-            name="ff_out_{}".format(level))
-        ff_output = dropout(ff_output, self.dropout_keep_prob, self.train_mode)
-
-        # Residual connections + layer normalization
-        output_states = tf.contrib.layers.layer_norm(
-            ff_input + ff_output, begin_norm_axis=2)
+        # Layer normalization on the encoder outputs
+        if self.depth == level:
+            output_states = layer_norm(output_states)
 
         return TransformerLayer(states=output_states, mask=self.temporal_mask)
 
