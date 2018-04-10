@@ -46,10 +46,11 @@ class CoverageAttention(Attention):
             lambda: 0.0)
 
         coverage = weight_sum / self.fertility * self.attention_mask
+        coverage_exp = tf.expand_dims(tf.expand_dims(coverage, -1), -1)
         logits = tf.reduce_sum(
             self.similarity_bias_vector * tf.tanh(
-                self.hidden_features + y + self.coverage_weights *
-                tf.expand_dims(tf.expand_dims(coverage, -1), -1)),
+                self.hidden_features + y
+                + self.coverage_weights * coverage_exp),
             [2, 3])
 
         return logits

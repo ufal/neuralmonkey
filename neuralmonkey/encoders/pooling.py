@@ -73,5 +73,5 @@ class SequenceAveragePooling(SequencePooling):
 
     @tensor
     def output(self) -> tf.Tensor:
-        return (tf.reduce_sum(self._masked_input, axis=1) /
-                (tf.reduce_sum(self._input_mask, axis=1) + 1e-8))
+        return (tf.reduce_sum(self._masked_input, axis=1)
+                / (tf.reduce_sum(self._input_mask, axis=1) + 1e-8))

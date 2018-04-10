@@ -148,8 +148,8 @@ class ImageNet(ModelPart, SpatialStatefulWithOutput):
         with tf_slim.arg_scope(net_specification.scope()):
             _, self.end_points = net_specification.apply_net(self.input_image)
 
-        if (self.spatial_layer is not None and
-                self.spatial_layer not in self.end_points):
+        if (self.spatial_layer is not None
+                and self.spatial_layer not in self.end_points):
             raise ValueError(
                 "Network '{}' does not contain endpoint '{}'".format(
                     self.network_type, self.spatial_layer))

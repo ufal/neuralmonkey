@@ -111,8 +111,8 @@ def build_object(value: str,
     if isinstance(value, tuple):
         return tuple(build_object(val, all_dicts, existing_objects, depth + 1)
                      for val in value)
-    elif (isinstance(value, collections.Iterable) and
-          not isinstance(value, str)):
+    elif (isinstance(value, collections.Iterable)
+          and not isinstance(value, str)):
         return [build_object(val, all_dicts, existing_objects, depth + 1)
                 for val in value]
 

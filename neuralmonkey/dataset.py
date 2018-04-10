@@ -273,9 +273,9 @@ class LazyDataset(Dataset):
         Raises:
             KeyError if the series does not exists and allow_none is False
         """
-        if (allow_none and
-                name not in self.series_paths_and_readers and
-                name not in self.preprocess_series):
+        if (allow_none
+                and name not in self.series_paths_and_readers
+                and name not in self.preprocess_series):
             return None
 
         if name in self.series_paths_and_readers:
@@ -299,8 +299,8 @@ class LazyDataset(Dataset):
 
     @property
     def series_ids(self) -> Iterable[str]:
-        return (list(self.series_paths_and_readers.keys()) +
-                list(self.preprocess_series.keys()))
+        return (list(self.series_paths_and_readers.keys())
+                + list(self.preprocess_series.keys()))
 
     def add_series(self, name: str, series: Iterable[Any]) -> None:
         raise NotImplementedError(

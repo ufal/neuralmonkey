@@ -25,9 +25,14 @@ class Postprocess(object):
     """Proprocessor applying edit operations on a series."""
 
     def __init__(
-            self, source_id: str, edits_id: str,
+            self,
+            source_id: str,
+            edits_id: str,
+            # pylint: disable=bad-whitespace
             result_postprocess: Callable[
-                [Iterable[List[str]]], Iterable[List[str]]]=None) -> None:
+                [Iterable[List[str]]], Iterable[List[str]]] = None) -> None:
+        # pylint: enable=bad-whitespace
+        # This disable is due to a pylint bug
 
         self._source_id = source_id
         self._edits_id = edits_id
