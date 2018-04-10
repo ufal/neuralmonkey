@@ -152,7 +152,7 @@ class EmbeddedFactorSequence(Sequence):
                 name="embedding_matrix_{}".format(i),
                 shape=[vocab_size, emb_size],
                 initializer=tf.variance_scaling_initializer(
-                    distribution="uniform"))
+                    mode="fan_avg", distribution="uniform"))
             for i, (data_id, vocab_size, emb_size) in enumerate(zip(
                 self.data_ids, self.vocabulary_sizes, self.embedding_sizes))]
 

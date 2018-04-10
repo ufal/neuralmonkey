@@ -50,7 +50,8 @@ class MultiAttention(BaseAttention):
 
         with self.use_scope():
             self.attn_v = get_variable(
-                "attn_v", [1, 1, self.attention_state_size])
+                "attn_v", [1, 1, self.attention_state_size],
+                initializer=tf.random_normal_initializer(stddev=0.001))
     # pylint: enable=unused-argument
 
     def attention(self,
@@ -186,7 +187,8 @@ class FlatMultiAttention(MultiAttention):
 
                 proj_matrix = get_variable(
                     "proj_matrix_{}".format(i),
-                    [encoder_state_size, self.attention_state_size])
+                    [encoder_state_size, self.attention_state_size],
+                    initializer=tf.random_normal_initializer(stddev=0.001))
 
                 proj_bias = get_variable(
                     "proj_bias_{}".format(i),
