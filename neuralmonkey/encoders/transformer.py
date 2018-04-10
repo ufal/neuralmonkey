@@ -84,6 +84,9 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
             name: Name of the decoder. Should be unique accross all Neural
                 Monkey objects.
             dropout_keep_prob: Probability of keeping a value during dropout.
+            target_space_id: Specifies the modality of the target space.
+            use_att_transform_bias: Add bias when transforming qkv vectors
+                for attention.
 
         Keyword arguments:
             ff_hidden_size: Size of the feedforward sublayers.
