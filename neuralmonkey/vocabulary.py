@@ -129,8 +129,8 @@ def from_t2t_vocabulary(path: str,
             line = line.strip()
 
             # T2T vocab tends to wrap words in single quotes
-            if ((line.startswith("'") and line.endswith("'")) or
-                    (line.startswith('"') and line.endswith('"'))):
+            if ((line.startswith("'") and line.endswith("'"))
+                    or (line.startswith('"') and line.endswith('"'))):
                 line = line[1:-1]
 
             if line in ["<pad>", "<EOS>"]:

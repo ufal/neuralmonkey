@@ -91,8 +91,8 @@ class MultiAttention(BaseAttention):
                                     name="vector_ctx_proj"), 1)
 
             vector_logit = tf.reduce_sum(
-                self.attn_v *
-                tf.tanh(projected_decoder_state + proj_vector_for_logit),
+                self.attn_v
+                * tf.tanh(projected_decoder_state + proj_vector_for_logit),
                 [2]) + vector_bias
             assert_shape(vector_logit, [-1, 1])
             return proj_vector_for_ctx, vector_logit

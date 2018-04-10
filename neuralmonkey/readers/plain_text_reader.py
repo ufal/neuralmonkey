@@ -54,8 +54,8 @@ def t2t_tokenized_text_reader(encoding: str = "utf-8") -> PlainTextFileReader:
     """
     alphanumeric_charset = set(
         chr(i) for i in range(sys.maxunicode)
-        if (unicodedata.category(chr(i)).startswith("L") or
-            unicodedata.category(chr(i)).startswith("N")))
+        if (unicodedata.category(chr(i)).startswith("L")
+            or unicodedata.category(chr(i)).startswith("N")))
 
     def reader(files: List[str]) -> Iterable[List[str]]:
         lines = string_reader(encoding)

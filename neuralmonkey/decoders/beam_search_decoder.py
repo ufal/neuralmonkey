@@ -451,5 +451,5 @@ class BeamSearchDecoder(ModelPart):
     def _length_penalty(self, lengths):
         """Apply lp term from eq. 14."""
 
-        return ((5. + tf.to_float(lengths)) ** self._length_normalization /
-                (5. + 1.) ** self._length_normalization)
+        return ((5. + tf.to_float(lengths)) ** self._length_normalization
+                / (5. + 1.) ** self._length_normalization)

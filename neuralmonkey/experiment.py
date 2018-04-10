@@ -78,9 +78,9 @@ class Experiment(object):
 
         if self.train_mode:
             # We may need to create the experiment directory.
-            if (os.path.isdir(args.output) and
-                    os.path.exists(os.path.join(args.output,
-                                                "experiment.ini"))):
+            if (os.path.isdir(args.output)
+                    and os.path.exists(
+                        os.path.join(args.output, "experiment.ini"))):
                 if args.overwrite_output_dir or overwrite_output_dir:
                     # we do not want to delete the directory contents
                     log("Directory with experiment.ini '{}' exists, "

@@ -234,8 +234,8 @@ def training_loop(tf_manager: TensorFlowManager,
                                 # store also graph parts
                                 all_coders = set.union(
                                     *[rnr.all_coders
-                                      for rnr in runners +
-                                      [trainer]])  # type: ignore
+                                      for rnr in runners
+                                      + [trainer]])  # type: ignore
                                 for coder in all_coders:
                                     for session in tf_manager.sessions:
                                         coder.save(session)
@@ -264,8 +264,8 @@ def training_loop(tf_manager: TensorFlowManager,
                     val_duration = time.process_time() - val_duration_start
 
                     # the training should take at least twice the time of val.
-                    steptime = (training_duration /
-                                (seen_instances - last_seen_instances))
+                    steptime = (training_duration
+                                / (seen_instances - last_seen_instances))
                     valtime = val_duration / val_examples
                     last_seen_instances = seen_instances
                     log("Validation time: {:.2f}s, inter-validation: {:.2f}s, "
@@ -477,8 +477,8 @@ def evaluation(evaluators, dataset, runners, execution_results, result_data):
 
     # evaluation metrics
     for generated_id, dataset_id, function in evaluators:
-        if (not dataset.has_series(dataset_id) or
-                generated_id not in result_data):
+        if (not dataset.has_series(dataset_id)
+                or generated_id not in result_data):
             continue
 
         desired_output = dataset.get_series(dataset_id)

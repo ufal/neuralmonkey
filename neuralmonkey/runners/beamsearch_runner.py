@@ -99,8 +99,8 @@ class BeamSearchExecutable(Executable):
             axis=0)
         # pylint: enable=attribute-defined-outside-init
 
-        if (self._decoder.max_output_len is not None and
-                self._step >= self._decoder.max_output_len):
+        if (self._decoder.max_output_len is not None
+                and self._step >= self._decoder.max_output_len):
             self.prepare_results()
             return
 
@@ -229,12 +229,12 @@ class BeamSearchRunner(BaseRunner):
         return None
 
 
-def beam_search_runner_range(output_series: str,
-                             decoder: BeamSearchDecoder,
-                             max_rank: int = None,
-                             postprocess: Callable[
-                                 [List[str]], List[str]]=None
-                            ) -> List[BeamSearchRunner]:
+def beam_search_runner_range(
+        output_series: str,
+        decoder: BeamSearchDecoder,
+        max_rank: int = None,
+        postprocess: Callable[
+            [List[str]], List[str]] = None) -> List[BeamSearchRunner]:
     """Return beam search runners for a range of ranks from 1 to max_rank.
 
     This means there is max_rank output series where the n-th series contains
