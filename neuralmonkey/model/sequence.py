@@ -235,7 +235,7 @@ class EmbeddedSequence(EmbeddedFactorSequence):
                  max_length: int = None,
                  add_start_symbol: bool = False,
                  add_end_symbol: bool = False,
-                 scale_embeddings_by_depth: str = None,
+                 scale_embeddings_by_depth: bool = False,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None,
                  initializers: InitializerSpecs = None) -> None:
