@@ -175,7 +175,8 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
             name="target_modality_embedding_matrix",
             shape=[32, emb_size],
             dtype=tf.float32,
-            initializer=tf.glorot_uniform_initializer())
+            initializer=tf.variance_scaling_initializer(
+                mode="fan_avg", distribution="uniform"))
 
     @tensor
     def target_modality_embedding(self) -> tf.Tensor:
