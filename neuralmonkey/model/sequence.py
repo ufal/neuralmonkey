@@ -62,7 +62,7 @@ class EmbeddedFactorSequence(Sequence):
                  max_length: int = None,
                  add_start_symbol: bool = False,
                  add_end_symbol: bool = False,
-                 multiply_embedding_mode: str = None,
+                 scale_embeddings_by_depth: bool = False,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None,
                  initializers: InitializerSpecs = None) -> None:
@@ -83,8 +83,7 @@ class EmbeddedFactorSequence(Sequence):
             max_length: The maximum length of the sequences
             add_start_symbol: Includes <s> in the sequence
             add_end_symbol: Includes </s> in the sequence
-            multiply_embedding_mode: value="sqrt_depth" for tensor2tensor
-                default model import compatibility.
+            scale_embeddings_by_depth: Set to True for T2T import compatibility
             save_checkpoint: The save_checkpoint parameter for `ModelPart`
             load_checkpoint: The load_checkpoint parameter for `ModelPart`
         """
@@ -99,7 +98,7 @@ class EmbeddedFactorSequence(Sequence):
         self.embedding_sizes = embedding_sizes
         self.add_start_symbol = add_start_symbol
         self.add_end_symbol = add_end_symbol
-        self.multiply_embedding_mode = multiply_embedding_mode
+        self.scale_embeddings_by_depth = scale_embeddings_by_depth
 
         if not (len(self.data_ids)
                 == len(self.vocabularies)
@@ -168,11 +167,13 @@ class EmbeddedFactorSequence(Sequence):
         for (factor, embedding_matrix) in zip(
                 self.input_factors, self.embedding_matrices):
             emb_factor = tf.nn.embedding_lookup(embedding_matrix, factor)
-            # see: https://tinyurl.com/ycpgz6cu
-            # TODO: better link
-            if self.multiply_embedding_mode == "sqrt_depth":
+
+            # github.com/tensorflow/tensor2tensor/blob/v1.5.6/tensor2tensor/
+            #            layers/modalities.py#L104
+            if self.scale_embeddings_by_depth:
                 emb_size = embedding_matrix.shape.as_list()[-1]
                 emb_factor *= emb_size**0.5
+
             # We explicitly set paddings to zero-value vectors
             # TODO: remove unnecessary masking in the subesquent modules
             emb_factor = emb_factor * tf.expand_dims(self.mask, -1)
@@ -234,7 +235,7 @@ class EmbeddedSequence(EmbeddedFactorSequence):
                  max_length: int = None,
                  add_start_symbol: bool = False,
                  add_end_symbol: bool = False,
-                 multiply_embedding_mode: str = None,
+                 scale_embeddings_by_depth: str = None,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None,
                  initializers: InitializerSpecs = None) -> None:
@@ -262,7 +263,7 @@ class EmbeddedSequence(EmbeddedFactorSequence):
             max_length=max_length,
             add_start_symbol=add_start_symbol,
             add_end_symbol=add_end_symbol,
-            multiply_embedding_mode=multiply_embedding_mode,
+            scale_embeddings_by_depth=scale_embeddings_by_depth,
             save_checkpoint=save_checkpoint,
             load_checkpoint=load_checkpoint,
             initializers=initializers)

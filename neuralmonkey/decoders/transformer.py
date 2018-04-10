@@ -130,8 +130,7 @@ class TransformerDecoder(AutoregressiveDecoder):
         embedded = tf.nn.embedding_lookup(self.embedding_matrix, inputs)
 
         if (self.embeddings_source is not None
-                and (self.embeddings_source.multiply_embedding_mode
-                     == "sqrt_depth")):
+                and self.embeddings_source.scale_embeddings_by_depth):
 
             # Pylint @property-related bug
             # pylint: disable=no-member
