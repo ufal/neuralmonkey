@@ -251,6 +251,7 @@ class EmbeddedSequence(EmbeddedFactorSequence):
             max_length: The maximum length of the sequences
             add_start_symbol: Includes <s> in the sequence
             add_end_symbol: Includes </s> in the sequence
+            scale_embeddings_by_depth: Set to True for T2T import compatibility
             save_checkpoint: The save_checkpoint parameter for `ModelPart`
             load_checkpoint: The load_checkpoint parameter for `ModelPart`
         """
