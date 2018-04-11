@@ -31,14 +31,20 @@ class SequenceSplitter(TemporalStateful, ModelPart):
         self.parent = parent
         self.factor = factor
         self.projection_size = projection_size
-        self.activation = activation
+        self.activation = projection_activation
 
         state_dim = parent.temporal_states.get_shape()[2].value
-        if state_dim % factor != 0:
+        if state_dim % factor != 0 and projection_size is None:
             raise ValueError((
                 "Dimension of the parent temporal stateful ({}) must be "
                 "dividable by the given factor ({}).").format(
                     state_dim, factor))
+
+        if projection_size is not None and projection_size % factor != 0:
+            raise ValueError((
+                "Dimension of projection ({}) must be "
+                "dividable by the given factor ({}).").format(
+                    projection_size, factor))
 
     @tensor
     def temporal_states(self) -> tf.Tensor:
@@ -47,7 +53,7 @@ class SequenceSplitter(TemporalStateful, ModelPart):
             states = tf.layers.dense(
                 states, self.projection_size, activation=self.activation)
 
-        return split_by_factor(self.parent.temporal_states, self.factor)
+        return split_by_factor(states, self.factor)
 
     @tensor
     def temporal_mask(self) -> tf.Tensor:
