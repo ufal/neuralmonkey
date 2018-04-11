@@ -15,6 +15,7 @@ class SpatialEmbeddingsAdder(ModelPart, SpatialStatefulWithOutput):
             self,
             name: str,
             input_map: SpatialStateful,
+            additive_embeddings: bool = False,
             position_embedding_size: int = None,
             horizontal_embedding_size: int = None,
             vertical_embedding_size: int = None,
@@ -22,6 +23,20 @@ class SpatialEmbeddingsAdder(ModelPart, SpatialStatefulWithOutput):
             save_checkpoint: str = None,
             load_checkpoint: str = None,
             initializers: InitializerSpecs = None) -> None:
+        """Instantiate SpatialEmbeddingsAdder.
+
+        Args:
+            name: Name of the model part.
+            input_map: Spatial mask where the position embeddings are added.
+            additive_embeddings: If ``True`` embeddings are added, otherwise
+                they are concatenated to the spatial map.
+            position_embedding_size: Dimension of embedding that is added to
+                each spatial map, not used if ``None``.
+            horizontal_embedding_size: Dimension of embeddings that are added
+                to maps on the same horizontal position, not used if ``None``.
+            vertical_embedding_size: Dimension of embeddings that are added
+                to maps on the same vertical position, not used if ``None``.
+        """
         check_argument_types()
         ModelPart.__init__(self, name, save_checkpoint, load_checkpoint,
                            initializers)
@@ -30,9 +45,33 @@ class SpatialEmbeddingsAdder(ModelPart, SpatialStatefulWithOutput):
                 horizontal_embedding_size is None
                 and vertical_embedding_size is None):
             raise ValueEror(
-                "At least one type of position embeedings must be specified.")
+                "At least one type of position embeddings must be specified.")
+
+        map_size = input_map.spatial_states.get_shape()[-1].value
+        if (additive_embeddings and position_embedding_size is not None
+                and position_embedding_size != map_size):
+            raise ValueEror((
+                "When the embeddings are added they must have the same "
+                "dimension as the input map. Expected {}, "
+                "position_embedding_size was {}.").format(
+                    map_size, position_embedding_size))
+        if (additive_embeddings and horizontal_embedding_size is not None
+                and horizontal_embedding_size != map_size):
+            raise ValueEror((
+                "When the embeddings are added they must have the same "
+                "dimension as the input map. Expected {}, "
+                "horizontal_embedding_size was {}.").format(
+                    map_size, horizontal_embedding_size))
+        if (additive_embeddings and vertical_embedding_size is not None
+                and vertical_embedding_size != map_size):
+            raise ValueEror((
+                "When the embeddings are added they must have the same "
+                "dimension as the input map. Expected {}, "
+                "vertical_embedding_size was {}.").format(
+                    map_size, vertical_embedding_size))
 
         self.input_map = input_map
+        self.additive_embeddings = additive_embeddings
         self.position_embedding_size = position_embedding_size
         self.horizontal_embedding_size = horizontal_embedding_size
         self.vertical_embedding_size = vertical_embedding_size
@@ -61,12 +100,17 @@ class SpatialEmbeddingsAdder(ModelPart, SpatialStatefulWithOutput):
             horizontal_embedding = get_variable(
                 name="horizontal_embedding",
                 shape=[1, 1, shape[2], self.horizontal_embedding_size])
-            tiled_to_height = tf.tile(horizontal_embedding, [1, shape[1], 1, 1])
+            tiled_to_height = tf.tile(
+                horizontal_embedding, [1, shape[1], 1, 1])
             embeddings.append(tiled_to_height)
 
         if self.position_embedding_size is not None:
             embeddings.append(get_variable(
-                "spatial_embeddings", shape=shape + [self.position_embedding_size]))
+                "spatial_embeddings",
+                shape=shape + [self.position_embedding_size]))
+
+        if self.additive_embeddings:
+            return sum(embeddings)
 
         return tf.concat(embeddings, axis=3)
 
@@ -76,13 +120,17 @@ class SpatialEmbeddingsAdder(ModelPart, SpatialStatefulWithOutput):
         tiled_embeddings = tf.tile(
             self.spatial_embeddings, [batch_size, 1, 1, 1])
 
-        concat = tf.concat(
-            [tiled_embeddings, self.input_map.spatial_states], axis=3)
+        if self.additive_embeddings:
+            with_embeddings = tiled_embeddings + self.input_map.spatial_states
+        else:
+            with_embeddings = tf.concat(
+                [tiled_embeddings, self.input_map.spatial_states], axis=3)
 
         if self.additional_projection is not None:
             return tf.layers.conv2d(
-                concat, filters=self.additional_projection, kernel_size=1)
-        return concat
+                with_embeddings, filters=self.additional_projection,
+                kernel_size=1)
+        return with_embeddings
 
     @tensor
     def output(self) -> tf.Tensor:
