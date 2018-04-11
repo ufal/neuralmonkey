@@ -122,6 +122,9 @@ class TransformerDecoder(AutoregressiveDecoder):
             raise ValueError("Model dimension and input embedding size"
                              "do not match")
 
+        self._variable_scope.set_initializer(tf.variance_scaling_initializer(
+            mode="fan_avg", distribution="uniform"))
+
         log("Decoder cost op: {}".format(self.cost))
         self._variable_scope.reuse_variables()
         log("Runtime logits: {}".format(self.runtime_logits))
