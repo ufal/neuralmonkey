@@ -156,6 +156,9 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
                     "The input for cross-attention must be of the same "
                     "dimension as the model, was {}.".format(cross_att_dim))
 
+        self._variable_scope.set_initializer(tf.variance_scaling_initializer(
+            mode="fan_avg", distribution="uniform"))
+
         log("Output op: {}".format(self.output))
     # pylint: enable=too-many-arguments,too-many-locals
 
