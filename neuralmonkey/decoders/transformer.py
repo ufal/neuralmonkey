@@ -41,7 +41,7 @@ class TransformerDecoder(AutoregressiveDecoder):
     # pylint: disable=too-many-arguments,too-many-locals
     def __init__(self,
                  name: str,
-                 encoder: Attendable,
+                 encoders: List[Attendable],
                  vocabulary: Vocabulary,
                  data_id: str,
                  # TODO infer the default for these three from the encoder
@@ -101,7 +101,7 @@ class TransformerDecoder(AutoregressiveDecoder):
             save_checkpoint=save_checkpoint,
             load_checkpoint=load_checkpoint)
 
-        self.encoder = encoder
+        self.encoders = encoders
         self.ff_hidden_size = ff_hidden_size
         self.n_heads_self = n_heads_self
         self.n_heads_enc = n_heads_enc
@@ -109,9 +109,9 @@ class TransformerDecoder(AutoregressiveDecoder):
         self.attention_dropout_keep_prob = attention_dropout_keep_prob
         self.use_att_transform_bias = use_att_transform_bias
 
-        self.encoder_states = get_attention_states(self.encoder)
+        self.encoder_states = [get_attention_states(e) for e in encoders]
         self.encoder_mask = get_attention_mask(self.encoder)
-        self.dimension = self.encoder_states.get_shape()[2].value
+        self.dimension = sum(s.get_shape().value for s in self.encoder_states)
 
         if self.embedding_size != self.dimension:
             raise ValueError("Model dimension and input embedding size"
@@ -188,30 +188,33 @@ class TransformerDecoder(AutoregressiveDecoder):
     def encoder_attention_sublayer(self, queries: tf.Tensor) -> tf.Tensor:
         """Create the encoder-decoder attention sublayer."""
 
-        encoder_att_states = get_attention_states(self.encoder)
-        encoder_att_mask = get_attention_mask(self.encoder)
+        contexts = []
+        for encoder in self.encoders:
+            encoder_att_states = get_attention_states(self.encoder)
+            encoder_att_mask = get_attention_mask(self.encoder)
 
-        # Layer normalization
-        normalized_queries = layer_norm(queries)
+            # Layer normalization
+            normalized_queries = layer_norm(queries)
 
-        # Attend to the encoder
-        # TODO handle histories
-        encoder_context, _ = attention(
-            queries=normalized_queries,
-            keys=encoder_att_states,
-            values=encoder_att_states,
-            keys_mask=encoder_att_mask,
-            num_heads=self.n_heads_enc,
-            dropout_callback=lambda x: dropout(
-                x, self.attention_dropout_keep_prob, self.train_mode),
-            use_bias=self.use_att_transform_bias)
+            # Attend to the encoder
+            # TODO handle histories
+            encoder_context, _ = attention(
+                queries=normalized_queries,
+                keys=encoder_att_states,
+                values=encoder_att_states,
+                keys_mask=encoder_att_mask,
+                num_heads=self.n_heads_enc,
+                dropout_callback=lambda x: dropout(
+                    x, self.attention_dropout_keep_prob, self.train_mode),
+                use_bias=self.use_att_transform_bias)
 
-        # Apply dropout
-        encoder_context = dropout(
-            encoder_context, self.dropout_keep_prob, self.train_mode)
+            # Apply dropout
+            encoder_context = dropout(
+                encoder_context, self.dropout_keep_prob, self.train_mode)
+            contexts.append(encoder_context)
 
         # Add residual connections
-        return encoder_context + queries
+        return tf.concat(contexts, axis=-1) + queries
 
     def feedforward_sublayer(self, layer_input: tf.Tensor) -> tf.Tensor:
         """Create the feed-forward network sublayer."""
