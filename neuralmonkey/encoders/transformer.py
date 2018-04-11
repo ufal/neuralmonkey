@@ -129,6 +129,10 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
                 "Was: {}".format(self.target_space_id))
 
         self.train_mode = tf.placeholder(tf.bool, [], "train_mode")
+
+        self._variable_scope.set_initializer(tf.variance_scaling_initializer(
+            mode="fan_avg", distribution="uniform"))
+
         log("Output op: {}".format(self.output))
     # pylint: enable=too-many-arguments
 
