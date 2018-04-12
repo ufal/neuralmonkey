@@ -172,6 +172,7 @@ class Experiment:
                 epochs=self.model.epochs,
                 trainer=self.model.trainer,
                 batch_size=self.model.batch_size,
+                batching_scheme=self.model.batching_scheme,
                 log_directory=self.model.output,
                 evaluators=self.model.evaluation,
                 runners=self.model.runners,
@@ -331,6 +332,7 @@ def create_config(train_mode: bool = True) -> Configuration:
     config = Configuration()
     config.add_argument("tf_manager", required=False, default=None)
     config.add_argument("batch_size", cond=lambda x: x > 0)
+    config.add_argument("batching_scheme", default="basic")
     config.add_argument("output")
     config.add_argument("postprocess", required=False, default=None)
     config.add_argument("runners")

@@ -217,7 +217,7 @@ class TensorFlowManager:
                 executable.collect_results(
                     [res[executable] for res in session_results])
 
-    # pylint: disable=too-many-locals
+    # pylint: disable=too-many-locals,too-many-arguments
     def execute(self,
                 batch: Dataset,
                 runners: Sequence[Union[BaseRunner, Trainer]],
