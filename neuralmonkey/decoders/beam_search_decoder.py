@@ -40,8 +40,7 @@ from neuralmonkey.decorators import tensor
 
 # pylint: disable=invalid-name
 SearchState = NamedTuple("SearchState",
-                         [("input_beam_size", tf.Tensor),  # req. for reshaping
-                          ("logprob_sum", tf.Tensor),  # (batch*beam)
+                         [("logprob_sum", tf.Tensor),  # (batch*beam)
                           ("prev_logprobs", tf.Tensor),  # (batch*beam) x Vocab
                           ("lengths", tf.Tensor),  # (batch*beam)
                           ("finished", tf.Tensor)])  # (batch*beam)
@@ -94,6 +93,18 @@ class BeamSearchDecoder(ModelPart):
         self.parent_decoder = parent_decoder
         self._beam_size = beam_size
         self._length_normalization = length_normalization
+
+        if self.parent_decoder.encoder_states is not None:
+            enc_states = self.parent_decoder.encoder_states
+            enc_states_shape = tf.shape(enc_states)
+            self.parent_decoder.encoder_states = tf.reshape(
+                tf.tile(enc_states, [1, self.beam_size, 1]),
+                [-1, enc_states_shape[1], enc_states.shape[2]])
+            enc_mask = self.parent_decoder.encoder_mask
+            enc_mask_shape = tf.shape(enc_mask)
+            self.parent_decoder.encoder_mask = tf.reshape(
+                tf.tile(enc_mask, [1, self.beam_size]),
+                [-1, enc_mask_shape[1]])
 
         # The parent_decoder is one step ahead. This is required for ensembling
         # support.
@@ -151,19 +162,32 @@ class BeamSearchDecoder(ModelPart):
 
         # We run the decoder once to get logits for ensembling
         dec_ls = self.parent_decoder.get_initial_loop_state()
+        feedables = dec_ls.feedables._replace(
+            input_symbol=tf.tile(
+                dec_ls.feedables.input_symbol,
+                [self.beam_size]),
+            finished=tf.tile(
+                dec_ls.feedables.finished,
+                [self.beam_size]))
+        dec_ls = dec_ls._replace(feedables=feedables)
+
         decoder_body = self.parent_decoder.get_body(False)
         dec_ls = decoder_body(*dec_ls)
 
         # We want to feed these values in ensembles
         self._search_state = SearchState(
-            input_beam_size=tf.placeholder_with_default(
-                input=1, shape=[], name="input_beam_size"),
-            logprob_sum=tf.placeholder_with_default(
-                input=[0.0], shape=[None], name="bs_logprob_sum"),
+            logprob_sum=tf.tile(
+                tf.constant([0.0] + [-1e9] * (self.beam_size - 1)),
+                [self.batch_size],
+                name="bs_logprob_sum"),
             prev_logprobs=tf.nn.log_softmax(dec_ls.feedables.prev_logits),
-            lengths=tf.placeholder_with_default(
-                input=[0], shape=[None], name="bs_lengths"),
-            finished=tf.zeros([self.batch_size], dtype=tf.bool))
+            lengths=tf.zeros(
+                [self.beam_size * self.batch_size],
+                dtype=tf.int32,
+                name="bs_lengths"),
+            finished=tf.zeros(
+                [self.beam_size * self.batch_size],
+                dtype=tf.bool))
 
         self._decoder_state = dec_ls.feedables
 
@@ -294,7 +318,7 @@ class BeamSearchDecoder(ModelPart):
 
             # reshape to batch x (beam*vocabulary) for topk
             scores_flat = tf.reshape(
-                scores, [-1, bs_state.input_beam_size * len(self.vocabulary)])
+                scores, [-1, self.beam_size * len(self.vocabulary)])
 
             # shape(both) = batch x beam
             topk_scores, topk_indices = tf.nn.top_k(
@@ -335,9 +359,9 @@ class BeamSearchDecoder(ModelPart):
             beam_voc_offset = tf.expand_dims(
                 tf.range(
                     start=0,
-                    limit=(self.batch_size * bs_state.input_beam_size
+                    limit=(self.batch_size * self.beam_size
                            * len(self.vocabulary)),
-                    delta=(bs_state.input_beam_size * len(self.vocabulary))),
+                    delta=(self.beam_size * len(self.vocabulary))),
                 axis=1)
             topk_indices_flat = tf.reshape(
                 topk_indices + beam_voc_offset, [-1])
@@ -368,8 +392,8 @@ class BeamSearchDecoder(ModelPart):
             beam_offset = tf.expand_dims(
                 tf.range(
                     start=0,
-                    limit=(self.batch_size * bs_state.input_beam_size),
-                    delta=bs_state.input_beam_size),
+                    limit=(self.batch_size * self.beam_size),
+                    delta=self.beam_size),
                 axis=1)
 
             next_word_ids = tf.mod(topk_indices, len(self.vocabulary))
@@ -420,7 +444,6 @@ class BeamSearchDecoder(ModelPart):
             next_loop_state = decoder_body(*dec_loop_state)  # type: ignore
 
             next_search_state = SearchState(
-                input_beam_size=self.beam_size,
                 logprob_sum=next_beam_logprob_sum,
                 prev_logprobs=tf.nn.log_softmax(
                     next_loop_state.feedables.prev_logits),
