@@ -37,6 +37,9 @@ class Attention(BaseAttention):
         self.dropout_keep_prob = dropout_keep_prob
         self._state_size = state_size
 
+        self._variable_scope.set_initializer(
+            tf.random_normal_initializer(stddev=0.001))
+
         # TODO blessing
         log("Hidden features: {}".format(self.hidden_features))
         log("Attention mask: {}".format(self.attention_mask))
@@ -69,23 +72,20 @@ class Attention(BaseAttention):
         with tf.variable_scope("Attention"):
             return get_variable(
                 name="attn_query_projection",
-                shape=[self.query_state_size, self.state_size],
-                initializer=tf.random_normal_initializer(stddev=0.001))
+                shape=[self.query_state_size, self.state_size])
 
     @tensor
     def key_projection_matrix(self) -> tf.Variable:
         return get_variable(
             name="attn_key_projection",
             # TODO tohle neni spravne
-            shape=[self.context_vector_size, self.state_size],
-            initializer=tf.random_normal_initializer(stddev=0.001))
+            shape=[self.context_vector_size, self.state_size])
 
     @tensor
     def similarity_bias_vector(self) -> tf.Variable:
         return get_variable(
             name="attn_similarity_v",
-            shape=[self.state_size],
-            initializer=tf.random_normal_initializer(stddev=0.001))
+            shape=[self.state_size])
 
     @tensor
     def projection_bias_vector(self) -> tf.Variable:

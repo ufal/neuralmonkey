@@ -146,6 +146,9 @@ class RecurrentEncoder(ModelPart, TemporalStatefulWithOutput):
 
         if self.dropout_keep_prob <= 0.0 or self.dropout_keep_prob > 1.0:
             raise ValueError("Dropout keep prob must be inside (0,1].")
+
+        self._variable_scope.set_initializer(
+            tf.random_normal_initializer(stddev=0.001))
     # pylint: enable=too-many-arguments
 
     @tensor
