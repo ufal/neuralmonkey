@@ -191,7 +191,8 @@ class AutoregressiveDecoder(ModelPart):
 
             return get_variable(
                 "state_to_word_W",
-                [self.output_dimension, len(self.vocabulary)])
+                [self.output_dimension, len(self.vocabulary)],
+                initializer=tf.random_uniform_initializer(-0.5, 0.5))
 
     @tensor
     def decoding_b(self) -> Optional[tf.Variable]:
