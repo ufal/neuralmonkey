@@ -164,9 +164,7 @@ class AutoregressiveDecoder(ModelPart):
 
             return get_variable(
                 "state_to_word_W",
-                [self.output_dimension, len(self.vocabulary)],
-                initializer=tf.variance_scaling_initializer(
-                    mode="fan_avg", distribution="uniform"))
+                [self.output_dimension, len(self.vocabulary)])
 
     @tensor
     def decoding_b(self) -> Optional[tf.Variable]:
@@ -193,9 +191,7 @@ class AutoregressiveDecoder(ModelPart):
 
         return get_variable(
             name="word_embeddings",
-            shape=[len(self.vocabulary), self.embedding_size],
-            initializer=tf.variance_scaling_initializer(
-                mode="fan_avg", distribution="uniform"))
+            shape=[len(self.vocabulary), self.embedding_size])
 
     def get_logits(self, state: tf.Tensor) -> tf.Tensor:
         """Project the decoder's output layer to logits over the vocabulary."""

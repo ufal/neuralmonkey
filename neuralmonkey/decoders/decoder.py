@@ -178,6 +178,9 @@ class Decoder(AutoregressiveDecoder):
             with tf.variable_scope("attention_decoder") as self.step_scope:
                 pass
 
+        self._variable_scope.set_initializer(
+            tf.random_normal_initializer(stddev=0.001))
+
         # TODO when it is possible, remove the printing of the cost var
         log("Decoder initalized. Cost var: {}".format(str(self.cost)))
         log("Runtime logits tensor: {}".format(str(self.runtime_logits)))

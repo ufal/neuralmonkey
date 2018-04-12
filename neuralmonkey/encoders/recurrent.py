@@ -140,6 +140,9 @@ class RecurrentEncoder(ModelPart, TemporalStatefulWithOutput):
 
         with self.use_scope():
             self.train_mode = tf.placeholder(tf.bool, [], "train_mode")
+
+        self._variable_scope.set_initializer(
+            tf.random_normal_initializer(stddev=0.001))
     # pylint: enable=too-many-arguments
 
     @tensor
