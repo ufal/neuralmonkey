@@ -109,10 +109,7 @@ class BeamSearchExecutable(Executable):
         for result in results:
             bs_outputs = result["bs_outputs"]
 
-            input_beam_size = len(bs_outputs.last_search_state.prev_logprobs)
-            input_beam_size //= batch_size
             search_state = bs_outputs.last_search_state._replace(
-                input_beam_size=input_beam_size,
                 prev_logprobs=ens_logprobs)
 
             # in the next iteration, we want to generate one new symbol
