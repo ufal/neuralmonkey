@@ -63,7 +63,7 @@ DecoderFeedables = NamedTuple(
 # pylint: disable=too-many-public-methods,too-many-instance-attributes
 class AutoregressiveDecoder(ModelPart):
 
-    # pylint: disable=too-many-arguments
+    # pylint: disable=too-many-arguments,too-many-instance-attributes
     def __init__(self,
                  name: str,
                  vocabulary: Vocabulary,
@@ -110,6 +110,9 @@ class AutoregressiveDecoder(ModelPart):
         self.tie_embeddings = tie_embeddings
         self.supress_unk = supress_unk
 
+        self.encoder_states = None
+        self.encoder_mask = None
+
         # check the values of the parameters (max_output_len, ...)
         if max_output_len <= 0:
             raise ValueError("Maximum sequence length must be "
@@ -140,7 +143,7 @@ class AutoregressiveDecoder(ModelPart):
                 tf.int32, [None, None], "train_inputs")
             self.train_mask = tf.placeholder(
                 tf.float32, [None, None], "train_mask")
-    # pylint: enable=too-many-arguments
+    # pylint: enable=too-many-arguments,too-many-instance-attributes
 
     @tensor
     def decoding_w(self) -> tf.Variable:

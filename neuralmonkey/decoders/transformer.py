@@ -115,7 +115,8 @@ class TransformerDecoder(AutoregressiveDecoder):
 
         self.encoder_states = get_attention_states(self.encoder)
         self.encoder_mask = get_attention_mask(self.encoder)
-        self.dimension = self.encoder_states.get_shape()[2].value
+        self.dimension = \
+            self.encoder_states.get_shape()[2].value  # type: ignore
 
         if self.embedding_size != self.dimension:
             raise ValueError("Model dimension and input embedding size"
@@ -311,9 +312,6 @@ class TransformerDecoder(AutoregressiveDecoder):
         histories["input_mask"] = tf.TensorArray(
             dtype=tf.float32, dynamic_size=True, size=0,
             clear_after_read=False, name="input_mask")
-
-        #histories["input_mask"] = input_mask.write(
-        #    0, tf.ones_like(self.go_symbols, dtype=tf.float32))
 
         # TransformerHistories is a type and should be callable
         # pylint: disable=not-callable

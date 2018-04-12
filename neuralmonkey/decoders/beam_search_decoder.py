@@ -93,12 +93,13 @@ class BeamSearchDecoder(ModelPart):
         self._beam_size = beam_size
         self._length_normalization = length_normalization
 
-        if self.parent_decoder.encoder_states is not None:
+        if (hasattr(self.parent_decoder, "encoder_states")
+                and self.parent_decoder.encoder_states is not None):
             enc_states = self.parent_decoder.encoder_states
             enc_states_shape = tf.shape(enc_states)
             self.parent_decoder.encoder_states = tf.reshape(
                 tf.tile(enc_states, [1, self.beam_size, 1]),
-                [-1, enc_states_shape[1], enc_states.shape[2]])
+                [-1, enc_states_shape[1], enc_states.shape[2]])  # type: ignore
             enc_mask = self.parent_decoder.encoder_mask
             enc_mask_shape = tf.shape(enc_mask)
             self.parent_decoder.encoder_mask = tf.reshape(
@@ -155,15 +156,29 @@ class BeamSearchDecoder(ModelPart):
             token_ids=tf.TensorArray(dtype=tf.int32, dynamic_size=True,
                                      size=0, name="beam_tokens"))
 
-        # We run the decoder once to get logits for ensembling
         dec_ls = self.parent_decoder.get_initial_loop_state()
-        feedables = dec_ls.feedables._replace(
-            input_symbol=tf.tile(
-                dec_ls.feedables.input_symbol,
-                [self.beam_size]),
-            finished=tf.tile(
-                dec_ls.feedables.finished,
-                [self.beam_size]))
+
+        # We need to stretch parent_decoder feedables
+        # to batch_size * beam_size
+        feedables_dict = dec_ls.feedables._asdict()
+        for name in feedables_dict:
+            if name == "step":
+                continue
+            if not isinstance(feedables_dict[name], list):
+                rank = feedables_dict[name].get_shape().ndims
+                feedables_dict[name] = tf.tile(
+                    feedables_dict[name],
+                    [self.beam_size] + [1] * (rank - 1))
+            else:
+                extended = []
+                for element in feedables_dict[name]:
+                    rank = element.get_shape().ndims
+                    extended.append(tf.tile(
+                        element,
+                        [self.beam_size] + [1] * (rank - 1)))
+                feedables_dict[name] = extended
+
+        feedables = dec_ls.feedables._replace(**feedables_dict)
         dec_ls = dec_ls._replace(feedables=feedables)
 
         decoder_body = self.parent_decoder.get_body(False)
