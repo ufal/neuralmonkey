@@ -474,7 +474,10 @@ class Dataset:
             return self.get_series(name)
         return None
 
-    def batches(self, batch_size: int) -> Iterator["Dataset"]:
+    def batches(self,
+                batch_size: int,
+                bucket_span: int = -1,
+                token_level: bool = False) -> Iterator["Dataset"]:
         """Split the dataset into batches.
 
         Arguments:
@@ -519,12 +522,38 @@ class Dataset:
                 return (row[key] for row in rows)
             return itergen
 
+        buckets = {}
+        def _fetch_batch(buf, batch_size):
+            while buf:
+                row = buf.popleft()
+                if bucket_span == -1:
+                    bucket_id = 0
+                else:
+                    # TODO: use only specific series to determine
+                    # the bucket number
+                    bucket_id = max(len(row[key]) for key in row) % bucket_span
+                if bucket_id not in buckets:
+                    buckets[bucket_id] = []
+                    bucket_sizes = 0
+                buckets[bucket_id].append(row)
+                is_full = (len(buckets[bucket_id]) >= batch_size)
+                if token_level:
+                    is_full = (bucket_id 
+                        * bucket_span * len(buckets[bucket_id]) >= batch_sizea)
+                if is_full:
+                    yield buckets[bucket_id]
+                    buckets[bucket_id] = []
+            for bucket_id in buckets:
+                if buckets[bucket_id]:
+                    yield buckets[bucket_id]
+
         # Iterate over the rest of the data until buffer is empty
         batch_index = 0
+        buckets = {}
         while buf:
             # Create the batch
             name = "{}.batch.{}".format(self.name, batch_index)
-            rows = [buf.popleft() for _ in range(batch_size) if buf]
+            rows = _fetch_batch(buf, batch_size)
             data = {key: _make_datagen(rows, key) for key in rows[0]}
 
             yield Dataset(name=name, iterators=data)

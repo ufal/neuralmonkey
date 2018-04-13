@@ -38,7 +38,7 @@ def training_loop(tf_manager: TensorFlowManager,
                   epochs: int,
                   trainer: Union[Trainer, List[Trainer]],
                   batch_size: int,
-                  batching_scheme: str,
+                  bucket_span: int,
                   log_directory: str,
                   evaluators: EvalConfiguration,
                   runners: List[BaseRunner],
@@ -62,8 +62,8 @@ def training_loop(tf_manager: TensorFlowManager,
         epochs: Number of epochs for which the algoritm will learn.
         trainer: The trainer object containg the TensorFlow code for computing
             the loss and optimization operation.
-        batch_size: number of examples in one mini-batch
-        batching_scheme: The units of measure when using batch_size
+        batch_size: Number of examples in one mini-batch.
+        bucket_span: The span of the bucket for bucketed batching.
         log_directory: Directory where the TensordBoard log will be generated.
             If None, nothing will be done.
         evaluators: List of evaluators. The last evaluator is used as the main.
@@ -170,7 +170,7 @@ def training_loop(tf_manager: TensorFlowManager,
             log_print("")
             log("Epoch {} begins".format(epoch_n), color="red")
 
-            train_batches = train_dataset.batches(batch_size)
+            train_batches = train_dataset.batches(batch_size, bucket_span)
 
             if epoch_n == 1 and train_start_offset:
                 if train_dataset.shuffled and not train_dataset.lazy:
@@ -383,6 +383,7 @@ def run_on_dataset(tf_manager: TensorFlowManager,
                    postprocess: Postprocess,
                    batch_size: int,
                    write_out: bool = False,
+                   bucket_span: int = -1,
                    log_progress: int = 0) -> Tuple[
                        List[ExecutionResult], Dict[str, List[Any]]]:
     """Apply the model on a dataset and optionally write outputs to files.
@@ -417,9 +418,11 @@ def run_on_dataset(tf_manager: TensorFlowManager,
     last_log_time = time.process_time()
     batch_results = [[] for _ in runners]  # type: List[List[ExecutionResult]]
 
-    for i, batch in enumerate(dataset.batches(batch_size)):
+    num_processed = 0
+    for i, batch in enumerate(dataset.batches(batch_size, bucket_span)):
+        num_processed += len(batch)
         if 0 < log_progress < time.process_time() - last_log_time:
-            log("Processed {} examples.".format(i * batch_size))
+            log("Processed {} examples.".format(processed))
             last_log_time = time.process_time()
 
         execution_results = tf_manager.execute(
