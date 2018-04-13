@@ -36,7 +36,7 @@ def training_loop(tf_manager: TensorFlowManager,
                   epochs: int,
                   trainer: GenericTrainer,  # TODO better annotate
                   batch_size: int,
-                  batching_scheme: str,
+                  bucket_span: int,
                   log_directory: str,
                   evaluators: EvalConfiguration,
                   runners: List[BaseRunner],
@@ -60,8 +60,8 @@ def training_loop(tf_manager: TensorFlowManager,
         epochs: Number of epochs for which the algoritm will learn.
         trainer: The trainer object containg the TensorFlow code for computing
             the loss and optimization operation.
-        batch_size: number of examples in one mini-batch
-        batching_scheme: The units of measure when using batch_size
+        batch_size: Number of examples in one mini-batch.
+        bucket_span: The span of the bucket for bucketed batching.
         log_directory: Directory where the TensordBoard log will be generated.
             If None, nothing will be done.
         evaluators: List of evaluators. The last evaluator is used as the main.
