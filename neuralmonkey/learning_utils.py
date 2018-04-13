@@ -280,6 +280,7 @@ def run_on_dataset(tf_manager: TensorFlowManager,
                    dataset: Dataset,
                    postprocess: Postprocess,
                    write_out: bool = False,
+                   bucket_span: int = -1,
                    log_progress: int = 0) -> Tuple[
                        List[ExecutionResult],
                        Dict[str, List],
