@@ -158,7 +158,7 @@ class AutoregressiveDecoder(ModelPart):
             return get_variable(
                 "logit_matrix",
                 [self.output_dimension, len(self.vocabulary)],
-                initializer=tf.glorot_uniform_initializer())
+                initializer=tf.random_uniform_initializer(-0.5, 0.5))
 
     @tensor
     def decoding_b(self) -> tf.Variable:
