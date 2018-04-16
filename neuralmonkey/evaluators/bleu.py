@@ -5,10 +5,23 @@ import numpy as np
 
 class BLEUEvaluator(object):
 
-    def __init__(self, n: int = 4, deduplicate: bool = False,
-                 name: str = None) -> None:
+    def __init__(self, n: int = 4,
+                 deduplicate: bool = False,
+                 name: str = None,
+                 multiple_references_separator: str = None) -> None:
+        """Instantiate BLEU evaluator.
+
+        Args:
+            n: Longest n-grams considered.
+            deduplicate: Flag whether repated tokes should be treated as one.
+            name: Name displayed in the logs and TensorBoard.
+            multiple_references_separator: Token that separates multiple
+                reference sentences. If ``None``, it assumes the reference is one
+                sentence only.
+        """
         self.n = n
         self.deduplicate = deduplicate
+        self.multiple_references_separator = multiple_references_separator
 
         if name is not None:
             self.name = name
@@ -19,7 +32,22 @@ class BLEUEvaluator(object):
 
     def __call__(self, decoded: List[List[str]],
                  references: List[List[str]]) -> float:
-        listed_references = [[s] for s in references]
+
+        if self.multiple_references_separator is None:
+            listed_references = [[s] for s in references]
+        else:
+            listed_references = []
+            for sentences in references:
+                split_sentences = []
+                curr_reference = []
+                for tok in sentences:
+                    if tok == self.multiple_references_separator:
+                        split_sentences.append(curr_reference)
+                        curr_reference = []
+                    else:
+                        curr_reference.append(tok)
+                split_sentences.append(curr_reference)
+                listed_references.append(split_sentences)
 
         if self.deduplicate:
             decoded = BLEUEvaluator.deduplicate_sentences(decoded)
