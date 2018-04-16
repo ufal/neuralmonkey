@@ -65,6 +65,7 @@ class SpatialFiller(ModelPart, SpatialStatefulWithOutput):
                  name: str,
                  input_shape: List[int],
                  data_id: str,
+                 projection: int = None,
                  save_checkpoint: Optional[str] = None,
                  load_checkpoint: Optional[str] = None,
                  initializers: InitializerSpecs = None) -> None:
@@ -76,6 +77,7 @@ class SpatialFiller(ModelPart, SpatialStatefulWithOutput):
 
         self.data_id = data_id
         self.input_shape = input_shape
+        self.projection = projection
 
     @tensor
     def output(self) -> tf.Tensor:
@@ -83,14 +85,22 @@ class SpatialFiller(ModelPart, SpatialStatefulWithOutput):
             self.spatial_states, axis=[1, 2], name="average_image")
 
     @tensor
-    def spatial_states(self) -> tf.Tensor:
+    def spatial_input(self) -> tf.Tensor:
         features_shape = [None] + self.input_shape  # type: ignore
         return tf.placeholder(
             tf.float32, shape=features_shape, name="spatial_states")
+
+    @tensor
+    def spatial_states(self) -> tf.Tensor:
+        if self.projection:
+            return tf.layers.conv2d(
+                self.spatial_input, filters=self.projection,
+                kernel_size=1, activation=None)
+        return self.spatial_input
 
     @tensor
     def spatial_mask(self) -> tf.Tensor:
         return tf.ones(tf.shape(self.spatial_states)[:3])
 
     def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
-        return {self.spatial_states: dataset.get_series(self.data_id)}
+        return {self.spatial_input: dataset.get_series(self.data_id)}
