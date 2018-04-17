@@ -46,7 +46,7 @@ class BLEUEvaluator(object):
                         curr_reference = []
                     else:
                         curr_reference.append(tok)
-                    split_sentences.append(curr_reference)
+                split_sentences.append(curr_reference)
                 listed_references.append(split_sentences)
 
         if self.deduplicate:
