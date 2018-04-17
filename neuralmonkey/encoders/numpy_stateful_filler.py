@@ -14,6 +14,11 @@ from neuralmonkey.tf_utils import get_variable
 
 
 class StatefulFiller(ModelPart, Stateful):
+    """Placeholder class for stateful input.
+
+    This model part is used to feed 1D tensors to the model. Optionally, it
+    projects the states to given dimension.
+    """
 
     def __init__(self,
                  name: str,
@@ -23,14 +28,21 @@ class StatefulFiller(ModelPart, Stateful):
                  save_checkpoint: str = None,
                  load_checkpoint: str = None,
                  initializers: InitializerSpecs = None) -> None:
+        """Instantiate StatefulFiller.
+
+        Args:
+            name: Name of the model part.
+            dimension: Dimensionality of the input.
+            data_id: Series containing the numpy objects.
+        """
         ModelPart.__init__(self, name, save_checkpoint, load_checkpoint,
                            initializers)
         check_argument_types()
 
         if dimension <= 0:
-            raise ValueError("Input vector dimension must be postive.")
+            raise ValueError("Input vector dimension must be positive.")
         if output_shape is not None and output_shape <= 0:
-            raise ValueError("Output vector dimension must be postive.")
+            raise ValueError("Output vector dimension must be positive.")
 
         self.vector = tf.placeholder(
             tf.float32, shape=[None, dimension])
@@ -57,18 +69,32 @@ class StatefulFiller(ModelPart, Stateful):
     # pylint: disable=unused-argument
     def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
         return {self.vector: dataset.get_series(self.data_id)}
+    # pylint: enable=unused-argument
 
 
 class SpatialFiller(ModelPart, SpatialStatefulWithOutput):
-    # pylint: disable=too-many-arguments
+    """Placeholder class for 3D numerical input.
+
+    This model part is used to feed 3D tensors (e.g., pre-trained convolutional
+    maps image captioning). Optionally, the states are projected to given size.
+    """
+
     def __init__(self,
                  name: str,
                  input_shape: List[int],
                  data_id: str,
-                 projection: int = None,
+                 projection_dim: int = None,
                  save_checkpoint: Optional[str] = None,
                  load_checkpoint: Optional[str] = None,
                  initializers: InitializerSpecs = None) -> None:
+        """Instantiate SpatialFiller.
+
+        Args:
+            name: Name of the model part.
+            input_shape: Dimensionality of the input.
+            data_id: Name of the data series with numpy objects.
+            projection_dim: Optional, dimension of the states projection.
+        """
         check_argument_types()
         ModelPart.__init__(self, name, save_checkpoint, load_checkpoint,
                            initializers)
@@ -77,7 +103,12 @@ class SpatialFiller(ModelPart, SpatialStatefulWithOutput):
 
         self.data_id = data_id
         self.input_shape = input_shape
-        self.projection = projection
+        self.projection_dim = projection_dim
+
+        features_shape = [None] + self.input_shape  # type: ignore
+        with self.use_scope():
+            self.spatial_input = tf.placeholder(
+                tf.float32, shape=features_shape, name="spatial_states")
 
     @tensor
     def output(self) -> tf.Tensor:
@@ -85,16 +116,10 @@ class SpatialFiller(ModelPart, SpatialStatefulWithOutput):
             self.spatial_states, axis=[1, 2], name="average_image")
 
     @tensor
-    def spatial_input(self) -> tf.Tensor:
-        features_shape = [None] + self.input_shape  # type: ignore
-        return tf.placeholder(
-            tf.float32, shape=features_shape, name="spatial_states")
-
-    @tensor
     def spatial_states(self) -> tf.Tensor:
-        if self.projection:
+        if self.projection_dim:
             return tf.layers.conv2d(
-                self.spatial_input, filters=self.projection,
+                self.spatial_input, filters=self.projection_dim,
                 kernel_size=1, activation=None)
         return self.spatial_input
 
