@@ -16,8 +16,8 @@ class BLEUEvaluator(object):
             deduplicate: Flag whether repated tokes should be treated as one.
             name: Name displayed in the logs and TensorBoard.
             multiple_references_separator: Token that separates multiple
-                reference sentences. If ``None``, it assumes the reference is one
-                sentence only.
+                reference sentences. If ``None``, it assumes the reference is
+                one sentence only.
         """
         self.n = n
         self.deduplicate = deduplicate
@@ -39,7 +39,7 @@ class BLEUEvaluator(object):
             listed_references = []
             for sentences in references:
                 split_sentences = []
-                curr_reference = []
+                curr_reference = []  # type: List[str]
                 for tok in sentences:
                     if tok == self.multiple_references_separator:
                         split_sentences.append(curr_reference)
