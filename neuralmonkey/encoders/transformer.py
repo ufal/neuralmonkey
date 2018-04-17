@@ -10,6 +10,8 @@ import math
 import tensorflow as tf
 from typeguard import check_argument_types
 
+from neuralmonkey.attention.base_attention import (
+    Attendable, get_attention_states, get_attention_mask)
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.decorators import tensor
 from neuralmonkey.attention.scaled_dot_product import attention
@@ -62,7 +64,7 @@ class TransformerLayer(TemporalStateful):
 
 class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
 
-    # pylint: disable=too-many-arguments
+    # pylint: disable=too-many-arguments,too-many-locals
     def __init__(self,
                  name: str,
                  input_sequence: TemporalStateful,
@@ -74,6 +76,8 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
                  target_space_id: int = None,
                  use_att_transform_bias: bool = False,
                  use_position_encoding: bool = True,
+                 input_for_cross_attention: Attendable = None,
+                 n_cross_att_heads: int = None,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None) -> None:
         """Create an encoder of the Transformer model.
@@ -95,6 +99,11 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
             depth: Number of sublayers.
             attention_dropout_keep_prob: Probability of keeping a value
                 during dropout on the attention output.
+            input_for_cross_attention: An attendable model part that is
+                attended using cross-attention on every layer of the decoder,
+                analogically to how encoder is attended in the decoder.
+            n_cross_att_heads: Number of heads used in the cross-attention.
+
         """
         check_argument_types()
         ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
@@ -109,6 +118,8 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
         self.target_space_id = target_space_id
         self.use_att_transform_bias = use_att_transform_bias
         self.use_position_encoding = use_position_encoding
+        self.input_for_cross_attention = input_for_cross_attention
+        self.n_cross_att_heads = n_cross_att_heads
 
         if self.depth <= 0:
             raise ValueError("Depth must be a positive integer.")
@@ -130,13 +141,26 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
                 "If provided, the target space ID should be between 0 and 31. "
                 "Was: {}".format(self.target_space_id))
 
+        if (input_for_cross_attention is None) ^ (n_cross_att_heads is None):
+            raise ValueError(
+                "Either both input_for_cross_attention and n_cross_att_heads "
+                "must be provided or none of them.")
+
+        if input_for_cross_attention is not None:
+            cross_att_dim = get_attention_states(
+                input_for_cross_attention).get_shape()[-1].value
+            if cross_att_dim != self.model_dimension:
+                raise ValueError(
+                    "The input for cross-attention must be of the same "
+                    "dimension as the model, was {}.".format(cross_att_dim))
+
         self.train_mode = tf.placeholder(tf.bool, [], "train_mode")
 
         self._variable_scope.set_initializer(tf.variance_scaling_initializer(
             mode="fan_avg", distribution="uniform"))
 
         log("Output op: {}".format(self.output))
-    # pylint: enable=too-many-arguments
+    # pylint: enable=too-many-arguments,too-many-locals
 
     @tensor
     def output(self) -> tf.Tensor:
@@ -205,6 +229,32 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
         # Add residual connections
         return self_context + prev_layer.temporal_states
 
+    def cross_attention_sublayer(self, queries: tf.Tensor) -> tf.Tensor:
+        assert self.cross_attention_sublayer is not None
+        encoder_att_states = get_attention_states(
+            self.input_for_cross_attention)
+        encoder_att_mask = get_attention_mask(self.input_for_cross_attention)
+
+        # Layer normalization
+        normalized_queries = layer_norm(queries)
+
+        encoder_context, _ = attention(
+            queries=normalized_queries,
+            keys=encoder_att_states,
+            values=encoder_att_states,
+            keys_mask=encoder_att_mask,
+            num_heads=self.n_cross_att_heads,
+            dropout_callback=lambda x: dropout(
+                x, self.attention_dropout_keep_prob, self.train_mode),
+            use_bias=self.use_att_transform_bias)
+
+        # Apply dropout
+        encoder_context = dropout(
+            encoder_context, self.dropout_keep_prob, self.train_mode)
+
+        # Add residual connections
+        return encoder_context + queries
+
     def feedforward_sublayer(self, layer_input: tf.Tensor) -> tf.Tensor:
         """Create the feed-forward network sublayer."""
 
@@ -241,6 +291,10 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
         with tf.variable_scope("layer_{}".format(level - 1)):
             with tf.variable_scope("self_attention"):
                 self_context = self.self_attention_sublayer(prev_layer)
+
+            if self.input_for_cross_attention is not None:
+                with tf.variable_scope("cross_attention"):
+                    self_context = self.cross_attention_sublayer(self_context)
 
             with tf.variable_scope("feedforward"):
                 output_states = self.feedforward_sublayer(self_context)
