@@ -60,7 +60,7 @@ DecoderFeedables = NamedTuple(
      ("prev_logits", tf.Tensor)])
 
 
-# pylint: disable=too-many-public-methods,too-many-arguments,too-many-instance-attributes
+# pylint: disable=too-many-public-methods,too-many-instance-attributes
 class AutoregressiveDecoder(ModelPart):
 
     # pylint: disable=too-many-arguments
@@ -196,9 +196,9 @@ class AutoregressiveDecoder(ModelPart):
         logits = tf.matmul(state, self.decoding_w) + self.decoding_b
 
         if self.supress_unk:
-            one_hot = tf.one_hot(
+            unk_mask = tf.one_hot(
                 UNK_TOKEN_INDEX, depth=len(self.vocabulary), on_value=-1e-9)
-            logits += one_hot
+            logits += unk_mask
 
         return logits
 
