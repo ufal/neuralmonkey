@@ -33,7 +33,7 @@ name="{}"
 vocabulary=<vocabulary>
 data_id="source_wp"
 embedding_size={}
-scale_embeddings_by_depth="{}"
+scale_embeddings_by_depth={}
 max_length={}
 add_end_symbol=True
 
