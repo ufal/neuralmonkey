@@ -33,7 +33,7 @@ name="{}"
 vocabulary=<vocabulary>
 data_id="source_wp"
 embedding_size={}
-multiply_embedding_mode="{}"
+scale_embeddings_by_depth="{}"
 max_length={}
 add_end_symbol=True
 
@@ -256,7 +256,8 @@ def build_encoder(hparams: Dict,
         vocabulary=vocabulary,
         data_id="source_wp",
         embedding_size=hparams["embedding_size"],
-        multiply_embedding_mode=hparams["multiply_embedding_mode"],
+        scale_embeddings_by_depth=hparams[
+            "multiply_embedding_mode"] == "sqrt_depth",
         add_end_symbol=True)
 
     encoder = TransformerEncoder(
@@ -270,7 +271,8 @@ def build_encoder(hparams: Dict,
 
     encoder_ini = ENCODER_TEMPLATE.format(
         inp_seq_name, hparams["embedding_size"],
-        hparams["multiply_embedding_mode"], hparams["max_length"],
+        hparams["multiply_embedding_mode"] == "sqrt_depth",
+        hparams["max_length"],
         ENCODER_NAME, hparams["ff_hidden_size"], hparams["depth"],
         hparams["n_heads"])
 
