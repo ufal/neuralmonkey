@@ -57,6 +57,7 @@ class TransformerDecoder(AutoregressiveDecoder):
                  label_smoothing: float = None,
                  attention_dropout_keep_prob: float = 1.0,
                  use_att_transform_bias: bool = False,
+                 supress_unk: bool = False,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None) -> None:
         """Create a decoder of the Transformer model.
@@ -85,6 +86,8 @@ class TransformerDecoder(AutoregressiveDecoder):
                 loss computation.
             attention_dropout_keep_prob: Probability of keeping a value
                 during dropout on the attention output.
+            supress_unk: If true, decoder will not produce symbols for unknown
+                tokens.
         """
         check_argument_types()
         AutoregressiveDecoder.__init__(
@@ -98,6 +101,7 @@ class TransformerDecoder(AutoregressiveDecoder):
             embeddings_source=embeddings_source,
             tie_embeddings=tie_embeddings,
             label_smoothing=label_smoothing,
+            supress_unk=supress_unk,
             save_checkpoint=save_checkpoint,
             load_checkpoint=load_checkpoint)
 
