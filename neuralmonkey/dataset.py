@@ -171,6 +171,8 @@ def load_dataset_from_files(
     Keyword arguments:
         name: The name of the dataset to use. If None (default), the name will
               be inferred from the file names.
+        primary_series: A series that is used for measuring (token_level)
+                        batch size, bucketing, etc.
         lazy: Boolean flag specifying whether to use lazy loading (useful for
               large files). Note that the lazy dataset cannot be shuffled.
               Defaults to False.

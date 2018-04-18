@@ -38,7 +38,8 @@ def training_loop(tf_manager: TensorFlowManager,
                   epochs: int,
                   trainer: Union[Trainer, List[Trainer]],
                   batch_size: int,
-                  bucket_span: int,
+                  batch_bucket_span: int,
+                  token_level_batching: bool,
                   log_directory: str,
                   evaluators: EvalConfiguration,
                   runners: List[BaseRunner],
@@ -63,7 +64,9 @@ def training_loop(tf_manager: TensorFlowManager,
         trainer: The trainer object containg the TensorFlow code for computing
             the loss and optimization operation.
         batch_size: Number of examples in one mini-batch.
-        bucket_span: The span of the bucket for bucketed batching.
+        batch_bucket_span: The span of the bucket for bucketed batching.
+        token_level_batching: Count the batch_size per individual tokens
+            in the batch instead of sentences.
         log_directory: Directory where the TensordBoard log will be generated.
             If None, nothing will be done.
         evaluators: List of evaluators. The last evaluator is used as the main.
@@ -168,7 +171,8 @@ def training_loop(tf_manager: TensorFlowManager,
             log_print("")
             log("Epoch {} begins".format(epoch_n), color="red")
 
-            train_batches = train_dataset.batches(batch_size)
+            train_batches = train_dataset.batches(
+                batch_size, batch_bucket_span, token_level_batching)
 
             if epoch_n == 1 and train_start_offset:
                 if train_dataset.shuffled and not train_dataset.lazy:
@@ -187,7 +191,7 @@ def training_loop(tf_manager: TensorFlowManager,
                         batch, trainers, train=True, summaries=True)
                     train_results, train_outputs = run_on_dataset(
                         tf_manager, runners, batch, postprocess,
-                        write_out=False, batch_size=len(batch))
+                        write_out=False, batch_size=runners_batch_size)
                     # ensure train outputs are iterable more than once
                     train_outputs = {
                         k: list(v) for k, v in train_outputs.items()}
