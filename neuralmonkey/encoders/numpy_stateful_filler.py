@@ -34,6 +34,7 @@ class StatefulFiller(ModelPart, Stateful):
             name: Name of the model part.
             dimension: Dimensionality of the input.
             data_id: Series containing the numpy objects.
+            output_shape: Dimension of optional state projection.
         """
         ModelPart.__init__(self, name, save_checkpoint, load_checkpoint,
                            initializers)
