@@ -142,7 +142,8 @@ class TensorRunner(BaseRunner[ModelPart]):
                 fetches[name] = tf.get_default_graph().get_tensor_by_name(name)
                 batch_ids[name] = bid
             except KeyError:
-                warn("The tensor of name '{}' is not present in the graph.")
+                warn(("The tensor of name '{}' is not present in the "
+                      "graph.").format(name))
 
         for tensor, bid in zip(self._tensors, self._batch_dims_ref):
             fetches[tensor.name] = tensor
