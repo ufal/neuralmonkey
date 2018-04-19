@@ -65,6 +65,9 @@ BeamSearchOutput = NamedTuple("SearchStepOutput",
                                ("last_search_state", SearchState),
                                ("attention_loop_states", List[Any])])
 
+# Constant we use in place of the np.inf
+INF = 1e9
+
 
 # pylint: enable=invalid-name
 class BeamSearchDecoder(ModelPart):
@@ -187,7 +190,7 @@ class BeamSearchDecoder(ModelPart):
         # We want to feed these values in ensembles
         self._search_state = SearchState(
             logprob_sum=tf.tile(
-                tf.constant([0.0] + [-1e9] * (self.beam_size - 1)),
+                tf.constant([0.0] + [-INF] * (self.beam_size - 1)),
                 [self.batch_size],
                 name="bs_logprob_sum"),
             prev_logprobs=tf.nn.log_softmax(dec_ls.feedables.prev_logits),
