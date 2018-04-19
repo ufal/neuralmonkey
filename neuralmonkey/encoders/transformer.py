@@ -312,3 +312,14 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
 
     def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
         return {self.train_mode: train}
+
+    def get_dependencies(self) -> Set[ModelPart]:
+        """Collect recusively all inputs."""
+        to_return = set([self])
+        to_return = to_return.union(self.input_sequence.get_dependencies())
+
+        if self.input_for_cross_attention is not None:
+            to_return = to_return.union(
+                self.input_for_cross_attention.get_dependencies())
+
+        return to_return
