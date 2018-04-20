@@ -18,7 +18,7 @@ from neuralmonkey.logging import log, warn
 from neuralmonkey.model.sequence import EmbeddedSequence
 from neuralmonkey.nn.utils import dropout
 from neuralmonkey.tf_utils import get_variable
-from neuralmonkey.vocabulary import Vocabulary, START_TOKEN
+from neuralmonkey.vocabulary import Vocabulary, START_TOKEN, UNK_TOKEN_INDEX
 
 
 def extend_namedtuple(name: str, parent: Type,
@@ -60,7 +60,7 @@ DecoderFeedables = NamedTuple(
      ("prev_logits", tf.Tensor)])
 
 
-# pylint: disable=too-many-public-methods
+# pylint: disable=too-many-public-methods,too-many-instance-attributes
 class AutoregressiveDecoder(ModelPart):
 
     # pylint: disable=too-many-arguments
@@ -74,6 +74,7 @@ class AutoregressiveDecoder(ModelPart):
                  embeddings_source: EmbeddedSequence = None,
                  tie_embeddings: bool = False,
                  label_smoothing: float = None,
+                 supress_unk: bool = False,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None,
                  initializers: InitializerSpecs = None) -> None:
@@ -91,6 +92,8 @@ class AutoregressiveDecoder(ModelPart):
             tie_embeddings: Use decoder.embedding_matrix also in place
                 of the output decoding matrix.
             label_smoothing: Label smoothing parameter.
+            supress_unk: If true, decoder will not produce symbols for unknown
+                tokens.
         """
         ModelPart.__init__(self, name, save_checkpoint, load_checkpoint,
                            initializers)
@@ -105,6 +108,7 @@ class AutoregressiveDecoder(ModelPart):
         self.embeddings_source = embeddings_source
         self.label_smoothing = label_smoothing
         self.tie_embeddings = tie_embeddings
+        self.supress_unk = supress_unk
 
         # check the values of the parameters (max_output_len, ...)
         if max_output_len <= 0:
@@ -189,9 +193,12 @@ class AutoregressiveDecoder(ModelPart):
     def get_logits(self, state: tf.Tensor) -> tf.Tensor:
         """Project the decoder's output layer to logits over the vocabulary."""
         state = dropout(state, self.dropout_keep_prob, self.train_mode)
+        logits = tf.matmul(state, self.decoding_w) + self.decoding_b
 
-        logits = tf.matmul(state, self.decoding_w)
-        logits += self.decoding_b
+        if self.supress_unk:
+            unk_mask = tf.one_hot(
+                UNK_TOKEN_INDEX, depth=len(self.vocabulary), on_value=-1e-9)
+            logits += unk_mask
 
         return logits
 

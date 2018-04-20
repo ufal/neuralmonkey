@@ -68,6 +68,7 @@ class Decoder(AutoregressiveDecoder):
                  attention_on_input: bool = True,
                  rnn_cell: str = "GRU",
                  conditional_gru: bool = False,
+                 supress_unk: bool = False,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None,
                  initializers: InitializerSpecs = None) -> None:
@@ -98,6 +99,8 @@ class Decoder(AutoregressiveDecoder):
                 architecture.
             attention_on_input: Flag whether attention from previous decoding
                 step should be combined with the input in the next step.
+            supress_unk: If true, decoder will not produce symbols for unknown
+                tokens.
         """
         check_argument_types()
         AutoregressiveDecoder.__init__(
@@ -111,6 +114,7 @@ class Decoder(AutoregressiveDecoder):
             embeddings_source=embeddings_source,
             tie_embeddings=tie_embeddings,
             label_smoothing=label_smoothing,
+            supress_unk=supress_unk,
             save_checkpoint=save_checkpoint,
             load_checkpoint=load_checkpoint,
             initializers=initializers)
