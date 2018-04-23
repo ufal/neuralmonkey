@@ -62,6 +62,7 @@ class TransformerLayer(TemporalStateful):
         return self._mask
 
 
+# pylint: disable=too-many-instance-attributes
 class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
 
     # pylint: disable=too-many-arguments,too-many-locals
@@ -315,10 +316,10 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
 
     def get_dependencies(self) -> Set[ModelPart]:
         """Collect recusively all inputs."""
-        to_return = set([self])
-        to_return = to_return.union(self.input_sequence.get_dependencies())
+        to_return = ModelPart.get_dependencies(self)
 
-        if self.input_for_cross_attention is not None:
+        if (self.input_for_cross_attention is not None
+                and isinstance(self.input_for_cross_attention, ModelPart)):
             to_return = to_return.union(
                 self.input_for_cross_attention.get_dependencies())
 
