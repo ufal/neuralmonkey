@@ -142,8 +142,8 @@ class AutoregressiveDecoder(ModelPart):
         self.tie_embeddings = tie_embeddings
         self.supress_unk = supress_unk
 
-        self.encoders_states = []  # type: List[tf.Tensor]
-        self.encoders_mask = []  # type: List[tf.Tensor]
+        self.encoder_states = []  # type: List[tf.Tensor]
+        self.encoder_masks = []  # type: List[tf.Tensor]
 
         # check the values of the parameters (max_output_len, ...)
         if max_output_len <= 0:
