@@ -108,7 +108,7 @@ def main() -> None:
     print("{}\t{}".format(word_count, dimension), file=args.output_file)
     for word, vector in zip(vocabulary.index_to_word, embeddings):
         formatted_vector = "\t".join(["{:.8f}".format(x) for x in vector])
-        print("{}\t{}".format(word, formatted_vector))
+        print("{}\t{}".format(word, formatted_vector), file=args.output_file)
 
     log("Done")
 
