@@ -9,6 +9,7 @@ import datetime
 
 import flask
 from flask import Flask, request, Response, render_template
+import numpy as np
 
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.experiment import Experiment
@@ -68,6 +69,15 @@ def post_request():
         except Exception as exc:
             response_data = {"error": str(exc)}
             code = 400
+
+    # take care of tensors returned by tensor runner
+    for key, value in response_data.items():
+        if isinstance(value[0], dict):
+            new_value = [
+                {k: v.tolist() for k, v in val.items()} for val in value]
+            response_data[key] = new_value
+        if isinstance(value[0], np.ndarray):
+            response_data[key] = [x.tolist() for x in value]
 
     response_data["duration"] = (
         datetime.datetime.now() - start_time).total_seconds()
