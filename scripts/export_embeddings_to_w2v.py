@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-"""Extract embeddings to Word2Vec format.
+"""Export embeddings to Word2Vec format.
 
 This script loads a checkpoint (only variables without the model) and extract
 embeddings from a given model part. Note that for model imported from Nematus,
@@ -41,7 +41,7 @@ def main() -> None:
     parser.add_argument(
         "--output-file", metavar="OUTPUT", default=sys.stdout,
         type=argparse.FileType('w'), required=False,
-        help="Output file in Word2Vec format.")
+        help="Output file in Word2Vec format, STDOUT by default.")
     parser.add_argument(
         "--vocabulary-format", type=str,
         choices=["tsv", "word_list", "nematus_json", "t2t_vocabulary"],
@@ -109,6 +109,7 @@ def main() -> None:
     for word, vector in zip(vocabulary.index_to_word, embeddings):
         formatted_vector = "\t".join(["{:.8f}".format(x) for x in vector])
         print("{}\t{}".format(word, formatted_vector), file=args.output_file)
+    args.output_file.close()
 
     log("Done")
 
