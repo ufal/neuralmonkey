@@ -48,7 +48,8 @@ class ClassSymbol(object):
                 # if the problem is really importing the module
                 if exc.name == module_name:  # type: ignore
                     raise Exception(
-                        "Cannot import module {}.".format(module_name))
+                        "Cannot import module {}.".format(module_name)
+                    ) from None
                 else:
                     raise
 
@@ -57,7 +58,8 @@ class ClassSymbol(object):
         except AttributeError as exc:
             raise Exception(("Interpretation '{}' as type name, class '{}' "
                              "does not exist. Did you mean file './{}'? \n{}")
-                            .format(self.clazz, class_name, self.clazz, exc))
+                            .format(self.clazz, class_name, self.clazz, exc)
+                           ) from None
         return clazz
 
 
@@ -173,7 +175,7 @@ def instantiate_class(name: str,
         # try to bound the arguments to the signature
         bounded_params = construct_sig.bind(**arguments)
     except TypeError as exc:
-        raise ConfigBuildException(clazz, exc)
+        raise ConfigBuildException(clazz, exc) from None
 
     debug("Instantiating class {} with arguments {}".format(clazz, arguments),
           "configBuild")
@@ -205,7 +207,8 @@ def build_config(config_dicts: Dict[str, Any],
         a dictionary mapping section names to objects.
     """
     if "main" not in config_dicts:
-        raise Exception("Configuration does not contain the main block.")
+        raise Exception(
+            "Configuration does not contain the main block.") from None
 
     existing_objects = collections.OrderedDict()  # type: Dict[str, Any]
 

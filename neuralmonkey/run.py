@@ -96,6 +96,7 @@ def main() -> None:
 
     test_datasets = Configuration()
     test_datasets.add_argument("test_datasets")
+    test_datasets.add_argument("batch_size", cond=lambda x: x > 0)
     test_datasets.add_argument("variables", cond=lambda x: isinstance(x, list))
 
     CONFIG.load_file(args.config)
@@ -133,7 +134,9 @@ def main() -> None:
 
             dataset = dataset.subset(start, length)
 
-        if CONFIG.model.runners_batch_size is None:
+        if datasets_model.batch_size is not None:
+            runners_batch_size = datasets_model.batch_size
+        elif CONFIG.model.runners_batch_size is None:
             runners_batch_size = CONFIG.model.batch_size
         else:
             runners_batch_size = CONFIG.model.runners_batch_size

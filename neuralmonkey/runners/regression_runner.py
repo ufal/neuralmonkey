@@ -46,7 +46,7 @@ class RegressionRunExecutable(Executable):
             predictions = self._postprocess(predictions)
 
         self.result = ExecutionResult(
-            outputs=predictions.tolist(),
+            outputs=predictions,
             losses=[mse_loss],
             scalar_summaries=None,
             histogram_summaries=None,
@@ -60,7 +60,7 @@ class RegressionRunner(BaseRunner[SequenceRegressor]):
                  output_series: str,
                  decoder: SequenceRegressor,
                  postprocess: Postprocessor = None) -> None:
-        check_argument_types()
+        #check_argument_types()
         BaseRunner[SequenceRegressor].__init__(self, output_series, decoder)
 
         self._postprocess = postprocess

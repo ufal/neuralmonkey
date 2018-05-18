@@ -424,5 +424,5 @@ class Decoder(AutoregressiveDecoder):
 
             attn_obj.finalize_loop(att_history_key, att_state)
 
-            if not train_mode:
-                attn_obj.visualize_attention(att_history_key)
+            #if not train_mode:
+            #    attn_obj.visualize_attention(att_history_key)

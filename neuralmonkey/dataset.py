@@ -235,7 +235,7 @@ class LazyDataset(Dataset):
 
         for series_name, (paths, _) in series_paths_and_readers.items():
             for path in paths:
-                if not os.path.isfile(path):
+                if not os.path.exists(path):
                     raise FileNotFoundError(
                         "File not found. Series: {}, Path: {}"
                         .format(series_name, path))

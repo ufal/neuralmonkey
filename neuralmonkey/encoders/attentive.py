@@ -3,6 +3,7 @@ from typing import Set, cast
 import tensorflow as tf
 from typeguard import check_argument_types
 
+from neuralmonkey.tf_utils import get_variable
 from neuralmonkey.model.stateful import TemporalStatefulWithOutput
 from neuralmonkey.model.model_part import ModelPart, FeedDict, InitializerSpecs
 from neuralmonkey.nn.utils import dropout
@@ -34,12 +35,13 @@ class AttentiveEncoder(ModelPart, TemporalStatefulWithOutput):
                  num_heads: int,
                  output_size: int = None,
                  state_proj_size: int = None,
+                 use_embedding_bias: bool = False,
                  dropout_keep_prob: float = 1.0,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None,
                  initializers: InitializerSpecs = None) -> None:
         """Initialize an instance of the encoder."""
-        check_argument_types()
+        #check_argument_types()
         ModelPart.__init__(self, name, save_checkpoint, load_checkpoint,
                            initializers)
 
@@ -48,6 +50,7 @@ class AttentiveEncoder(ModelPart, TemporalStatefulWithOutput):
         self.num_heads = num_heads
         self.output_size = output_size
         self.state_proj_size = state_proj_size
+        self.use_embedding_bias = use_embedding_bias
         self.dropout_keep_prob = dropout_keep_prob
 
         if self.dropout_keep_prob <= 0.0 or self.dropout_keep_prob > 1.0:
@@ -81,12 +84,21 @@ class AttentiveEncoder(ModelPart, TemporalStatefulWithOutput):
 
     @tensor
     def temporal_states(self) -> tf.Tensor:
-        states = self._attention_states_dropped
+        att_states = self._attention_states_dropped
         if self.state_proj_size is not None:
-            states = tf.layers.dense(states, units=self.state_proj_size,
-                                     name="state_projection")
+            att_states = tf.layers.dense(
+                att_states, units=self.state_proj_size,
+                name="state_projection")
 
-        return tf.matmul(a=self.attention_weights, b=states, transpose_a=True)
+        embedding = tf.matmul(a=self.attention_weights, b=att_states,
+                              transpose_a=True)
+        if self.use_embedding_bias:
+            bias = get_variable(
+                name="embedding_bias", shape=embedding.shape[1:],
+                initializer=tf.zeros_initializer())
+            embedding += bias
+
+        return embedding
 
     @tensor
     def temporal_mask(self) -> tf.Tensor:
@@ -95,7 +107,7 @@ class AttentiveEncoder(ModelPart, TemporalStatefulWithOutput):
     @tensor
     def output(self) -> tf.Tensor:
         # pylint: disable=no-member
-        state_size = self.temporal_states.get_shape()[2].value
+        state_size = self.temporal_states.shape[2].value
         output = tf.reshape(self.temporal_states,
                             [-1, self.num_heads * state_size])
         if self.output_size is not None:
