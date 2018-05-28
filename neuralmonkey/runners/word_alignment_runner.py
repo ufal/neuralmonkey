@@ -1,4 +1,7 @@
 from typing import Dict, List, Set
+# pylint: disable=unused-import
+from typing import Optional
+# pylint: enable=unused-import
 
 import tensorflow as tf
 from typeguard import check_argument_types
@@ -18,11 +21,11 @@ class WordAlignmentRunnerExecutable(Executable):
         self._all_coders = all_coders
         self._fetches = fetches
 
-        self.result = None  # type: ExecutionResult
+        self.result = None  # type: Optional[ExecutionResult]
 
     def next_to_execute(self) -> NextExecute:
         """Get the feedables and tensors to run."""
-        return self._all_coders, self._fetches, None
+        return self._all_coders, self._fetches, []
 
     def collect_results(self, results: List[Dict]) -> None:
         self.result = ExecutionResult(

@@ -5,9 +5,7 @@ import configparser
 import os
 import re
 import time
-# pylint: disable=unused-import
-from typing import Any, Dict, Callable, Iterable, IO, List, Tuple, Optional
-# pylint: enable=unused-import
+from typing import Any, Dict, Callable, Iterable, IO, List, Tuple, Pattern
 
 from neuralmonkey.config.builder import ClassSymbol, ObjectRef
 from neuralmonkey.config.exceptions import IniError
@@ -34,6 +32,26 @@ CONSTANTS = {
 }
 
 
+def get_first_match(pattern: Pattern, string: str) -> str:
+    """Return the first matching substring.
+
+    Args:
+        pattern: The pattern to find.
+        string: The string to search.
+
+    Returns:
+        The first occurence of the pattern in the string.
+
+    Raises:
+        ValueError if the string does not match the pattern.
+    """
+    match = pattern.match(string)
+    if match is None:
+        raise ValueError("String '{}' does not match the pattern '{}'"
+                         .format(string, pattern.pattern))
+    return match.group(1)
+
+
 # this is a function because of the parse_*
 # functions which are not defined yet
 def _keyval_parser_dict() -> Dict[Any, Callable]:
@@ -41,9 +59,9 @@ def _keyval_parser_dict() -> Dict[Any, Callable]:
         INTEGER: lambda x, _: int(x),
         FLOAT: lambda x, _: float(x),
         STRING: _parse_string,
-        VAR_REF: lambda x, vars_dict: vars_dict[VAR_REF.match(x).group(1)],
+        VAR_REF: lambda x, vars_dict: vars_dict[get_first_match(VAR_REF, x)],
         CLASS_NAME: _parse_class_name,
-        OBJECT_REF: lambda x, _: ObjectRef(OBJECT_REF.match(x).group(1)),
+        OBJECT_REF: lambda x, _: ObjectRef(get_first_match(OBJECT_REF, x)),
         LIST: _parse_list,
         TUPLE: _parse_tuple
     }
@@ -73,8 +91,8 @@ def _split_on_commas(string: str) -> List[str]:
     """
 
     items = []
-    char_buffer = []  # type: List[Optional[str]]
-    openings = []  # type: List[Optional[str]]
+    char_buffer = []  # type: List[str]
+    openings = []  # type: List[str]
 
     for i, char in enumerate(string):
         if char == "," and not openings:
@@ -100,13 +118,13 @@ def _split_on_commas(string: str) -> List[str]:
 
 
 def _parse_string(string: str, vars_dict: VarsDict) -> str:
-    return STRING.match(string).group(1).format_map(vars_dict)
+    return get_first_match(STRING, string).format_map(vars_dict)
 
 
 def _parse_list(string: str, vars_dict: VarsDict) -> List[Any]:
     """Parse the string recursively as a list."""
 
-    matched_content = LIST.match(string).group(1)
+    matched_content = get_first_match(LIST, string)
     if not matched_content:
         return []
 
@@ -123,7 +141,7 @@ def _parse_list(string: str, vars_dict: VarsDict) -> List[Any]:
 def _parse_tuple(string: str, vars_dict: VarsDict) -> Tuple[Any, ...]:
     """Parse the string recursively as a tuple."""
 
-    items = _split_on_commas(TUPLE.match(string).group(1))
+    items = _split_on_commas(get_first_match(TUPLE, string))
     values = [_parse_value(val, vars_dict) for val in items]
 
     return tuple(values)
@@ -147,7 +165,7 @@ def _parse_value(string: str, vars_dict: VarsDict) -> Any:
         return CONSTANTS[string]
 
     for matcher, parser in _keyval_parser_dict().items():
-        if matcher.match(string):
+        if matcher.match(string) is not None:
             return parser(string, vars_dict)
 
     raise Exception("Cannot parse value: '{}'.".format(string)) from None
@@ -170,6 +188,10 @@ def _parse_ini(config_file: Iterable[str],
 
         for key in config[section]:
             match = LINE_NUM.match(config[section][key])
+
+            if match is None:
+                raise AssertionError("Line does not match LINE_NUM pattern.")
+
             new_config[section][key] = match.group(2), match.group(1)
 
     return new_config
@@ -194,7 +216,7 @@ def _apply_change(config_dict: Dict[str, Any], setting: str) -> None:
 
 
 def parse_file(config_file: Iterable[str],
-               changes: Optional[Iterable[str]] = None
+               changes: Iterable[str] = None
               ) -> Tuple[Dict[str, Any], Dict[str, Any]]:
     """Parse an INI file and creates all values."""
 

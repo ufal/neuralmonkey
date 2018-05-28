@@ -64,13 +64,13 @@ class Experiment(object):
         self.train_mode = train_mode
         self._config_path = config_path
 
-        self.model = None  # type: Namespace
         self.graph = tf.Graph()
         self._initializers = {}  # type: Dict[str, Callable]
         self._initialized_variables = set()  # type: Set[str]
-        self.cont_index = None
+        self.cont_index = -1
         self._model_built = False
         self._vars_loaded = False
+        self._model = None  # type: Optional[Namespace]
 
         self.config = create_config(train_mode)
         self.config.load_file(config_path, config_changes)
@@ -94,10 +94,16 @@ class Experiment(object):
                 os.mkdir(args.output)
 
         # Find how many times the experiment has been continued.
-        self.cont_index = -1
         while any(os.path.exists(self.get_path(f, self.cont_index + 1))
                   for f in _EXPERIMENT_FILES):
             self.cont_index += 1
+
+    @property
+    def model(self) -> Namespace:
+        if self._model is None:
+            raise RuntimeError("Experiment argument model not initialized")
+
+        return self._model
 
     def build_model(self) -> None:
         if self._model_built:
@@ -114,7 +120,7 @@ class Experiment(object):
             self.config.build_model(warn_unused=self.train_mode)
             type(self)._current_experiment = None
 
-            self.model = self.config.model
+            self._model = self.config.model
             self._model_built = True
 
             if self.model.runners_batch_size is None:

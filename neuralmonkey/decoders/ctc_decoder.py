@@ -1,5 +1,3 @@
-from typing import cast, Iterable, List
-
 import numpy as np
 import tensorflow as tf
 from typeguard import check_argument_types
@@ -127,8 +125,7 @@ class CTCDecoder(ModelPart):
     def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
         fd = {}  # type: FeedDict
 
-        sentences = cast(Iterable[List[str]],
-                         dataset.get_series(self.data_id, allow_none=True))
+        sentences = dataset.maybe_get_series(self.data_id)
 
         fd[self.train_mode] = train
 

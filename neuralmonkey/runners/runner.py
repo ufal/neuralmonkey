@@ -29,11 +29,11 @@ class GreedyRunExecutable(Executable):
         self._vocabulary = vocabulary
         self._postprocess = postprocess
 
-        self.result = None  # type: ExecutionResult
+        self.result = None  # type: Optional[ExecutionResult]
 
     def next_to_execute(self) -> NextExecute:
         """Get the feedables and tensors to run."""
-        return self._all_coders, self._fetches, None
+        return self._all_coders, self._fetches, []
 
     def collect_results(self, results: List[Dict]) -> None:
         train_loss = 0.

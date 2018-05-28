@@ -218,6 +218,7 @@ class EmbeddedFactorSequence(Sequence):
         if len(set(arr_strings)) > 1:
             raise ValueError("The lenghts of factors do not match")
 
+        assert last_paddings is not None
         fd[self.mask] = list(zip(*last_paddings))
 
         return fd

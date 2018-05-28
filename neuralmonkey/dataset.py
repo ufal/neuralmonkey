@@ -1,5 +1,6 @@
 """Implementation of the dataset class."""
-
+# pylint: disable=too-many-lines
+# TODO refactor Dataset and LazyDataset into two modules
 import os
 import random
 import re
@@ -7,11 +8,13 @@ import glob
 import collections
 from itertools import islice
 
-from typing import cast, Any, List, Callable, Iterable, Dict, Tuple, Union
+from typing import (cast, Any, List, Callable, Iterable, Dict, Tuple, Union,
+                    Optional)
 
 import numpy as np
 from typeguard import check_argument_types
 
+from neuralmonkey.config.parsing import get_first_match
 from neuralmonkey.logging import log, debug
 from neuralmonkey.readers.plain_text_reader import UtfPlainTextReader
 
@@ -76,7 +79,7 @@ class Dataset(collections.Sized):
         """Check lenghts of series in the dataset.
 
         Raises:
-            Exception when the lengths in the dataset do not match.
+            ValueError when the lengths in the dataset do not match.
         """
         lengths = [len(list(v)) for v in self._series.values()
                    if isinstance(v, (list, np.ndarray))]
@@ -84,8 +87,8 @@ class Dataset(collections.Sized):
         if len(set(lengths)) > 1:
             err_str = ["{}: {}".format(s, len(list(self._series[s])))
                        for s in self._series]
-            raise Exception("Lengths of data series must be equal. Instead: {}"
-                            .format(", ".join(err_str)))
+            raise ValueError("Lengths of data series must be equal. Were: {}"
+                             .format(", ".join(err_str)))
 
     def __len__(self) -> int:
         """Get the length of the dataset.
@@ -110,22 +113,29 @@ class Dataset(collections.Sized):
         """
         return name in self._series
 
-    def get_series(self, name: str, allow_none: bool = False) -> Iterable:
+    def maybe_get_series(self, name: str) -> Optional[Iterable]:
         """Get the data series with a given name.
 
         Arguments:
             name: The name of the series to fetch.
-            allow_none: If True, return None if the series does not exist.
+
+        Returns:
+            The data series or None if it does not exist.
+        """
+        return self._series.get(name, None)
+
+    def get_series(self, name: str) -> Iterable:
+        """Get the data series with a given name.
+
+        Arguments:
+            name: The name of the series to fetch.
 
         Returns:
             The data series.
 
         Raises:
-            KeyError if the series does not exists and allow_none is False
+            KeyError if the series does not exists.
         """
-        if allow_none:
-            return self._series.get(name)
-
         return self._series[name]
 
     @property
@@ -257,7 +267,34 @@ class LazyDataset(Dataset):
         return (name in self.series_paths_and_readers
                 or name in self.preprocess_series)
 
-    def get_series(self, name: str, allow_none: bool = False) -> Iterable:
+    def maybe_get_series(self, name: str) -> Optional[Iterable]:
+        """Get the data series with a given name or None if it does not exist.
+
+        This function opens a new file handle and returns a generator which
+        yields preprocessed lines from the file.
+
+        Arguments:
+            name: The name of the series to fetch.
+
+        Returns:
+            The data series or None if it does not exist.
+        """
+        if (name not in self.series_paths_and_readers
+                and name not in self.preprocess_series):
+            return None
+
+        if name in self.series_paths_and_readers:
+            paths, reader = self.series_paths_and_readers[name]
+            return reader(paths)
+        else:
+            assert name in self.preprocess_series
+            src_id, func = self.preprocess_series[name]
+            src_series = self.maybe_get_series(src_id)
+            if src_series is None:
+                return None
+            return (func(item) for item in src_series)
+
+    def get_series(self, name: str) -> Iterable:
         """Get the data series with a given name.
 
         This function opens a new file handle and returns a generator which
@@ -265,30 +302,22 @@ class LazyDataset(Dataset):
 
         Arguments:
             name: The name of the series to fetch.
-            allow_none: If True, return None if the series does not exist.
 
         Returns:
             The data series.
 
         Raises:
-            KeyError if the series does not exists and allow_none is False
+            KeyError if the series does not exist.
         """
-        if (allow_none
-                and name not in self.series_paths_and_readers
-                and name not in self.preprocess_series):
-            return None
-
         if name in self.series_paths_and_readers:
             paths, reader = self.series_paths_and_readers[name]
             return reader(paths)
         elif name in self.preprocess_series:
             src_id, func = self.preprocess_series[name]
-            src_series = self.get_series(src_id, allow_none)
-            if src_series is None:
-                return None
+            src_series = self.get_series(src_id)
             return (func(item) for item in src_series)
         else:
-            raise Exception("Series '{}' is not in the dataset.".format(name))
+            raise KeyError("Series '{}' is not in the dataset.".format(name))
 
     def shuffle(self) -> None:
         """Do nothing, not in-memory shuffle is impossible.
@@ -320,7 +349,7 @@ class LazyDataset(Dataset):
 
 
 def from_files(
-        name: str = None, lazy: bool = False,
+        name: str, lazy: bool = False,
         preprocessors: List[Tuple[str, str, Callable]] = None,
         **kwargs) -> Dataset:
     """Load a dataset from the files specified by the provided arguments.
@@ -403,7 +432,7 @@ def _get_series_paths_and_readers(
         and readers..
     """
     keys = [k for k in list(series_config.keys()) if SERIES_SOURCE.match(k)]
-    names = [SERIES_SOURCE.match(k).group(1) for k in keys]
+    names = [get_first_match(SERIES_SOURCE, k) for k in keys]
 
     series_sources = {}
     for name, key in zip(names, keys):
@@ -468,7 +497,7 @@ def _preprocessed_datasets(
             if PREPROCESSED_SERIES.match(key)]
 
     for key in keys:
-        name = PREPROCESSED_SERIES.match(key).group(1)
+        name = get_first_match(PREPROCESSED_SERIES, key)
         preprocessor = cast(DatasetPreprocess, series_config[key])
 
         if isinstance(dataset, Dataset):

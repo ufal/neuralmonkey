@@ -5,8 +5,8 @@ Either for the recurrent decoder, or for the transformer decoder.
 The autoregressive decoder uses the while loop to get the outputs.
 Descendants should only specify the initial state and the while loop body.
 """
-from typing import (NamedTuple, Callable, Tuple, cast, Iterable, Type,
-                    List, Optional, Any)
+from typing import (
+    NamedTuple, Callable, Tuple, cast, Type, List, Optional, Any)
 
 import numpy as np
 import tensorflow as tf
@@ -184,6 +184,8 @@ class AutoregressiveDecoder(ModelPart):
         """
         if self.embeddings_source is not None:
             return self.embeddings_source.embedding_matrix
+
+        assert self.embedding_size is not None
 
         return get_variable(
             name="word_embeddings",
@@ -406,14 +408,11 @@ class AutoregressiveDecoder(ModelPart):
             dataset: The dataset to use for the decoder.
             train: Boolean flag, telling whether this is a training run.
         """
-        sentences = cast(Iterable[List[str]],
-                         dataset.get_series(self.data_id, allow_none=True))
+        sentences = dataset.maybe_get_series(self.data_id)
 
         if sentences is None and train:
             raise ValueError("When training, you must feed "
                              "reference sentences")
-
-        sentences_list = list(sentences) if sentences is not None else None
 
         fd = {}  # type: FeedDict
         fd[self.train_mode] = train
@@ -423,6 +422,7 @@ class AutoregressiveDecoder(ModelPart):
                                       dtype=np.int32)
 
         if sentences is not None:
+            sentences_list = list(sentences)
             # train_mode=False, since we don't want to <unk>ize target words!
             inputs, weights = self.vocabulary.sentences_to_tensor(
                 sentences_list, self.max_output_len, train_mode=False,

@@ -144,7 +144,7 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
                 "If provided, the target space ID should be between 0 and 31. "
                 "Was: {}".format(self.target_space_id))
 
-        if (input_for_cross_attention is None) ^ (n_cross_att_heads is None):
+        if (input_for_cross_attention is None) != (n_cross_att_heads is None):
             raise ValueError(
                 "Either both input_for_cross_attention and n_cross_att_heads "
                 "must be provided or none of them.")
@@ -229,6 +229,9 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
 
     def cross_attention_sublayer(self, queries: tf.Tensor) -> tf.Tensor:
         assert self.cross_attention_sublayer is not None
+        assert self.n_cross_att_heads is not None
+        assert self.input_for_cross_attention is not None
+
         encoder_att_states = get_attention_states(
             self.input_for_cross_attention)
         encoder_att_mask = get_attention_mask(self.input_for_cross_attention)

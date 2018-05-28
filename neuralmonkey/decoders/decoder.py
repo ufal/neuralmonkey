@@ -120,31 +120,33 @@ class Decoder(AutoregressiveDecoder):
             initializers=initializers)
 
         self.encoders = encoders
-        self.rnn_size = rnn_size
         self.output_projection_spec = output_projection
-        self.encoder_projection = encoder_projection
-        self.attentions = attentions
         self._conditional_gru = conditional_gru
         self._attention_on_input = attention_on_input
         self._rnn_cell_str = rnn_cell
 
-        if self.attentions is None:
-            self.attentions = []
+        self.attentions = []  # type: List[BaseAttention]
+        if attentions is not None:
+            self.attentions = attentions
 
-        if self.encoder_projection is None:
-            if not self.encoders:
-                log("No direct encoder input. Using empty initial state")
-                self.encoder_projection = empty_initial_state
-            elif rnn_size is None:
-                log("No rnn_size or encoder_projection: Using concatenation of"
-                    " encoded states")
-                self.encoder_projection = concat_encoder_projection
-                self.rnn_size = sum(e.output.get_shape()[1].value
-                                    for e in encoders)
-            else:
-                log("Using linear projection of encoders as the initial state")
-                self.encoder_projection = linear_encoder_projection(
-                    self.dropout_keep_prob)
+        if rnn_size is not None:
+            self.rnn_size = rnn_size
+
+        if encoder_projection is not None:
+            self.encoder_projection = encoder_projection
+        elif not self.encoders:
+            log("No direct encoder input. Using empty initial state")
+            self.encoder_projection = empty_initial_state
+        elif rnn_size is None:
+            log("No rnn_size or encoder_projection: Using concatenation of"
+                " encoded states")
+            self.encoder_projection = concat_encoder_projection
+            self.rnn_size = sum(e.output.get_shape()[1].value
+                                for e in encoders)
+        else:
+            log("Using linear projection of encoders as the initial state")
+            self.encoder_projection = linear_encoder_projection(
+                self.dropout_keep_prob)
 
         assert self.rnn_size is not None
 

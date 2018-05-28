@@ -1,4 +1,4 @@
-from typing import Callable, Iterable, List, Optional
+from typing import Callable, Iterable, List
 import os
 from typeguard import check_argument_types
 import numpy as np
@@ -6,9 +6,9 @@ from PIL import Image, ImageFile
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 
-def image_reader(prefix="",
-                 pad_w: Optional[int] = None,
-                 pad_h: Optional[int] = None,
+def image_reader(pad_w: int,
+                 pad_h: int,
+                 prefix: str = "",
                  rescale_w: bool = False,
                  rescale_h: bool = False,
                  keep_aspect_ratio: bool = False,
@@ -16,9 +16,9 @@ def image_reader(prefix="",
     """Get a reader of images loading them from a list of pahts.
 
     Args:
-        prefix: Prefix of the paths that are listed in a image files.
         pad_w: Width to which the images will be padded/cropped/resized.
         pad_h: Height to with the images will be padded/corpped/resized.
+        prefix: Prefix of the paths that are listed in a image files.
         rescale_w: If true, image is rescaled to have given width. It is
             cropped/padded otherwise.
         rescale_h: If true, image is rescaled to have given height. It is
@@ -33,7 +33,6 @@ def image_reader(prefix="",
         provided prefix) and returns a list of images as numpy arrays of shape
         pad_h x pad_w x number of channels.
     """
-
     check_argument_types()
     if not rescale_w and not rescale_h and keep_aspect_ratio:
         raise ValueError(
