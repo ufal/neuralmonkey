@@ -155,6 +155,8 @@ def from_nematus_json(path: str, max_size: int = None,
         path: Path to the file.
         max_size: Maximum vocabulary size including 'unk' and 'eos' symbols,
             but not including <pad> and <s> symbol.
+        pad_to_max_size: If specified, the vocabulary is padded with dummy
+            symbols up to the specified maximum size.
     """
     with open(path, "r", encoding="utf-8") as f_json:
         contents = json.load(f_json)
@@ -164,10 +166,13 @@ def from_nematus_json(path: str, max_size: int = None,
         if contents[word] < 2:
             continue
         vocabulary.add_word(word)
-        if len(vocabulary) == max_size:
+        if max_size is not None and len(vocabulary) == max_size:
             break
 
-    if pad_to_max_size:
+    if max_size is None:
+        max_size = len(vocabulary) - 2  # the "2" is ugly HACK
+
+    if pad_to_max_size and max_size is not None:
         current_length = len(vocabulary)
         for i in range(max_size - current_length + 2):  # the "2" is ugly HACK
             word = "<pad_{}>".format(i)
@@ -213,8 +218,8 @@ def from_dataset(datasets: List[Dataset], series_ids: List[str], max_size: int,
                 warn("Data series '{}' not present in the dataset"
                      .format(series_id))
 
-            series = dataset.get_series(series_id, allow_none=True)
-            if series:
+            series = dataset.maybe_get_series(series_id)
+            if series is not None:
                 vocabulary.add_tokenized_text(
                     [token for sent in series for token in sent])
 

@@ -34,10 +34,13 @@ class GenericTrainer(object):
 
         if var_collection is None:
             var_collection = tf.GraphKeys.TRAINABLE_VARIABLES
+
         if var_scopes is None:
-            var_scopes = [None]
-        var_lists = [tf.get_collection(var_collection, scope)
-                     for scope in var_scopes]
+            var_lists = [tf.get_collection(var_collection)]
+        else:
+            var_lists = [tf.get_collection(var_collection, scope)
+                         for scope in var_scopes]
+
         # Flatten the list of lists
         self.var_list = [var for var_list in var_lists for var in var_list]
 

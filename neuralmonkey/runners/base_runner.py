@@ -1,5 +1,5 @@
 from typing import (Any, Dict, Tuple, List, NamedTuple, Union, Set, TypeVar,
-                    Generic)
+                    Generic, Optional)
 import numpy as np
 import tensorflow as tf
 
@@ -46,7 +46,7 @@ class BaseRunner(Generic[MP]):
         raise NotImplementedError()
 
     @property
-    def decoder_data_id(self) -> str:
+    def decoder_data_id(self) -> Optional[str]:
         return getattr(self._decoder, "data_id", None)
 
     @property

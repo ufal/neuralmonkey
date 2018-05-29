@@ -1,4 +1,4 @@
-from typing import cast, Callable, Iterable, Optional, List
+from typing import Callable, Optional, List
 
 import tensorflow as tf
 
@@ -126,16 +126,12 @@ class Classifier(ModelPart):
         return self.decoded_seq
 
     def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
-        sentences = cast(Iterable[List[str]],
-                         dataset.get_series(self.data_id, allow_none=True))
-
-        sentences_list = list(sentences) if sentences is not None else None
-
         fd = {}  # type: FeedDict
+        sentences = dataset.maybe_get_series(self.data_id)
 
         if sentences is not None:
             label_tensors, _ = self.vocabulary.sentences_to_tensor(
-                sentences_list, self.max_output_len)
+                list(sentences), self.max_output_len)
 
             # pylint: disable=unsubscriptable-object
             fd[self.gt_inputs[0]] = label_tensors[0]

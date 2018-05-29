@@ -27,11 +27,11 @@ class LogitsExecutable(Executable):
         self._normalize = normalize
         self._pick_index = pick_index
 
-        self.result = None  # type: ExecutionResult
+        self.result = None  # type: Optional[ExecutionResult]
 
     def next_to_execute(self) -> NextExecute:
         """Get the feedables and tensors to run."""
-        return self._all_coders, self._fetches, None
+        return self._all_coders, self._fetches, []
 
     def collect_results(self, results: List[Dict]) -> None:
         if len(results) != 1:
@@ -103,6 +103,8 @@ class LogitsRunner(BaseRunner[Classifier]):
         if pick_index is not None and pick_value is not None:
             raise ValueError("Either a pick index or a vocabulary value can "
                              "be specified, not both at the same time.")
+
+        self._pick_index = None  # type: Optional[int]
 
         self._normalize = normalize
         if pick_value is not None:

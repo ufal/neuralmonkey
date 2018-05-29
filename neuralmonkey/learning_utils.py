@@ -251,14 +251,11 @@ def training_loop(tf_manager: TensorFlowManager,
                                         tf_manager.best_score_batch),
                                 color="blue")
 
-                        if len(val_datasets) > 1:
-                            valset_name = valset.name
-                        else:
-                            valset_name = None
+                        v_name = valset.name if len(val_datasets) > 1 else None
                         _log_continuous_evaluation(
                             tb_writer, main_metric, val_evaluation,
                             seen_instances, epoch_n, epochs, val_results,
-                            train=False, dataset_name=valset_name)
+                            train=False, dataset_name=v_name)
 
                     # how long was the training between validations
                     training_duration = val_duration_start - last_val_time
@@ -289,15 +286,15 @@ def training_loop(tf_manager: TensorFlowManager,
     if test_datasets:
         tf_manager.restore_best_vars()
 
-    for dataset in test_datasets:
-        test_results, test_outputs = run_on_dataset(
-            tf_manager, runners, dataset, postprocess,
-            write_out=True, batch_size=runners_batch_size)
-        # ensure test outputs are iterable more than once
-        test_outputs = {k: list(v) for k, v in test_outputs.items()}
-        eval_result = evaluation(evaluators, dataset, runners,
-                                 test_results, test_outputs)
-        print_final_evaluation(dataset.name, eval_result)
+        for dataset in test_datasets:
+            test_results, test_outputs = run_on_dataset(
+                tf_manager, runners, dataset, postprocess,
+                write_out=True, batch_size=runners_batch_size)
+            # ensure test outputs are iterable more than once
+            test_outputs = {k: list(v) for k, v in test_outputs.items()}
+            eval_result = evaluation(evaluators, dataset, runners,
+                                     test_results, test_outputs)
+            print_final_evaluation(dataset.name, eval_result)
 
     log("Finished.")
 
@@ -675,6 +672,8 @@ def _log_model_variables(var_list: List[tf.Variable] = None) -> None:
     trainable_vars = tf.trainable_variables()
     if not var_list:
         var_list = trainable_vars
+
+    assert var_list is not None
     fixed_vars = [var for var in trainable_vars if var not in var_list]
 
     total_params = 0

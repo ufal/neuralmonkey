@@ -25,7 +25,7 @@ in the decoder when its own ``tf.while_loop`` function is used - this is not
 the case when using beam search because we want to run the decoder's steps
 manually.
 """
-from typing import NamedTuple, List, Callable, Any
+from typing import NamedTuple, List, Callable, Any, Optional
 
 import tensorflow as tf
 from typeguard import check_argument_types
@@ -34,7 +34,8 @@ from neuralmonkey.model.model_part import ModelPart, FeedDict, InitializerSpecs
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.decoders.autoregressive import (
     LoopState, AutoregressiveDecoder)
-from neuralmonkey.vocabulary import (END_TOKEN_INDEX, PAD_TOKEN_INDEX)
+from neuralmonkey.vocabulary import (
+    Vocabulary, END_TOKEN_INDEX, PAD_TOKEN_INDEX)
 from neuralmonkey.decorators import tensor
 
 # pylint: disable=invalid-name
@@ -107,35 +108,35 @@ class BeamSearchDecoder(ModelPart):
         self.max_output_len = max_steps
 
         # Feedables
-        self._search_state = None  # type: SearchState
-        self._decoder_state = None  # type: NamedTuple
+        self._search_state = None  # type: Optional[SearchState]
+        self._decoder_state = None  # type: Optional[NamedTuple]
 
         # Output
         self.outputs = self._decoding_loop()
     # pylint: enable=too-many-arguments
 
     @property
-    def batch_size(self):
+    def batch_size(self) -> tf.Tensor:
         return self.parent_decoder.batch_size
 
     @property
-    def beam_size(self):
+    def beam_size(self) -> int:
         return self._beam_size
 
     @property
-    def vocabulary(self):
+    def vocabulary(self) -> Vocabulary:
         return self.parent_decoder.vocabulary
 
     @tensor
-    def search_state(self):
+    def search_state(self) -> Optional[SearchState]:
         return self._search_state
 
     @tensor
-    def decoder_state(self):
+    def decoder_state(self) -> Optional[NamedTuple]:
         return self._decoder_state
 
     @tensor
-    def max_steps(self):
+    def max_steps(self) -> int:
         return self._max_steps
 
     def get_initial_loop_state(self) -> BeamSearchLoopState:

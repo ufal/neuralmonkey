@@ -43,7 +43,7 @@ class BeamSearchExecutable(Executable):
             for fd in self._next_feed:
                 fd.update({self._decoder.max_steps: 0})
 
-        self.result = None  # type: ExecutionResult
+        self.result = None  # type: Optional[ExecutionResult]
 
     def next_to_execute(self) -> NextExecute:
         return (self._all_coders,

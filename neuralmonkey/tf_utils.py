@@ -1,12 +1,13 @@
 """A set of helper functions for TensorFlow."""
 from typing import Callable, Iterable, List, Optional, Tuple
-# pylint: disable=unused-import
-from typing import Dict, Set
-# pylint: enable=unused-import
 import numpy as np
 import tensorflow as tf
 
 from neuralmonkey.logging import debug, debug_enabled
+
+# pylint: disable=invalid-name
+ShapeSpec = List[int]
+# pylint: enable=invalid-name
 
 
 def _get_current_experiment():
@@ -32,7 +33,7 @@ def get_initializer(var_name: str,
 
 
 def get_variable(name: str,
-                 shape: List[Optional[int]] = None,
+                 shape: ShapeSpec = None,
                  dtype: tf.DType = None,
                  initializer: Callable = None,
                  **kwargs) -> tf.Variable:

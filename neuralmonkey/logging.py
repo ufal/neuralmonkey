@@ -19,7 +19,7 @@ class Logging(object):
         os.environ.get("NEURALMONKEY_DEBUG_ENABLE", "none")]  # type: List[str]
     debug_disabled_for = [
         os.environ.get("NEURALMONKEY_DEBUG_DISABLE", "")]  # type: List[str]
-    strict_mode = os.environ.get("NEURALMONKEY_STRICT")  # type: str
+    strict_mode = os.environ.get("NEURALMONKEY_STRICT", "")  # type: str
 
     @staticmethod
     def _get_time() -> str:

@@ -48,6 +48,7 @@ class TestDataset(unittest.TestCase):
                     print(text, file=file)
 
             dataset = from_files(
+                name="dataset",
                 s_data=[os.path.join(tmp_dir, "abc?"),
                         os.path.join(tmp_dir, "xyz*")])
 

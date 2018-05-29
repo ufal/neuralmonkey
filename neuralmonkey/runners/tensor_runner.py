@@ -1,4 +1,4 @@
-from typing import Dict, List
+from typing import Dict, List, Set, Optional
 
 import numpy as np
 import tensorflow as tf
@@ -7,20 +7,25 @@ from typeguard import check_argument_types
 from neuralmonkey.logging import log, warn
 from neuralmonkey.model.model_part import ModelPart
 from neuralmonkey.runners.base_runner import (
-    BaseRunner, Executable, ExecutionResult, NextExecute)
+    BaseRunner, Executable, ExecutionResult, NextExecute, FeedDict)
 
 
 class TensorExecutable(Executable):
 
-    def __init__(self, all_coders, fetches, batch_dims, select_session):
+    def __init__(self,
+                 all_coders: Set[ModelPart],
+                 fetches: FeedDict,
+                 batch_dims: Dict[str, int],
+                 select_session: Optional[int]) -> None:
         self._all_coders = all_coders
         self._fetches = fetches
         self._batch_dims = batch_dims
         self._select_session = select_session
-        self.result = None
+
+        self.result = None  # type: Optional[ExecutionResult]
 
     def next_to_execute(self) -> NextExecute:
-        return self._all_coders, self._fetches, None
+        return self._all_coders, self._fetches, []
 
     def collect_results(self, results: List[Dict]) -> None:
         if len(results) > 1 and self._select_session is None:

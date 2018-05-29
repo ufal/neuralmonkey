@@ -1,4 +1,4 @@
-from typing import Dict, List, Set, Callable
+from typing import Dict, List, Set, Callable, Optional
 
 import numpy as np
 import tensorflow as tf
@@ -19,16 +19,16 @@ class RegressionRunExecutable(Executable):
     def __init__(self,
                  all_coders: Set[ModelPart],
                  fetches: Dict[str, tf.Tensor],
-                 postprocess: Postprocessor) -> None:
+                 postprocess: Optional[Postprocessor]) -> None:
         self._all_coders = all_coders
         self._fetches = fetches
         self._postprocess = postprocess
 
-        self.result = None  # type: ExecutionResult
+        self.result = None  # type: Optional[ExecutionResult]
 
     def next_to_execute(self) -> NextExecute:
         """Get the feedables and tensors to run."""
-        return self._all_coders, self._fetches, None
+        return self._all_coders, self._fetches, []
 
     def collect_results(self, results: List[Dict]) -> None:
         predictions_sum = np.zeros_like(results[0]["prediction"])

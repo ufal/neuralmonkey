@@ -1,4 +1,7 @@
 from typing import Dict, List, Set
+# pylint: disable=unused-import
+from typing import Optional
+# pylint: enable=unused-import
 
 from typeguard import check_argument_types
 import tensorflow as tf
@@ -17,11 +20,11 @@ class PerplexityExecutable(Executable):
         self._all_coders = all_coders
         self._xent_op = xent_op
 
-        self.result = None  # type: ExecutionResult
+        self.result = None  # type: Optional[ExecutionResult]
 
     def next_to_execute(self) -> NextExecute:
         """Get the feedables and tensors to run."""
-        return self._all_coders, {"xents": self._xent_op}, None
+        return self._all_coders, {"xents": self._xent_op}, []
 
     def collect_results(self, results: List[Dict]) -> None:
         perplexities = np.mean([2 ** res["xents"] for res in results], axis=0)

@@ -94,7 +94,7 @@ class WordAlignmentDecoder(ModelPart):
     def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
         fd = {}
 
-        alignment = dataset.get_series(self.data_id, allow_none=True)
+        alignment = dataset.maybe_get_series(self.data_id)
         if alignment is None:
             if train:
                 warn("Training alignment not present!")

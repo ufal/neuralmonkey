@@ -1,4 +1,4 @@
-from typing import Dict, List, Set, Union, Callable
+from typing import Dict, List, Set, Union, Callable, Optional
 
 import tensorflow as tf
 from typeguard import check_argument_types
@@ -26,18 +26,18 @@ class PlainExecutable(Executable):
                  fetches: FeedDict,
                  num_sessions: int,
                  vocabulary: Vocabulary,
-                 postprocess: Postprocessor) -> None:
+                 postprocess: Optional[Postprocessor]) -> None:
         self._all_coders = all_coders
         self._fetches = fetches
         self._num_sessions = num_sessions
         self._vocabulary = vocabulary
         self._postprocess = postprocess
 
-        self.result = None  # type: ExecutionResult
+        self.result = None  # type: Optional[ExecutionResult]
 
     def next_to_execute(self) -> NextExecute:
         """Get the feedables and tensors to run."""
-        return self._all_coders, self._fetches, None
+        return self._all_coders, self._fetches, []
 
     def collect_results(self, results: List[Dict]) -> None:
         if len(results) != 1:

@@ -46,6 +46,11 @@ class SentenceEncoder(ModelPart, TemporalStatefulWithOutput):
             raise ValueError(
                 "Number of encoder layers must be a positive integer.")
 
+        if self.input_sequence.max_length is None:
+            raise ValueError("Input sequence must have a maximum length for "
+                             "positional embeddings with this encoder")
+        self.max_input_length = self.input_sequence.max_length
+
         log("Initializing convolutional seq2seq encoder, name {}"
             .format(self.name))
     # pylint: enable=too-many-arguments
@@ -81,7 +86,7 @@ class SentenceEncoder(ModelPart, TemporalStatefulWithOutput):
         # initialization in the same way as in original CS2S implementation
         with tf.variable_scope("input_projection"):
             return get_variable(
-                "order_embeddings", [self.input_sequence.max_length,
+                "order_embeddings", [self.max_input_length,
                                      self.input_sequence.embedding_sizes[0]],
                 initializer=tf.glorot_normal_initializer())
 

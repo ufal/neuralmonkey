@@ -107,9 +107,15 @@ class TensorFlowManager(object):
         self.best_score = init_score
 
         self.variables_files = []  # type: List[str]
-        self.best_vars_file = None  # type: str
-
+        self._best_vars_file = None  # type: Optional[str]
     # pylint: enable=too-many-arguments
+
+    @property
+    def best_vars_file(self) -> str:
+        if self._best_vars_file is None:
+            raise RuntimeError("Saving not initialized yet.")
+
+        return self._best_vars_file
 
     def _is_better(self, score1: float, score2: float) -> bool:
         if self.minimize_metric:
@@ -136,7 +142,7 @@ class TensorFlowManager(object):
             self.variables_files = ["{}.{}".format(vars_prefix, i)
                                     for i in range(self.saver_max_to_keep)]
 
-        self.best_vars_file = "{}.best".format(vars_prefix)
+        self._best_vars_file = "{}.best".format(vars_prefix)
         self._update_best_vars(var_index=0)
 
     def validation_hook(self, score: float, epoch: int, batch: int) -> None:

@@ -49,7 +49,7 @@ class TransformerDecoder(AutoregressiveDecoder):
                  n_heads_self: int,
                  n_heads_enc: int,
                  depth: int,
-                 max_output_len: int = None,
+                 max_output_len: int,
                  dropout_keep_prob: float = 1.0,
                  embedding_size: int = None,
                  embeddings_source: EmbeddedSequence = None,

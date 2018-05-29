@@ -1,4 +1,4 @@
-from typing import cast, Iterable, List, Optional, Union
+from typing import Optional, Union
 
 import tensorflow as tf
 
@@ -130,12 +130,9 @@ class SequenceLabeler(ModelPart):
 
     def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
         fd = {}  # type: FeedDict
-
-        sentences = cast(Iterable[List[str]],
-                         dataset.get_series(self.data_id, allow_none=True))
-
         fd[self.train_mode] = train
 
+        sentences = dataset.maybe_get_series(self.data_id)
         if sentences is not None:
             vectors, paddings = self.vocabulary.sentences_to_tensor(
                 list(sentences), pad_to_max_len=False, train_mode=train)
