@@ -9,15 +9,15 @@ class RougeEvaluator(object):
 
     def __init__(
             self, rouge_type: str,
-            name: str = "MeanSquaredError") -> None:
+            name: str = "ROUGE") -> None:
 
-        if rouge_type not in ["1", "2", "l"]:
+        if rouge_type.lower() not in ["1", "2", "l"]:
             raise ValueError(
                 ("Invalid type of rouge metric '{}', "
                  "must be '1', '2' or 'L'").format(rouge_type))
 
         self.name = name
-        self.rouge_type = rouge_type
+        self.rouge_type = rouge_type.lower()
         self.rouge = rouge.Rouge()
 
     def __call__(self,
