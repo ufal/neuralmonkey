@@ -163,18 +163,31 @@ class BeamSearchDecoder(ModelPart):
         # the beam. We need to access all the inner states of the network in
         # the graph, replace them with beam-size-times copied originals, create
         # the beam search graph, and then replace the inner states back.
-        has_encoder = (hasattr(self.parent_decoder, "encoder_states")
-                       and hasattr(self.parent_decoder, "encoder_mask"))
+        has_single_encoder = (hasattr(self.parent_decoder, "encoder_states")
+                              and hasattr(self.parent_decoder, "encoder_mask"))
 
-        if has_encoder:
-            enc_states = self.parent_decoder.encoder_states
-            enc_mask = self.parent_decoder.encoder_mask
+        has_more_encoders = (hasattr(self.parent_decoder, "encoder_states")
+                             and hasattr(self.parent_decoder, "encoder_masks"))
 
-        if has_encoder and enc_states is not None and enc_mask is not None:
-            setattr(self.parent_decoder, "encoder_states",
-                    self.expand_to_beam(enc_states))
-            setattr(self.parent_decoder, "encoder_mask",
-                    self.expand_to_beam(enc_mask))
+        if has_single_encoder:
+            enc_states = getattr(self.parent_decoder, "encoder_states")
+            enc_masks = getattr(self.parent_decoder, "encoder_mask")
+
+            if enc_states is not None and enc_masks is not None:
+                setattr(self.parent_decoder, "encoder_states",
+                        self.expand_to_beam(enc_states))
+                setattr(self.parent_decoder, "encoder_mask",
+                        self.expand_to_beam(enc_masks))
+
+        elif has_more_encoders:
+            enc_states = getattr(self.parent_decoder, "encoder_states")
+            enc_masks = getattr(self.parent_decoder, "encoder_masks")
+
+            if enc_states is not None and enc_masks is not None:
+                setattr(self.parent_decoder, "encoder_states",
+                        [self.expand_to_beam(e) for e in enc_states])
+                setattr(self.parent_decoder, "encoder_mask",
+                        [self.expand_to_beam(m) for m in enc_masks])
 
         # Create the beam search symbolic graph.
         with self.use_scope():
@@ -182,9 +195,13 @@ class BeamSearchDecoder(ModelPart):
             self.outputs = self.decoding_loop()
 
         # Reassign the original encoder states and mask back
-        if has_encoder:
+        if has_single_encoder:
             setattr(self.parent_decoder, "encoder_states", enc_states)
-            setattr(self.parent_decoder, "encoder_mask", enc_mask)
+            setattr(self.parent_decoder, "encoder_mask", enc_masks)
+
+        elif has_more_encoders:
+            setattr(self.parent_decoder, "encoder_states", enc_states)
+            setattr(self.parent_decoder, "encoder_masks", enc_masks)
 
     @property
     def vocabulary(self) -> Vocabulary:

@@ -145,7 +145,7 @@ class AutoregressiveDecoder(ModelPart):
         self.encoder_states = None  # type: Optional[tf.Tensor]
         self.encoder_mask = None  # type: Optional[tf.Tensor]
 
-        # check the values of the parameters (max_output_len, ...)
+        # Check the values of the parameters (max_output_len, ...)
         if max_output_len <= 0:
             raise ValueError("Maximum sequence length must be "
                              "a positive integer.")
