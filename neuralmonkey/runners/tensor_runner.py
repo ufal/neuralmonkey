@@ -134,8 +134,8 @@ class TensorRunner(BaseRunner[ModelPart]):
         for tensor in toplevel_tensors:
             log("Toplevel tensor: {}".format(tensor))
 
-        self._fetches = {}
-        self._batch_ids = {}
+        self._fetches = {}  # type: Dict[str, tf.Tensor]
+        self._batch_ids = {}  # type: Dict[str, int]
 
         for name, bid in zip(self._names, self._batch_dims_name):
             try:

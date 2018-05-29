@@ -97,18 +97,28 @@ class BeamSearchDecoder(ModelPart):
         self._beam_size = beam_size
         self._length_normalization = length_normalization
 
-        if (hasattr(self.parent_decoder, "encoder_states")
-                and self.parent_decoder.encoder_states is not None):
-            enc_states = self.parent_decoder.encoder_states
-            enc_states_shape = tf.shape(enc_states)
-            self.parent_decoder.encoder_states = tf.reshape(
-                tf.tile(enc_states, [1, self.beam_size, 1]),
-                [-1, enc_states_shape[1], enc_states.shape[2]])  # type: ignore
-            enc_mask = self.parent_decoder.encoder_mask
-            enc_mask_shape = tf.shape(enc_mask)
-            self.parent_decoder.encoder_mask = tf.reshape(
-                tf.tile(enc_mask, [1, self.beam_size]),
-                [-1, enc_mask_shape[1]])
+        has_encoder = (hasattr(self.parent_decoder, "encoder_states")
+                       and hasattr(self.parent_decoder, "encoder_masks"))
+
+        if has_encoder:
+            enc_states = getattr(self.parent_decoder, "encoder_states")
+            enc_masks = getattr(self.parent_decoder, "encoder_masks")
+
+        if has_encoder and enc_states is not None and enc_masks is not None:
+            enc_states_shapes = [tf.shape(e) for e in enc_states]
+            enc_mask_shapes = [tf.shape(m) for m in enc_masks]
+
+            new_states = [
+                tf.reshape(tf.tile(state, [1, self.beam_size, 1]),
+                           [-1, shape[1], state.shape[2]])
+                for state, shape in zip(enc_states, enc_states_shapes)]
+
+            new_masks = [
+                tf.reshape(tf.tile(mask, [1, self.beam_size]), [-1, shape[1]])
+                for mask, shape in zip(enc_masks, enc_mask_shapes)]
+
+            setattr(self.parent_decoder, "encoder_states", new_states)
+            setattr(self.parent_decoder, "encoder_masks", new_masks)
 
         # The parent_decoder is one step ahead. This is required for ensembling
         # support.

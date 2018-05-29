@@ -110,10 +110,7 @@ class AutoregressiveDecoder(ModelPart):
         self.tie_embeddings = tie_embeddings
         self.supress_unk = supress_unk
 
-        self.encoder_states = None
-        self.encoder_mask = None
-
-        # check the values of the parameters (max_output_len, ...)
+        # Check the values of the parameters (max_output_len, ...)
         if max_output_len <= 0:
             raise ValueError("Maximum sequence length must be "
                              "a positive integer.")

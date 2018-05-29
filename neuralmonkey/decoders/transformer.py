@@ -14,38 +14,39 @@ import tensorflow as tf
 from typeguard import check_argument_types
 
 from neuralmonkey.attention.scaled_dot_product import (
-        attention, empty_multi_head_loop_state)
+    attention, empty_multi_head_loop_state)
 from neuralmonkey.attention.base_attention import (
-        Attendable, get_attention_states, get_attention_mask)
+    Attendable, get_attention_states, get_attention_mask)
 from neuralmonkey.decorators import tensor
 from neuralmonkey.decoders.autoregressive import (
-        AutoregressiveDecoder, LoopState, extend_namedtuple, DecoderHistories,
-        DecoderFeedables)
+    AutoregressiveDecoder, LoopState, extend_namedtuple, DecoderHistories,
+    DecoderFeedables)
 from neuralmonkey.encoders.transformer import (
-        TransformerLayer, position_signal)
+    TransformerLayer, position_signal)
 from neuralmonkey.model.sequence import EmbeddedSequence
 from neuralmonkey.logging import log, warn
 from neuralmonkey.nn.utils import dropout
 from neuralmonkey.vocabulary import (
-        Vocabulary, PAD_TOKEN_INDEX, END_TOKEN_INDEX)
+    Vocabulary, PAD_TOKEN_INDEX, END_TOKEN_INDEX)
 from neuralmonkey.tf_utils import layer_norm
 
 # pylint: disable=invalid-name
 TransformerHistories = extend_namedtuple(
-        "RNNHistories",
-        DecoderHistories,
-        [("decoded_symbols", tf.TensorArray),
-            ("self_attention_histories", List[Tuple]),
-            ("inter_attention_histories", List[Tuple]),
-            ("input_mask", tf.TensorArray)])
-        # pylint: enable=invalid-name
+    "RNNHistories",
+    DecoderHistories,
+    [("decoded_symbols", tf.TensorArray),
+     ("self_attention_histories", List[Tuple]),
+     ("inter_attention_histories", List[Tuple]),
+     ("input_mask", tf.TensorArray)])
+# pylint: enable=invalid-name
 
 STRATEGIES = ["serial", "parallel", "flat", "hierarchical"]
 
 
+# pylint: disable=too-many-instance-attributes
 class TransformerDecoder(AutoregressiveDecoder):
 
-    # pylint: disable=too-many-arguments,too-many-locals
+    # pylint: disable=too-many-arguments,too-many-locals,too-many-branches
     def __init__(self,
                  name: str,
                  encoders: List[Attendable],
@@ -56,15 +57,16 @@ class TransformerDecoder(AutoregressiveDecoder):
                  n_heads_self: int,
                  n_heads_enc: Union[List[int], int],
                  depth: int,
+                 max_output_len: int,
                  attention_combination_strategy: str = "serial",
                  n_heads_hier: int = None,
-                 max_output_len: int = None,
                  dropout_keep_prob: float = 1.0,
                  embedding_size: int = None,
                  embeddings_source: EmbeddedSequence = None,
                  tie_embeddings: bool = True,
                  label_smoothing: float = None,
-                 attention_dropout_keep_prob: float = 1.0,
+                 self_attention_dropout_keep_prob: float = 1.0,
+                 attention_dropout_keep_prob: Union[float, List[float]] = 1.0,
                  use_att_transform_bias: bool = False,
                  supress_unk: bool = False,
                  save_checkpoint: str = None,
@@ -108,19 +110,19 @@ class TransformerDecoder(AutoregressiveDecoder):
         """
         check_argument_types()
         AutoregressiveDecoder.__init__(
-                self,
-                name=name,
-                vocabulary=vocabulary,
-                data_id=data_id,
-                max_output_len=max_output_len,
-                dropout_keep_prob=dropout_keep_prob,
-                embedding_size=embedding_size,
-                embeddings_source=embeddings_source,
-                tie_embeddings=tie_embeddings,
-                label_smoothing=label_smoothing,
-                supress_unk=supress_unk,
-                save_checkpoint=save_checkpoint,
-                load_checkpoint=load_checkpoint)
+            self,
+            name=name,
+            vocabulary=vocabulary,
+            data_id=data_id,
+            max_output_len=max_output_len,
+            dropout_keep_prob=dropout_keep_prob,
+            embedding_size=embedding_size,
+            embeddings_source=embeddings_source,
+            tie_embeddings=tie_embeddings,
+            label_smoothing=label_smoothing,
+            supress_unk=supress_unk,
+            save_checkpoint=save_checkpoint,
+            load_checkpoint=load_checkpoint)
 
         self.encoders = encoders
         self.ff_hidden_size = ff_hidden_size
@@ -135,7 +137,12 @@ class TransformerDecoder(AutoregressiveDecoder):
             self.n_heads_enc = n_heads_enc
 
         self.depth = depth
-        self.attention_dropout_keep_prob = attention_dropout_keep_prob
+        if isinstance(attention_dropout_keep_prob, float):
+            self.attention_dropout_keep_prob = [
+                attention_dropout_keep_prob for _ in encoders]
+        else:
+            self.attention_dropout_keep_prob = attention_dropout_keep_prob
+        self.self_att_dropout_keep_prob = self_attention_dropout_keep_prob
         self.use_att_transform_bias = use_att_transform_bias
         self.attention_combination_strategy = attention_combination_strategy
         self.n_heads_hier = n_heads_hier
@@ -184,7 +191,7 @@ class TransformerDecoder(AutoregressiveDecoder):
         log("Decoder cost op: {}".format(self.cost))
         self._variable_scope.reuse_variables()
         log("Runtime logits: {}".format(self.runtime_logits))
-    # pylint: enable=too-many-arguments,too-many-locals
+    # pylint: enable=too-many-arguments,too-many-locals,too-many-branches
 
     @property
     def output_dimension(self) -> int:
@@ -239,7 +246,7 @@ class TransformerDecoder(AutoregressiveDecoder):
             num_heads=self.n_heads_self,
             masked=True,
             dropout_callback=lambda x: dropout(
-                x, self.attention_dropout_keep_prob, self.train_mode),
+                x, self.self_att_dropout_keep_prob, self.train_mode),
             use_bias=self.use_att_transform_bias)
 
         # Apply dropout
@@ -249,14 +256,17 @@ class TransformerDecoder(AutoregressiveDecoder):
         # Add residual connections
         return self_context + prev_layer.temporal_states
 
-    def generic_encatt_sublayer(self,
-                                queries: tf.Tensor,
-                                states: tf.Tensor,
-                                mask: tf.Tensor,
-                                n_heads: int,
-                                normalize: bool = True,
-                                use_dropout: bool = True,
-                                residual: bool = True) -> tf.Tensor:
+    # pylint: disable=too-many-arguments
+    def generic_encatt_sublayer(
+            self,
+            queries: tf.Tensor,
+            states: tf.Tensor,
+            mask: tf.Tensor,
+            n_heads: int,
+            attention_dropout_keep_prob: float,
+            normalize: bool = True,
+            use_dropout: bool = True,
+            residual: bool = True) -> tf.Tensor:
         # Layer normalization
         if normalize:
             normalized_queries = layer_norm(queries)
@@ -272,7 +282,7 @@ class TransformerDecoder(AutoregressiveDecoder):
             keys_mask=mask,
             num_heads=n_heads,
             dropout_callback=lambda x: dropout(
-                x, self.attention_dropout_keep_prob, self.train_mode),
+                x, attention_dropout_keep_prob, self.train_mode),
             use_bias=self.use_att_transform_bias)
 
         # Apply dropout
@@ -285,6 +295,7 @@ class TransformerDecoder(AutoregressiveDecoder):
             encoder_context += queries
 
         return encoder_context
+    # pylint: enable=too-many-arguments
 
     # pylint: disable=too-many-locals
     def encoder_attention_sublayer(self, queries: tf.Tensor) -> tf.Tensor:
@@ -295,10 +306,13 @@ class TransformerDecoder(AutoregressiveDecoder):
         #   - lnorm + attend + dropout + add residual
         # * update queiies between layers
         if self.attention_combination_strategy == "serial":
-            for heads, states, mask in zip(
-                    self.n_heads_enc, self.encoder_states, self.encoder_masks):
-                queries = self.generic_encatt_sublayer(
-                    queries, states, mask, heads)
+            for i, (heads, states, mask, drop_prob) in enumerate(zip(
+                    self.n_heads_enc, self.encoder_states,
+                    self.encoder_masks, self.attention_dropout_keep_prob)):
+
+                with tf.variable_scope("enc_{}".format(i)):
+                    queries = self.generic_encatt_sublayer(
+                        queries, states, mask, heads, drop_prob)
 
             encoder_context = queries
 
@@ -311,13 +325,15 @@ class TransformerDecoder(AutoregressiveDecoder):
             normalized_queries = layer_norm(queries)
             contexts = []
 
-            for heads, states, mask in zip(
-                    self.n_heads_enc, self.encoder_states, self.encoder_masks):
+            for i, (heads, states, mask, drop_prob) in enumerate(zip(
+                    self.n_heads_enc, self.encoder_states,
+                    self.encoder_masks, self.attention_dropout_keep_prob)):
 
-                contexts.append(
-                    self.generic_encatt_sublayer(
-                        normalized_queries, states, mask, heads,
-                        normalize=False, residual=False))
+                with tf.variable_scope("enc_{}".format(i)):
+                    contexts.append(
+                        self.generic_encatt_sublayer(
+                            normalized_queries, states, mask, heads,
+                            drop_prob, normalize=False, residual=False))
 
             encoder_context = sum(contexts) + queries
 
@@ -333,13 +349,15 @@ class TransformerDecoder(AutoregressiveDecoder):
             batch = tf.shape(queries)[0]
             time_q = tf.shape(queries)[1]
 
-            for heads, states, mask in zip(
-                    self.n_heads_enc, self.encoder_states, self.encoder_masks):
+            for i, (heads, states, mask, drop_prob) in enumerate(zip(
+                    self.n_heads_enc, self.encoder_states,
+                    self.encoder_masks, self.attention_dropout_keep_prob)):
 
-                contexts.append(
-                    self.generic_encatt_sublayer(
-                        normalized_queries, states, mask, heads,
-                        normalize=False, residual=False))
+                with tf.variable_scope("enc_{}".format(i)):
+                    contexts.append(
+                        self.generic_encatt_sublayer(
+                            normalized_queries, states, mask, heads,
+                            drop_prob, normalize=False, residual=False))
 
             # context is of shape [batch, time(q), channels(v)],
             # stack to [batch, time(q), n_encoders, channels(v)]
@@ -356,10 +374,13 @@ class TransformerDecoder(AutoregressiveDecoder):
                 normalized_queries, [batch * time_q, 1, self.dimension])
 
             # returned shape [batch x time(q), 1, channels(v)]
-            encoder_context_stacked_batch = self.generic_encatt_sublayer(
-                reshaped_queries, stacked_contexts, hier_mask,
-                self.n_heads_hier, normalize=False, use_dropout=False,
-                residual=False)
+            with tf.variable_scope("enc_hier"):
+                assert self.n_heads_hier is not None
+                encoder_context_stacked_batch = self.generic_encatt_sublayer(
+                    reshaped_queries, stacked_contexts, hier_mask,
+                    self.n_heads_hier, self.dropout_keep_prob,
+                    normalize=False, use_dropout=False,
+                    residual=False)
 
             # reshape back to [batch, time(q), channels(v)]
             encoder_context = tf.reshape(
@@ -379,7 +400,8 @@ class TransformerDecoder(AutoregressiveDecoder):
             concat_states = tf.concat(self.encoder_states, 1)
 
             encoder_context = self.generic_encatt_sublayer(
-                queries, concat_states, concat_mask, self.n_heads_enc[0])
+                queries, concat_states, concat_mask, self.n_heads_enc[0],
+                self.attention_dropout_keep_prob[0])
 
         return encoder_context
     # pylint: enable=too-many-locals
@@ -580,3 +602,4 @@ class TransformerDecoder(AutoregressiveDecoder):
         # pylint: enable=too-many-locals
 
         return body
+# pylint: enable=too-many-instance-attributes
