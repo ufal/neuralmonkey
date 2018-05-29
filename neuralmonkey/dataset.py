@@ -289,6 +289,9 @@ class LazyDataset(Dataset):
         else:
             assert name in self.preprocess_series
             src_id, func = self.preprocess_series[name]
+            if src_id is None:
+                return func(self)
+
             src_series = self.maybe_get_series(src_id)
             if src_series is None:
                 return None
@@ -314,6 +317,9 @@ class LazyDataset(Dataset):
             return reader(paths)
         elif name in self.preprocess_series:
             src_id, func = self.preprocess_series[name]
+            if src_id is None:
+                return func(self)
+
             src_series = self.get_series(src_id)
             return (func(item) for item in src_series)
         else:
@@ -500,8 +506,12 @@ def _preprocessed_datasets(
         name = get_first_match(PREPROCESSED_SERIES, key)
         preprocessor = cast(DatasetPreprocess, series_config[key])
 
-        if isinstance(dataset, Dataset):
+        if isinstance(dataset, LazyDataset):
+            dataset.preprocess_series[name] = (None, preprocessor)
+            # TODO ugly hack
+            # pylint:disable=protected-access
+            dataset._series[name] = None
+            # pylint:enable=protected-access
+        elif isinstance(dataset, Dataset):
             new_series = list(preprocessor(dataset))
             dataset.add_series(name, new_series)
-        elif isinstance(dataset, LazyDataset):
-            dataset.preprocess_series[name] = (None, preprocessor)
