@@ -85,6 +85,7 @@ class SpatialFiller(ModelPart, SpatialStatefulWithOutput):
                  input_shape: List[int],
                  data_id: str,
                  projection_dim: int = None,
+                 ff_hidden_dim: int = None,
                  save_checkpoint: Optional[str] = None,
                  load_checkpoint: Optional[str] = None,
                  initializers: InitializerSpecs = None) -> None:
@@ -105,6 +106,11 @@ class SpatialFiller(ModelPart, SpatialStatefulWithOutput):
         self.data_id = data_id
         self.input_shape = input_shape
         self.projection_dim = projection_dim
+        self.ff_hidden_dim = ff_hidden_dim
+
+        if self.ff_hidden_dim is not None and self.projection_dim is None:
+            raise ValueError(
+                "projection_dim must be provided when using ff_hidden_dim")
 
         features_shape = [None] + self.input_shape  # type: ignore
         with self.use_scope():
@@ -118,10 +124,19 @@ class SpatialFiller(ModelPart, SpatialStatefulWithOutput):
 
     @tensor
     def spatial_states(self) -> tf.Tensor:
+        if self.ff_hidden_dim:
+            projected = tf.layers.conv2d(
+                self.spatial_input, filters=self.ff_hidden_dim,
+                kernel_size=1, activation=tf.nn.relu)
+        else:
+            projected = self.spatial_input
+
         if self.projection_dim:
             return tf.layers.conv2d(
-                self.spatial_input, filters=self.projection_dim,
+                projected, filters=self.projection_dim,
                 kernel_size=1, activation=None)
+
+        assert projected == self.spatial_input
         return self.spatial_input
 
     @tensor
