@@ -10,3 +10,4 @@ from .mse import MSE, MeanSquaredErrorEvaluator
 from .multeval import MultEvalWrapper
 from .ter import TER, TEREvaluator
 from .wer import WER, WEREvaluator
+from .rouge import ROUGE_1, ROUGE_2, ROUGE_L, RougeEvaluator
