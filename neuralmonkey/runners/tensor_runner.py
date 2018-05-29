@@ -8,6 +8,7 @@ from neuralmonkey.logging import log, warn
 from neuralmonkey.model.model_part import ModelPart
 from neuralmonkey.runners.base_runner import (
     BaseRunner, Executable, ExecutionResult, NextExecute, FeedDict)
+from neuralmonkey.experiment import Experiment
 
 
 class TensorExecutable(Executable):
@@ -132,6 +133,18 @@ class TensorRunner(BaseRunner[ModelPart]):
         log("Blessing toplevel tensors for tensor runner:")
         for tensor in toplevel_tensors:
             log("Toplevel tensor: {}".format(tensor))
+
+        self._fetches = {}
+        self._batch_ids = {}
+
+        for name, bid in zip(self._names, self._batch_dims_name):
+            try:
+                self._fetches[name] = (
+                    Experiment.get_current().graph.get_tensor_by_name(name))
+                self._batch_ids[name] = bid
+            except KeyError:
+                warn(("The tensor of name '{}' is not present in the "
+                      "graph.").format(name))
     # pylint: enable=too-many-arguments
 
     # pylint: disable=unused-argument
@@ -139,23 +152,14 @@ class TensorRunner(BaseRunner[ModelPart]):
                        compute_losses: bool,
                        summaries: bool,
                        num_sessions: int) -> TensorExecutable:
-        fetches = {}
-        batch_ids = {}
-
-        for name, bid in zip(self._names, self._batch_dims_name):
-            try:
-                fetches[name] = tf.get_default_graph().get_tensor_by_name(name)
-                batch_ids[name] = bid
-            except KeyError:
-                warn(("The tensor of name '{}' is not present in the "
-                      "graph.").format(name))
 
         for tensor, bid in zip(self._tensors, self._batch_dims_ref):
-            fetches[tensor.name] = tensor
-            batch_ids[tensor.name] = bid
+            self._fetches[tensor.name] = tensor
+            self._batch_ids[tensor.name] = bid
 
         return TensorExecutable(
-            self.all_coders, fetches, batch_ids, self._select_session)
+            self.all_coders, self._fetches, self._batch_ids,
+            self._select_session)
     # pylint: enable=unused-argument
 
     @property
