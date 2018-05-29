@@ -50,7 +50,8 @@ class LazyDataset(Dataset):
                         "File not found. Series: {}, Path: {}"
                         .format(series_name, path))
 
-        self.preprocess_series = {}  # type: Dict[str, Tuple[str, Callable]]
+        self.preprocess_series = {} \
+            # type: Dict[str, Tuple[Optional[str], Callable]]
         if preprocessors is not None:
             for src_id, tgt_id, func in preprocessors:
                 if src_id == tgt_id:
@@ -87,20 +88,22 @@ class LazyDataset(Dataset):
         Returns:
             The data series or None if it does not exist.
         """
-        if (name not in self.series_paths_and_readers
-                and name not in self.preprocess_series):
+        if not self.has_series(name):
             return None
 
         if name in self.series_paths_and_readers:
             paths, reader = self.series_paths_and_readers[name]
             return reader(paths)
-        else:
-            assert name in self.preprocess_series
-            src_id, func = self.preprocess_series[name]
-            src_series = self.maybe_get_series(src_id)
-            if src_series is None:
-                return None
-            return (func(item) for item in src_series)
+
+        assert name in self.preprocess_series
+        src_id, func = self.preprocess_series[name]
+        if src_id is None:
+            return func(self)
+
+        src_series = self.maybe_get_series(src_id)
+
+        return None if src_series is None else (
+            func(item) for item in src_series)
 
     def get_series(self, name: str) -> Iterable:
         """Get the data series with a given name.
@@ -122,6 +125,9 @@ class LazyDataset(Dataset):
             return reader(paths)
         elif name in self.preprocess_series:
             src_id, func = self.preprocess_series[name]
+            if src_id is None:
+                return func(self)
+
             src_series = self.get_series(src_id)
             return (func(item) for item in src_series)
         else:

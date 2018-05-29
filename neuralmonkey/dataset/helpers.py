@@ -100,11 +100,15 @@ def _preprocessed_datasets(
         name = get_first_match(PREPROCESSED_SERIES, key)
         preprocessor = cast(DatasetPreprocess, series_config[key])
 
-        if isinstance(dataset, Dataset):
+        if isinstance(dataset, LazyDataset):
+            dataset.preprocess_series[name] = (None, preprocessor)
+            # TODO very ugly hack combo
+            # pylint: disable=protected-access
+            dataset._series[name] = None  # type: ignore
+            # pylint: enable=protected-access
+        elif isinstance(dataset, Dataset):
             new_series = list(preprocessor(dataset))
             dataset.add_series(name, new_series)
-        elif isinstance(dataset, LazyDataset):
-            dataset.preprocess_series[name] = (None, preprocessor)
 
 
 def _get_series_paths_and_readers(
