@@ -200,6 +200,7 @@ def attention(
     # we mask the attention energies given this mask.
     if keys_mask is not None:
         energies = mask_energies(energies, keys_mask)
+    energies = tf.identity(energies, "energies")
 
     # Softmax along the last axis
     # shape: batch, head, time(q), time(k)
