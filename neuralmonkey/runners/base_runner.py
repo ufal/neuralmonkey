@@ -66,8 +66,7 @@ def reduce_execution_results(
         # TODO aggregate TensorBoard summaries
     if outputs and isinstance(outputs[0], np.ndarray):
         outputs = np.array(outputs)
-    losses = [l / max(len(outputs), 1) for l in losses_sum]
-    return ExecutionResult(outputs, losses,
+    return ExecutionResult(outputs, losses_sum,
                            execution_results[0].scalar_summaries,
                            execution_results[0].histogram_summaries,
                            execution_results[0].image_summaries)

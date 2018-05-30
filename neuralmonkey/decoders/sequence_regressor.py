@@ -24,6 +24,7 @@ class SequenceRegressor(ModelPart):
                  data_id: str,
                  layers: List[int] = None,
                  activation_fn: Callable[[tf.Tensor], tf.Tensor] = tf.nn.relu,
+                 output_activation_fn: Callable[[tf.Tensor], tf.Tensor] = None,
                  dropout_keep_prob: float = 1.0,
                  dimension: int = 1,
                  save_checkpoint: str = None,
@@ -40,6 +41,7 @@ class SequenceRegressor(ModelPart):
 
         self._layers = layers
         self._activation_fn = activation_fn
+        self._output_activation_fn = output_activation_fn
         self._dropout_keep_prob = dropout_keep_prob
 
         tf.summary.scalar(
@@ -73,7 +75,11 @@ class SequenceRegressor(ModelPart):
     @tensor
     def predictions(self):
         return tf.layers.dense(
-            self._mlp_output, self.dimension, name="output_projection")
+            self._mlp_output,
+            self.dimension,
+            activation=self._output_activation_fn,
+            use_bias=False,
+            name="output_projection")
 
     @tensor
     def cost(self):

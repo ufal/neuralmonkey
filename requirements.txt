@@ -3,6 +3,7 @@ flask
 ansiconv
 numpy
 scipy
+sklearn
 pillow
 git+https://github.com/aflc/pyter@857a1552443f139a3
 python_speech_features
