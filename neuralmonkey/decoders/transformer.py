@@ -27,7 +27,7 @@ from neuralmonkey.tf_utils import layer_norm
 
 # pylint: disable=invalid-name
 TransformerHistories = extend_namedtuple(
-    "RNNHistories",
+    "TransformerHistories",
     DecoderHistories,
     [("decoded_symbols", tf.TensorArray),
      ("self_attention_histories", List[Tuple]),
