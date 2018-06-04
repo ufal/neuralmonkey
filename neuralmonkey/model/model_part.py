@@ -7,6 +7,7 @@ from typing import Any, Callable, Dict, List, Set, Tuple
 import tensorflow as tf
 
 from neuralmonkey.dataset import Dataset
+from neuralmonkey.model.gradient_blocking import TemporalStatefulView
 from neuralmonkey.logging import log
 from neuralmonkey import tf_utils
 
@@ -75,6 +76,9 @@ class ModelPart(metaclass=ABCMeta):
             enc = getattr(self, "encoder")
             if isinstance(enc, ModelPart):
                 to_return = to_return.union(enc.get_dependencies())
+            elif isinstance(enc, TemporalStatefulView):
+                to_return = to_return.union(
+                    enc._blocked_object.get_dependencies())
 
         if hasattr(self, "input_sequence"):
             inpseq = getattr(self, "input_sequence")
@@ -83,6 +87,11 @@ class ModelPart(metaclass=ABCMeta):
 
         if hasattr(self, "parent_decoder"):
             dec = getattr(self, "parent_decoder")
+            if isinstance(dec, ModelPart):
+                to_return = to_return.union(dec.get_dependencies())
+
+        if hasattr(self, "blocked_object"):
+            dec = getattr(self, "blocked_object")
             if isinstance(dec, ModelPart):
                 to_return = to_return.union(dec.get_dependencies())
 

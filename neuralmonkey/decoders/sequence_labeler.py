@@ -1,4 +1,4 @@
-from typing import Optional, Union
+from typing import Any, Optional, Union
 
 import tensorflow as tf
 
@@ -17,7 +17,7 @@ class SequenceLabeler(ModelPart):
     # pylint: disable=too-many-arguments
     def __init__(self,
                  name: str,
-                 encoder: Union[RecurrentEncoder, SentenceEncoder],
+                 encoder: Any,
                  vocabulary: Vocabulary,
                  data_id: str,
                  dropout_keep_prob: float = 1.0,
@@ -90,16 +90,16 @@ class SequenceLabeler(ModelPart):
 
         biases_3d = tf.expand_dims(tf.expand_dims(self.decoding_b, 0), 0)
 
-        embedded_inputs = tf.expand_dims(
-            self.encoder.input_sequence.temporal_states, 2)
-        dweights_4d = tf.expand_dims(
-            tf.expand_dims(self.decoding_residual_w, 0), 0)
+        # embedded_inputs = tf.expand_dims(
+        #     self.encoder.input_sequence.temporal_states, 2)
+        # dweights_4d = tf.expand_dims(
+        #     tf.expand_dims(self.decoding_residual_w, 0), 0)
 
-        dmultiplication = tf.nn.conv2d(
-            embedded_inputs, dweights_4d, [1, 1, 1, 1], "SAME")
-        dmultiplication_3d = tf.squeeze(dmultiplication, squeeze_dims=[2])
+        # dmultiplication = tf.nn.conv2d(
+        #     embedded_inputs, dweights_4d, [1, 1, 1, 1], "SAME")
+        # dmultiplication_3d = tf.squeeze(dmultiplication, squeeze_dims=[2])
 
-        logits = multiplication_3d + dmultiplication_3d + biases_3d
+        logits = multiplication_3d + biases_3d
         return logits
 
     @tensor
