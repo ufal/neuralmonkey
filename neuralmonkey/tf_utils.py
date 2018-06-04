@@ -65,8 +65,7 @@ def get_shape_list(x):
     shape = tf.shape(x)
 
     ret = []
-    for i in range(len(static)):
-        dim = static[i]
+    for i, dim in enumerate(static):
         if dim is None:
             dim = shape[i]
         ret.append(dim)

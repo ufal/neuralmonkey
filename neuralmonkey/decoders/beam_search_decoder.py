@@ -97,12 +97,20 @@ class BeamSearchDecoder(ModelPart):
         self._beam_size = beam_size
         self._length_normalization = length_normalization
 
-        if (hasattr(self.parent_decoder, "encoder_states")
-                and self.parent_decoder.encoder_states is not None):
-            self.parent_decoder.encoder_states = self._expand_to_beam(
-                self.parent_decoder.encoder_states)
-            self.parent_decoder.encoder_mask = self._expand_to_beam(
-                self.parent_decoder.encoder_mask)
+        has_encoder = (hasattr(self.parent_decoder, "encoder_states")
+                       and hasattr(self.parent_decoder, "encoder_masks"))
+
+        if has_encoder:
+            enc_states = self.parent_decoder.encoder_states
+            enc_mask = self.parent_decoder.encoder_mask
+
+        if has_encoder and enc_states is not None and enc_mask is not None:
+            setattr(self.parent_decoder,
+                    "encoder_states",
+                    self._expand_to_beam(enc_states))
+            setattr(self.parent_decoder,
+                    "encoder_mask",
+                    self._expand_to_beam(enc_mask))
 
         # The parent_decoder is one step ahead. This is required for ensembling
         # support.
@@ -122,6 +130,11 @@ class BeamSearchDecoder(ModelPart):
 
         # Output
         self.outputs = self._decoding_loop()
+
+        # Reassign the original encoder states, mask
+        if has_encoder:
+            self.parent_decoder.encoder_states = enc_states
+            self.parent_decoder.encoder_mask = enc_mask
     # pylint: enable=too-many-arguments
 
     @property
