@@ -33,7 +33,7 @@ class Dataset(collections.Sized):
         check_argument_types()
 
         self.name = name
-        self._series = dict(series)
+        self._series = series
         self.series_outputs = series_outputs
 
         if preprocessors is not None:

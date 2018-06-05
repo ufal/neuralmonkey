@@ -35,11 +35,11 @@ class LazyDataset(Dataset):
         """
         check_argument_types()
 
-        parent_series = dict()  # type: Dict[str, Any]
-        parent_series.update({s: None for s in series_paths_and_readers})
+        self.name = name
+        self._series = {s: [] for s in series_paths_and_readers}
         if preprocessors:
-            parent_series.update({s[1]: None for s in preprocessors})
-        super().__init__(name, parent_series, series_outputs)
+            self._series.update({s[1]: [] for s in preprocessors})
+
         self.series_paths_and_readers = series_paths_and_readers
 
         for series_name, (paths, _) in series_paths_and_readers.items():
