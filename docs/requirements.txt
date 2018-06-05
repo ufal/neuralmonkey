@@ -1,2 +1,13 @@
 sphinx==1.7.0
+termcolor
+flask
+ansiconv
 numpy
+scipy
+pillow
+git+https://github.com/aflc/pyter@857a1552443f139a3
+python_speech_features
+pygments
+rouge==0.2.1
+typeguard
+tensorflow>=1.4.0,<1.5
