@@ -290,6 +290,7 @@ texinfo_documents = [
 # If true, do not generate a @detailmenu in the "Top" node's menu.
 #texinfo_no_detailmenu = False
 
+
 def run_apidoc(_):
 
     cur_dir = os.path.abspath(os.path.dirname(__file__))
@@ -300,5 +301,13 @@ def run_apidoc(_):
     from sphinx.apidoc import main
     main(['--separate', '-o', cur_dir, module, '--force'])
 
+
+def skip(app, what, name, obj, skip, options):
+    if name == '__init__':
+        return False
+    return skip
+
+
 def setup(app):
+    app.connect('autodoc-skip-member', skip)
     app.connect('builder-inited', run_apidoc)
