@@ -35,10 +35,11 @@ class LazyDataset(Dataset):
         """
         check_argument_types()
 
-        self.name = name
-        self._series = {s: [] for s in series_paths_and_readers}
+        parent_series = {s: [] for s in series_paths_and_readers} \
+            # type: Dict[str, List]
         if preprocessors:
-            self._series.update({s[1]: [] for s in preprocessors})
+            parent_series.update({s[1]: [] for s in preprocessors})
+        Dataset.__init__(self, name, parent_series, series_outputs)
 
         self.series_paths_and_readers = series_paths_and_readers
 
