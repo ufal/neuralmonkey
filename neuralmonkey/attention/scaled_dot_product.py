@@ -12,15 +12,16 @@ from typing import Tuple, List, NamedTuple, Callable
 import tensorflow as tf
 from typeguard import check_argument_types
 
+from neuralmonkey.decorators import tensor
 from neuralmonkey.nn.utils import dropout
 from neuralmonkey.model.model_part import InitializerSpecs
 from neuralmonkey.attention.base_attention import (
     BaseAttention, Attendable, get_attention_states, get_attention_mask)
 
 # pylint: disable=invalid-name
-MultiHeadLoopStateTA = NamedTuple("MultiHeadLoopStateTA",
-                                  [("contexts", tf.TensorArray),
-                                   ("head_weights", List[tf.TensorArray])])
+MultiHeadLoopState = NamedTuple("MultiHeadLoopState",
+                                [("contexts", tf.Tensor),
+                                 ("head_weights", List[tf.Tensor])])
 # pylint: enable=invalid-name
 
 
@@ -224,13 +225,16 @@ def attention(
 # pylint: enable=too-many-locals
 
 
-def empty_multi_head_loop_state(num_heads: int) -> MultiHeadLoopStateTA:
-    return MultiHeadLoopStateTA(
-        contexts=tf.TensorArray(
-            dtype=tf.float32, size=0, dynamic_size=True,
+def empty_multi_head_loop_state(batch_size: int,
+                                num_heads: int) -> MultiHeadLoopState:
+    return MultiHeadLoopState(
+        contexts=tf.zeros(
+            shape=[0, batch_size],
+            dtype=tf.float32,
             name="contexts"),
-        head_weights=[tf.TensorArray(
-            dtype=tf.float32, size=0, dynamic_size=True,
+        head_weights=[tf.zeros(
+            shape=[0, batch_size],
+            dtype=tf.float32,
             name="distributions_head{}".format(i)) for i in range(num_heads)])
 
 
@@ -267,12 +271,16 @@ class MultiHeadAttention(BaseAttention):
         self.attention_values = get_attention_states(values_encoder)
     # pylint: enable=too-many-arguments
 
+    @tensor
+    def batch_size(self) -> tf.Tensor:
+        return tf.shape(self.attention_keys)[0]
+
     def attention(self,
                   query: tf.Tensor,
                   decoder_prev_state: tf.Tensor,
                   decoder_input: tf.Tensor,
-                  loop_state: MultiHeadLoopStateTA,
-                  step: tf.Tensor) -> Tuple[tf.Tensor, MultiHeadLoopStateTA]:
+                  loop_state: MultiHeadLoopState) -> Tuple[tf.Tensor,
+                                                           MultiHeadLoopState]:
         """Run a multi-head attention getting context vector for a given query.
 
         This method is an API-wrapper for the global function 'attention'
@@ -289,7 +297,6 @@ class MultiHeadAttention(BaseAttention):
             decoder_prev_state: Previous state of the decoder.
             decoder_input: Input to the RNN cell of the decoder.
             loop_state: Attention loop state.
-            step: Current decoding step.
 
         Returns:
             Vector of contexts and the following attention loop state.
@@ -310,24 +317,26 @@ class MultiHeadAttention(BaseAttention):
         context = tf.squeeze(context_3d, axis=1)
         head_weights = [tf.squeeze(w, axis=[1, 2]) for w in head_weights_3d]
 
-        next_contexts = loop_state.contexts.write(step, context)
-        next_head_weights = [loop_state.head_weights[i].write(step,
-                                                              head_weights[i])
+        next_contexts = tf.concat(
+            [loop_state.contexts, tf.expand_dims(context, 0)], 0)
+        next_head_weights = [tf.concat([loop_state.head_weights[i],
+                                        tf.expand_dims(head_weights[i], 0)],
+                                       axis=0)
                              for i in range(self.n_heads)]
 
-        next_loop_state = MultiHeadLoopStateTA(
+        next_loop_state = MultiHeadLoopState(
             contexts=next_contexts,
             head_weights=next_head_weights)
 
         return context, next_loop_state
 
-    def initial_loop_state(self) -> MultiHeadLoopStateTA:
-        return empty_multi_head_loop_state(self.n_heads)
+    def initial_loop_state(self) -> MultiHeadLoopState:
+        return empty_multi_head_loop_state(self.batch_size, self.n_heads)
 
     def finalize_loop(self, key: str,
-                      last_loop_state: MultiHeadLoopStateTA) -> None:
+                      last_loop_state: MultiHeadLoopState) -> None:
         for i in range(self.n_heads):
-            head_weights = last_loop_state.head_weights[i].stack()
+            head_weights = last_loop_state.head_weights[i]
             self.histories["{}_head{}".format(key, i)] = head_weights
 
     @property

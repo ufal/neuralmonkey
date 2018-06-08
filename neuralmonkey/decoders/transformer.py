@@ -9,7 +9,8 @@ import tensorflow as tf
 from typeguard import check_argument_types
 
 from neuralmonkey.attention.scaled_dot_product import (
-    attention, empty_multi_head_loop_state)
+    #empty_multi_head_loop_state
+    attention)
 from neuralmonkey.attention.base_attention import (
     Attendable, get_attention_states, get_attention_mask)
 from neuralmonkey.decorators import tensor
@@ -26,13 +27,14 @@ from neuralmonkey.vocabulary import (
 from neuralmonkey.tf_utils import layer_norm
 
 # pylint: disable=invalid-name
+# TODO: handle attention histories
 TransformerHistories = extend_namedtuple(
     "TransformerHistories",
     DecoderHistories,
-    [("decoded_symbols", tf.TensorArray),
-     ("self_attention_histories", List[Tuple]),
-     ("inter_attention_histories", List[Tuple]),
-     ("input_mask", tf.TensorArray)])
+    [("decoded_symbols", tf.Tensor),
+     #("self_attention_histories", List[Tuple]),
+     #("inter_attention_histories", List[Tuple]),
+     ("input_mask", tf.Tensor)])
 # pylint: enable=invalid-name
 
 
@@ -171,7 +173,7 @@ class TransformerDecoder(AutoregressiveDecoder):
         normalized_states = layer_norm(prev_layer.temporal_states)
 
         # Run self-attention
-        # TODO handle histories
+        # TODO handle attention histories
         self_context, _ = attention(
             queries=normalized_states,
             keys=normalized_states,
@@ -197,7 +199,7 @@ class TransformerDecoder(AutoregressiveDecoder):
         normalized_queries = layer_norm(queries)
 
         # Attend to the encoder
-        # TODO handle histories
+        # TODO handle attention histories
         encoder_context, _ = attention(
             queries=normalized_queries,
             keys=self.encoder_states,
@@ -294,24 +296,25 @@ class TransformerDecoder(AutoregressiveDecoder):
     def get_initial_loop_state(self) -> LoopState:
 
         default_ls = AutoregressiveDecoder.get_initial_loop_state(self)
-        # feedables = default_ls.feedables._asdict()
         histories = default_ls.histories._asdict()
 
-        histories["self_attention_histories"] = [
-            empty_multi_head_loop_state(self.n_heads_self)
-            for a in range(self.depth)]
+#        histories["self_attention_histories"] = [
+#            empty_multi_head_loop_state(self.batch_size, self.n_heads_self)
+#            for a in range(self.depth)]
 
-        histories["inter_attention_histories"] = [
-            empty_multi_head_loop_state(self.n_heads_enc)
-            for a in range(self.depth)]
+#        histories["inter_attention_histories"] = [
+#            empty_multi_head_loop_state(self.batch_size, self.n_heads_enc)
+#            for a in range(self.depth)]
 
-        histories["decoded_symbols"] = tf.TensorArray(
-            dtype=tf.int32, dynamic_size=True, size=0,
-            clear_after_read=False, name="decoded_symbols")
+        histories["decoded_symbols"] = tf.zeros(
+            shape=[0, self.batch_size],
+            dtype=tf.int32,
+            name="decoded_symbols")
 
-        histories["input_mask"] = tf.TensorArray(
-            dtype=tf.float32, dynamic_size=True, size=0,
-            clear_after_read=False, name="input_mask")
+        histories["input_mask"] = tf.zeros(
+            shape=[0, self.batch_size],
+            dtype=tf.float32,
+            name="input_mask")
 
         # TransformerHistories is a type and should be callable
         # pylint: disable=not-callable
@@ -335,20 +338,22 @@ class TransformerDecoder(AutoregressiveDecoder):
             feedables = loop_state.feedables
             step = feedables.step
 
-            decoded_symbols_ta = histories.decoded_symbols.write(
-                step, feedables.input_symbol)
-
-            input_mask = histories.input_mask.write(
-                step, tf.to_float(tf.logical_not(feedables.finished)))
-
             # shape (time, batch)
-            decoded_symbols = decoded_symbols_ta.stack()
-            decoded_symbols.set_shape([None, None])
+            decoded_symbols = tf.concat(
+                [histories.decoded_symbols, tf.expand_dims(
+                    feedables.input_symbol, 0)],
+                axis=0)
+
+            input_mask = tf.concat(
+                [histories.input_mask, tf.expand_dims(
+                    tf.to_float(tf.logical_not(feedables.finished)), 0)],
+                axis=0)
+
+            # shape (batch, time)
             decoded_symbols_in_batch = tf.transpose(decoded_symbols)
 
             # mask (time, batch)
-            mask = input_mask.stack()
-            mask.set_shape([None, None])
+            mask = input_mask
 
             with tf.variable_scope(self._variable_scope, reuse=tf.AUTO_REUSE):
                 # shape (batch, time, dimension)
@@ -395,16 +400,23 @@ class TransformerDecoder(AutoregressiveDecoder):
             # TransformerHistories is a type and should be callable
             # pylint: disable=not-callable
             new_histories = TransformerHistories(
-                logits=histories.logits.write(step, logits),
-                decoder_outputs=histories.decoder_outputs.write(
-                    step, output_state),
-                mask=histories.mask.write(step, not_finished),
-                outputs=histories.outputs.write(step, next_symbols),
+                logits=tf.concat(
+                    [histories.logits, tf.expand_dims(logits, 0)], 0),
+                decoder_outputs=tf.concat(
+                    [histories.decoder_outputs,
+                     tf.expand_dims(output_state, 0)],
+                    axis=0),
+                mask=tf.concat(
+                    [histories.mask, tf.expand_dims(not_finished, 0)], 0),
+                outputs=tf.concat(
+                    [histories.outputs,
+                     tf.expand_dims(next_symbols, 0)],
+                    axis=0),
                 # transformer-specific:
                 # TODO handle attention histories correctly
-                decoded_symbols=decoded_symbols_ta,
-                self_attention_histories=histories.self_attention_histories,
-                inter_attention_histories=histories.inter_attention_histories,
+                decoded_symbols=decoded_symbols,
+                #self_attention_histories=histories.self_attention_histories,
+                #inter_attention_histories=histories.inter_attention_histories,
                 input_mask=input_mask)
             # pylint: enable=not-callable
 

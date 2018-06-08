@@ -40,7 +40,7 @@ RNNFeedables = extend_namedtuple(
 RNNHistories = extend_namedtuple(
     "RNNHistories",
     DecoderHistories,
-    [("attention_histories", List[Tuple])])  # AttentionLoopStateTA and kids
+    [("attention_histories", List[Tuple])])  # AttentionLoopState and kids
 # pylint: enable=invalid-name
 
 
@@ -269,8 +269,7 @@ class Decoder(AutoregressiveDecoder):
                     attns = [
                         a.attention(
                             cell_output, loop_state.feedables.prev_rnn_output,
-                            rnn_input, att_loop_state,
-                            loop_state.feedables.step)
+                            rnn_input, att_loop_state)
                         for a, att_loop_state in zip(
                             self.attentions,
                             loop_state.histories.attention_histories)]
@@ -294,8 +293,7 @@ class Decoder(AutoregressiveDecoder):
                     attns = [
                         a.attention(
                             cell_output, loop_state.feedables.prev_rnn_output,
-                            rnn_input, att_loop_state,
-                            loop_state.feedables.step)
+                            rnn_input, att_loop_state)
                         for a, att_loop_state in zip(
                             self.attentions,
                             loop_state.histories.attention_histories)]
@@ -351,11 +349,21 @@ class Decoder(AutoregressiveDecoder):
 
             new_histories = RNNHistories(
                 attention_histories=list(att_loop_states),
-                logits=loop_state.histories.logits.write(step, logits),
-                decoder_outputs=loop_state.histories.decoder_outputs.write(
-                    step, cell_output),
-                outputs=loop_state.histories.outputs.write(step, next_symbols),
-                mask=loop_state.histories.mask.write(step, not_finished))
+                logits=tf.concat(
+                    [loop_state.histories.logits, tf.expand_dims(logits, 0)],
+                    axis=0),
+                decoder_outputs=tf.concat(
+                    [loop_state.histories.decoder_outputs,
+                     tf.expand_dims(cell_output, 0)],
+                    axis=0),
+                outputs=tf.concat(
+                    [loop_state.histories.outputs,
+                     tf.expand_dims(next_symbols, 0)],
+                    axis=0),
+                mask=tf.concat(
+                    [loop_state.histories.mask,
+                     tf.expand_dims(not_finished, 0)],
+                    axis=0))
             # pylint: enable=not-callable
 
             new_loop_state = LoopState(

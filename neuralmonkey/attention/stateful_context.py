@@ -4,7 +4,7 @@ import tensorflow as tf
 from typeguard import check_argument_types
 
 from neuralmonkey.attention.base_attention import (
-    BaseAttention, AttentionLoopStateTA, empty_attention_loop_state)
+    BaseAttention, AttentionLoopState, empty_attention_loop_state)
 from neuralmonkey.model.stateful import Stateful
 from neuralmonkey.decorators import tensor
 from neuralmonkey.model.model_part import InitializerSpecs
@@ -35,6 +35,10 @@ class StatefulContext(BaseAttention):
         self.encoder = encoder
 
     @tensor
+    def batch_size(self) -> tf.Tensor:
+        return tf.shape(self.attention_states)[0]
+
+    @tensor
     def attention_states(self) -> tf.Tensor:
         return tf.expand_dims(self.encoder.output, 1)
 
@@ -59,23 +63,27 @@ class StatefulContext(BaseAttention):
                   query: tf.Tensor,
                   decoder_prev_state: tf.Tensor,
                   decoder_input: tf.Tensor,
-                  loop_state: AttentionLoopStateTA,
-                  step: tf.Tensor) -> Tuple[tf.Tensor, AttentionLoopStateTA]:
+                  loop_state: AttentionLoopState) -> Tuple[tf.Tensor,
+                                                           AttentionLoopState]:
         context = tf.reshape(self.attention_states,
                              [-1, self.context_vector_size])
         weights = tf.ones(shape=[tf.shape(context)[0]])
 
-        next_loop_state = AttentionLoopStateTA(
-            contexts=loop_state.contexts.write(step, context),
-            weights=loop_state.weights.write(step, weights))
+        next_contexts = tf.concat(
+            [loop_state.contexts, tf.expand_dims(context, 0)], 0)
+        next_weights = tf.concat(
+            [loop_state.weights, tf.expand_dims(weights, 0)], 0)
+        next_loop_state = AttentionLoopState(
+            contexts=next_contexts,
+            weights=next_weights)
 
         return context, next_loop_state
 
-    def initial_loop_state(self) -> AttentionLoopStateTA:
-        return empty_attention_loop_state()
+    def initial_loop_state(self) -> AttentionLoopState:
+        return empty_attention_loop_state(self.batch_size)
 
     def finalize_loop(self, key: str,
-                      last_loop_state: AttentionLoopStateTA) -> None:
+                      last_loop_state: AttentionLoopState) -> None:
         pass
 
     def visualize_attention(self, key: str) -> None:

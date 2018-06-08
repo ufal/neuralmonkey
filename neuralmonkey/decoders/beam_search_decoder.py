@@ -6,8 +6,8 @@ As well as the recurrent decoder, this decoder works dynamically, which means
 it uses the ``tf.while_loop`` function conditioned on both maximum output
 length and list of finished hypotheses.
 
-The beam search decoder works by appending data from ``SearchStepOutput``
-objects to a ``SearchStepOutputTA`` object. The ``SearchStepOutput`` object
+The beam search decoder works by appending data to a ``SearchStepOutput``
+object. The ``SearchStepOutput`` object
 stores information about the hypotheses in the beam. Each hypothesis keeps its
 score, its final token, and a pointer to a "parent" hypothesis, which is a
 one-token-shorter hypothesis which shares the tokens with the child hypothesis.
@@ -28,6 +28,10 @@ manually.
 from typing import NamedTuple, List, Callable, Any, Optional
 
 import tensorflow as tf
+
+# pylint: disable=no-name-in-module
+from tensorflow.python.util import nest
+# pylint: enable=no-name-in-module
 from typeguard import check_argument_types
 
 from neuralmonkey.model.model_part import ModelPart, InitializerSpecs
@@ -36,7 +40,8 @@ from neuralmonkey.decoders.autoregressive import (
 from neuralmonkey.vocabulary import (
     Vocabulary, END_TOKEN_INDEX, PAD_TOKEN_INDEX)
 from neuralmonkey.decorators import tensor
-from neuralmonkey.tf_utils import get_shape_list
+from neuralmonkey.tf_utils import (
+    expand_to_beam, gather_flat, get_state_shape_invariants, partial_transpose)
 
 # pylint: disable=invalid-name
 SearchState = NamedTuple("SearchState",
@@ -47,17 +52,11 @@ SearchState = NamedTuple("SearchState",
 
 SearchStepOutput = NamedTuple("SearchStepOutput",
                               [("scores", tf.Tensor),  # [batch, beam]
-                               ("parent_ids", tf.Tensor),  # [batch, beam]
                                ("token_ids", tf.Tensor)])  # [batch, beam]
-
-SearchStepOutputTA = NamedTuple("SearchStepOutputTA",
-                                [("scores", tf.TensorArray),
-                                 ("parent_ids", tf.TensorArray),
-                                 ("token_ids", tf.TensorArray)])
 
 BeamSearchLoopState = NamedTuple("BeamSearchLoopState",
                                  [("bs_state", SearchState),
-                                  ("bs_output", SearchStepOutputTA),
+                                  ("bs_output", SearchStepOutput),
                                   ("decoder_loop_state", LoopState)])
 
 BeamSearchOutput = NamedTuple("SearchStepOutput",
@@ -98,7 +97,7 @@ class BeamSearchDecoder(ModelPart):
         self._length_normalization = length_normalization
 
         has_encoder = (hasattr(self.parent_decoder, "encoder_states")
-                       and hasattr(self.parent_decoder, "encoder_masks"))
+                       and hasattr(self.parent_decoder, "encoder_mask"))
 
         if has_encoder:
             enc_states = self.parent_decoder.encoder_states
@@ -107,10 +106,12 @@ class BeamSearchDecoder(ModelPart):
         if has_encoder and enc_states is not None and enc_mask is not None:
             setattr(self.parent_decoder,
                     "encoder_states",
-                    self._expand_to_beam(enc_states))
+                    expand_to_beam(enc_states, beam_size=self.beam_size))
             setattr(self.parent_decoder,
                     "encoder_mask",
-                    self._expand_to_beam(enc_mask))
+                    expand_to_beam(enc_mask, beam_size=self.beam_size))
+
+        self.debug = tf.constant(0)
 
         # The parent_decoder is one step ahead. This is required for ensembling
         # support.
@@ -126,15 +127,15 @@ class BeamSearchDecoder(ModelPart):
 
         # Feedables
         self._search_state = None  # type: Optional[SearchState]
-        self._decoder_state = None  # type: Optional[NamedTuple]
+        self._decoder_state = None  # type: Optional[LoopState]
 
         # Output
         self.outputs = self._decoding_loop()
 
-        # Reassign the original encoder states, mask
+        # Reassign the original encoder_states, mask
         if has_encoder:
-            self.parent_decoder.encoder_states = enc_states
-            self.parent_decoder.encoder_mask = enc_mask
+            setattr(self.parent_decoder, "encoder_states", enc_states)
+            setattr(self.parent_decoder, "encoder_mask", enc_mask)
     # pylint: enable=too-many-arguments
 
     @property
@@ -150,7 +151,7 @@ class BeamSearchDecoder(ModelPart):
         return self._search_state
 
     @tensor
-    def decoder_state(self) -> Optional[NamedTuple]:
+    def decoder_state(self) -> Optional[LoopState]:
         return self._decoder_state
 
     @tensor
@@ -158,35 +159,32 @@ class BeamSearchDecoder(ModelPart):
         return self._max_steps
 
     def get_initial_loop_state(self) -> BeamSearchLoopState:
-        # TODO make these feedable
-        output_ta = SearchStepOutputTA(
-            scores=tf.TensorArray(dtype=tf.float32, dynamic_size=True,
-                                  size=0, name="beam_scores"),
-            parent_ids=tf.TensorArray(dtype=tf.int32, dynamic_size=True,
-                                      size=0, name="beam_parents"),
-            token_ids=tf.TensorArray(dtype=tf.int32, dynamic_size=True,
-                                     size=0, name="beam_tokens"))
-
         dec_ls = self.parent_decoder.get_initial_loop_state()
 
         # We need to stretch parent_decoder feedables
         # to (batch_size * beam_size)
-        feedables_dict = dec_ls.feedables._asdict()
-        for name in feedables_dict:
-            if name == "step":
-                continue
-            if not isinstance(feedables_dict[name], list):
-                feedables_dict[name] = self._expand_to_beam(
-                    feedables_dict[name])
-            else:
-                extended = []
-                for element in feedables_dict[name]:
-                    element = self._expand_to_beam(element)
-                    extended.append(element)
-                feedables_dict[name] = extended
+        # feedables have shape [batch, ...]
+        feedables = nest.map_structure(
+            lambda x: expand_to_beam(x, 0, self.beam_size),
+            dec_ls.feedables)
+        # histories have shape [len, batch, ...]
+        histories = nest.map_structure(
+            lambda x: expand_to_beam(x, 1, self.beam_size),
+            dec_ls.histories)
 
-        feedables = dec_ls.feedables._replace(**feedables_dict)
-        dec_ls = dec_ls._replace(feedables=feedables)
+        # We add input_symbol during token_ids initialization
+        # for simpler beam_body implementation.
+        output = SearchStepOutput(
+            scores=tf.zeros(
+                shape=[self.batch_size, self.beam_size],
+                dtype=tf.float32,
+                name="beam_scores"),
+            token_ids=tf.reshape(
+                feedables.input_symbol,
+                [1, self.batch_size, self.beam_size],
+                name="beam_tokens"))
+
+        dec_ls = dec_ls._replace(feedables=feedables, histories=histories)
 
         decoder_body = self.parent_decoder.get_body(False)
         dec_ls = decoder_body(*dec_ls)
@@ -208,12 +206,11 @@ class BeamSearchDecoder(ModelPart):
                 [self.batch_size, self.beam_size],
                 dtype=tf.bool))
 
-        self._decoder_state = dec_ls.feedables
+        self._decoder_state = dec_ls
 
-        # TODO make TensorArrays also feedable
         return BeamSearchLoopState(
             bs_state=self._search_state,
-            bs_output=output_ta,
+            bs_output=output,
             decoder_loop_state=dec_ls)
 
     def _decoding_loop(self) -> BeamSearchOutput:
@@ -224,8 +221,11 @@ class BeamSearchDecoder(ModelPart):
 
         def cond(*args) -> tf.Tensor:
             bsls = BeamSearchLoopState(*args)
-            return tf.less(
+            max_step_cond = tf.less(
                 bsls.decoder_loop_state.feedables.step - 1, self._max_steps)
+            unfinished_cond = tf.logical_not(
+                tf.reduce_all(bsls.bs_state.finished))
+            return tf.logical_and(max_step_cond, unfinished_cond)
 
         # First step has to be run manually because while_loop needs the same
         # shapes between steps and the first beam state is not beam-sized, but
@@ -239,37 +239,26 @@ class BeamSearchDecoder(ModelPart):
             lambda: beam_body(*initial_loop_state),
             lambda: initial_loop_state)
 
-        final_state = tf.while_loop(cond, beam_body, next_bs_loop_state)
-        dec_loop_state = final_state.decoder_loop_state
-        bs_state = final_state.bs_state
+        final_state = tf.while_loop(
+            cond,
+            beam_body,
+            next_bs_loop_state,
+            shape_invariants=nest.map_structure(
+                get_state_shape_invariants, next_bs_loop_state))
 
-        # Because the "batch" dimension is dynamic and the TensorArrays
-        # are empty during initial call during ensembling, we have
-        # to define default values (the runner itself has to handle them,
-        # if needed)
-        # NOTE this code might change in the future, if tf.cond gets replaced
-        # by something more reasonable
-        scores = tf.cond(
-            tf.equal(final_state.bs_output.scores.size(), 0),
-            lambda: tf.fill([1, self.batch_size, self.beam_size], 0.0),
-            final_state.bs_output.scores.stack)
-        parent_ids = tf.cond(
-            tf.equal(final_state.bs_output.parent_ids.size(), 0),
-            lambda: tf.fill([1, self.batch_size, self.beam_size], 0),
-            final_state.bs_output.parent_ids.stack)
-        token_ids = tf.cond(
-            tf.equal(final_state.bs_output.token_ids.size(), 0),
-            lambda: tf.fill([1, self.batch_size, self.beam_size], 0),
-            final_state.bs_output.token_ids.stack)
+        dec_loop_state = final_state.decoder_loop_state
+
+        # Drop the decode input_symbol we added during
+        # the token_ids initialization
+        bs_output = final_state.bs_output
+        bs_output = bs_output._replace(
+            token_ids=bs_output.token_ids[1:])
 
         # TODO: return att_loop_states properly
         return BeamSearchOutput(
-            last_search_step_output=SearchStepOutput(
-                scores=scores,
-                parent_ids=parent_ids,
-                token_ids=token_ids),
-            last_dec_loop_state=dec_loop_state.feedables,
-            last_search_state=bs_state,
+            last_search_step_output=bs_output,
+            last_dec_loop_state=dec_loop_state,
+            last_search_state=final_state.bs_state,
             attention_loop_states=[])
 
     def get_body(self) -> Callable:
@@ -302,10 +291,7 @@ class BeamSearchDecoder(ModelPart):
             bs_output = loop_state.bs_output
 
             # Don't want to use this decoder with uninitialized parent
-            # assert self.parent_decoder.step_scope.reuse
-
-            # The decoder should be "one step ahead" (see above)
-            step = dec_loop_state.feedables.step - 1
+            #assert self.parent_decoder.step_scope.reuse
 
             # mask the probabilities
             # shape(logprobs) = [batch, beam, vocabulary]
@@ -342,24 +328,28 @@ class BeamSearchDecoder(ModelPart):
             # shape(both) = [batch, beam]
             topk_scores, topk_indices = tf.nn.top_k(
                 scores_flat, k=self.beam_size)
+
             topk_indices.set_shape([None, self.beam_size])
             topk_scores.set_shape([None, self.beam_size])
+
+            next_word_ids = tf.mod(topk_indices, len(self.vocabulary))
+            next_beam_ids = tf.div(topk_indices, len(self.vocabulary))
 
             # batch offset for tf.gather_nd
             batch_offset = tf.tile(
                 tf.expand_dims(tf.range(self.batch_size), 1),
                 [1, self.beam_size])
-
-            next_word_ids = tf.mod(topk_indices, len(self.vocabulary))
-            next_beam_ids = tf.div(topk_indices, len(self.vocabulary))
             batch_beam_ids = tf.stack([batch_offset, next_beam_ids], axis=2)
 
             # gather the topk logprob_sums
             next_beam_lengths = tf.gather_nd(
                 hyp_lengths,
                 batch_beam_ids)
-            next_beam_logprob_sum = (
-                topk_scores * self._length_penalty(next_beam_lengths))
+            next_beam_logprob_sum = tf.gather_nd(
+                tf.reshape(
+                    hyp_probs,
+                    [-1, self.beam_size * len(self.vocabulary)]),
+                tf.stack([batch_offset, topk_indices], axis=2))
 
             # mark finished beams
             next_finished = tf.gather_nd(
@@ -369,36 +359,28 @@ class BeamSearchDecoder(ModelPart):
             next_finished = tf.logical_or(next_finished, next_just_finished)
 
             # we need to flatten the feedables for the parent_decoder
-            next_feedables_dict = {
-                "input_symbol": tf.reshape(next_word_ids, [-1]),
-                "finished": tf.reshape(next_finished, [-1])}
-            for key, val in dec_loop_state.feedables._asdict().items():
-                # Note that the parent decoder is working with "batches"
-                # of the size (batch*beam)
+            next_feedables = nest.map_structure(
+                lambda x: gather_flat(x, batch_beam_ids,
+                                      self.batch_size, self.beam_size),
+                dec_loop_state.feedables)
+            next_feedables = next_feedables._replace(
+                input_symbol=tf.reshape(next_word_ids, [-1]),
+                finished=tf.reshape(next_finished, [-1]))
 
-                if key in ["step", "input_symbol", "finished"]:
-                    continue
+            # histories have shape [len, batch, ...]
+            gather_fn = lambda x: partial_transpose(
+                gather_flat(
+                    partial_transpose(x, [1, 0]),
+                    batch_beam_ids,
+                    self.batch_size,
+                    self.beam_size),
+                [1, 0])
+            next_histories = nest.map_structure(
+                gather_fn, dec_loop_state.histories)
 
-                if isinstance(val, tf.Tensor):
-                    next_feedables_dict[key] = self._gather_flat(
-                        val, batch_beam_ids)
-                elif isinstance(val, list):
-                    if not all(isinstance(t, tf.Tensor) for t in val):
-                        raise TypeError("Expected tf.Tensor among feedables")
-
-                    next_feedables_dict[key] = [
-                        self._gather_flat(t, batch_beam_ids) for t in val]
-                else:
-                    raise TypeError("Expected only tensors or list of tensors "
-                                    "among feedables")
-
-            # During beam search decoding, we are not interested in recording
-            # of the computation as done by the decoder. The record is stored
-            # in search states and step outputs of this decoder.
-            next_feedables = dec_loop_state.feedables._replace(
-                **next_feedables_dict)
-
-            dec_loop_state = dec_loop_state._replace(feedables=next_feedables)
+            dec_loop_state = dec_loop_state._replace(
+                feedables=next_feedables,
+                histories=next_histories)
 
             # CALL THE DECODER BODY FUNCTION
             # TODO figure out why mypy throws too-many-arguments on this
@@ -412,10 +394,14 @@ class BeamSearchDecoder(ModelPart):
                 lengths=next_beam_lengths,
                 finished=next_finished)
 
-            next_output = SearchStepOutputTA(
-                scores=bs_output.scores.write(step, topk_scores),
-                parent_ids=bs_output.parent_ids.write(step, next_beam_ids),
-                token_ids=bs_output.token_ids.write(step, next_word_ids))
+            next_token_ids = tf.transpose(bs_output.token_ids, [1, 2, 0])
+            next_token_ids = tf.gather_nd(next_token_ids, batch_beam_ids)
+            next_token_ids = tf.transpose(next_token_ids, [2, 0, 1])
+            next_output = SearchStepOutput(
+                scores=topk_scores,
+                token_ids=tf.concat(
+                    [next_token_ids, tf.expand_dims(next_word_ids, 0)],
+                    axis=0))
 
             return BeamSearchLoopState(
                 bs_state=next_search_state,
@@ -429,27 +415,3 @@ class BeamSearchDecoder(ModelPart):
         """Apply lp term from eq. 14."""
 
         return ((5. + tf.to_float(lengths)) / 6.) ** self._length_normalization
-
-    def _gather_flat(self, val, indices):
-        """Gather values from the flattened (shape=[batch * beam, ...]) input.
-
-        """
-        shape = [self.batch_size, self.beam_size] + get_shape_list(val)[1:]
-        val = tf.gather_nd(
-            tf.reshape(val, shape),
-            indices)
-        return tf.reshape(val, [-1] + shape[2:])
-
-    def _expand_to_beam(self, val):
-        orig_shape = get_shape_list(val)
-        orig_shape[0] *= self.beam_size
-        tile_shape = [1] * (len(orig_shape) + 1)
-        tile_shape[1] = self.beam_size
-
-        val = tf.tile(
-            tf.expand_dims(val, 1),
-            tile_shape)
-        val = tf.reshape(
-            val,
-            orig_shape)
-        return val

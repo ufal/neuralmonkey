@@ -9,7 +9,7 @@ Each attention object has the ``attention`` function which operates on the
 ``attention_states`` tensor.  The attention function receives the query tensor,
 the decoder previous state and input, and its inner state, which could bear an
 arbitrary structure of information. The default structure for this is the
-``AttentionLoopStateTA``, which contains a growing array of attention
+``AttentionLoopState``, which contains a growing array of attention
 distributions and context vectors in time. That's why there is the
 ``initial_loop_state`` function in the ``BaseAttention`` class.
 
@@ -27,18 +27,19 @@ from typing import NamedTuple, Dict, Optional, Any, Tuple, Union
 
 import tensorflow as tf
 
+from neuralmonkey.decorators import tensor
 from neuralmonkey.model.stateful import TemporalStateful, SpatialStateful
 from neuralmonkey.model.model_part import ModelPart, InitializerSpecs
 
 # pylint: disable=invalid-name
 Attendable = Union[TemporalStateful, SpatialStateful]
-AttentionLoopStateTA = NamedTuple("AttentionLoopStateTA",
-                                  [("contexts", tf.TensorArray),
-                                   ("weights", tf.TensorArray)])
+AttentionLoopState = NamedTuple("AttentionLoopState",
+                                [("contexts", tf.Tensor),
+                                 ("weights", tf.Tensor)])
 # pylint: enable=invalid-name
 
 
-def empty_attention_loop_state() -> AttentionLoopStateTA:
+def empty_attention_loop_state(batch_size: int) -> AttentionLoopState:
     """Create an empty attention loop state.
 
     The attention loop state is a technical object for storing the attention
@@ -49,13 +50,15 @@ def empty_attention_loop_state() -> AttentionLoopStateTA:
     two empty arrays, one for attention distributions in time, and one for
     the attention context vectors in time.
     """
-    return AttentionLoopStateTA(
-        contexts=tf.TensorArray(
-            dtype=tf.float32, size=0, dynamic_size=True,
+    return AttentionLoopState(
+        contexts=tf.zeros(
+            shape=[0, batch_size],
+            dtype=tf.float32,
             name="contexts"),
-        weights=tf.TensorArray(
-            dtype=tf.float32, size=0, dynamic_size=True,
-            name="distributions", clear_after_read=False))
+        weights=tf.zeros(
+            shape=[0, batch_size],
+            dtype=tf.float32,
+            name="distributions"))
 
 
 def get_attention_states(encoder: Attendable) -> tf.Tensor:
@@ -110,8 +113,7 @@ class BaseAttention(ModelPart):
                   query: tf.Tensor,
                   decoder_prev_state: tf.Tensor,
                   decoder_input: tf.Tensor,
-                  loop_state: Any,
-                  step: tf.Tensor) -> Tuple[tf.Tensor, Any]:
+                  loop_state: Any) -> Tuple[tf.Tensor, Any]:
         """Get context vector for a given query."""
         raise NotImplementedError("Abstract method")
 

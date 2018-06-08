@@ -50,6 +50,7 @@ def get_variable(name: str,
         initializer=get_initializer(name, initializer),
         **kwargs)
 
+
 def get_shape_list(x):
     """Return list of dims, statically where possible.
 
@@ -70,6 +71,38 @@ def get_shape_list(x):
             dim = shape[i]
         ret.append(dim)
     return ret
+
+
+def get_state_shape_invariants(tensor):
+    """Return the shape of the tensor (set all dims but last to None).
+
+    Based on tensor2tensor.
+    """
+    shape = tensor.shape.as_list()
+    for i in range(0, len(shape) - 1):
+        shape[i] = None
+    return tf.TensorShape(shape)
+
+
+def gather_flat(x, indices, batch_size=1, beam_size=1):
+    """Gather values from the flattened (shape=[batch * beam, ...]) input."""
+    if x.shape.ndims == 0:
+        return x
+
+    shape = [batch_size, beam_size] + get_shape_list(x)[1:]
+    x = tf.gather_nd(
+        tf.reshape(x, shape),
+        indices)
+    return tf.reshape(x, [-1] + shape[2:])
+
+
+def partial_transpose(x, indices):
+    """Do a transpose on a subset of tensor dimensions."""
+    dims = x.shape.ndims
+    orig_indices = list(range(dims))
+
+    return tf.transpose(x, indices + orig_indices[len(indices):])
+
 
 def tf_print(tensor: tf.Tensor,
              message: str = None,
@@ -132,3 +165,20 @@ def layer_norm(x, epsilon=1e-6):
             keep_dims=True)
         norm_x = (x - mean) * tf.rsqrt(variance + epsilon)
         return norm_x * gamma + beta
+
+def expand_to_beam(val, i=0, beam_size=1):
+    orig_shape = get_shape_list(val)
+    if val.shape.ndims == 0:
+        return val
+
+    orig_shape[i] *= beam_size
+    tile_shape = [1] * (len(orig_shape) + 1)
+    tile_shape[i+1] = beam_size
+
+    val = tf.tile(
+        tf.expand_dims(val, 1),
+        tile_shape)
+    val = tf.reshape(
+        val,
+        orig_shape)
+    return val
