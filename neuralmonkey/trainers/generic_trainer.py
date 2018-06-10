@@ -81,6 +81,11 @@ class GenericTrainer(object):
             tf.summary.scalar("train_l2", l2_value,
                               collections=["summary_train"])
 
+            # log all objectives
+            for o in objectives:
+                tf.summary.scalar(
+                    o.name, o.loss, collections=["summary_train"])
+
             # if the objective does not have its own gradients,
             # just use TF to do the derivative
             update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)

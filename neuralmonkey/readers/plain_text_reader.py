@@ -7,6 +7,9 @@ import unicodedata
 
 from neuralmonkey.logging import warn
 
+# TODO ugly hack, cannot import this from vocabulary due to a circular
+# dependency with dataset
+NULL_TOKEN = "<null>"
 
 # pylint: disable=invalid-name
 PlainTextFileReader = Callable[[List[str]], Iterable[List[str]]]
@@ -62,7 +65,13 @@ def t2t_tokenized_text_reader(encoding: str = "utf-8") -> PlainTextFileReader:
         for line in lines(files):
             if not line:
                 yield []
+                continue
+
             line = line.rstrip("\n")
+
+            if line == NULL_TOKEN:
+                yield [NULL_TOKEN]
+                continue
 
             tokens = []
             is_alnum = [ch in alphanumeric_charset for ch in line]

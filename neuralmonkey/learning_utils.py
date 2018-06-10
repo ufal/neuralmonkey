@@ -152,7 +152,7 @@ def training_loop(tf_manager: TensorFlowManager,
     try:
         for epoch_n in range(1, epochs + 1):
             log_print("")
-            log("Epoch {} starts".format(epoch_n), color="red")
+            log("Epoch {} begins".format(epoch_n), color="red")
 
             train_dataset.shuffle()
             train_batched_datasets = train_dataset.batch_dataset(batch_size)
@@ -428,6 +428,15 @@ def run_on_dataset(tf_manager: TensorFlowManager,
         return True
 
     if write_out:
+        # This set contains all letter and number characters.
+        import sys
+        import unicodedata
+        alphanumeric_charset = set(
+            chr(i) for i in range(sys.maxunicode)
+            if (unicodedata.category(chr(i)).startswith("L")
+                or unicodedata.category(chr(i)).startswith("N")))
+
+
         for series_id, data in result_data.items():
             if series_id in dataset.series_outputs:
                 path = dataset.series_outputs[series_id]
@@ -441,11 +450,28 @@ def run_on_dataset(tf_manager: TensorFlowManager,
                     np.savez(path, **unbatched)
                     log("Result saved as numpy data to '{}.npz'".format(path))
                 else:
+
+                    # TODO ugly HACK
                     with open(path, "w", encoding="utf-8") as f_out:
+                        sents = []
+                        for sent in data:
+                            token_is_alnum = [t[0] in alphanumeric_charset for t in sent]
+                            ret = ""
+                            for i, token in enumerate(sent):
+                                #if not token_is_alnum[i]:
+                                    # if token[0] == " ":
+                                    #     token = token[1:]
+                                    # if token[-1] == " ":
+                                    #     token = token[:-1]
+
+                                if i > 0 and token_is_alnum[i - 1] and token_is_alnum[i]:
+                                    ret += " "
+                                ret += token
+                            sents.append(ret)
+
                         f_out.writelines(
-                            [" ".join(sent) + "\n"
-                             if isinstance(sent, collections.Iterable)
-                             else str(sent) + "\n" for sent in data])
+                            [sent + "\n" for sent in sents])
+
                     log("Result saved as plain text '{}'".format(path))
             else:
                 log("There is no output file for dataset: {}"
