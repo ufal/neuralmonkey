@@ -392,6 +392,11 @@ class Decoder(AutoregressiveDecoder):
             a.initial_loop_state()
             for a in self.attentions if a is not None]
 
+        histories["decoder_outputs"] = tf.zeros(
+            shape=[0, self.batch_size, self.rnn_size],
+            dtype=tf.float32,
+            name="hist_decoder_outputs")
+
         # pylint: disable=not-callable
         rnn_feedables = RNNFeedables(**feedables)
         rnn_histories = RNNHistories(**histories)

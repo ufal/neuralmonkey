@@ -163,8 +163,10 @@ class BeamSearchExecutable(Executable):
 
     def _is_finished(self, results):
         # TODO: support for ensembles
-        feedables = results[0]["bs_outputs"].last_dec_loop_state.feedables
-        if all(feedables.finished):
+        #feedables = results[0]["bs_outputs"].last_dec_loop_state.feedables
+        finished = [res["bs_outputs"].last_dec_loop_state.feedables.finished for res in results]
+        #if all(feedables.finished):
+        if all(finished):
             return True
         if (self._decoder.max_output_len is not None
                 and self._step >= self._decoder.max_output_len):
