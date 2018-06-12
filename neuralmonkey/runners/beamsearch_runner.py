@@ -164,7 +164,9 @@ class BeamSearchExecutable(Executable):
     def _is_finished(self, results):
         # TODO: support for ensembles
         #feedables = results[0]["bs_outputs"].last_dec_loop_state.feedables
-        finished = [res["bs_outputs"].last_dec_loop_state.feedables.finished for res in results]
+        finished = [
+            all(res["bs_outputs"].last_dec_loop_state.feedables.finished)
+            for res in results]
         #if all(feedables.finished):
         if all(finished):
             return True

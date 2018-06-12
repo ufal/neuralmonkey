@@ -206,8 +206,6 @@ class BeamSearchDecoder(ModelPart):
                 [self.batch_size, self.beam_size],
                 dtype=tf.bool))
 
-        self._decoder_state = dec_ls
-
         return BeamSearchLoopState(
             bs_state=self._search_state,
             bs_output=output,
@@ -247,6 +245,7 @@ class BeamSearchDecoder(ModelPart):
                 get_state_shape_invariants, next_bs_loop_state))
 
         dec_loop_state = final_state.decoder_loop_state
+        self._decoder_state = dec_loop_state
 
         # Drop the decode input_symbol we added during
         # the token_ids initialization
