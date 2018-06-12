@@ -336,7 +336,6 @@ class TransformerDecoder(AutoregressiveDecoder):
             loop_state = LoopState(*args)
             histories = loop_state.histories
             feedables = loop_state.feedables
-            step = feedables.step
 
             # shape (time, batch)
             decoded_symbols = tf.concat(
@@ -392,7 +391,7 @@ class TransformerDecoder(AutoregressiveDecoder):
                 not_finished = tf.logical_not(has_finished)
 
             new_feedables = DecoderFeedables(
-                step=step + 1,
+                step=feedables.step + 1,
                 finished=has_finished,
                 input_symbol=next_symbols,
                 prev_logits=logits)
@@ -422,7 +421,7 @@ class TransformerDecoder(AutoregressiveDecoder):
 
             new_loop_state = LoopState(
                 histories=new_histories,
-                constants=[],
+                constants=loop_state.constants,
                 feedables=new_feedables)
 
             return new_loop_state

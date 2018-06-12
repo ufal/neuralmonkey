@@ -111,8 +111,6 @@ class BeamSearchDecoder(ModelPart):
                     "encoder_mask",
                     expand_to_beam(enc_mask, beam_size=self.beam_size))
 
-        self.debug = tf.constant(0)
-
         # The parent_decoder is one step ahead. This is required for ensembling
         # support.
         # At the end of the Nth step we generate logits for ensembling
@@ -126,8 +124,10 @@ class BeamSearchDecoder(ModelPart):
         self.max_output_len = max_steps
 
         # Feedables
+        # TODO: replace these by a single nested object
         self._search_state = None  # type: Optional[SearchState]
         self._decoder_state = None  # type: Optional[LoopState]
+        self._bs_output = None  # type: Optional[SearchStepOutput]
 
         # Output
         self.outputs = self._decoding_loop()
@@ -155,6 +155,10 @@ class BeamSearchDecoder(ModelPart):
         return self._decoder_state
 
     @tensor
+    def bs_output(self) -> Optional[SearchStepOutput]:
+        return self._bs_output
+
+    @tensor
     def max_steps(self) -> int:
         return self._max_steps
 
@@ -174,7 +178,7 @@ class BeamSearchDecoder(ModelPart):
 
         # We add input_symbol during token_ids initialization
         # for simpler beam_body implementation.
-        output = SearchStepOutput(
+        self._bs_output = SearchStepOutput(
             scores=tf.zeros(
                 shape=[self.batch_size, self.beam_size],
                 dtype=tf.float32,
@@ -184,7 +188,10 @@ class BeamSearchDecoder(ModelPart):
                 [1, self.batch_size, self.beam_size],
                 name="beam_tokens"))
 
-        dec_ls = dec_ls._replace(feedables=feedables, histories=histories)
+        dec_ls = dec_ls._replace(
+            feedables=feedables,
+            histories=histories,
+            constants=tf.constant(0))
 
         decoder_body = self.parent_decoder.get_body(False)
         dec_ls = decoder_body(*dec_ls)
@@ -206,10 +213,21 @@ class BeamSearchDecoder(ModelPart):
                 [self.batch_size, self.beam_size],
                 dtype=tf.bool))
 
+        self._decoder_state = dec_ls
+
+        # replace the tensors with actual placeholders for ensembling
+        # NOTE: this is necessary only for variables that grow in time
+        self._decoder_state = nest.map_structure(
+            lambda x: tf.placeholder_with_default(x, get_state_shape_invariants(x)),
+            self._decoder_state)
+        self._bs_output = nest.map_structure(
+            lambda x: tf.placeholder_with_default(x, get_state_shape_invariants(x)),
+            self._bs_output)
+
         return BeamSearchLoopState(
             bs_state=self._search_state,
-            bs_output=output,
-            decoder_loop_state=dec_ls)
+            bs_output=self._bs_output,
+            decoder_loop_state=self._decoder_state)
 
     def _decoding_loop(self) -> BeamSearchOutput:
         # collect attention objects
@@ -240,23 +258,14 @@ class BeamSearchDecoder(ModelPart):
         final_state = tf.while_loop(
             cond,
             beam_body,
-            next_bs_loop_state,
+            initial_loop_state,
             shape_invariants=nest.map_structure(
-                get_state_shape_invariants, next_bs_loop_state))
-
-        dec_loop_state = final_state.decoder_loop_state
-        self._decoder_state = dec_loop_state
-
-        # Drop the decode input_symbol we added during
-        # the token_ids initialization
-        bs_output = final_state.bs_output
-        bs_output = bs_output._replace(
-            token_ids=bs_output.token_ids[1:])
+                get_state_shape_invariants, initial_loop_state))
 
         # TODO: return att_loop_states properly
         return BeamSearchOutput(
-            last_search_step_output=bs_output,
-            last_dec_loop_state=dec_loop_state,
+            last_search_step_output=final_state.bs_output,
+            last_dec_loop_state=final_state.decoder_loop_state,
             last_search_state=final_state.bs_state,
             attention_loop_states=[])
 

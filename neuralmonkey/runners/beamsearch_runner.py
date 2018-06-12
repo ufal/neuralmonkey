@@ -29,9 +29,6 @@ class BeamSearchExecutable(Executable):
         self._decoder = decoder
         self._postprocess = postprocess
 
-        # Length of the currently sequence decoded so far
-        self._step = 0
-
         self._next_feed = [{} for _ in range(self._num_sessions)] \
             # type: List[FeedDict]
 
@@ -61,36 +58,12 @@ class BeamSearchExecutable(Executable):
         ens_logprobs = (scipy.misc.logsumexp(prev_logprobs, 0)
                         - np.log(self._num_sessions))
 
-        # Now we update the scores, parent_ids, token_ids based on the last
-        # session.run of the beamsearch_decoder
-        bs_outputs = results[0]["bs_outputs"]
-
-        # step_size varies between single model run and ensembling
-        # single model: step_size == max_sequence_len
-        # ensembles: step_size == 1
-        step_size = bs_outputs.last_dec_loop_state.feedables.step - 1
-
-        batch_size = bs_outputs.last_search_step_output.scores.shape[0]
-        # pylint: disable=attribute-defined-outside-init
-        if self._step == 0:
-            self._token_ids = np.empty(
-                [0, batch_size, self._decoder.beam_size],
-                dtype=int)
-        self._step += step_size
-        self._scores = bs_outputs.last_search_step_output.scores
-
-        self._token_ids = np.append(
-            self._token_ids,
-            bs_outputs.last_search_step_output.token_ids[0:step_size],
-            axis=0)
-        # pylint: enable=attribute-defined-outside-init
-
         if self._is_finished(results):
-            self.prepare_results()
+            self.prepare_results(
+                results[0]["bs_outputs"].last_search_step_output)
             return
 
         # Prepare the next feed_dict (required for ensembles)
-        # TODO: check, it this still works correctly (ensembles)
         self._next_feed = []
         for result in results:
             bs_outputs = result["bs_outputs"]
@@ -98,48 +71,26 @@ class BeamSearchExecutable(Executable):
             search_state = bs_outputs.last_search_state._replace(
                 prev_logprobs=ens_logprobs)
 
-            # in the next iteration, we want to generate one new symbol
-            # based on the ensembled logprobs (and then use this symbol
-            # to get new set of logprobs for ensembling)
-            fd = {self._decoder.max_steps: 1,
-                  self._decoder.search_state: search_state}
-
             dec_ls = bs_outputs.last_dec_loop_state
-            dec_feedables = dec_ls.feedables
-            # NOTE Due to the arrays in DecoderState (prev_contexts),
-            # we have to create feed for each value separately.
-            # TODO: use nest.map_structure instead
-            for field in self._decoder.decoder_state.feedables._fields:
-                tensor = getattr(self._decoder.decoder_state.feedables, field)
-                if field == "step":
-                    value = 1
-                else:
-                    value = getattr(dec_feedables, field)
-                if isinstance(tensor, list) and isinstance(value, list):
-                    for t, val in zip(tensor, value):
-                        fd.update({t: val})
-                else:
-                    fd.update({tensor: value})
-            dec_histories = dec_ls.histories
-            for field in self._decoder.decoder_state.histories._fields:
-                tensor = getattr(self._decoder.decoder_state.histories, field)
-                value = getattr(dec_histories, field)
-                if isinstance(tensor, list) and isinstance(value, list):
-                    for t, val in zip(tensor, value):
-                        fd.update({t: val})
-                else:
-                    fd.update({tensor: value})
+            feedables = dec_ls.feedables._replace(
+                step=1)
+            dec_ls = dec_ls._replace(feedables=feedables)
+
+            fd = {self._decoder.max_steps: 1,
+                  self._decoder.search_state: search_state,
+                  self._decoder.bs_output: bs_outputs.last_search_step_output,
+                  self._decoder.decoder_state: dec_ls}
 
             self._next_feed.append(fd)
 
         return
     # pylint: enable=too-many-locals,too-many-branches
 
-    def prepare_results(self):
-        bs_scores = [s[self._rank - 1] for s in self._scores]
+    def prepare_results(self, output):
+        bs_scores = [s[self._rank - 1] for s in output.scores]
 
-        tok_ids = np.transpose(self._token_ids, [1, 2, 0])
-        decoded_tokens = [toks[self._rank - 1] for toks in tok_ids]
+        tok_ids = np.transpose(output.token_ids, [1, 2, 0])
+        decoded_tokens = [toks[self._rank - 1][1:] for toks in tok_ids]
 
         for i, sent in enumerate(decoded_tokens):
             decoded = []
@@ -162,16 +113,16 @@ class BeamSearchExecutable(Executable):
             image_summaries=None)
 
     def _is_finished(self, results):
-        # TODO: support for ensembles
-        #feedables = results[0]["bs_outputs"].last_dec_loop_state.feedables
         finished = [
             all(res["bs_outputs"].last_dec_loop_state.feedables.finished)
             for res in results]
         #if all(feedables.finished):
         if all(finished):
             return True
+        bs_outputs = results[0]["bs_outputs"]
+        step = len(bs_outputs.last_search_step_output.token_ids) - 1
         if (self._decoder.max_output_len is not None
-                and self._step >= self._decoder.max_output_len):
+                and step >= self._decoder.max_output_len):
             return True
         return False
 
