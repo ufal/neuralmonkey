@@ -116,7 +116,6 @@ class BeamSearchExecutable(Executable):
         finished = [
             all(res["bs_outputs"].last_dec_loop_state.feedables.finished)
             for res in results]
-        #if all(feedables.finished):
         if all(finished):
             return True
         bs_outputs = results[0]["bs_outputs"]

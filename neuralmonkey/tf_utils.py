@@ -166,6 +166,7 @@ def layer_norm(x, epsilon=1e-6):
         norm_x = (x - mean) * tf.rsqrt(variance + epsilon)
         return norm_x * gamma + beta
 
+
 def expand_to_beam(val, i=0, beam_size=1):
     orig_shape = get_shape_list(val)
     if val.shape.ndims == 0:
@@ -173,7 +174,7 @@ def expand_to_beam(val, i=0, beam_size=1):
 
     orig_shape[i] *= beam_size
     tile_shape = [1] * (len(orig_shape) + 1)
-    tile_shape[i+1] = beam_size
+    tile_shape[i + 1] = beam_size
 
     val = tf.tile(
         tf.expand_dims(val, 1),

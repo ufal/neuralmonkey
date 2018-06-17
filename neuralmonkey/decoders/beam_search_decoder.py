@@ -218,11 +218,17 @@ class BeamSearchDecoder(ModelPart):
         # replace the tensors with actual placeholders for ensembling
         # NOTE: this is necessary only for variables that grow in time
         self._decoder_state = nest.map_structure(
-            lambda x: tf.placeholder_with_default(x, get_state_shape_invariants(x)),
+            lambda x: tf.placeholder_with_default(
+                x, get_state_shape_invariants(x)),
             self._decoder_state)
+
         self._bs_output = nest.map_structure(
-            lambda x: tf.placeholder_with_default(x, get_state_shape_invariants(x)),
+            lambda x: tf.placeholder_with_default(
+                x, get_state_shape_invariants(x)),
             self._bs_output)
+
+        assert self._decoder_state is not None
+        assert self._bs_output is not None
 
         return BeamSearchLoopState(
             bs_state=self._search_state,
@@ -298,8 +304,9 @@ class BeamSearchDecoder(ModelPart):
             bs_state = loop_state.bs_state
             bs_output = loop_state.bs_output
 
+            # TODO(varisd) throw this away?
             # Don't want to use this decoder with uninitialized parent
-            #assert self.parent_decoder.step_scope.reuse
+            # assert self.parent_decoder.step_scope.reuse
 
             # mask the probabilities
             # shape(logprobs) = [batch, beam, vocabulary]
@@ -376,13 +383,15 @@ class BeamSearchDecoder(ModelPart):
                 finished=tf.reshape(next_finished, [-1]))
 
             # histories have shape [len, batch, ...]
-            gather_fn = lambda x: partial_transpose(
-                gather_flat(
-                    partial_transpose(x, [1, 0]),
-                    batch_beam_ids,
-                    self.batch_size,
-                    self.beam_size),
-                [1, 0])
+            def gather_fn(x):
+                return partial_transpose(
+                    gather_flat(
+                        partial_transpose(x, [1, 0]),
+                        batch_beam_ids,
+                        self.batch_size,
+                        self.beam_size),
+                    [1, 0])
+
             next_histories = nest.map_structure(
                 gather_fn, dec_loop_state.histories)
 

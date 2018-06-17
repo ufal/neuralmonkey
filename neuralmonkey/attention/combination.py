@@ -218,8 +218,9 @@ class FlatMultiAttention(MultiAttention):
                   query: tf.Tensor,
                   decoder_prev_state: tf.Tensor,
                   decoder_input: tf.Tensor,
-                  loop_state: AttentionLoopState) -> Tuple[tf.Tensor,
-                                                           AttentionLoopState]:
+                  loop_state: AttentionLoopState) -> Tuple[
+                      tf.Tensor, AttentionLoopState]:
+
         with tf.variable_scope(self.att_scope_name):
             projected_state = tf.layers.dense(query, self.attention_state_size)
             projected_state = tf.expand_dims(projected_state, 1)
@@ -374,8 +375,8 @@ class HierarchicalMultiAttention(MultiAttention):
                   query: tf.Tensor,
                   decoder_prev_state: tf.Tensor,
                   decoder_input: tf.Tensor,
-                  loop_state: HierarchicalLoopState) -> Tuple[tf.Tensor,
-                                                              HierarchicalLoopState]:
+                  loop_state: HierarchicalLoopState) -> Tuple[
+                      tf.Tensor, HierarchicalLoopState]:
 
         with tf.variable_scope(self.att_scope_name):
             projected_state = tf.layers.dense(query, self.attention_state_size)

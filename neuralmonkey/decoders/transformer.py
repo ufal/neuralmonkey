@@ -8,9 +8,7 @@ import math
 import tensorflow as tf
 from typeguard import check_argument_types
 
-from neuralmonkey.attention.scaled_dot_product import (
-    #empty_multi_head_loop_state
-    attention)
+from neuralmonkey.attention.scaled_dot_product import attention
 from neuralmonkey.attention.base_attention import (
     Attendable, get_attention_states, get_attention_mask)
 from neuralmonkey.decorators import tensor
@@ -32,8 +30,9 @@ TransformerHistories = extend_namedtuple(
     "TransformerHistories",
     DecoderHistories,
     [("decoded_symbols", tf.Tensor),
-     #("self_attention_histories", List[Tuple]),
-     #("inter_attention_histories", List[Tuple]),
+     # TODO(all) handle these!
+     # ("self_attention_histories", List[Tuple]),
+     # ("inter_attention_histories", List[Tuple]),
      ("input_mask", tf.Tensor)])
 # pylint: enable=invalid-name
 
@@ -412,10 +411,10 @@ class TransformerDecoder(AutoregressiveDecoder):
                      tf.expand_dims(next_symbols, 0)],
                     axis=0),
                 # transformer-specific:
-                # TODO handle attention histories correctly
                 decoded_symbols=decoded_symbols,
-                #self_attention_histories=histories.self_attention_histories,
-                #inter_attention_histories=histories.inter_attention_histories,
+                # TODO(all) handle these!
+                # self_attention_histories=histories.self_attention_histories,
+                # inter_attention_histories analogicky
                 input_mask=input_mask)
             # pylint: enable=not-callable
 
