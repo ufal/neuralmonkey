@@ -1,5 +1,5 @@
 """A set of helper functions for TensorFlow."""
-from typing import Callable, Iterable, List, Optional, Tuple
+from typing import Callable, Iterable, List, Optional, Tuple, Union
 import numpy as np
 import tensorflow as tf
 
@@ -51,10 +51,19 @@ def get_variable(name: str,
         **kwargs)
 
 
-def get_shape_list(x):
+def get_shape_list(x: tf.Tensor) -> List[Union[int, tf.Tensor]]:
     """Return list of dims, statically where possible.
 
+    Compute the static shape of a tensor. Where the dimension is not static
+    (e.g. batch or time dimension), symbolic Tensor is returned.
+
     Based on tensor2tensor.
+
+    Arguments:
+        x: The ``Tensor`` to process.
+
+    Returns:
+        A list of integers and Tensors.
     """
     x = tf.convert_to_tensor(x)
 
@@ -73,31 +82,67 @@ def get_shape_list(x):
     return ret
 
 
-def get_state_shape_invariants(tensor):
-    """Return the shape of the tensor (set all dims but last to None).
+def get_state_shape_invariants(state: tf.Tensor) -> tf.TensorShape:
+    """Return the shape invariant of a tensor.
+
+    This function computes the loosened shape invariant of a state tensor.
+    Only invariant dimension is the state size dimension, which is the last.
 
     Based on tensor2tensor.
+
+    Arguments:
+        state: The state tensor.
+
+    Returns:
+        A ``TensorShape`` object with all but the last dimensions set to
+        ``None``.
     """
-    shape = tensor.shape.as_list()
+    shape = state.shape.as_list()
     for i in range(0, len(shape) - 1):
         shape[i] = None
     return tf.TensorShape(shape)
 
 
-def gather_flat(x, indices, batch_size=1, beam_size=1):
-    """Gather values from the flattened (shape=[batch * beam, ...]) input."""
+def gather_flat(x: tf.Tensor,
+                indices: tf.Tensor,
+                batch_size: Union[int, tf.Tensor] = 1,
+                beam_size: Union[int, tf.Tensor] = 1) -> tf.Tensor:
+    """Gather values from the flattened (shape=[batch * beam, ...]) input.
+
+    This function expects a flattened tensor with first dimension of size
+    *batch x beam* elements. Using the given batch and beam size, it reshapes
+    the input tensor to a tensor of shape ``(batch, beam, ...)`` and gather
+    the values from it using the index tensor.
+
+    Arguments:
+        x: A flattened ``Tensor`` from which to gather values.
+        indices: Index tensor.
+        batch_size: The size of the batch.
+        beam_size: The size of the beam.
+
+    Returns:
+        The ``Tensor`` of gathered values.
+    """
     if x.shape.ndims == 0:
         return x
 
     shape = [batch_size, beam_size] + get_shape_list(x)[1:]
-    x = tf.gather_nd(
-        tf.reshape(x, shape),
-        indices)
-    return tf.reshape(x, [-1] + shape[2:])
+    gathered = tf.gather_nd(tf.reshape(x, shape), indices)
+    return tf.reshape(gathered, [-1] + shape[2:])
 
 
-def partial_transpose(x, indices):
-    """Do a transpose on a subset of tensor dimensions."""
+def partial_transpose(x: tf.Tensor, indices: List[int]) -> tf.Tensor:
+    """Do a transpose on a subset of tensor dimensions.
+
+    Compute a permutation of first k dimensions of a tensor.
+
+    Arguments:
+        x: The ``Tensor`` to transpose.
+        indices: The permutation of the first k dimensions of ``x``.
+
+    Returns:
+        The transposed tensor.
+    """
     dims = x.shape.ndims
     orig_indices = list(range(dims))
 
@@ -141,10 +186,17 @@ def tf_print(tensor: tf.Tensor,
     return res
 
 
-def layer_norm(x, epsilon=1e-6):
+def layer_norm(x: tf.Tensor, epsilon: float = 1e-6) -> tf.Tensor:
     """Layer normalize the tensor x, averaging over the last dimension.
 
     Implementation based on tensor2tensor.
+
+    Arguments:
+        x: The ``Tensor`` to normalize.
+        epsilon: The smoothing parameter of the normalization.
+
+    Returns:
+        The normalized tensor.
     """
     with tf.variable_scope("LayerNorm"):
         gamma = get_variable(
@@ -167,7 +219,18 @@ def layer_norm(x, epsilon=1e-6):
         return norm_x * gamma + beta
 
 
-def expand_to_beam(val, i=0, beam_size=1):
+def expand_to_beam(
+        val: tf.Tensor, i: int = 0, beam_size: int = 1) -> tf.Tensor:
+    """Copy a tensor along a new beam dimension.
+
+    Arguments:
+        val: The ``Tensor`` to expand.
+        i: The dimension along which to expand.
+        beam_size: The size of the beam.
+
+    Returns:
+        The expanded tensor.
+    """
     orig_shape = get_shape_list(val)
     if val.shape.ndims == 0:
         return val
@@ -176,10 +239,7 @@ def expand_to_beam(val, i=0, beam_size=1):
     tile_shape = [1] * (len(orig_shape) + 1)
     tile_shape[i + 1] = beam_size
 
-    val = tf.tile(
-        tf.expand_dims(val, 1),
-        tile_shape)
-    val = tf.reshape(
-        val,
-        orig_shape)
+    val = tf.tile(tf.expand_dims(val, 1), tile_shape)
+    val = tf.reshape(val, orig_shape)
+
     return val
