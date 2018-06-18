@@ -86,5 +86,5 @@ class StatefulContext(BaseAttention):
                       last_loop_state: AttentionLoopState) -> None:
         pass
 
-    def visualize_attention(self, key: str) -> None:
+    def visualize_attention(self, key: str, max_outputs: int = 256) -> None:
         pass

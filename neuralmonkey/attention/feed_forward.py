@@ -30,8 +30,8 @@ class Attention(BaseAttention):
                  load_checkpoint: str = None,
                  initializers: InitializerSpecs = None) -> None:
         check_argument_types()
-        BaseAttention.__init__(self, name, save_checkpoint, load_checkpoint,
-                               initializers)
+        BaseAttention.__init__(
+            self, name, save_checkpoint, load_checkpoint, initializers)
 
         self.encoder = encoder
         self.dropout_keep_prob = dropout_keep_prob
@@ -129,15 +129,15 @@ class Attention(BaseAttention):
                   query: tf.Tensor,
                   decoder_prev_state: tf.Tensor,
                   decoder_input: tf.Tensor,
-                  loop_state: AttentionLoopState) -> Tuple[tf.Tensor,
-                                                           AttentionLoopState]:
+                  loop_state: AttentionLoopState) -> Tuple[
+                      tf.Tensor, AttentionLoopState]:
         self.query_state_size = query.get_shape()[-1].value
 
         y = tf.matmul(query, self.query_projection_matrix)
         y = y + self.projection_bias_vector
         y = tf.reshape(y, [-1, 1, 1, self.state_size])
 
-        energies = self.get_energies(y, loop_state.weights.identity())
+        energies = self.get_energies(y, loop_state.weights)
 
         if self.attention_mask is None:
             weights = tf.nn.softmax(energies)

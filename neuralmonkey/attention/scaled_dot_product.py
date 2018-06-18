@@ -318,11 +318,11 @@ class MultiHeadAttention(BaseAttention):
         head_weights = [tf.squeeze(w, axis=[1, 2]) for w in head_weights_3d]
 
         next_contexts = tf.concat(
-            [loop_state.contexts, tf.expand_dims(context, 0)], 0)
-        next_head_weights = [tf.concat([loop_state.head_weights[i],
-                                        tf.expand_dims(head_weights[i], 0)],
-                                       axis=0)
-                             for i in range(self.n_heads)]
+            [loop_state.contexts, tf.expand_dims(context, 0)], axis=0)
+        next_head_weights = [
+            tf.concat([loop_state.head_weights[i],
+                       tf.expand_dims(head_weights[i], 0)], axis=0)
+            for i in range(self.n_heads)]
 
         next_loop_state = MultiHeadLoopState(
             contexts=next_contexts,
@@ -343,7 +343,7 @@ class MultiHeadAttention(BaseAttention):
     def context_vector_size(self) -> int:
         return self.attention_values.get_shape()[-1].value
 
-    def visualize_attention(self, key: str) -> None:
+    def visualize_attention(self, key: str, max_outputs: int = 256) -> None:
         for i in range(self.n_heads):
             head_key = "{}_head{}".format(key, i)
             if head_key not in self.histories:
@@ -355,7 +355,7 @@ class MultiHeadAttention(BaseAttention):
 
             tf.summary.image("{}_head{}".format(self.name, i), alignments,
                              collections=["summary_att_plots"],
-                             max_outputs=256)
+                             max_outputs=max_outputs)
 
 
 class ScaledDotProdAttention(MultiHeadAttention):

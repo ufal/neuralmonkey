@@ -171,7 +171,6 @@ class FlatMultiAttention(MultiAttention):
 
     @tensor
     def batch_size(self) -> tf.Tensor:
-        # TODO: find a better solution
         return tf.shape(self._encoders_tensors[0])[0]
 
     def initial_loop_state(self) -> AttentionLoopState:
@@ -384,8 +383,7 @@ class HierarchicalMultiAttention(MultiAttention):
 
             assert_shape(projected_state, [-1, 1, self.attention_state_size])
             attn_ctx_vectors, child_loop_states = zip(*[
-                a.attention(query, decoder_prev_state, decoder_input,
-                            ls)
+                a.attention(query, decoder_prev_state, decoder_input, ls)
                 for a, ls in zip(self.attentions,
                                  loop_state.child_loop_states)])
 
@@ -428,10 +426,9 @@ class HierarchicalMultiAttention(MultiAttention):
             prev_loop_state = loop_state.loop_state
 
             next_contexts = tf.concat(
-                [prev_loop_state.contexts, tf.expand_dims(context, 0)], 0)
+                [prev_loop_state.contexts, tf.expand_dims(context, 0)], axis=0)
             next_weights = tf.concat(
-                [prev_loop_state.weights,
-                 tf.expand_dims(attention_distr, 0)],
+                [prev_loop_state.weights, tf.expand_dims(attention_distr, 0)],
                 axis=0)
 
             next_loop_state = AttentionLoopState(
