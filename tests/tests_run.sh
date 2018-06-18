@@ -19,7 +19,7 @@ bin/neuralmonkey-train tests/audio-classifier.ini
 bin/neuralmonkey-train tests/ctc.ini
 bin/neuralmonkey-train tests/beamsearch.ini
 bin/neuralmonkey-train tests/self-critical.ini
-bin/neuralmonkey-train tests/bandit.ini
+bin/neuralmonkey-train tests/rl.ini
 bin/neuralmonkey-train tests/transformer.ini
 
 # Testing environment variable substitution in config file

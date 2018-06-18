@@ -350,7 +350,8 @@ class AutoregressiveDecoder(ModelPart):
                                  self.max_output_len)
         return tf.logical_and(not_all_done, before_max_len)
 
-    def get_body(self, train_mode: bool, sample: bool = False) -> Callable:
+    def get_body(self, train_mode: bool, sample: bool = False,
+                 temperature: float = 1) -> Callable:
         """Return the while loop body function."""
         raise NotImplementedError("Abstract method")
 
@@ -365,8 +366,9 @@ class AutoregressiveDecoder(ModelPart):
                 a training run.
         """
 
-    def decoding_loop(self, train_mode: bool, sample: bool = False) -> Tuple[
-            tf.Tensor, tf.Tensor, tf.Tensor, tf.Tensor]:
+    def decoding_loop(self, train_mode: bool, sample: bool = False,
+                      temperature: float = 1) -> Tuple[tf.Tensor, tf.Tensor,
+                                                       tf.Tensor, tf.Tensor]:
         """Run the decoding while loop.
 
         Calls get_initial_loop_state and constructs tf.while_loop
@@ -383,11 +385,12 @@ class AutoregressiveDecoder(ModelPart):
             sample: Boolean flag, telling whether we should sample
                 the output symbols from the output distribution instead
                 of using argmax or gold data.
+            temperature: float value specifying the softmax temperature
         """
         initial_loop_state = self.get_initial_loop_state()
         final_loop_state = tf.while_loop(
             self.loop_continue_criterion,
-            self.get_body(train_mode, sample),
+            self.get_body(train_mode, sample, temperature),
             initial_loop_state)
 
         self.finalize_loop(final_loop_state, train_mode)
