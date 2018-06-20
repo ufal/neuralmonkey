@@ -53,7 +53,9 @@ AttentionLoopState = NamedTuple(
 
 
 def empty_attention_loop_state(
-        batch_size: Union[int, tf.Tensor]) -> AttentionLoopState:
+        batch_size: Union[int, tf.Tensor],
+        length: Union[int, tf.Tensor],
+        dimension: Union[int, tf.Tensor]) -> AttentionLoopState:
     """Create an empty attention loop state.
 
     The attention loop state is a technical object for storing the attention
@@ -61,7 +63,9 @@ def empty_attention_loop_state(
     ``tf.while_loop`` dynamic implementation of decoders.
 
     Arguments:
-        batch_size: The size of the batch. This is needed to
+        batch_size: The size of the batch.
+        length: The number of encoder states (keys).
+        dimension: The dimension of the context vector
 
     Returns:
         This function returns an empty attention loop state which means
@@ -69,8 +73,8 @@ def empty_attention_loop_state(
         and one for the attention context vectors in time.
     """
     return AttentionLoopState(
-        contexts=tf.zeros(shape=[0, batch_size], name="contexts"),
-        weights=tf.zeros(shape=[0, batch_size], name="distributions"))
+        contexts=tf.zeros(shape=[0, batch_size, dimension], name="contexts"),
+        weights=tf.zeros(shape=[0, batch_size, length], name="distributions"))
 
 
 def get_attention_states(encoder: Attendable) -> tf.Tensor:
@@ -82,6 +86,7 @@ def get_attention_states(encoder: Attendable) -> tf.Tensor:
     Returns:
         Either a 3D or a 4D tensor, depending on whether the encoder is
         temporal (e.g. recurrent encoder) or spatial (e.g. a CNN encoder).
+        The first two dimensions are (batch, time).
     """
     if isinstance(encoder, TemporalStateful):
         return encoder.temporal_states

@@ -174,7 +174,10 @@ class FlatMultiAttention(MultiAttention):
         return tf.shape(self._encoders_tensors[0])[0]
 
     def initial_loop_state(self) -> AttentionLoopState:
-        return empty_attention_loop_state(self.batch_size)
+        return empty_attention_loop_state(
+            self.batch_size,
+            sum(tf.shape(s)[1] for s in self._encoders_tensors),
+            self.context_vector_size)
 
     def get_encoder_projections(self, scope):
         encoder_projections = []
@@ -367,7 +370,9 @@ class HierarchicalMultiAttention(MultiAttention):
         return HierarchicalLoopState(
             child_loop_states=[a.initial_loop_state()
                                for a in self.attentions],
-            loop_state=empty_attention_loop_state(self.batch_size))
+            loop_state=empty_attention_loop_state(
+                self.batch_size, len(self.attentions),
+                self.context_vector_size))
 
     # pylint: disable=too-many-locals
     def attention(self,

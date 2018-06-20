@@ -80,7 +80,10 @@ class StatefulContext(BaseAttention):
         return context, next_loop_state
 
     def initial_loop_state(self) -> AttentionLoopState:
-        return empty_attention_loop_state(self.batch_size)
+        return empty_attention_loop_state(
+            self.batch_size,
+            tf.shape(self.attention_states)[1],
+            self.context_vector_size)
 
     def finalize_loop(self, key: str,
                       last_loop_state: AttentionLoopState) -> None:
