@@ -196,7 +196,7 @@ class EmbeddedFactorSequence(Sequence):
             The constructed feed dictionary that contains the factor data and
             the mask.
         """
-        fd = {}  # type: FeedDict
+        fd = ModelPart.feed_dict(self, dataset, train)
 
         # for checking the lengths of individual factors
         arr_strings = []

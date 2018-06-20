@@ -85,10 +85,13 @@ class RawRNNEncoder(ModelPart, TemporalStatefulWithOutput):
             .format(self.name))
 
         with self.use_scope():
-            self._create_input_placeholders()
+            self.inputs = tf.placeholder(
+                tf.float32, [None, None, self.input_size], "encoder_input")
+            self._input_lengths = tf.placeholder(
+                tf.int32, [None], "encoder_padding_lengths")
 
-            self.states_mask = tf.sequence_mask(self._input_lengths,
-                                                dtype=tf.float32)
+            self.states_mask = tf.sequence_mask(
+                self._input_lengths, dtype=tf.float32)
 
             states = self.inputs
             states_reversed = False
@@ -106,8 +109,7 @@ class RawRNNEncoder(ModelPart, TemporalStatefulWithOutput):
                         outputs_tup, encoded_tup = (
                             tf.nn.bidirectional_dynamic_rnn(
                                 cell(), cell(), states, self._input_lengths,
-                                dtype=tf.float32)
-                        )
+                                dtype=tf.float32))
 
                         if states_reversed:
                             # treat forward as backward and vice versa
@@ -154,19 +156,6 @@ class RawRNNEncoder(ModelPart, TemporalStatefulWithOutput):
     def temporal_mask(self) -> tf.Tensor:
         return self.states_mask
 
-    def _create_input_placeholders(self) -> None:
-        """Create an input placeholder nodes in the computation graph."""
-        self.train_mode = tf.placeholder(tf.bool, shape=[], name="train_mode")
-
-        self.inputs = tf.placeholder(tf.float32,
-                                     shape=[None, None,
-                                            self.input_size],
-                                     name="encoder_input")
-
-        self._input_lengths = tf.placeholder(
-            tf.int32, shape=[None],
-            name="encoder_padding_lengths")
-
     def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
         """Populate the feed dictionary with the encoder inputs.
 
@@ -174,9 +163,7 @@ class RawRNNEncoder(ModelPart, TemporalStatefulWithOutput):
             dataset: The dataset to use
             train: Boolean flag telling whether it is training time
         """
-        # pylint: disable=invalid-name
-        fd = {}  # type: FeedDict
-        fd[self.train_mode] = train
+        fd = ModelPart.feed_dict(self, dataset, train)
 
         series = list(dataset.get_series(self.data_id))
         lengths = []

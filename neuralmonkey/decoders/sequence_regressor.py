@@ -42,6 +42,9 @@ class SequenceRegressor(ModelPart):
         self._activation_fn = activation_fn
         self._dropout_keep_prob = dropout_keep_prob
 
+        with self.use_scope():
+            self.train_inputs = tf.placeholder(tf.float32, [None], "targets")
+
         tf.summary.scalar(
             "val_optimization_cost", self.cost,
             collections=["summary_val"])
@@ -49,16 +52,6 @@ class SequenceRegressor(ModelPart):
             "train_optimization_cost",
             self.cost, collections=["summary_train"])
     # pylint: enable=too-many-arguments
-
-    # pylint: disable=no-self-use
-    @tensor
-    def train_mode(self):
-        return tf.placeholder(tf.bool, name="train_mode")
-
-    @tensor
-    def train_inputs(self):
-        return tf.placeholder(tf.float32, shape=[None], name="targets")
-    # pylint: enable=no-self-use
 
     @tensor
     def _mlp_input(self):
@@ -93,14 +86,11 @@ class SequenceRegressor(ModelPart):
         return self.predictions
 
     def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
+        fd = ModelPart.feed_dict(self, dataset, train)
+
         sentences = dataset.maybe_get_series(self.data_id)
-
         sentences_list = list(sentences) if sentences is not None else None
-
-        fd = {}  # type: FeedDict
         if sentences_list is not None:
             fd[self.train_inputs] = list(zip(*sentences_list))[0]
-
-        fd[self.train_mode] = train
 
         return fd

@@ -7,9 +7,8 @@ import tensorflow as tf
 import numpy as np
 from typeguard import check_argument_types
 
-from neuralmonkey.model.model_part import ModelPart, FeedDict, InitializerSpecs
+from neuralmonkey.model.model_part import ModelPart, InitializerSpecs
 from neuralmonkey.logging import log
-from neuralmonkey.dataset import Dataset
 from neuralmonkey.decorators import tensor
 from neuralmonkey.nn.projection import glu
 from neuralmonkey.model.sequence import EmbeddedSequence
@@ -119,13 +118,3 @@ class SentenceEncoder(ModelPart, TemporalStatefulWithOutput):
                     + bias)
 
             return glu(conv) + input_signals
-
-    # pylint: disable=no-self-use
-    @tensor
-    def train_mode(self):
-        # scalar tensor
-        return tf.placeholder(tf.bool, shape=[], name="mode_placeholder")
-    # pylint: enable=no-self-use
-
-    def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
-        return {self.train_mode: train}

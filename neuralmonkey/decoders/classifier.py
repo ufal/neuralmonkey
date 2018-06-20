@@ -56,36 +56,25 @@ class Classifier(ModelPart):
         self.dropout_keep_prob = dropout_keep_prob
         self.max_output_len = 1
 
+        with self.use_scope():
+            self.gt_inputs = [tf.placeholder(tf.int32, [None], "targets")]
+
+            mlp_input = tf.concat([enc.output for enc in self.encoders], 1)
+            self._mlp = MultilayerPerceptron(
+                mlp_input, self.layers,
+                self.dropout_keep_prob, len(self.vocabulary),
+                activation_fn=self.activation_fn, train_mode=self.train_mode)
+
         tf.summary.scalar(
             "train_optimization_cost",
             self.cost, collections=["summary_train"])
     # pylint: enable=too-many-arguments
 
-    # pylint: disable=no-self-use
-    @tensor
-    def train_mode(self) -> tf.Tensor:
-        return tf.placeholder(tf.bool, name="train_mode")
-
-    @tensor
-    def gt_inputs(self) -> List[tf.Tensor]:
-        return [tf.placeholder(tf.int32, shape=[None], name="targets")]
-    # pylint: enable=no-self-use
-
-    @tensor
-    def _mlp(self) -> MultilayerPerceptron:
-        mlp_input = tf.concat([enc.output for enc in self.encoders], 1)
-        return MultilayerPerceptron(
-            mlp_input, self.layers,
-            self.dropout_keep_prob, len(self.vocabulary),
-            activation_fn=self.activation_fn, train_mode=self.train_mode)
-
     @tensor
     def loss_with_gt_ins(self) -> tf.Tensor:
-        # pylint: disable=no-member,unsubscriptable-object
         return tf.reduce_mean(
             tf.nn.sparse_softmax_cross_entropy_with_logits(
                 logits=self._mlp.logits, labels=self.gt_inputs[0]))
-        # pylint: enable=no-member,unsubscriptable-object
 
     @property
     def loss_with_decoded_ins(self) -> tf.Tensor:
@@ -97,21 +86,15 @@ class Classifier(ModelPart):
 
     @tensor
     def decoded_seq(self) -> tf.Tensor:
-        # pylint: disable=no-member
         return tf.expand_dims(self._mlp.classification, 0)
-        # pylint: enable=no-member
 
     @tensor
     def decoded_logits(self) -> tf.Tensor:
-        # pylint: disable=no-member
         return tf.expand_dims(self._mlp.logits, 0)
-        # pylint: enable=no-member
 
     @tensor
     def runtime_logprobs(self) -> tf.Tensor:
-        # pylint: disable=no-member
         return tf.expand_dims(tf.nn.log_softmax(self._mlp.logits), 0)
-        # pylint: enable=no-member
 
     @property
     def train_loss(self):
@@ -126,17 +109,12 @@ class Classifier(ModelPart):
         return self.decoded_seq
 
     def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
-        fd = {}  # type: FeedDict
+        fd = ModelPart.feed_dict(self, dataset, train)
         sentences = dataset.maybe_get_series(self.data_id)
 
         if sentences is not None:
             label_tensors, _ = self.vocabulary.sentences_to_tensor(
                 list(sentences), self.max_output_len)
-
-            # pylint: disable=unsubscriptable-object
             fd[self.gt_inputs[0]] = label_tensors[0]
-            # pylint: enable=unsubscriptable-object
-
-        fd[self.train_mode] = train
 
         return fd

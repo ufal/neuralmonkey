@@ -37,9 +37,13 @@ class ModelPart(metaclass=ABCMeta):
                     (scope.name + "/" + name, initializer)
                     for name, initializer in initializers)
 
+        with self.use_scope():
+            self.train_mode = tf.placeholder(tf.bool, [], "train_mode")
+            self.batch_size = tf.placeholder(tf.int32, [], "batch_size")
+
     @property
     def name(self) -> str:
-        """Name of the model part and its variable scope."""
+        """Get the name of the model part and its variable scope."""
         return self._name
 
     @contextmanager
@@ -89,8 +93,10 @@ class ModelPart(metaclass=ABCMeta):
         return to_return
 
     def feed_dict(self, dataset: Dataset, train: bool) -> FeedDict:
-        """Prepare feed dicts for part's placeholders from a dataset."""
-        raise NotImplementedError("Abstract base class.")
+        fd = {}  # type: FeedDict
+        fd[self.train_mode] = train
+        fd[self.batch_size] = len(dataset)
+        return fd
 
     def _init_saver(self) -> None:
         if not self._saver:

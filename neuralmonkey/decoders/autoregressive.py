@@ -134,7 +134,6 @@ class AutoregressiveDecoder(ModelPart):
                 self.embeddings_source.embedding_matrix.get_shape()[1].value)
 
         with self.use_scope():
-            self.train_mode = tf.placeholder(tf.bool, [], "train_mode")
             self.go_symbols = tf.placeholder(tf.int32, [None], "go_symbols")
 
             self.train_inputs = tf.placeholder(
@@ -142,10 +141,6 @@ class AutoregressiveDecoder(ModelPart):
             self.train_mask = tf.placeholder(
                 tf.float32, [None, None], "train_mask")
     # pylint: enable=too-many-arguments
-
-    @tensor
-    def batch_size(self) -> tf.Tensor:
-        return tf.shape(self.go_symbols)[0]
 
     @tensor
     def decoding_w(self) -> tf.Variable:
@@ -408,14 +403,13 @@ class AutoregressiveDecoder(ModelPart):
             dataset: The dataset to use for the decoder.
             train: Boolean flag, telling whether this is a training run.
         """
+        fd = ModelPart.feed_dict(self, dataset, train)
+
         sentences = dataset.maybe_get_series(self.data_id)
 
         if sentences is None and train:
             raise ValueError("When training, you must feed "
                              "reference sentences")
-
-        fd = {}  # type: FeedDict
-        fd[self.train_mode] = train
 
         go_symbol_idx = self.vocabulary.get_word_index(START_TOKEN)
         fd[self.go_symbols] = np.full([len(dataset)], go_symbol_idx,

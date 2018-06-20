@@ -30,8 +30,7 @@ from typing import NamedTuple, List, Callable, Any, Optional
 import tensorflow as tf
 from typeguard import check_argument_types
 
-from neuralmonkey.model.model_part import ModelPart, FeedDict, InitializerSpecs
-from neuralmonkey.dataset import Dataset
+from neuralmonkey.model.model_part import ModelPart, InitializerSpecs
 from neuralmonkey.decoders.autoregressive import (
     LoopState, AutoregressiveDecoder)
 from neuralmonkey.vocabulary import (
@@ -114,10 +113,6 @@ class BeamSearchDecoder(ModelPart):
         # Output
         self.outputs = self._decoding_loop()
     # pylint: enable=too-many-arguments
-
-    @property
-    def batch_size(self) -> tf.Tensor:
-        return self.parent_decoder.batch_size
 
     @property
     def beam_size(self) -> int:
@@ -439,15 +434,6 @@ class BeamSearchDecoder(ModelPart):
         # pylint: enable=too-many-locals
 
         return body
-
-    def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
-        """Populate the feed dictionary for the decoder object.
-
-        Arguments:
-            dataset: The dataset to use for the decoder.
-            train: Boolean flag, telling whether this is a training run
-        """
-        return {}
 
     def _length_penalty(self, lengths):
         """Apply lp term from eq. 14."""
