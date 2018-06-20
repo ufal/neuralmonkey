@@ -33,12 +33,17 @@ unset NM_EXPERIMENT_NAME
 bin/neuralmonkey-train tests/small_sent_cnn.ini
 
 # Ensembles testing
-score_single=$(bin/neuralmonkey-run tests/beamsearch.ini tests/test_data_ensembles_single.ini 2>&1 | grep 'target_beam.rank001/beam_search_score' | cut -d" " -f5)
-score_ensemble=$(bin/neuralmonkey-run tests/beamsearch_ensembles.ini tests/test_data_ensembles_duplicate.ini 2>&1 | grep 'target_beam.rank001/beam_search_score' | cut -d" " -f5)
-if (( `echo "$score_single != $score_ensemble" | bc` )); then
-    echo "Scores $score_single and $score_ensemble do not match." >&2
+score_single=$(bin/neuralmonkey-run tests/beamsearch.ini tests/test_data_ensembles_single.ini --json /dev/stdout | python -c 'import sys,json;print(json.load(sys.stdin)[0]["target_beam.rank001/beam_search_score"])')
+score_ensemble=$(bin/neuralmonkey-run tests/beamsearch_ensembles.ini tests/test_data_ensembles_duplicate.ini --json /dev/stdout | python -c 'import sys,json;print(json.load(sys.stdin)[0]["target_beam.rank001/beam_search_score"])')
+
+echo "SINGLE SCORE: $score_single"
+echo "ENSEMBLE OF THE SAME VARS SCORE: $score_ensemble"
+
+if [ "$score_single" != "$score_ensemble" ] ; then
+    echo "SCORES DO NOT MATCH" >&2
     exit 1
 fi
+
 bin/neuralmonkey-run tests/beamsearch_ensembles.ini tests/test_data_ensembles_all.ini
 
 NM_EXPERIMENT_NAME=small bin/neuralmonkey-server --configuration=tests/small.ini --port=5000 &
