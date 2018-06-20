@@ -7,7 +7,7 @@ dimensionality. This attention function has no trainable parameters.
 See arxiv.org/abs/1706.03762
 """
 import math
-from typing import Tuple, List, NamedTuple, Callable
+from typing import Tuple, List, NamedTuple, Callable, Union
 
 import tensorflow as tf
 from typeguard import check_argument_types
@@ -225,15 +225,19 @@ def attention(
 # pylint: enable=too-many-locals
 
 
-def empty_multi_head_loop_state(batch_size: int,
-                                num_heads: int) -> MultiHeadLoopState:
+def empty_multi_head_loop_state(
+        batch_size: Union[int, tf.Tensor],
+        num_heads: Union[int, tf.Tensor],
+        length: Union[int, tf.Tensor],
+        dimension: Union[int, tf.Tensor]) -> MultiHeadLoopState:
+
     return MultiHeadLoopState(
         contexts=tf.zeros(
-            shape=[0, batch_size],
+            shape=[0, batch_size, dimension],
             dtype=tf.float32,
             name="contexts"),
         head_weights=[tf.zeros(
-            shape=[0, batch_size],
+            shape=[0, batch_size, length],
             dtype=tf.float32,
             name="distributions_head{}".format(i)) for i in range(num_heads)])
 
@@ -331,7 +335,9 @@ class MultiHeadAttention(BaseAttention):
         return context, next_loop_state
 
     def initial_loop_state(self) -> MultiHeadLoopState:
-        return empty_multi_head_loop_state(self.batch_size, self.n_heads)
+        return empty_multi_head_loop_state(
+            self.batch_size, self.n_heads, tf.shape(self.attention_keys)[1],
+            self.context_vector_size)
 
     def finalize_loop(self, key: str,
                       last_loop_state: MultiHeadLoopState) -> None:
