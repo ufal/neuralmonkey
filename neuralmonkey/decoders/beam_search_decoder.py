@@ -236,9 +236,8 @@ class BeamSearchDecoder(ModelPart):
             decoder_loop_state=self._decoder_state)
 
     def _decoding_loop(self) -> BeamSearchOutput:
-        # collect attention objects
-        beam_body = self.get_body()
 
+        beam_body = self.get_body()
         initial_loop_state = self.get_initial_loop_state()
 
         def cond(*args) -> tf.Tensor:
@@ -248,18 +247,6 @@ class BeamSearchDecoder(ModelPart):
             unfinished_cond = tf.logical_not(
                 tf.reduce_all(bsls.bs_state.finished))
             return tf.logical_and(max_step_cond, unfinished_cond)
-
-        # First step has to be run manually because while_loop needs the same
-        # shapes between steps and the first beam state is not beam-sized, but
-        # just a single state.
-        #
-        # When running ensembles, we want to provide
-        # ensembled logprobs to the beam_body before manually running
-        # the first step
-        next_bs_loop_state = tf.cond(
-            cond(*initial_loop_state),
-            lambda: beam_body(*initial_loop_state),
-            lambda: initial_loop_state)
 
         final_state = tf.while_loop(
             cond,
