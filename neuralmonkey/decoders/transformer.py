@@ -116,8 +116,8 @@ class TransformerDecoder(AutoregressiveDecoder):
 
         self.encoder_states = get_attention_states(self.encoder)
         self.encoder_mask = get_attention_mask(self.encoder)
-        self.dimension = \
-            self.encoder_states.get_shape()[2].value  # type: ignore
+        self.dimension = (
+            self.encoder_states.get_shape()[2].value)  # type: ignore
 
         if self.embedding_size != self.dimension:
             raise ValueError("Model dimension and input embedding size"
