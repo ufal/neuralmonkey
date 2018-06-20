@@ -16,6 +16,7 @@ class StatefulFiller(ModelPart, Stateful):
     This model part is used to feed 1D tensors to the model. Optionally, it
     projects the states to given dimension.
     """
+
     def __init__(self,
                  name: str,
                  dimension: int,
@@ -68,6 +69,7 @@ class SpatialFiller(ModelPart, SpatialStatefulWithOutput):
     This model part is used to feed 3D tensors (e.g., pre-trained convolutional
     maps image captioning). Optionally, the states are projected to given size.
     """
+
     def __init__(self,
                  name: str,
                  input_shape: List[int],

@@ -48,6 +48,7 @@ class SequenceMaxPooling(SequencePooling):
 
     Takes the maximum of a sequence over time to produce a single state.
     """
+
     @tensor
     def output(self) -> tf.Tensor:
         # Pad the sequence with a large negative value, but make sure it has
@@ -63,6 +64,7 @@ class SequenceAveragePooling(SequencePooling):
 
     Averages a sequence over time to produce a single state.
     """
+
     @tensor
     def output(self) -> tf.Tensor:
         return (tf.reduce_sum(self._masked_input, axis=1)
