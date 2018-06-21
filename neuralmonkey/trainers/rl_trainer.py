@@ -27,14 +27,25 @@ def rl_objective(decoder: Decoder,
                  self_training: bool = False) -> Objective:
     """Construct RL objective for training with sentence-level feedback.
 
-    With one sample this corresponds to the bandit objective (EL) described in
-    'Bandit Structured Prediction for Neural Sequence-to-Sequence Learning'
-    (http://www.aclweb.org/anthology/P17-1138)
+    Depending on the options the objective corresponds to:
+    1) sample_size = 1, normalize = False, ce_smoothing = 0.0
+     Bandit objective (Eq. 2) described in 'Bandit Structured Prediction for
+     Neural Sequence-to-Sequence Learning'
+     (http://www.aclweb.org/anthology/P17-1138)
+     It's recommended to set subtract_baseline = True.
+    2) sample_size > 1, normalize = True, ce_smoothing = 0.0
+     Minimum Risk Training as described in 'Minimum Risk Training for Neural
+     Machine Translation' (http://www.aclweb.org/anthology/P16-1159) (Eq. 12).
+    3) sample_size > 1, normalize = False, ce_smoothing = 0.0
+     The Google 'Reinforce' objective as proposed in 'Google’s Neural Machine
+     Translation System: Bridging the Gap between Human and Machine Translation'
+     (https://arxiv.org/pdf/1609.08144.pdf) (Eq. 8).
+    4) sample_size > 1, normalize = False, ce_smoothing > 0.0
+     Google's 'Mixed' objective in the above paper (Eq. 9),
+     where ce_smoothing implements alpha.
 
-    With multiple samples this corresponds to either:
-    - Minimum Risk Training as described in TODO when normalization is included
-    - The Google 'Reinforce' objective as proposed in TODO (w/o normalization) but with cross-entropy smoothing
-
+    Note that alpha controls the sharpness of the normalized distribution, while
+    the temperature controls the sharpness during sampling.
 
     :param decoder: a recurrent decoder to sample from
     :param reward_function: any evaluator object
@@ -42,7 +53,7 @@ def rl_objective(decoder: Decoder,
     :param normalize: the probabilities of the samples are re-normalized
     :param sample_size: number of samples to obtain feedback for
     :param ce_smoothing: add cross-entropy loss with this coefficient to RL loss
-    :param alpha: determines the shape of the distribution, high: peaked
+    :param alpha: determines the shape of the normalized distribution
     :param temperature: the softmax temperature for sampling
     :param self_training: if yes, treat samples better than average as perfect
     :return: Objective object to be used in generic trainer
@@ -140,9 +151,8 @@ def rl_objective(decoder: Decoder,
                           collections=["summary_train"])
 
     if normalize:
-        # MRT as proposed by Shen et al. 2016
-        samples_logprobs = tf.nn.softmax(samples_logprobs * alpha,
-                                         dim=0)  # softmax over sample space
+        # normalize over sample space
+        samples_logprobs = tf.nn.log_softmax(samples_logprobs * alpha, dim=0)
 
     scored_probs = tf.stop_gradient(
         tf.negative(samples_rewards)) * samples_logprobs
