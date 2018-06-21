@@ -4,9 +4,8 @@ import tensorflow as tf
 from typeguard import check_argument_types
 
 from neuralmonkey.model.stateful import TemporalStatefulWithOutput
-from neuralmonkey.model.model_part import ModelPart, FeedDict, InitializerSpecs
+from neuralmonkey.model.model_part import ModelPart, InitializerSpecs
 from neuralmonkey.nn.utils import dropout
-from neuralmonkey.dataset import Dataset
 from neuralmonkey.decorators import tensor
 from neuralmonkey.attention.base_attention import (
     get_attention_states, get_attention_mask, Attendable)
@@ -54,8 +53,6 @@ class AttentiveEncoder(ModelPart, TemporalStatefulWithOutput):
             raise ValueError("Dropout keep prob must be inside (0,1].")
 
         with self.use_scope():
-            self.train_mode = tf.placeholder(tf.bool, [], "train_mode")
-
             self._attention_states_dropped = dropout(
                 get_attention_states(self.input_sequence),
                 self.dropout_keep_prob,
@@ -113,6 +110,3 @@ class AttentiveEncoder(ModelPart, TemporalStatefulWithOutput):
             deps |= feedable.get_dependencies()
 
         return deps
-
-    def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
-        return {self.train_mode: train}

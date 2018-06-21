@@ -5,11 +5,10 @@ from typeguard import check_argument_types
 
 from neuralmonkey.model.stateful import (
     TemporalStatefulWithOutput, TemporalStateful)
-from neuralmonkey.model.model_part import ModelPart, FeedDict, InitializerSpecs
+from neuralmonkey.model.model_part import ModelPart, InitializerSpecs
 from neuralmonkey.nn.ortho_gru_cell import OrthoGRUCell, NematusGRUCell
 from neuralmonkey.nn.utils import dropout
 from neuralmonkey.vocabulary import Vocabulary
-from neuralmonkey.dataset import Dataset
 from neuralmonkey.decorators import tensor
 from neuralmonkey.model.sequence import (
     EmbeddedSequence, EmbeddedFactorSequence)
@@ -137,9 +136,6 @@ class RecurrentEncoder(ModelPart, TemporalStatefulWithOutput):
 
         if self.dropout_keep_prob <= 0.0 or self.dropout_keep_prob > 1.0:
             raise ValueError("Dropout keep prob must be inside (0,1].")
-
-        with self.use_scope():
-            self.train_mode = tf.placeholder(tf.bool, [], "train_mode")
     # pylint: enable=too-many-arguments
 
     @tensor
@@ -176,11 +172,7 @@ class RecurrentEncoder(ModelPart, TemporalStatefulWithOutput):
         if isinstance(self.input_sequence, ModelPart):
             feedable = cast(ModelPart, self.input_sequence)
             deps = deps.union(feedable.get_dependencies())
-
         return deps
-
-    def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
-        return {self.train_mode: train}
 
 
 class SentenceEncoder(RecurrentEncoder):

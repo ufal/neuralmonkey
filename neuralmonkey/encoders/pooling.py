@@ -1,17 +1,15 @@
-from abc import ABCMeta
 from typing import Set, cast
 
 import tensorflow as tf
 from typeguard import check_argument_types
 
 from neuralmonkey.model.stateful import Stateful, TemporalStateful
-from neuralmonkey.model.model_part import ModelPart, FeedDict, InitializerSpecs
-from neuralmonkey.dataset import Dataset
+from neuralmonkey.model.model_part import ModelPart, InitializerSpecs
 from neuralmonkey.decorators import tensor
 
 
 # pylint: disable=abstract-method
-class SequencePooling(ModelPart, Stateful, metaclass=ABCMeta):
+class SequencePooling(ModelPart, Stateful):
     """An abstract pooling layer over a sequence."""
 
     def __init__(self,
@@ -28,7 +26,6 @@ class SequencePooling(ModelPart, Stateful, metaclass=ABCMeta):
         self.input_sequence = input_sequence
 
         with self.use_scope():
-            self.train_mode = tf.placeholder(tf.bool, [], "train_mode")
             self._input_mask = tf.expand_dims(
                 self.input_sequence.temporal_mask, -1)
             self._masked_input = (
@@ -43,9 +40,6 @@ class SequencePooling(ModelPart, Stateful, metaclass=ABCMeta):
             deps |= feedable.get_dependencies()
 
         return deps
-
-    def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
-        return {self.train_mode: train}
 # pylint: enable=abstract-method
 
 

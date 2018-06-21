@@ -57,21 +57,11 @@ class SequenceCNNEncoder(ModelPart, Stateful):
         self.dropout_keep_prob = dropout_keep_prob
         self.filters = filters
 
-    # pylint: disable=no-self-use
-    @tensor
-    def train_mode(self) -> tf.Tensor:
-        return tf.placeholder(tf.bool, shape=[], name="train_mode")
-
-    @tensor
-    def inputs(self) -> tf.Tensor:
-        return tf.placeholder(
-            tf.int32, shape=[None, None], name="encoder_input")
-
-    @tensor
-    def input_mask(self) -> tf.Tensor:
-        return tf.placeholder(
-            tf.float32, shape=[None, None], name="encoder_padding")
-    # pylint: enable=no-self-use
+        with self.use_scope():
+            self.inputs = tf.placeholder(
+                tf.int32, [None, None], "encoder_input")
+            self.input_mask = tf.placeholder(
+                tf.float32, [None, None], "encoder_padding")
 
     @tensor
     def embedded_inputs(self) -> tf.Tensor:
@@ -118,24 +108,13 @@ class SequenceCNNEncoder(ModelPart, Stateful):
     def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
         """Populate the feed dictionary with the encoder inputs.
 
-        Encoder input placeholders:
-            ``encoder_input``: Stores indices to the vocabulary,
-                shape (batch, time)
-            ``encoder_padding``: Stores the padding (ones and zeros,
-                indicating valid words and positions after the end
-                of sentence, shape (batch, time)
-            ``train_mode``: Boolean scalar specifying the mode (train
-                vs runtime)
-
         Arguments:
             dataset: The dataset to use
             train: Boolean flag telling whether it is training time
         """
-        # pylint: disable=invalid-name
-        fd = {}  # type: FeedDict
-        fd[self.train_mode] = train
-        sentences = dataset.get_series(self.data_id)
+        fd = ModelPart.feed_dict(self, dataset, train)
 
+        sentences = dataset.get_series(self.data_id)
         vectors, paddings = self.vocabulary.sentences_to_tensor(
             list(sentences), self.max_input_len, pad_to_max_len=False,
             train_mode=train)

@@ -12,11 +12,10 @@ from typeguard import check_argument_types
 
 from neuralmonkey.attention.base_attention import (
     Attendable, get_attention_states, get_attention_mask)
-from neuralmonkey.dataset import Dataset
 from neuralmonkey.decorators import tensor
 from neuralmonkey.attention.scaled_dot_product import attention
 from neuralmonkey.logging import log
-from neuralmonkey.model.model_part import FeedDict, ModelPart
+from neuralmonkey.model.model_part import ModelPart
 from neuralmonkey.model.stateful import (TemporalStateful,
                                          TemporalStatefulWithOutput)
 from neuralmonkey.nn.utils import dropout
@@ -157,7 +156,6 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
                     "The input for cross-attention must be of the same "
                     "dimension as the model, was {}.".format(cross_att_dim))
 
-        self.train_mode = tf.placeholder(tf.bool, [], "train_mode")
         log("Output op: {}".format(self.output))
     # pylint: enable=too-many-arguments,too-many-locals
 
@@ -313,9 +311,6 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
     @tensor
     def temporal_mask(self) -> tf.Tensor:
         return self.input_sequence.temporal_mask
-
-    def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
-        return {self.train_mode: train}
 
     def get_dependencies(self) -> Set[ModelPart]:
         """Collect recusively all inputs."""

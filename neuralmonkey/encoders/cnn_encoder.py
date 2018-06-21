@@ -80,12 +80,6 @@ class CNNEncoder(ModelPart, SpatialStatefulWithOutput):
         self.batch_normalize = batch_normalize
     # pylint: enable=too-many-arguments, too-many-locals
 
-    # pylint: disable=no-self-use
-    @tensor
-    def train_mode(self) -> tf.Tensor:
-        return tf.placeholder(tf.bool, shape=[], name="mode_placeholder")
-    # pylint: enable=no-self-use
-
     @tensor
     def image_input(self) -> tf.Tensor:
         return tf.placeholder(
@@ -196,19 +190,19 @@ class CNNEncoder(ModelPart, SpatialStatefulWithOutput):
             train_mode=self.train_mode)
 
     def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
-        # if it is from the pickled file, it is list, not numpy tensor,
+        fd = ModelPart.feed_dict(self, dataset, train)
+
+        # if it is from the pickled file, it is a list, not a numpy tensor,
         # so convert it as as a prevention
         images = np.array(dataset.get_series(self.data_id))
 
-        f_dict = {}
-        f_dict[self.image_input] = images / 255.0
+        fd[self.image_input] = images / 255.0
+
         # the image mask is one everywhere where the image is non-zero, i.e.
         # zero pixels are masked out
-        f_dict[self.image_mask] = np.sign(
-            np.sum(images, axis=3, keepdims=True))
+        fd[self.image_mask] = np.sign(np.sum(images, axis=3, keepdims=True))
 
-        f_dict[self.train_mode] = train
-        return f_dict
+        return fd
 
 
 def plain_convolution(
@@ -328,7 +322,6 @@ def pooling(
 class CNNTemporalView(ModelPart, TemporalStatefulWithOutput):
     """Slice the convolutional maps left to right."""
 
-    # pylint: disable=too-many-arguments
     def __init__(self,
                  name: str,
                  cnn: CNNEncoder) -> None:
@@ -336,13 +329,10 @@ class CNNTemporalView(ModelPart, TemporalStatefulWithOutput):
         ModelPart.__init__(
             self, name, save_checkpoint=None, load_checkpoint=None)
         self._cnn = cnn
-    # pylint: enable=too-many-arguments
 
     @tensor
     def output(self) -> tf.Tensor:
-        # pylint: disable=unsubscriptable-object
         return self._cnn.output
-        # pylint: enable=unsubscriptable-object
 
     @tensor
     def temporal_states(self):
@@ -357,9 +347,6 @@ class CNNTemporalView(ModelPart, TemporalStatefulWithOutput):
         mask = tf.squeeze(self._cnn.spatial_mask, 3)
         summed = tf.reduce_sum(mask, axis=1)
         return tf.to_float(tf.greater(summed, 0))
-
-    def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
-        return {}
 
     def get_dependencies(self) -> Set["ModelPart"]:
         """Collect recusively all encoders and decoders."""

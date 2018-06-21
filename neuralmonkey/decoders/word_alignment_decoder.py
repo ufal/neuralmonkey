@@ -92,7 +92,7 @@ class WordAlignmentDecoder(ModelPart):
         return self.train_loss
 
     def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
-        fd = {}
+        fd = ModelPart.feed_dict(self, dataset, train)
 
         alignment = dataset.maybe_get_series(self.data_id)
         if alignment is None:

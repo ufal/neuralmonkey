@@ -28,8 +28,7 @@ from typing import NamedTuple, Dict, Optional, Any, Tuple, Union
 import tensorflow as tf
 
 from neuralmonkey.model.stateful import TemporalStateful, SpatialStateful
-from neuralmonkey.model.model_part import ModelPart, FeedDict, InitializerSpecs
-from neuralmonkey.dataset import Dataset
+from neuralmonkey.model.model_part import ModelPart, InitializerSpecs
 
 # pylint: disable=invalid-name
 Attendable = Union[TemporalStateful, SpatialStateful]
@@ -103,9 +102,6 @@ class BaseAttention(ModelPart):
         self.query_state_size = None  # type: tf.Tensor
         self._histories = {}  # type: Dict[str, tf.Tensor]
 
-        with self.use_scope():
-            self.train_mode = tf.placeholder(tf.bool, [], "train_mode")
-
     @property
     def histories(self) -> Dict[str, tf.Tensor]:
         return self._histories
@@ -125,9 +121,6 @@ class BaseAttention(ModelPart):
 
     def finalize_loop(self, key: str, last_loop_state: Any) -> None:
         raise NotImplementedError("Abstract method")
-
-    def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
-        return {self.train_mode: train}
 
     @property
     def context_vector_size(self) -> int:

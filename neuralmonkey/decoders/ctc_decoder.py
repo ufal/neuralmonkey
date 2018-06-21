@@ -43,17 +43,11 @@ class CTCDecoder(ModelPart):
         self.merge_repeated_outputs = merge_repeated_outputs
         self.beam_width = beam_width
         log("CTC output tensor {}.".format(self.decoded))
+
+        with self.use_scope():
+            self.train_targets = tf.sparse_placeholder(
+                tf.int32, name="targets")
     # pylint: enable=too-many-arguments
-
-    # pylint: disable=no-self-use
-    @tensor
-    def train_targets(self) -> tf.Tensor:
-        return tf.sparse_placeholder(tf.int32, name="targets")
-
-    @tensor
-    def train_mode(self) -> tf.Tensor:
-        return tf.placeholder(tf.bool, name="train_mode")
-    # pylint: disable=no-self-use
 
     @tensor
     def decoded(self) -> tf.Tensor:
@@ -123,11 +117,9 @@ class CTCDecoder(ModelPart):
         return tf.transpose(logits, perm=[1, 0, 2])  # time major
 
     def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
-        fd = {}  # type: FeedDict
+        fd = ModelPart.feed_dict(self, dataset, train)
 
         sentences = dataset.maybe_get_series(self.data_id)
-
-        fd[self.train_mode] = train
 
         if sentences is not None:
             vectors, paddings = self.vocabulary.sentences_to_tensor(

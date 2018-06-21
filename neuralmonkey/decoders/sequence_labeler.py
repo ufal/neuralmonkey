@@ -33,23 +33,13 @@ class SequenceLabeler(ModelPart):
         self.dropout_keep_prob = dropout_keep_prob
 
         self.rnn_size = int(self.encoder.temporal_states.get_shape()[-1])
+
+        with self.use_scope():
+            self.train_targets = tf.placeholder(
+                tf.int32, [None, None], "labeler_targets")
+            self.train_weights = tf.placeholder(
+                tf.float32, [None, None], "labeler_padding_weights")
     # pylint: enable=too-many-arguments
-
-    # pylint: disable=no-self-use
-    @tensor
-    def train_targets(self) -> tf.Tensor:
-        return tf.placeholder(tf.int32, shape=[None, None],
-                              name="labeler_targets")
-
-    @tensor
-    def train_weights(self) -> tf.Tensor:
-        return tf.placeholder(tf.float32, shape=[None, None],
-                              name="labeler_padding_weights")
-
-    @tensor
-    def train_mode(self) -> tf.Tensor:
-        return tf.placeholder(tf.bool, name="train_mode")
-    # pylint: enable=no-self-use
 
     @tensor
     def decoding_w(self) -> tf.Variable:
@@ -129,8 +119,7 @@ class SequenceLabeler(ModelPart):
         return self.cost
 
     def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
-        fd = {}  # type: FeedDict
-        fd[self.train_mode] = train
+        fd = ModelPart.feed_dict(self, dataset, train)
 
         sentences = dataset.maybe_get_series(self.data_id)
         if sentences is not None:

@@ -6,14 +6,13 @@ import tensorflow as tf
 from typeguard import check_argument_types
 
 from neuralmonkey.encoders.recurrent import RNNCellTuple
-from neuralmonkey.model.model_part import ModelPart, FeedDict, InitializerSpecs
+from neuralmonkey.model.model_part import ModelPart, InitializerSpecs
 from neuralmonkey.model.sequence import Sequence
 from neuralmonkey.model.stateful import TemporalStatefulWithOutput
 from neuralmonkey.nn.noisy_gru_cell import NoisyGRUCell
 from neuralmonkey.nn.ortho_gru_cell import OrthoGRUCell
 from neuralmonkey.nn.utils import dropout
 from neuralmonkey.nn.highway import highway
-from neuralmonkey.dataset import Dataset
 from neuralmonkey.decorators import tensor
 from neuralmonkey.tf_utils import get_variable
 
@@ -99,12 +98,6 @@ class SentenceCNNEncoder(ModelPart, TemporalStatefulWithOutput):
             if num_filters <= 0:
                 raise ValueError("Number of filters must be a positive int.")
 
-    # pylint: disable=no-self-use
-    @tensor
-    def train_mode(self) -> tf.Tensor:
-        return tf.placeholder(tf.bool, shape=[], name="train_mode")
-    # pylint: enable=no-self-use
-
     @tensor
     def cnn_encoded(self) -> tf.Tensor:
         """1D convolution with max-pool that processing characters."""
@@ -149,7 +142,6 @@ class SentenceCNNEncoder(ModelPart, TemporalStatefulWithOutput):
     @tensor
     def highway_layer(self) -> tf.Tensor:
         """Highway net projection following the CNN."""
-        batch_size = tf.shape(self.cnn_encoded)[0]
         # pylint: disable=no-member
         cnn_out_size = self.cnn_encoded.get_shape().as_list()[-1]
         highway_layer = tf.reshape(self.cnn_encoded, [-1, cnn_out_size])
@@ -159,7 +151,7 @@ class SentenceCNNEncoder(ModelPart, TemporalStatefulWithOutput):
                 scope=("highway_layer_%s" % i))
         return tf.reshape(
             highway_layer,
-            [batch_size, -1, cnn_out_size])
+            [self.batch_size, -1, cnn_out_size])
 
     @tensor
     def bidirectional_rnn(self) -> Tuple[Tuple[tf.Tensor, tf.Tensor],
@@ -208,12 +200,3 @@ class SentenceCNNEncoder(ModelPart, TemporalStatefulWithOutput):
 
         return (OrthoGRUCell(self.rnn_size),
                 OrthoGRUCell(self.rnn_size))
-
-    def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
-        """Populate the feed dictionary with the encoder inputs.
-
-        Arguments:
-            dataset: The dataset to use
-            train: Boolean flag telling whether it is training time
-        """
-        return {self.train_mode: train}

@@ -214,7 +214,10 @@ class ImageNet(ModelPart, SpatialStatefulWithOutput):
                     var_list=local_variables + slim_variables)
 
     def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
+        fd = ModelPart.feed_dict(self, dataset, train)
+
         images = np.array(dataset.get_series(self.data_id))
         assert images.shape[1:] == (self.height, self.width, 3)
+        fd[self.input_image] = images
 
-        return {self.input_image: images}
+        return fd
