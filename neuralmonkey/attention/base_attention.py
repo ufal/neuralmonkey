@@ -41,7 +41,6 @@ from typing import NamedTuple, Dict, Optional, Any, Tuple, Union
 
 import tensorflow as tf
 
-from neuralmonkey.decorators import tensor
 from neuralmonkey.model.stateful import TemporalStateful, SpatialStateful
 from neuralmonkey.model.model_part import ModelPart, InitializerSpecs
 
@@ -203,16 +202,3 @@ class BaseAttention(ModelPart):
         tf.summary.image(
             summary_name, alignments, collections=["summary_att_plots"],
             max_outputs=max_outputs)
-
-    def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
-        """Return the feed dictionary of this ``ModelPart`` object.
-
-        Arguments:
-            dataset: The dataset (unused)
-            train: Specifies the mode (training / inference). Used e.g. for
-                dropout application.
-
-        Returns:
-            A feed dictionary with the train mode placeholder specified.
-        """
-        return {self.train_mode: train}

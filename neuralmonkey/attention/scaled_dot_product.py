@@ -12,7 +12,6 @@ from typing import Tuple, List, NamedTuple, Callable, Union
 import tensorflow as tf
 from typeguard import check_argument_types
 
-from neuralmonkey.decorators import tensor
 from neuralmonkey.nn.utils import dropout
 from neuralmonkey.model.model_part import InitializerSpecs
 from neuralmonkey.attention.base_attention import (
@@ -274,10 +273,6 @@ class MultiHeadAttention(BaseAttention):
         self.attention_mask = get_attention_mask(keys_encoder)
         self.attention_values = get_attention_states(values_encoder)
     # pylint: enable=too-many-arguments
-
-    @tensor
-    def batch_size(self) -> tf.Tensor:
-        return tf.shape(self.attention_keys)[0]
 
     def attention(self,
                   query: tf.Tensor,

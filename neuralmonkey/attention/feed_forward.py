@@ -42,10 +42,6 @@ class Attention(BaseAttention):
         log("Attention mask: {}".format(self.attention_mask))
 
     @tensor
-    def batch_size(self) -> tf.Tensor:
-        return tf.shape(self.attention_states)[0]
-
-    @tensor
     def attention_states(self) -> tf.Tensor:
         return dropout(get_attention_states(self.encoder),
                        self.dropout_keep_prob,

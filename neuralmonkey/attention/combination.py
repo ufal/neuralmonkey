@@ -18,7 +18,6 @@ from typing import Any, List, Tuple, NamedTuple
 from typeguard import check_argument_types
 import tensorflow as tf
 
-from neuralmonkey.decorators import tensor
 from neuralmonkey.attention.base_attention import (
     BaseAttention, AttentionLoopState, empty_attention_loop_state,
     get_attention_states, get_attention_mask, Attendable)
@@ -168,10 +167,6 @@ class FlatMultiAttention(MultiAttention):
 
             self.masks_concat = tf.concat(self._encoders_masks, 1)
     # pylint: enable=too-many-arguments
-
-    @tensor
-    def batch_size(self) -> tf.Tensor:
-        return tf.shape(self._encoders_tensors[0])[0]
 
     def initial_loop_state(self) -> AttentionLoopState:
 
@@ -364,10 +359,6 @@ class HierarchicalMultiAttention(MultiAttention):
 
         self.attentions = attentions
     # pylint: enable=too-many-arguments
-
-    @tensor
-    def batch_size(self) -> tf.Tensor:
-        return self.attentions[0].batch_size
 
     def initial_loop_state(self) -> HierarchicalLoopState:
         length = len(self.attentions)

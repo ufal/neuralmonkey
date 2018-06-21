@@ -35,10 +35,6 @@ class StatefulContext(BaseAttention):
         self.encoder = encoder
 
     @tensor
-    def batch_size(self) -> tf.Tensor:
-        return tf.shape(self.attention_states)[0]
-
-    @tensor
     def attention_states(self) -> tf.Tensor:
         return tf.expand_dims(self.encoder.output, 1)
 
