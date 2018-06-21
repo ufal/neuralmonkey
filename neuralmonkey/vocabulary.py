@@ -413,7 +413,8 @@ class Vocabulary(collections.Sized):
                              "word_counts to use for vocabulary truncate")
 
         # sort by frequency
-        words_by_freq = sorted(list(self.word_count.keys()),
+        # sorting words first makes vocabulary generation deterministic
+        words_by_freq = sorted(list(sorted(self.word_count.keys())),
                                key=lambda w: self.word_count[w])
 
         # keep the least frequent words which are not special symbols
