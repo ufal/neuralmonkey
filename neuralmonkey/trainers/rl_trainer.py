@@ -23,7 +23,8 @@ def rl_objective(decoder: Decoder,
                  temperature: float = 1.,
                  ce_smoothing: float = 0.,
                  alpha: float = 1.,
-                 sample_size: int = 1) -> Objective:
+                 sample_size: int = 1,
+                 self_training: bool = False) -> Objective:
     """Construct RL objective for training with sentence-level feedback.
 
     With one sample this corresponds to the bandit objective (EL) described in
@@ -32,7 +33,7 @@ def rl_objective(decoder: Decoder,
 
     With multiple samples this corresponds to either:
     - Minimum Risk Training as described in TODO when normalization is included
-    - The Google 'Reinforce' objective as proposed in TODO (w/o normalization)
+    - The Google 'Reinforce' objective as proposed in TODO (w/o normalization) but with cross-entropy smoothing
 
 
     :param decoder: a recurrent decoder to sample from
@@ -43,6 +44,7 @@ def rl_objective(decoder: Decoder,
     :param ce_smoothing: add cross-entropy loss with this coefficient to RL loss
     :param alpha: determines the shape of the distribution, high: peaked
     :param temperature: the softmax temperature for sampling
+    :param self_training: if yes, treat samples better than average as perfect
     :return: Objective object to be used in generic trainer
     """
     check_argument_types()
@@ -112,9 +114,8 @@ def rl_objective(decoder: Decoder,
     # normalize logprobs over sample space
     samples_rewards = tf.stack(samples_rewards)  # sample_size x batch
     samples_logprobs = tf.stack(samples_logprobs)  # sample_size x batch
-    print(samples_logprobs)
 
-    if subtract_baseline:
+    if subtract_baseline or self_training:
         # if specified, compute the average reward baseline
         reward_counter = tf.Variable(0.0, trainable=False,
                                      name="reward_counter")
@@ -127,10 +128,16 @@ def rl_objective(decoder: Decoder,
         # compute baseline: avg of previous rewards
         baseline = tf.div(reward_sum,
                           tf.maximum(reward_counter, 1.0))
+        if self_training:
+            # if the reward is higher than the average reward, set reward to 1
+            baseline = tf.where(tf.greater(samples_rewards, baseline),
+                                -1-samples_rewards, # such that r-(-1-r) = 1
+                                tf.ones_like(samples_rewards)*baseline)  # otherwise normal baseline
         samples_rewards -= baseline
 
         tf.summary.scalar("train_{}/rl_reward_baseline".format(decoder.data_id),
-                          baseline, collections=["summary_train"])
+                          tf.reduce_mean(baseline),
+                          collections=["summary_train"])
 
     if normalize:
         # MRT as proposed by Shen et al. 2016
