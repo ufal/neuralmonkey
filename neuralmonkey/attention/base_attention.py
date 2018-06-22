@@ -183,7 +183,7 @@ class BaseAttention(ModelPart):
         """
         raise NotImplementedError("Abstract property")
 
-    def visualize_attention(self, key: str, max_outputs: int = 256) -> None:
+    def visualize_attention(self, key: str, max_outputs: int = 16) -> None:
         """Include the attention histories under a given key into a summary.
 
         Arguments:

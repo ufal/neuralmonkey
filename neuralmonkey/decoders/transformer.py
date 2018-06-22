@@ -22,7 +22,7 @@ from neuralmonkey.logging import log
 from neuralmonkey.nn.utils import dropout
 from neuralmonkey.vocabulary import (
     Vocabulary, PAD_TOKEN_INDEX, END_TOKEN_INDEX)
-from neuralmonkey.tf_utils import layer_norm
+from neuralmonkey.tf_utils import append_tensor, layer_norm
 
 # pylint: disable=invalid-name
 # TODO: handle attention histories
@@ -337,15 +337,11 @@ class TransformerDecoder(AutoregressiveDecoder):
             feedables = loop_state.feedables
 
             # shape (time, batch)
-            decoded_symbols = tf.concat(
-                [histories.decoded_symbols, tf.expand_dims(
-                    feedables.input_symbol, 0)],
-                axis=0)
+            decoded_symbols = append_tensor(
+                histories.decoded_symbols, feedables.input_symbol)
 
-            input_mask = tf.concat(
-                [histories.input_mask, tf.expand_dims(
-                    tf.to_float(tf.logical_not(feedables.finished)), 0)],
-                axis=0)
+            unfinished_mask = tf.to_float(tf.logical_not(feedables.finished))
+            input_mask = append_tensor(histories.input_mask, unfinished_mask)
 
             # shape (batch, time)
             decoded_symbols_in_batch = tf.transpose(decoded_symbols)
@@ -398,18 +394,11 @@ class TransformerDecoder(AutoregressiveDecoder):
             # TransformerHistories is a type and should be callable
             # pylint: disable=not-callable
             new_histories = TransformerHistories(
-                logits=tf.concat(
-                    [histories.logits, tf.expand_dims(logits, 0)], 0),
-                decoder_outputs=tf.concat(
-                    [histories.decoder_outputs,
-                     tf.expand_dims(output_state, 0)],
-                    axis=0),
-                mask=tf.concat(
-                    [histories.mask, tf.expand_dims(not_finished, 0)], 0),
-                outputs=tf.concat(
-                    [histories.outputs,
-                     tf.expand_dims(next_symbols, 0)],
-                    axis=0),
+                logits=append_tensor(histories.logits, logits),
+                decoder_outputs=append_tensor(
+                    histories.decoder_outputs, output_state),
+                mask=append_tensor(histories.mask, not_finished),
+                outputs=append_tensor(histories.outputs, next_symbols),
                 # transformer-specific:
                 decoded_symbols=decoded_symbols,
                 # TODO(all) handle these!

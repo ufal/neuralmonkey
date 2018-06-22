@@ -344,7 +344,7 @@ class MultiHeadAttention(BaseAttention):
     def context_vector_size(self) -> int:
         return self.attention_values.get_shape()[-1].value
 
-    def visualize_attention(self, key: str, max_outputs: int = 256) -> None:
+    def visualize_attention(self, key: str, max_outputs: int = 16) -> None:
         for i in range(self.n_heads):
             head_key = "{}_head{}".format(key, i)
             if head_key not in self.histories:

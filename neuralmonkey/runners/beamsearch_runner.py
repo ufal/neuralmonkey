@@ -47,7 +47,6 @@ class BeamSearchExecutable(Executable):
                 {"bs_outputs": self._decoder.outputs},
                 self._next_feed)
 
-    # pylint: disable=too-many-locals,too-many-branches
     def collect_results(self, results: List[Dict]) -> None:
         # Recompute logits
         # Only necessary when ensembling models
@@ -84,7 +83,6 @@ class BeamSearchExecutable(Executable):
             self._next_feed.append(fd)
 
         return
-    # pylint: enable=too-many-locals,too-many-branches
 
     def prepare_results(self, output):
         bs_scores = [s[self._rank - 1] for s in output.scores]

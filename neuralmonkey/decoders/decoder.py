@@ -21,6 +21,7 @@ from neuralmonkey.decoders.encoder_projection import (
 from neuralmonkey.decoders.output_projection import (
     OutputProjectionSpec, OutputProjection, nonlinear_output)
 from neuralmonkey.decorators import tensor
+from neuralmonkey.tf_utils import append_tensor
 
 
 RNN_CELL_TYPES = {
@@ -349,21 +350,12 @@ class Decoder(AutoregressiveDecoder):
 
             new_histories = RNNHistories(
                 attention_histories=list(att_loop_states),
-                logits=tf.concat(
-                    [loop_state.histories.logits, tf.expand_dims(logits, 0)],
-                    axis=0),
-                decoder_outputs=tf.concat(
-                    [loop_state.histories.decoder_outputs,
-                     tf.expand_dims(cell_output, 0)],
-                    axis=0),
-                outputs=tf.concat(
-                    [loop_state.histories.outputs,
-                     tf.expand_dims(next_symbols, 0)],
-                    axis=0),
-                mask=tf.concat(
-                    [loop_state.histories.mask,
-                     tf.expand_dims(not_finished, 0)],
-                    axis=0))
+                logits=append_tensor(loop_state.histories.logits, logits),
+                decoder_outputs=append_tensor(
+                    loop_state.histories.decoder_outputs, cell_output),
+                outputs=append_tensor(
+                    loop_state.histories.outputs, next_symbols),
+                mask=append_tensor(loop_state.histories.mask, not_finished))
             # pylint: enable=not-callable
 
             new_loop_state = LoopState(

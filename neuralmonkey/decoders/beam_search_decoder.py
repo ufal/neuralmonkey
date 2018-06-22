@@ -41,7 +41,8 @@ from neuralmonkey.vocabulary import (
     Vocabulary, END_TOKEN_INDEX, PAD_TOKEN_INDEX)
 from neuralmonkey.decorators import tensor
 from neuralmonkey.tf_utils import (
-    expand_to_beam, gather_flat, get_state_shape_invariants, partial_transpose)
+    append_tensor, expand_to_beam, gather_flat, get_state_shape_invariants,
+    partial_transpose)
 
 # pylint: disable=invalid-name
 SearchState = NamedTuple("SearchState",
@@ -403,9 +404,7 @@ class BeamSearchDecoder(ModelPart):
             next_token_ids = tf.transpose(next_token_ids, [2, 0, 1])
             next_output = SearchStepOutput(
                 scores=topk_scores,
-                token_ids=tf.concat(
-                    [next_token_ids, tf.expand_dims(next_word_ids, 0)],
-                    axis=0))
+                token_ids=append_tensor(next_token_ids, next_word_ids))
 
             return BeamSearchLoopState(
                 bs_state=next_search_state,

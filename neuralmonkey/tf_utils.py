@@ -243,3 +243,16 @@ def expand_to_beam(
     val = tf.reshape(val, orig_shape)
 
     return val
+
+
+def append_tensor(tensor: tf.Tensor, appendval: tf.Tensor) -> tf.Tensor:
+    """Append an ``N``-D Tensor to an ``(N+1)``-D Tensor.
+
+    Arguments:
+        tensor: The original Tensor
+        appendval: The Tensor to add
+
+    Returns:
+        An ``(N+1)``-D Tensor with ``appendval`` on the last position.
+    """
+    return tf.concat([tensor, tf.expand_dims(appendval, 0)], 0)
