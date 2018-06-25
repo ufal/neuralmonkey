@@ -152,7 +152,9 @@ def rl_objective(decoder: Decoder,
 
     if normalize:
         # normalize over sample space
-        samples_logprobs = tf.nn.log_softmax(samples_logprobs * alpha, dim=0)
+        samples_logprobs = samples_logprobs*alpha - \
+                           tf.reduce_logsumexp(samples_logprobs*alpha, axis=0)
+            #tf.nn.log_softmax(samples_logprobs * alpha, dim=0)
 
     scored_probs = tf.stop_gradient(
         tf.negative(samples_rewards)) * samples_logprobs
