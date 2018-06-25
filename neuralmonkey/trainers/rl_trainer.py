@@ -23,8 +23,7 @@ def rl_objective(decoder: Decoder,
                  temperature: float = 1.,
                  ce_smoothing: float = 0.,
                  alpha: float = 1.,
-                 sample_size: int = 1,
-                 self_training: bool = False) -> Objective:
+                 sample_size: int = 1) -> Objective:
     """Construct RL objective for training with sentence-level feedback.
 
     Depending on the options the objective corresponds to:
@@ -55,7 +54,6 @@ def rl_objective(decoder: Decoder,
     :param ce_smoothing: add cross-entropy loss with this coefficient to RL loss
     :param alpha: determines the shape of the normalized distribution
     :param temperature: the softmax temperature for sampling
-    :param self_training: if yes, treat samples better than average as perfect
     :return: Objective object to be used in generic trainer
     """
     check_argument_types()
@@ -126,7 +124,7 @@ def rl_objective(decoder: Decoder,
     samples_rewards = tf.stack(samples_rewards)  # sample_size x batch
     samples_logprobs = tf.stack(samples_logprobs)  # sample_size x batch
 
-    if subtract_baseline or self_training:
+    if subtract_baseline:
         # if specified, compute the average reward baseline
         reward_counter = tf.Variable(0.0, trainable=False,
                                      name="reward_counter")
@@ -139,11 +137,6 @@ def rl_objective(decoder: Decoder,
         # compute baseline: avg of previous rewards
         baseline = tf.div(reward_sum,
                           tf.maximum(reward_counter, 1.0))
-        if self_training:
-            # if the reward is higher than the average reward, set reward to 1
-            baseline = tf.where(tf.greater(samples_rewards, baseline),
-                                -1-samples_rewards, # such that r-(-1-r) = 1
-                                tf.ones_like(samples_rewards)*baseline)  # otherwise normal baseline
         samples_rewards -= baseline
 
         tf.summary.scalar("train_{}/rl_reward_baseline".format(decoder.data_id),
@@ -152,9 +145,7 @@ def rl_objective(decoder: Decoder,
 
     if normalize:
         # normalize over sample space
-        samples_logprobs = samples_logprobs*alpha - \
-                           tf.reduce_logsumexp(samples_logprobs*alpha, axis=0)
-            #tf.nn.log_softmax(samples_logprobs * alpha, dim=0)
+        samples_logprobs = tf.nn.softmax(samples_logprobs * alpha, dim=0)
 
     scored_probs = tf.stop_gradient(
         tf.negative(samples_rewards)) * samples_logprobs
