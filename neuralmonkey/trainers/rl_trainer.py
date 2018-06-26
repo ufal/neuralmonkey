@@ -15,7 +15,7 @@ from neuralmonkey.vocabulary import END_TOKEN, PAD_TOKEN
 RewardFunction = Callable[[np.ndarray, np.ndarray], np.ndarray]
 # pylint: enable=invalid-name
 
-
+# pylint: disable=too-many-locals
 def rl_objective(decoder: Decoder,
                  reward_function: RewardFunction,
                  subtract_baseline: bool = False,
@@ -36,8 +36,8 @@ def rl_objective(decoder: Decoder,
      Minimum Risk Training as described in 'Minimum Risk Training for Neural
      Machine Translation' (http://www.aclweb.org/anthology/P16-1159) (Eq. 12).
     3) sample_size > 1, normalize = False, ce_smoothing = 0.0
-     The Google 'Reinforce' objective as proposed in 'Google’s Neural Machine
-     Translation System: Bridging the Gap between Human and Machine Translation'
+     The Google 'Reinforce' objective as proposed in 'Google’s NMT System:
+     Bridging the Gap between Human and Machine Translation'
      (https://arxiv.org/pdf/1609.08144.pdf) (Eq. 8).
     4) sample_size > 1, normalize = False, ce_smoothing > 0.0
      Google's 'Mixed' objective in the above paper (Eq. 9),
@@ -51,7 +51,7 @@ def rl_objective(decoder: Decoder,
     :param subtract_baseline: average reward is subtracted from obtained reward
     :param normalize: the probabilities of the samples are re-normalized
     :param sample_size: number of samples to obtain feedback for
-    :param ce_smoothing: add cross-entropy loss with this coefficient to RL loss
+    :param ce_smoothing: add cross-entropy loss with this coefficient to loss
     :param alpha: determines the shape of the normalized distribution
     :param temperature: the softmax temperature for sampling
     :return: Objective object to be used in generic trainer
@@ -95,7 +95,7 @@ def rl_objective(decoder: Decoder,
     samples_rewards = []
     samples_logprobs = []
 
-    for i in range(sample_size):
+    for _ in range(sample_size):
         # sample from logits
         # decoded, shape (time, batch)
         sample_loop_result = decoder.decoding_loop(train_mode=False,
@@ -110,6 +110,7 @@ def rl_objective(decoder: Decoder,
                                    [reference, sample_decoded],
                                    tf.float32)
 
+        # pylint: disable=invalid-unary-operand-type
         word_logprobs = -tf.nn.sparse_softmax_cross_entropy_with_logits(
             labels=sample_decoded, logits=sample_logits)
 
@@ -130,8 +131,8 @@ def rl_objective(decoder: Decoder,
                                      name="reward_counter")
         reward_sum = tf.Variable(0.0, trainable=False, name="reward_sum")
         # increment the cumulative reward
-        reward_counter = tf.assign_add(reward_counter,
-                                       tf.to_float(decoder.batch_size*sample_size))
+        reward_counter = tf.assign_add(
+            reward_counter, tf.to_float(decoder.batch_size*sample_size))
         # sum over batch and samples
         reward_sum = tf.assign_add(reward_sum, tf.reduce_sum(samples_rewards))
         # compute baseline: avg of previous rewards
@@ -139,9 +140,9 @@ def rl_objective(decoder: Decoder,
                           tf.maximum(reward_counter, 1.0))
         samples_rewards -= baseline
 
-        tf.summary.scalar("train_{}/rl_reward_baseline".format(decoder.data_id),
-                          tf.reduce_mean(baseline),
-                          collections=["summary_train"])
+        tf.summary.scalar(
+            "train_{}/rl_reward_baseline".format(decoder.data_id),
+            tf.reduce_mean(baseline), collections=["summary_train"])
 
     if normalize:
         # normalize over sample space
