@@ -315,7 +315,7 @@ class Decoder(AutoregressiveDecoder):
                         cell_output, embedded_input, list(contexts),
                         self.train_mode)
 
-                logits = self.get_logits(output)/temperature
+                logits = self.get_logits(output) / temperature
 
             self.step_scope.reuse_variables()
 

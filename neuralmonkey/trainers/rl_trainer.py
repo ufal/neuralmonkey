@@ -15,6 +15,7 @@ from neuralmonkey.vocabulary import END_TOKEN, PAD_TOKEN
 RewardFunction = Callable[[np.ndarray, np.ndarray], np.ndarray]
 # pylint: enable=invalid-name
 
+
 # pylint: disable=too-many-locals
 def rl_objective(decoder: Decoder,
                  reward_function: RewardFunction,
@@ -122,8 +123,8 @@ def rl_objective(decoder: Decoder,
         samples_logprobs.append(sent_logprobs)  # sample_size x batch
 
     # normalize logprobs over sample space
-    samples_rewards = tf.stack(samples_rewards)  # sample_size x batch
-    samples_logprobs = tf.stack(samples_logprobs)  # sample_size x batch
+    samples_rewards_stacked = tf.stack(samples_rewards)  # sample_size x batch
+    samples_logprobs_stacked = tf.stack(samples_logprobs)  # sample_size x batch
 
     if subtract_baseline:
         # if specified, compute the average reward baseline
@@ -132,13 +133,14 @@ def rl_objective(decoder: Decoder,
         reward_sum = tf.Variable(0.0, trainable=False, name="reward_sum")
         # increment the cumulative reward
         reward_counter = tf.assign_add(
-            reward_counter, tf.to_float(decoder.batch_size*sample_size))
+            reward_counter, tf.to_float(decoder.batch_size * sample_size))
         # sum over batch and samples
-        reward_sum = tf.assign_add(reward_sum, tf.reduce_sum(samples_rewards))
+        reward_sum = tf.assign_add(reward_sum,
+                                   tf.reduce_sum(samples_rewards_stacked))
         # compute baseline: avg of previous rewards
         baseline = tf.div(reward_sum,
                           tf.maximum(reward_counter, 1.0))
-        samples_rewards -= baseline
+        samples_rewards_stacked -= baseline
 
         tf.summary.scalar(
             "train_{}/rl_reward_baseline".format(decoder.data_id),
@@ -146,10 +148,12 @@ def rl_objective(decoder: Decoder,
 
     if normalize:
         # normalize over sample space
-        samples_logprobs = tf.nn.softmax(samples_logprobs * alpha, dim=0)
+        samples_logprobs_stacked = tf.nn.softmax(
+            samples_logprobs_stacked * alpha, dim=0)
 
     scored_probs = tf.stop_gradient(
-        tf.negative(samples_rewards)) * samples_logprobs
+        tf.negative(samples_rewards_stacked)) * samples_logprobs_stacked
+
     # sum over samples
     total_loss = tf.reduce_sum(scored_probs, axis=0)
 
