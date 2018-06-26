@@ -65,20 +65,21 @@ class BeamSearchExecutable(Executable):
         # Prepare the next feed_dict (required for ensembles)
         self._next_feed = []
         for result in results:
-            bs_outputs = result["bs_outputs"]
+            bs_out = result["bs_outputs"]
 
-            search_state = bs_outputs.last_search_state._replace(
+            search_state = bs_out.last_search_state._replace(
                 prev_logprobs=ens_logprobs)
 
-            dec_ls = bs_outputs.last_dec_loop_state
+            dec_ls = bs_out.last_dec_loop_state
             feedables = dec_ls.feedables._replace(
                 step=1)
             dec_ls = dec_ls._replace(feedables=feedables)
 
-            fd = {self._decoder.max_steps: 1,
-                  self._decoder.search_state: search_state,
-                  self._decoder.bs_output: bs_outputs.last_search_step_output,
-                  self._decoder.decoder_state: dec_ls}
+            fd = {
+                self._decoder.max_steps: 1,
+                self._decoder.search_state: search_state,
+                self._decoder.search_results: bs_out.last_search_step_output,
+                self._decoder.decoder_state: dec_ls}
 
             self._next_feed.append(fd)
 
@@ -116,10 +117,9 @@ class BeamSearchExecutable(Executable):
             for res in results]
         if all(finished):
             return True
-        bs_outputs = results[0]["bs_outputs"]
-        step = len(bs_outputs.last_search_step_output.token_ids) - 1
-        if (self._decoder.max_output_len is not None
-                and step >= self._decoder.max_output_len):
+        bs_out = results[0]["bs_outputs"]
+        step = len(bs_out.last_search_step_output.token_ids) - 1
+        if step >= self._decoder.max_steps_int:
             return True
         return False
 

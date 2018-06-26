@@ -219,32 +219,6 @@ def layer_norm(x: tf.Tensor, epsilon: float = 1e-6) -> tf.Tensor:
         return norm_x * gamma + beta
 
 
-def expand_to_beam(
-        val: tf.Tensor, i: int = 0, beam_size: int = 1) -> tf.Tensor:
-    """Copy a tensor along a new beam dimension.
-
-    Arguments:
-        val: The ``Tensor`` to expand.
-        i: The dimension along which to expand.
-        beam_size: The size of the beam.
-
-    Returns:
-        The expanded tensor.
-    """
-    orig_shape = get_shape_list(val)
-    if val.shape.ndims == 0:
-        return val
-
-    orig_shape[i] *= beam_size
-    tile_shape = [1] * (len(orig_shape) + 1)
-    tile_shape[i + 1] = beam_size
-
-    val = tf.tile(tf.expand_dims(val, 1), tile_shape)
-    val = tf.reshape(val, orig_shape)
-
-    return val
-
-
 def append_tensor(tensor: tf.Tensor, appendval: tf.Tensor) -> tf.Tensor:
     """Append an ``N``-D Tensor to an ``(N+1)``-D Tensor.
 

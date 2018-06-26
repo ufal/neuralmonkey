@@ -10,9 +10,6 @@ from typing import (
 
 import numpy as np
 import tensorflow as tf
-# pylint: disable=no-name-in-module
-from tensorflow.python.util import nest
-# pylint: enable=no-name-in-module
 
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.decorators import tensor
@@ -401,7 +398,7 @@ class AutoregressiveDecoder(ModelPart):
             self.loop_continue_criterion,
             self.get_body(train_mode, sample, temperature),
             initial_loop_state,
-            shape_invariants=nest.map_structure(
+            shape_invariants=tf.contrib.framework.nest.map_structure(
                 get_state_shape_invariants, initial_loop_state))
 
         self.finalize_loop(final_loop_state, train_mode)
