@@ -43,8 +43,8 @@ def rl_objective(decoder: Decoder,
      Google's 'Mixed' objective in the above paper (Eq. 9),
      where ce_smoothing implements alpha.
 
-    Note that alpha controls the sharpness of the normalized distribution, while
-    the temperature controls the sharpness during sampling.
+    Note that 'alpha' controls the sharpness of the normalized distribution,
+    while 'temperature' controls the sharpness during sampling.
 
     :param decoder: a recurrent decoder to sample from
     :param reward_function: any evaluator object
