@@ -370,7 +370,9 @@ class TransformerDecoder(AutoregressiveDecoder):
                 logits /= temperature
 
                 if sample:
-                    next_symbols = tf.multinomial(logits, num_samples=1)
+                    next_symbols = tf.squeeze(
+                        tf.multinomial(logits, num_samples=1), axis=1)
+                    next_symbols = tf.to_int32(next_symbols)
                 else:
                     next_symbols = tf.to_int32(tf.argmax(logits, axis=1))
                     int_unfinished_mask = tf.to_int32(
@@ -381,10 +383,10 @@ class TransformerDecoder(AutoregressiveDecoder):
                     assert PAD_TOKEN_INDEX == 0
                     next_symbols = next_symbols * int_unfinished_mask
 
-                    has_just_finished = tf.equal(next_symbols, END_TOKEN_INDEX)
-                    has_finished = tf.logical_or(feedables.finished,
-                                                 has_just_finished)
-                    not_finished = tf.logical_not(has_finished)
+                has_just_finished = tf.equal(next_symbols, END_TOKEN_INDEX)
+                has_finished = tf.logical_or(feedables.finished,
+                                             has_just_finished)
+                not_finished = tf.logical_not(has_finished)
 
             new_feedables = DecoderFeedables(
                 step=step + 1,
