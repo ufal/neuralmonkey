@@ -49,7 +49,7 @@ def rl_objective(decoder: Decoder,
 
     :param decoder: a recurrent decoder to sample from
     :param reward_function: any evaluator object
-    :param subtract_baseline: average reward is subtracted from obtained reward
+    :param subtract_baseline: avg reward is subtracted from obtained reward
     :param normalize: the probabilities of the samples are re-normalized
     :param sample_size: number of samples to obtain feedback for
     :param ce_smoothing: add cross-entropy loss with this coefficient to loss
@@ -122,9 +122,9 @@ def rl_objective(decoder: Decoder,
         samples_rewards.append(sample_reward)   # sample_size x batch
         samples_logprobs.append(sent_logprobs)  # sample_size x batch
 
-    # normalize logprobs over sample space
-    samples_rewards_stacked = tf.stack(samples_rewards)  # sample_size x batch
-    samples_logprobs_stacked = tf.stack(samples_logprobs)  # sample_size x batch
+    # stack samples, sample_size x batch
+    samples_rewards_stacked = tf.stack(samples_rewards)
+    samples_logprobs_stacked = tf.stack(samples_logprobs)
 
     if subtract_baseline:
         # if specified, compute the average reward baseline
