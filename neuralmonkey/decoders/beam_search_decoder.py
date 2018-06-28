@@ -34,6 +34,7 @@ are functions that prepare and return values that are supplied to the
 ``tf.while_loop`` function.
 
 """
+# pylint: disable=too-many-lines
 from typing import NamedTuple, List, Callable, Any
 
 import tensorflow as tf
@@ -136,7 +137,7 @@ class BeamSearchDecoder(ModelPart):
         # Create the beam search symbolic graph.
         with self.use_scope():
             self.initial_loop_state = self.get_initial_loop_state()
-            self.outputs = self._decoding_loop()
+            self.outputs = self.decoding_loop()
 
         # Reassign the original encoder states and mask back
         if has_encoder:
@@ -294,7 +295,19 @@ class BeamSearchDecoder(ModelPart):
 
         return tf.logical_and(max_step_cond, unfinished_cond)
 
-    def _decoding_loop(self) -> BeamSearchOutput:
+    def decoding_loop(self) -> BeamSearchOutput:
+        """Create the decoding loop.
+
+        This function mimics the behavior of the ``decoding_loop`` method of
+        the ``AutoregressiveDecoder``, except the initial loop state is created
+        outside this method because it is accessed and fed during ensembling.
+
+        TODO: The ``finalize_loop`` method and the handling of attention loop
+        states might be implemented in the future.
+
+        Returns:
+            This method returns a populated ``BeamSearchOutput`` object.
+        """
 
         final_loop_state = tf.while_loop(
             self.loop_continue_criterion,
@@ -310,36 +323,60 @@ class BeamSearchDecoder(ModelPart):
             last_search_state=final_loop_state.search_state,
             attention_loop_states=[])
 
-    def get_body(self) -> Callable:
-        """Return a body function for ``tf.while_loop``."""
+    def get_body(self) -> Callable[[Any], BeamSearchLoopState]:
+        """Return a body function for ``tf.while_loop``.
+
+        Returns:
+            A function that performs a single decoding step.
+        """
         decoder_body = self.parent_decoder.get_body(train_mode=False)
 
         # pylint: disable=too-many-locals
-        def body(*args) -> BeamSearchLoopState:
+        def body(*args: Any) -> BeamSearchLoopState:
             """Execute a single beam search step.
 
-            The beam search body function.
-            This is where the beam search algorithm is implemented.
+            An implementation of the beam search algorithm, which works as
+            follows:
+
+            1. Create a valid ``logprobs`` tensor which contains distributions
+               over the output tokens for each hypothesis in the beam. For
+               finished hypotheses, the log probabilities of all tokens except
+               the padding token are set to negative infinity.
+
+            2. Expand the beam by appending every possible token to every
+               existing hypothesis. Update the log probabilitiy sum of each
+               hypothesis and its length (add one for unfinished hypotheses).
+               For each hypothesis, compute the score using the length penalty
+               term.
+
+            3. Select the ``beam_size`` best hypotheses from the score pool.
+               This is implemented by flattening the scores tensor and using
+               the ``tf.nn.top_k`` function.
+
+            4. Reconstruct the beam by gathering elements from the original
+               data structures using the data indices computed in the previous
+               step.
+
+            5. Call the ``body`` function of the underlying decoder.
+
+            6. Populate a new ``BeamSearchLoopState`` object with the selected
+               values and with the newly obtained decoder loop state.
+
+            Note that this function expects the decoder to be called at least
+            once prior the first execution.
 
             Arguments:
-                loop_state: ``BeamSearchLoopState`` instance (see the docs for
-                    this module)
+                args: An instance of the ``BeamSearchLoopState`` structure.
+                    (see the docs for this module)
+
+            Returns:
+                A ``BeamSearchLoopState`` after one step of the decoding.
+
             """
-            # We expect that we already executed decoder_body once
-            # before entering the while_loop.
-            # This is because we need to give the BeamSearchDecoder
-            # body function updated logits (in case of ensembles)
-            # to correctly choose next beam
-            # For this reason, it is recommended to run the decoder
-            # for n+1 steps, if you want to generate n steps by the decoder.
             loop_state = BeamSearchLoopState(*args)
             dec_loop_state = loop_state.decoder_loop_state
             search_state = loop_state.search_state
             search_results = loop_state.search_results
-
-            # TODO(@varisd) throw this away?
-            # Don't want to use this decoder with uninitialized parent
-            # assert self.parent_decoder.step_scope.reuse
 
             # mask the probabilities
             # shape(logprobs) = [batch, beam, vocabulary]
@@ -392,19 +429,14 @@ class BeamSearchDecoder(ModelPart):
             batch_beam_ids = tf.stack([batch_offset, next_beam_ids], axis=2)
 
             # gather the topk logprob_sums
-            next_beam_lengths = tf.gather_nd(
-                hyp_lengths,
-                batch_beam_ids)
+            next_beam_lengths = tf.gather_nd(hyp_lengths, batch_beam_ids)
             next_beam_logprob_sum = tf.gather_nd(
                 tf.reshape(
-                    hyp_probs,
-                    [-1, self.beam_size * len(self.vocabulary)]),
+                    hyp_probs, [-1, self.beam_size * len(self.vocabulary)]),
                 tf.stack([batch_offset, topk_indices], axis=2))
 
             # mark finished beams
-            next_finished = tf.gather_nd(
-                search_state.finished,
-                batch_beam_ids)
+            next_finished = tf.gather_nd(search_state.finished, batch_beam_ids)
             next_just_finished = tf.equal(next_word_ids, END_TOKEN_INDEX)
             next_finished = tf.logical_or(next_finished, next_just_finished)
 
@@ -413,6 +445,7 @@ class BeamSearchDecoder(ModelPart):
                 lambda x: gather_flat(x, batch_beam_ids,
                                       self.batch_size, self.beam_size),
                 dec_loop_state.feedables)
+
             next_feedables = next_feedables._replace(
                 input_symbol=tf.reshape(next_word_ids, [-1]),
                 finished=tf.reshape(next_finished, [-1]))
