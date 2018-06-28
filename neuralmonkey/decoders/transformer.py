@@ -328,7 +328,8 @@ class TransformerDecoder(AutoregressiveDecoder):
             constants=[],
             feedables=default_ls.feedables)
 
-    def get_body(self, train_mode: bool, sample: bool = False) -> Callable:
+    def get_body(self, train_mode: bool, sample: bool = False,
+                 temperature: float = 1.) -> Callable:
         assert not train_mode
 
         # pylint: disable=too-many-locals
@@ -364,6 +365,9 @@ class TransformerDecoder(AutoregressiveDecoder):
                 # See train_logits definition
                 logits = tf.matmul(output_state, self.decoding_w)
                 logits += self.decoding_b
+
+                # apply temperature
+                logits /= temperature
 
                 if sample:
                     next_symbols = tf.multinomial(logits, num_samples=1)
