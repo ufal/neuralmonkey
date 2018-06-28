@@ -34,7 +34,7 @@ are functions that prepare and return values that are supplied to the
 ``tf.while_loop`` function.
 
 """
-from typing import NamedTuple, List, Callable, Any, Optional
+from typing import NamedTuple, List, Callable, Any
 
 import tensorflow as tf
 from typeguard import check_argument_types
@@ -94,15 +94,32 @@ class BeamSearchDecoder(ModelPart):
                  beam_size: int,
                  max_steps: int,
                  length_normalization: float) -> None:
+        """Construct the beam search decoder graph.
+
+        Arguments:
+            name: The name for the model part.
+            parent_decoder: An autoregressive decoder from which to sample.
+            beam_size: The number of hypotheses in the beam.
+            max_steps: The maximum number of time steps to perform.
+            length_normalization: The alpha parameter from Eq. 14 in the paper.
+        """
         check_argument_types()
         ModelPart.__init__(self, name)
 
         self.parent_decoder = parent_decoder
         self.beam_size = beam_size
         self.length_normalization = length_normalization
-        self.max_steps = tf.placeholder_with_default(max_steps, [])
         self.max_steps_int = max_steps
 
+        # Create a placeholder for maximum number of steps that is necessary
+        # during ensembling, when the decoder is called repetitively with the
+        # max_steps attribute set to one.
+        self.max_steps = tf.placeholder_with_default(max_steps, [])
+
+        # This is an ugly hack for handling the whole graph when expanding to
+        # the beam. We need to access all the inner states of the network in
+        # the graph, replace them with beam-size-times copied originals, create
+        # the beam search graph, and then replace the inner states back.
         has_encoder = (hasattr(self.parent_decoder, "encoder_states")
                        and hasattr(self.parent_decoder, "encoder_mask"))
 
@@ -116,21 +133,12 @@ class BeamSearchDecoder(ModelPart):
             setattr(self.parent_decoder, "encoder_mask",
                     self.expand_to_beam(enc_mask))
 
-        # The parent_decoder is one step ahead. This is required for ensembling
-        # support.
-        # At the end of the Nth step we generate logits for ensembling
-        # in the N+1th step by the parent_decoder. These need to be first
-        # ensembled outside of the session.run before finishing the N+1th
-        # step of the beam_search_decoder (collecting topk outputs, selecting
-        # beams and running next parent_decoder step based on the chosen beam).
+        # Create the beam search symbolic graph.
+        with self.use_scope():
+            self.initial_loop_state = self.get_initial_loop_state()
+            self.outputs = self._decoding_loop()
 
-        # Feedables
-        self.initial_loop_state = None  # type: Optional[BeamSearchLoopState]
-
-        # Output
-        self.outputs = self._decoding_loop()
-
-        # Reassign the original encoder_states, mask
+        # Reassign the original encoder states and mask back
         if has_encoder:
             setattr(self.parent_decoder, "encoder_states", enc_states)
             setattr(self.parent_decoder, "encoder_mask", enc_mask)
@@ -139,19 +147,19 @@ class BeamSearchDecoder(ModelPart):
     def vocabulary(self) -> Vocabulary:
         return self.parent_decoder.vocabulary
 
+    # Note that the attributes search_state, decoder_state, and search_results
+    # are used only when ensembling, which is done with max_steps set to one
+    # and calling the beam search decoder repetitively.
     @tensor
     def search_state(self) -> SearchState:
-        assert self.initial_loop_state is not None
         return self.initial_loop_state.search_state
 
     @tensor
-    def decoder_state(self) -> Optional[LoopState]:
-        assert self.initial_loop_state is not None
+    def decoder_state(self) -> LoopState:
         return self.initial_loop_state.decoder_loop_state
 
     @tensor
-    def search_results(self) -> Optional[SearchResults]:
-        assert self.initial_loop_state is not None
+    def search_results(self) -> SearchResults:
         return self.initial_loop_state.search_results
 
     def get_initial_loop_state(self) -> BeamSearchLoopState:
@@ -288,7 +296,6 @@ class BeamSearchDecoder(ModelPart):
 
     def _decoding_loop(self) -> BeamSearchOutput:
 
-        self.initial_loop_state = self.get_initial_loop_state()
         final_loop_state = tf.while_loop(
             self.loop_continue_criterion,
             self.get_body(),
@@ -315,16 +322,14 @@ class BeamSearchDecoder(ModelPart):
             This is where the beam search algorithm is implemented.
 
             Arguments:
-                loop_state: ``BeamSearchLoopState`` instance (see the docs
-                    for this module)
+                loop_state: ``BeamSearchLoopState`` instance (see the docs for
+                    this module)
             """
-
             # We expect that we already executed decoder_body once
             # before entering the while_loop.
             # This is because we need to give the BeamSearchDecoder
             # body function updated logits (in case of ensembles)
             # to correctly choose next beam
-            #
             # For this reason, it is recommended to run the decoder
             # for n+1 steps, if you want to generate n steps by the decoder.
             loop_state = BeamSearchLoopState(*args)
@@ -332,7 +337,7 @@ class BeamSearchDecoder(ModelPart):
             search_state = loop_state.search_state
             search_results = loop_state.search_results
 
-            # TODO(varisd) throw this away?
+            # TODO(@varisd) throw this away?
             # Don't want to use this decoder with uninitialized parent
             # assert self.parent_decoder.step_scope.reuse
 
@@ -430,8 +435,7 @@ class BeamSearchDecoder(ModelPart):
                 histories=next_histories)
 
             # CALL THE DECODER BODY FUNCTION
-            # TODO figure out why mypy throws too-many-arguments on this
-            next_loop_state = decoder_body(*dec_loop_state)  # type: ignore
+            next_loop_state = decoder_body(*dec_loop_state)
 
             next_search_state = SearchState(
                 logprob_sum=next_beam_logprob_sum,
