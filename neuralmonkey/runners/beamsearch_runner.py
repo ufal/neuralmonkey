@@ -1,4 +1,4 @@
-from typing import Callable, List, Dict, Optional, Set, cast
+from typing import Callable, List, Dict, Optional, Set
 
 import scipy
 import numpy as np
@@ -21,8 +21,6 @@ class BeamSearchExecutable(Executable):
                  num_sessions: int,
                  decoder: BeamSearchDecoder,
                  postprocess: Optional[Callable]) -> None:
-        """TODO: docstring describing the whole knowhow."""
-
         self._rank = rank
         self._num_sessions = num_sessions
         self._all_coders = all_coders
@@ -32,10 +30,8 @@ class BeamSearchExecutable(Executable):
         self._next_feed = [{} for _ in range(self._num_sessions)] \
             # type: List[FeedDict]
 
-        # During ensembling, we execute only on decoder step per session.run
-        # In the first step we do not generate any symbols only logprobs to be
-        # ensembled together with initialization of the decoder itself,
-        # therefore decoder.max_steps is set to 0
+        # During ensembling, we set the decoder max_steps to zero because the
+        # loop is run manually in the runner.
         if self._num_sessions > 1:
             for fd in self._next_feed:
                 fd.update({self._decoder.max_steps: 0})
@@ -43,8 +39,7 @@ class BeamSearchExecutable(Executable):
         self.result = None  # type: Optional[ExecutionResult]
 
     def next_to_execute(self) -> NextExecute:
-        return (self._all_coders,
-                {"bs_outputs": self._decoder.outputs},
+        return (self._all_coders, {"bs_outputs": self._decoder.outputs},
                 self._next_feed)
 
     def collect_results(self, results: List[Dict]) -> None:
@@ -123,14 +118,28 @@ class BeamSearchExecutable(Executable):
         return False
 
 
-class BeamSearchRunner(BaseRunner):
+class BeamSearchRunner(BaseRunner[BeamSearchDecoder]):
+    """A runner which takes the output from a beam search decoder.
+
+    The runner and the beam search decoder support ensembling.
+    """
+
     def __init__(self,
                  output_series: str,
                  decoder: BeamSearchDecoder,
                  rank: int = 1,
                  postprocess: Callable[[List[str]], List[str]] = None) -> None:
+        """Initialize the beam search runner.
+
+        Arguments:
+            output_series: Name of the series produced by the runner.
+            decoder: The beam search decoder to use.
+            rank: The hypothesis from the beam to select. Setting rank to 1
+                selects the best hypothesis.
+            postprocess: The postprocessor to apply to the output data.
+        """
         check_argument_types()
-        BaseRunner.__init__(self, output_series, decoder)
+        BaseRunner[BeamSearchDecoder].__init__(self, output_series, decoder)
 
         if rank < 1 or rank > decoder.beam_size:
             raise ValueError(
@@ -140,25 +149,22 @@ class BeamSearchRunner(BaseRunner):
         self._rank = rank
         self._postprocess = postprocess
 
+    # pylint: disable=unused-argument
     def get_executable(self,
                        compute_losses: bool = False,
                        summaries: bool = True,
                        num_sessions: int = 1) -> BeamSearchExecutable:
-        decoder = cast(BeamSearchDecoder, self._decoder)
-
-        return BeamSearchExecutable(
-            self._rank, self.all_coders, num_sessions, decoder,
-            self._postprocess)
+        return BeamSearchExecutable(self._rank, self.all_coders, num_sessions,
+                                    self._decoder, self._postprocess)
+    # pylint: enable=unused-argument
 
     @property
     def loss_names(self) -> List[str]:
         return ["beam_search_score"]
 
-    @property
-    def decoder_data_id(self) -> Optional[str]:
-        return None
 
-
+# TODO: allow the beam search runner to accept multiple ranks because using
+# beam_search_runner_range is too slow.
 def beam_search_runner_range(
         output_series: str,
         decoder: BeamSearchDecoder,
