@@ -71,8 +71,7 @@ class BeamSearchExecutable(Executable):
                 prev_logprobs=ens_logprobs)
 
             dec_ls = bs_out.last_dec_loop_state
-            feedables = dec_ls.feedables._replace(
-                step=1)
+            feedables = dec_ls.feedables._replace(step=1)
             dec_ls = dec_ls._replace(feedables=feedables)
 
             fd = {

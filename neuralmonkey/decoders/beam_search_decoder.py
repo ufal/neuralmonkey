@@ -205,10 +205,15 @@ class BeamSearchDecoder(ModelPart):
         histories = tf.contrib.framework.nest.map_structure(
             lambda x: self.expand_to_beam(x, dim=1), dec_init_ls.histories)
 
+        constants = tf.constant(0)
+        if dec_init_ls.constants:
+            constants = tf.contrib.framework.nest.map_structure(
+                self.expand_to_beam, dec_init_ls.constants)
+
         dec_init_ls = dec_init_ls._replace(
             feedables=feedables,
             histories=histories,
-            constants=tf.constant(0))  # TODO(@varisd) what is this?!
+            constants=constants)
 
         # Call the decoder body function with the expanded loop state to get
         # the log probabilities of the possible first tokens.
@@ -218,9 +223,9 @@ class BeamSearchDecoder(ModelPart):
 
         # Construct the initial loop state of the beam search decoder. To allow
         # ensembling, the values are replaced with placeholders with a default
-        # value. NOTE that this is necessary only for variables that grow in
-        # time
-        # TODO(@varisd) Explain the NOTE, please!
+        # value. Despite this is necessary only for variables that grow in
+        # time, the placeholder replacement is done on the whole structures, as
+        # you can see below.
 
         search_state = SearchState(
             logprob_sum=tf.tile(
@@ -236,9 +241,8 @@ class BeamSearchDecoder(ModelPart):
             finished=tf.zeros(
                 [self.batch_size, self.beam_size], dtype=tf.bool))
 
-        # We add input_symbol during token_ids initialization for simpler
-        # beam_body implementation.
-        # TODO(@varisd) explain!
+        # We add the input_symbol to token_ids during search_results
+        # initialization for simpler beam_body implementation
 
         search_results = SearchResults(
             scores=tf.zeros(
@@ -250,6 +254,10 @@ class BeamSearchDecoder(ModelPart):
                 [1, self.batch_size, self.beam_size],
                 name="beam_tokens"))
 
+        # In structures that contain tensors that grow in time, we replace
+        # tensors with placeholders with loosened shape constraints in the time
+        # dimension.
+
         dec_next_ls = tf.contrib.framework.nest.map_structure(
             lambda x: tf.placeholder_with_default(
                 x, get_state_shape_invariants(x)),
@@ -259,9 +267,6 @@ class BeamSearchDecoder(ModelPart):
             lambda x: tf.placeholder_with_default(
                 x, get_state_shape_invariants(x)),
             search_results)
-
-        # TODO(@varisd) why don't we do the map_structure thing for
-        # ``search_state``?
 
         return BeamSearchLoopState(
             search_state=search_state,
@@ -273,11 +278,11 @@ class BeamSearchDecoder(ModelPart):
 
         The criterion for stopping the loop is that either all hypotheses are
         finished or a maximum number of steps has been reached. Here the number
-        of steps is the number of steps of the underlying decoder minus one
+        of steps is the number of steps of the underlying decoder minus one,
         because this function is evaluated after the decoder step has been
-        called and its step has been incremented.
-
-        TODO(@varisd) check this please
+        called and its step has been incremented. This is caused by the fact
+        that we call the decoder body function at the end of the beam body
+        function. (And that, in turn, is to support ensembling.)
 
         Arguments:
             args: A ``BeamSearchLoopState`` instance.
