@@ -1,45 +1,18 @@
-from typing import Callable, List, Optional, Tuple, Union, NamedTuple
+from typing import List, Optional
 
 import numpy as np
 import tensorflow as tf
-from tensorflow.contrib.rnn import RNNCell
 from typeguard import check_argument_types
 
+# pylint: disable=protected-access
+from neuralmonkey.encoders.recurrent import (
+    RNNSpecTuple, _make_rnn_spec, _make_rnn_cell)
+# pylint: enable=protected-access
 from neuralmonkey.model.model_part import ModelPart, FeedDict, InitializerSpecs
 from neuralmonkey.model.stateful import TemporalStatefulWithOutput
 from neuralmonkey.logging import log
-from neuralmonkey.nn.ortho_gru_cell import OrthoGRUCell
 from neuralmonkey.nn.utils import dropout
 from neuralmonkey.dataset import Dataset
-
-
-# pylint: disable=invalid-name
-RNNSpec = NamedTuple("RNNSpec", [("size", int),
-                                 ("direction", str),
-                                 ("cell_type", str)])
-
-RNNSpecTuple = Union[Tuple[int], Tuple[int, str], Tuple[int, str, str]]
-# pylint: enable=invalid-name
-
-
-def _make_rnn_spec(size: int,
-                   direction: str = "bidirectional",
-                   cell_type: str = "GRU") -> RNNSpec:
-    return RNNSpec(size, direction, cell_type)
-
-
-def _make_rnn_cell(spec: RNNSpec) -> Callable[[], RNNCell]:
-    """Return the graph template for creating RNN cells."""
-    if spec.cell_type == "GRU":
-        def cell():
-            return OrthoGRUCell(spec.size)
-    elif spec.cell_type == "LSTM":
-        def cell():
-            return tf.contrib.rnn.LSTMCell(spec.size)
-    else:
-        raise ValueError("Unknown RNN cell: {}".format(spec.cell_type))
-
-    return cell
 
 
 # pylint: disable=too-many-instance-attributes
