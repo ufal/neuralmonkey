@@ -12,7 +12,6 @@ env:
     - TEST_SUITE=unit-tests
     - TEST_SUITE=tests
     - TEST_SUITE=mypy
-    - TEST_SUITE=doclint
 
 python:
   #- "2.7"
