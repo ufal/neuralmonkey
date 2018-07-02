@@ -13,7 +13,7 @@ decoder not to attend to the, and extract information on its own hidden state
 (see paper `Knowing when to Look: Adaptive Attention via a Visual Sentinel for
 Image Captioning  <https://arxiv.org/pdf/1612.01887.pdf>`_).
 """
-from typing import Any, List, Tuple, NamedTuple
+from typing import Any, List, Tuple
 
 from typeguard import check_argument_types
 import tensorflow as tf
@@ -21,6 +21,7 @@ import tensorflow as tf
 from neuralmonkey.attention.base_attention import (
     BaseAttention, AttentionLoopState, empty_attention_loop_state,
     get_attention_states, get_attention_mask, Attendable)
+from neuralmonkey.attention.namedtuples import HierarchicalLoopState
 from neuralmonkey.checking import assert_shape
 from neuralmonkey.model.model_part import InitializerSpecs
 from neuralmonkey.tf_utils import get_variable
@@ -315,14 +316,6 @@ def _sentinel(state, prev_state, input_):
         assert_shape(sentinel_value, [-1, decoder_state_size])
 
         return sentinel_value
-
-
-# pylint: disable=invalid-name
-HierarchicalLoopState = NamedTuple(
-    "HierarchicalLoopState",
-    [("child_loop_states", List),
-     ("loop_state", AttentionLoopState)])
-# pylint: enable=invalid-name
 
 
 class HierarchicalMultiAttention(MultiAttention):
