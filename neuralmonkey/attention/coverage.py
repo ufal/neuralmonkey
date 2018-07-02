@@ -39,10 +39,10 @@ class CoverageAttention(Attention):
             tf.reduce_sum(self.fertility_weights * self.attention_states, [2]))
     # pylint: enable=too-many-arguments
 
-    def get_energies(self, y: tf.Tensor, weights_in_time: tf.TensorArray):
+    def get_energies(self, y: tf.Tensor, weights_in_time: tf.Tensor):
         weight_sum = tf.cond(
             tf.greater(weights_in_time.size(), 0),
-            lambda: tf.reduce_sum(weights_in_time.stack(), axis=0),
+            lambda: tf.reduce_sum(weights_in_time, axis=0),
             lambda: 0.0)
 
         coverage = weight_sum / self.fertility * self.attention_mask

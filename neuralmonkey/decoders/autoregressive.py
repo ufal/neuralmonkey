@@ -17,7 +17,7 @@ from neuralmonkey.model.model_part import ModelPart, FeedDict, InitializerSpecs
 from neuralmonkey.logging import log, warn
 from neuralmonkey.model.sequence import EmbeddedSequence
 from neuralmonkey.nn.utils import dropout
-from neuralmonkey.tf_utils import get_variable
+from neuralmonkey.tf_utils import get_variable, get_state_shape_invariants
 from neuralmonkey.vocabulary import Vocabulary, START_TOKEN, UNK_TOKEN_INDEX
 
 
@@ -43,10 +43,10 @@ LoopState = NamedTuple(
 # pylint: disable=invalid-name
 DecoderHistories = NamedTuple(
     "DecoderHistories",
-    [("logits", tf.TensorArray),
-     ("decoder_outputs", tf.TensorArray),
-     ("outputs", tf.TensorArray),
-     ("mask", tf.TensorArray)])  # float matrix, 0s and 1s
+    [("logits", tf.Tensor),
+     ("decoder_outputs", tf.Tensor),
+     ("outputs", tf.Tensor),
+     ("mask", tf.Tensor)])  # float matrix, 0s and 1s
 
 DecoderConstants = NamedTuple(
     "DecoderConstants",
@@ -63,7 +63,7 @@ DecoderFeedables = NamedTuple(
 # pylint: disable=too-many-public-methods,too-many-instance-attributes
 class AutoregressiveDecoder(ModelPart):
 
-    # pylint: disable=too-many-arguments
+    # pylint: disable=too-many-arguments,too-many-instance-attributes
     def __init__(self,
                  name: str,
                  vocabulary: Vocabulary,
@@ -110,6 +110,9 @@ class AutoregressiveDecoder(ModelPart):
         self.tie_embeddings = tie_embeddings
         self.supress_unk = supress_unk
 
+        self.encoder_states = None
+        self.encoder_mask = None
+
         # check the values of the parameters (max_output_len, ...)
         if max_output_len <= 0:
             raise ValueError("Maximum sequence length must be "
@@ -140,7 +143,7 @@ class AutoregressiveDecoder(ModelPart):
                 tf.int32, [None, None], "train_inputs")
             self.train_mask = tf.placeholder(
                 tf.float32, [None, None], "train_mask")
-    # pylint: enable=too-many-arguments
+    # pylint: enable=too-many-arguments,too-many-instance-attributes
 
     @tensor
     def decoding_w(self) -> tf.Variable:
@@ -300,17 +303,25 @@ class AutoregressiveDecoder(ModelPart):
 
     def get_initial_loop_state(self) -> LoopState:
 
-        dec_output_ta = tf.TensorArray(dtype=tf.float32, dynamic_size=True,
-                                       size=0, name="decoder_outputs")
+        dec_output = tf.zeros(
+            shape=[0, self.batch_size, self.embedding_size],
+            dtype=tf.float32,
+            name="hist_decoder_outputs")
 
-        logit_ta = tf.TensorArray(dtype=tf.float32, dynamic_size=True,
-                                  size=0, name="logits")
+        logit = tf.zeros(
+            shape=[0, self.batch_size, len(self.vocabulary)],
+            dtype=tf.float32,
+            name="hist_logits")
 
-        mask_ta = tf.TensorArray(dtype=tf.bool, dynamic_size=True,
-                                 size=0, name="mask")
+        mask = tf.zeros(
+            shape=[0, self.batch_size],
+            dtype=tf.bool,
+            name="mask")
 
-        outputs_ta = tf.TensorArray(dtype=tf.int32, dynamic_size=True,
-                                    size=0, name="outputs")
+        outputs = tf.zeros(
+            shape=[0, self.batch_size],
+            dtype=tf.int32,
+            name="outputs")
 
         feedables = DecoderFeedables(
             step=tf.constant(0, tf.int32),
@@ -319,10 +330,10 @@ class AutoregressiveDecoder(ModelPart):
             prev_logits=tf.zeros([self.batch_size, len(self.vocabulary)]))
 
         histories = DecoderHistories(
-            logits=logit_ta,
-            decoder_outputs=dec_output_ta,
-            mask=mask_ta,
-            outputs=outputs_ta)
+            logits=logit,
+            decoder_outputs=dec_output,
+            mask=mask,
+            outputs=outputs)
 
         constants = DecoderConstants(train_inputs=self.train_inputs)
 
@@ -372,7 +383,7 @@ class AutoregressiveDecoder(ModelPart):
 
         After finishing the tf.while_loop, it calls finalize_loop
         to further postprocess the final decoder loop state (usually
-        by stacking TensorArrays containing decoding histories).
+        by stacking Tensors containing decoding histories).
 
         Arguments:
             train_mode: Boolean flag, telling whether this is
@@ -386,16 +397,18 @@ class AutoregressiveDecoder(ModelPart):
         final_loop_state = tf.while_loop(
             self.loop_continue_criterion,
             self.get_body(train_mode, sample, temperature),
-            initial_loop_state)
+            initial_loop_state,
+            shape_invariants=tf.contrib.framework.nest.map_structure(
+                get_state_shape_invariants, initial_loop_state))
 
         self.finalize_loop(final_loop_state, train_mode)
 
-        logits = final_loop_state.histories.logits.stack()
-        decoder_outputs = final_loop_state.histories.decoder_outputs.stack()
-        decoded = final_loop_state.histories.outputs.stack()
+        logits = final_loop_state.histories.logits
+        decoder_outputs = final_loop_state.histories.decoder_outputs
+        decoded = final_loop_state.histories.outputs
 
         # TODO mask should include also the end symbol
-        mask = final_loop_state.histories.mask.stack()
+        mask = final_loop_state.histories.mask
 
         return logits, decoder_outputs, mask, decoded
 

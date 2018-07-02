@@ -278,6 +278,7 @@ class TensorFlowManager(object):
         for sess, file_name in zip(self.sessions, variable_files):
             log("Loading variables from {}".format(file_name))
             self.saver.restore(sess, file_name)
+            log("Variables loaded from {}".format(file_name))
 
     def restore_best_vars(self) -> None:
         # TODO warn when link does not exist

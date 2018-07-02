@@ -8,8 +8,7 @@ import math
 import tensorflow as tf
 from typeguard import check_argument_types
 
-from neuralmonkey.attention.scaled_dot_product import (
-    attention, empty_multi_head_loop_state)
+from neuralmonkey.attention.scaled_dot_product import attention
 from neuralmonkey.attention.base_attention import (
     Attendable, get_attention_states, get_attention_mask)
 from neuralmonkey.decorators import tensor
@@ -23,16 +22,18 @@ from neuralmonkey.logging import log
 from neuralmonkey.nn.utils import dropout
 from neuralmonkey.vocabulary import (
     Vocabulary, PAD_TOKEN_INDEX, END_TOKEN_INDEX)
-from neuralmonkey.tf_utils import layer_norm
+from neuralmonkey.tf_utils import append_tensor, layer_norm
 
 # pylint: disable=invalid-name
+# TODO: handle attention histories
 TransformerHistories = extend_namedtuple(
-    "RNNHistories",
+    "TransformerHistories",
     DecoderHistories,
-    [("decoded_symbols", tf.TensorArray),
-     ("self_attention_histories", List[Tuple]),
-     ("inter_attention_histories", List[Tuple]),
-     ("input_mask", tf.TensorArray)])
+    [("decoded_symbols", tf.Tensor),
+     # TODO(all) handle these!
+     # ("self_attention_histories", List[Tuple]),
+     # ("inter_attention_histories", List[Tuple]),
+     ("input_mask", tf.Tensor)])
 # pylint: enable=invalid-name
 
 
@@ -115,7 +116,8 @@ class TransformerDecoder(AutoregressiveDecoder):
 
         self.encoder_states = get_attention_states(self.encoder)
         self.encoder_mask = get_attention_mask(self.encoder)
-        self.dimension = self.encoder_states.get_shape()[2].value
+        self.dimension = (
+            self.encoder_states.get_shape()[2].value)  # type: ignore
 
         if self.embedding_size != self.dimension:
             raise ValueError("Model dimension and input embedding size"
@@ -170,7 +172,7 @@ class TransformerDecoder(AutoregressiveDecoder):
         normalized_states = layer_norm(prev_layer.temporal_states)
 
         # Run self-attention
-        # TODO handle histories
+        # TODO handle attention histories
         self_context, _ = attention(
             queries=normalized_states,
             keys=normalized_states,
@@ -192,19 +194,16 @@ class TransformerDecoder(AutoregressiveDecoder):
     def encoder_attention_sublayer(self, queries: tf.Tensor) -> tf.Tensor:
         """Create the encoder-decoder attention sublayer."""
 
-        encoder_att_states = get_attention_states(self.encoder)
-        encoder_att_mask = get_attention_mask(self.encoder)
-
         # Layer normalization
         normalized_queries = layer_norm(queries)
 
         # Attend to the encoder
-        # TODO handle histories
+        # TODO handle attention histories
         encoder_context, _ = attention(
             queries=normalized_queries,
-            keys=encoder_att_states,
-            values=encoder_att_states,
-            keys_mask=encoder_att_mask,
+            keys=self.encoder_states,
+            values=self.encoder_states,
+            keys_mask=self.encoder_mask,
             num_heads=self.n_heads_enc,
             dropout_callback=lambda x: dropout(
                 x, self.attention_dropout_keep_prob, self.train_mode),
@@ -296,27 +295,25 @@ class TransformerDecoder(AutoregressiveDecoder):
     def get_initial_loop_state(self) -> LoopState:
 
         default_ls = AutoregressiveDecoder.get_initial_loop_state(self)
-        # feedables = default_ls.feedables._asdict()
         histories = default_ls.histories._asdict()
 
-        histories["self_attention_histories"] = [
-            empty_multi_head_loop_state(self.n_heads_self)
-            for a in range(self.depth)]
+#        histories["self_attention_histories"] = [
+#            empty_multi_head_loop_state(self.batch_size, self.n_heads_self)
+#            for a in range(self.depth)]
 
-        histories["inter_attention_histories"] = [
-            empty_multi_head_loop_state(self.n_heads_enc)
-            for a in range(self.depth)]
+#        histories["inter_attention_histories"] = [
+#            empty_multi_head_loop_state(self.batch_size, self.n_heads_enc)
+#            for a in range(self.depth)]
 
-        histories["decoded_symbols"] = tf.TensorArray(
-            dtype=tf.int32, dynamic_size=True, size=0,
-            clear_after_read=False, name="decoded_symbols")
+        histories["decoded_symbols"] = tf.zeros(
+            shape=[0, self.batch_size],
+            dtype=tf.int32,
+            name="decoded_symbols")
 
-        input_mask = tf.TensorArray(
-            dtype=tf.float32, dynamic_size=True, size=0,
-            clear_after_read=False, name="input_mask")
-
-        histories["input_mask"] = input_mask.write(
-            0, tf.ones_like(self.go_symbols, dtype=tf.float32))
+        histories["input_mask"] = tf.zeros(
+            shape=[0, self.batch_size],
+            dtype=tf.float32,
+            name="input_mask")
 
         # TransformerHistories is a type and should be callable
         # pylint: disable=not-callable
@@ -338,19 +335,19 @@ class TransformerDecoder(AutoregressiveDecoder):
             loop_state = LoopState(*args)
             histories = loop_state.histories
             feedables = loop_state.feedables
-            step = feedables.step
-
-            decoded_symbols_ta = histories.decoded_symbols.write(
-                step, feedables.input_symbol)
 
             # shape (time, batch)
-            decoded_symbols = decoded_symbols_ta.stack()
-            decoded_symbols.set_shape([None, None])
+            decoded_symbols = append_tensor(
+                histories.decoded_symbols, feedables.input_symbol)
+
+            unfinished_mask = tf.to_float(tf.logical_not(feedables.finished))
+            input_mask = append_tensor(histories.input_mask, unfinished_mask)
+
+            # shape (batch, time)
             decoded_symbols_in_batch = tf.transpose(decoded_symbols)
 
             # mask (time, batch)
-            mask = histories.input_mask.stack()
-            mask.set_shape([None, None])
+            mask = input_mask
 
             with tf.variable_scope(self._variable_scope, reuse=tf.AUTO_REUSE):
                 # shape (batch, time, dimension)
@@ -389,7 +386,7 @@ class TransformerDecoder(AutoregressiveDecoder):
                 not_finished = tf.logical_not(has_finished)
 
             new_feedables = DecoderFeedables(
-                step=step + 1,
+                step=feedables.step + 1,
                 finished=has_finished,
                 input_symbol=next_symbols,
                 prev_logits=logits)
@@ -397,23 +394,22 @@ class TransformerDecoder(AutoregressiveDecoder):
             # TransformerHistories is a type and should be callable
             # pylint: disable=not-callable
             new_histories = TransformerHistories(
-                logits=histories.logits.write(step, logits),
-                decoder_outputs=histories.decoder_outputs.write(
-                    step, output_state),
-                mask=histories.mask.write(step, not_finished),
-                outputs=histories.outputs.write(step, next_symbols),
+                logits=append_tensor(histories.logits, logits),
+                decoder_outputs=append_tensor(
+                    histories.decoder_outputs, output_state),
+                mask=append_tensor(histories.mask, not_finished),
+                outputs=append_tensor(histories.outputs, next_symbols),
                 # transformer-specific:
-                # TODO handle attention histories correctly
-                decoded_symbols=decoded_symbols_ta,
-                self_attention_histories=histories.self_attention_histories,
-                inter_attention_histories=histories.inter_attention_histories,
-                input_mask=histories.input_mask.write(
-                    step + 1, tf.to_float(not_finished)))
+                decoded_symbols=decoded_symbols,
+                # TODO(all) handle these!
+                # self_attention_histories=histories.self_attention_histories,
+                # inter_attention_histories analogicky
+                input_mask=input_mask)
             # pylint: enable=not-callable
 
             new_loop_state = LoopState(
                 histories=new_histories,
-                constants=[],
+                constants=loop_state.constants,
                 feedables=new_feedables)
 
             return new_loop_state

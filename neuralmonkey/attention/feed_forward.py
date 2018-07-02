@@ -10,7 +10,7 @@ import tensorflow as tf
 from typeguard import check_argument_types
 
 from neuralmonkey.attention.base_attention import (
-    BaseAttention, AttentionLoopStateTA, empty_attention_loop_state,
+    BaseAttention, AttentionLoopState, empty_attention_loop_state,
     get_attention_states, get_attention_mask, Attendable)
 from neuralmonkey.decorators import tensor
 from neuralmonkey.nn.utils import dropout
@@ -30,8 +30,8 @@ class Attention(BaseAttention):
                  load_checkpoint: str = None,
                  initializers: InitializerSpecs = None) -> None:
         check_argument_types()
-        BaseAttention.__init__(self, name, save_checkpoint, load_checkpoint,
-                               initializers)
+        BaseAttention.__init__(
+            self, name, save_checkpoint, load_checkpoint, initializers)
 
         self.encoder = encoder
         self.dropout_keep_prob = dropout_keep_prob
@@ -125,15 +125,15 @@ class Attention(BaseAttention):
                   query: tf.Tensor,
                   decoder_prev_state: tf.Tensor,
                   decoder_input: tf.Tensor,
-                  loop_state: AttentionLoopStateTA,
-                  step: tf.Tensor) -> Tuple[tf.Tensor, AttentionLoopStateTA]:
+                  loop_state: AttentionLoopState) -> Tuple[
+                      tf.Tensor, AttentionLoopState]:
         self.query_state_size = query.get_shape()[-1].value
 
         y = tf.matmul(query, self.query_projection_matrix)
         y = y + self.projection_bias_vector
         y = tf.reshape(y, [-1, 1, 1, self.state_size])
 
-        energies = self.get_energies(y, loop_state.weights.identity())
+        energies = self.get_energies(y, loop_state.weights)
 
         if self.attention_mask is None:
             weights = tf.nn.softmax(energies)
@@ -154,15 +154,22 @@ class Attention(BaseAttention):
             * self._att_states_reshaped, [1, 2])
         context = tf.reshape(context, [-1, self.context_vector_size])
 
-        next_loop_state = AttentionLoopStateTA(
-            contexts=loop_state.contexts.write(step, context),
-            weights=loop_state.weights.write(step, weights))
+        next_contexts = tf.concat(
+            [loop_state.contexts, tf.expand_dims(context, 0)], 0)
+        next_weights = tf.concat(
+            [loop_state.weights, tf.expand_dims(weights, 0)], 0)
+        next_loop_state = AttentionLoopState(
+            contexts=next_contexts,
+            weights=next_weights)
 
         return context, next_loop_state
 
-    def initial_loop_state(self) -> AttentionLoopStateTA:
-        return empty_attention_loop_state()
+    def initial_loop_state(self) -> AttentionLoopState:
+        return empty_attention_loop_state(
+            self.batch_size,
+            tf.shape(self.attention_states)[1],
+            self.context_vector_size)
 
     def finalize_loop(self, key: str,
-                      last_loop_state: AttentionLoopStateTA) -> None:
-        self.histories[key] = last_loop_state.weights.stack()
+                      last_loop_state: AttentionLoopState) -> None:
+        self.histories[key] = last_loop_state.weights

@@ -88,7 +88,7 @@ class LogitsRunner(BaseRunner[Classifier]):
         """Initialize the logits runner.
 
         Args:
-            output_series: Name of the series produces by the runner.
+            output_series: Name of the series produced by the runner.
             decoder: A decoder having logits.
             normalize: Flag whether the logits should be normalized with
                 softmax.

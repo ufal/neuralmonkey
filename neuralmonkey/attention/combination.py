@@ -19,7 +19,7 @@ from typeguard import check_argument_types
 import tensorflow as tf
 
 from neuralmonkey.attention.base_attention import (
-    BaseAttention, AttentionLoopStateTA, empty_attention_loop_state,
+    BaseAttention, AttentionLoopState, empty_attention_loop_state,
     get_attention_states, get_attention_mask, Attendable)
 from neuralmonkey.checking import assert_shape
 from neuralmonkey.model.model_part import InitializerSpecs
@@ -57,8 +57,7 @@ class MultiAttention(BaseAttention):
                   query: tf.Tensor,
                   decoder_prev_state: tf.Tensor,
                   decoder_input: tf.Tensor,
-                  loop_state: Any,
-                  step: tf.Tensor) -> Tuple[tf.Tensor, Any]:
+                  loop_state: Any) -> Tuple[tf.Tensor, Any]:
         """Get context vector for given decoder state."""
         raise NotImplementedError("Abstract method")
 
@@ -169,8 +168,14 @@ class FlatMultiAttention(MultiAttention):
             self.masks_concat = tf.concat(self._encoders_masks, 1)
     # pylint: enable=too-many-arguments
 
-    def initial_loop_state(self) -> AttentionLoopStateTA:
-        return empty_attention_loop_state()
+    def initial_loop_state(self) -> AttentionLoopState:
+
+        length = sum(tf.shape(s)[1] for s in self._encoders_tensors)
+        if self._use_sentinels:
+            length += 1
+
+        return empty_attention_loop_state(self.batch_size, length,
+                                          self.context_vector_size)
 
     def get_encoder_projections(self, scope):
         encoder_projections = []
@@ -213,8 +218,9 @@ class FlatMultiAttention(MultiAttention):
                   query: tf.Tensor,
                   decoder_prev_state: tf.Tensor,
                   decoder_input: tf.Tensor,
-                  loop_state: AttentionLoopStateTA,
-                  step: tf.Tensor) -> Tuple[tf.Tensor, AttentionLoopStateTA]:
+                  loop_state: AttentionLoopState) -> Tuple[
+                      tf.Tensor, AttentionLoopState]:
+
         with tf.variable_scope(self.att_scope_name):
             projected_state = tf.layers.dense(query, self.attention_state_size)
             projected_state = tf.expand_dims(projected_state, 1)
@@ -255,9 +261,14 @@ class FlatMultiAttention(MultiAttention):
             contexts = tf.reduce_sum(
                 tf.expand_dims(attentions, 2) * projections_concat, [1])
 
-            next_loop_state = AttentionLoopStateTA(
-                contexts=loop_state.contexts.write(step, contexts),
-                weights=loop_state.weights.write(step, attentions))
+            next_contexts = tf.concat(
+                [loop_state.contexts, tf.expand_dims(contexts, 0)], 0)
+            next_weights = tf.concat(
+                [loop_state.weights, tf.expand_dims(attentions, 0)], 0)
+
+            next_loop_state = AttentionLoopState(
+                contexts=next_contexts,
+                weights=next_weights)
 
             return contexts, next_loop_state
     # pylint: enable=too-many-locals
@@ -285,10 +296,10 @@ class FlatMultiAttention(MultiAttention):
         return attentions
 
     def finalize_loop(self, key: str,
-                      last_loop_state: AttentionLoopStateTA) -> None:
+                      last_loop_state: AttentionLoopState) -> None:
         # TODO factorization of the flat distribution across encoders
         # could take place here.
-        self.histories[key] = last_loop_state.weights.stack()
+        self.histories[key] = last_loop_state.weights
 
 
 def _sentinel(state, prev_state, input_):
@@ -310,7 +321,7 @@ def _sentinel(state, prev_state, input_):
 HierarchicalLoopState = NamedTuple(
     "HierarchicalLoopState",
     [("child_loop_states", List),
-     ("loop_state", AttentionLoopStateTA)])
+     ("loop_state", AttentionLoopState)])
 # pylint: enable=invalid-name
 
 
@@ -350,18 +361,23 @@ class HierarchicalMultiAttention(MultiAttention):
     # pylint: enable=too-many-arguments
 
     def initial_loop_state(self) -> HierarchicalLoopState:
+        length = len(self.attentions)
+        if self._use_sentinels:
+            length += 1
+
         return HierarchicalLoopState(
             child_loop_states=[a.initial_loop_state()
                                for a in self.attentions],
-            loop_state=empty_attention_loop_state())
+            loop_state=empty_attention_loop_state(
+                self.batch_size, length, self.context_vector_size))
 
     # pylint: disable=too-many-locals
     def attention(self,
                   query: tf.Tensor,
                   decoder_prev_state: tf.Tensor,
                   decoder_input: tf.Tensor,
-                  loop_state: HierarchicalLoopState,
-                  step: tf.Tensor) -> Tuple[tf.Tensor, HierarchicalLoopState]:
+                  loop_state: HierarchicalLoopState) -> Tuple[
+                      tf.Tensor, HierarchicalLoopState]:
 
         with tf.variable_scope(self.att_scope_name):
             projected_state = tf.layers.dense(query, self.attention_state_size)
@@ -369,8 +385,7 @@ class HierarchicalMultiAttention(MultiAttention):
 
             assert_shape(projected_state, [-1, 1, self.attention_state_size])
             attn_ctx_vectors, child_loop_states = zip(*[
-                a.attention(query, decoder_prev_state, decoder_input,
-                            ls, step)
+                a.attention(query, decoder_prev_state, decoder_input, ls)
                 for a, ls in zip(self.attentions,
                                  loop_state.child_loop_states)])
 
@@ -411,10 +426,14 @@ class HierarchicalMultiAttention(MultiAttention):
                 tf.expand_dims(attention_distr, 2) * projections_concat, [1])
 
             prev_loop_state = loop_state.loop_state
-            next_contexts = prev_loop_state.contexts.write(step, context)
-            next_weights = prev_loop_state.weights.write(step, attention_distr)
 
-            next_loop_state = AttentionLoopStateTA(
+            next_contexts = tf.concat(
+                [prev_loop_state.contexts, tf.expand_dims(context, 0)], axis=0)
+            next_weights = tf.concat(
+                [prev_loop_state.weights, tf.expand_dims(attention_distr, 0)],
+                axis=0)
+
+            next_loop_state = AttentionLoopState(
                 contexts=next_contexts,
                 weights=next_weights)
 
@@ -430,7 +449,7 @@ class HierarchicalMultiAttention(MultiAttention):
                 self.attentions, last_loop_state.child_loop_states):
             c_attention.finalize_loop(key, c_loop_state)
 
-        self.histories[key] = last_loop_state.loop_state.weights.stack()
+        self.histories[key] = last_loop_state.loop_state.weights
 
     @property
     def context_vector_size(self) -> int:

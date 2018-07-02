@@ -21,6 +21,7 @@ from neuralmonkey.decoders.encoder_projection import (
 from neuralmonkey.decoders.output_projection import (
     OutputProjectionSpec, OutputProjection, nonlinear_output)
 from neuralmonkey.decorators import tensor
+from neuralmonkey.tf_utils import append_tensor
 
 
 RNN_CELL_TYPES = {
@@ -40,7 +41,7 @@ RNNFeedables = extend_namedtuple(
 RNNHistories = extend_namedtuple(
     "RNNHistories",
     DecoderHistories,
-    [("attention_histories", List[Tuple])])  # AttentionLoopStateTA and kids
+    [("attention_histories", List[Tuple])])  # AttentionLoopState and kids
 # pylint: enable=invalid-name
 
 
@@ -269,8 +270,7 @@ class Decoder(AutoregressiveDecoder):
                     attns = [
                         a.attention(
                             cell_output, loop_state.feedables.prev_rnn_output,
-                            rnn_input, att_loop_state,
-                            loop_state.feedables.step)
+                            rnn_input, att_loop_state)
                         for a, att_loop_state in zip(
                             self.attentions,
                             loop_state.histories.attention_histories)]
@@ -294,8 +294,7 @@ class Decoder(AutoregressiveDecoder):
                     attns = [
                         a.attention(
                             cell_output, loop_state.feedables.prev_rnn_output,
-                            rnn_input, att_loop_state,
-                            loop_state.feedables.step)
+                            rnn_input, att_loop_state)
                         for a, att_loop_state in zip(
                             self.attentions,
                             loop_state.histories.attention_histories)]
@@ -351,11 +350,12 @@ class Decoder(AutoregressiveDecoder):
 
             new_histories = RNNHistories(
                 attention_histories=list(att_loop_states),
-                logits=loop_state.histories.logits.write(step, logits),
-                decoder_outputs=loop_state.histories.decoder_outputs.write(
-                    step, cell_output),
-                outputs=loop_state.histories.outputs.write(step, next_symbols),
-                mask=loop_state.histories.mask.write(step, not_finished))
+                logits=append_tensor(loop_state.histories.logits, logits),
+                decoder_outputs=append_tensor(
+                    loop_state.histories.decoder_outputs, cell_output),
+                outputs=append_tensor(
+                    loop_state.histories.outputs, next_symbols),
+                mask=append_tensor(loop_state.histories.mask, not_finished))
             # pylint: enable=not-callable
 
             new_loop_state = LoopState(
@@ -383,6 +383,11 @@ class Decoder(AutoregressiveDecoder):
         histories["attention_histories"] = [
             a.initial_loop_state()
             for a in self.attentions if a is not None]
+
+        histories["decoder_outputs"] = tf.zeros(
+            shape=[0, self.batch_size, self.rnn_size],
+            dtype=tf.float32,
+            name="hist_decoder_outputs")
 
         # pylint: disable=not-callable
         rnn_feedables = RNNFeedables(**feedables)

@@ -7,7 +7,7 @@ dimensionality. This attention function has no trainable parameters.
 See arxiv.org/abs/1706.03762
 """
 import math
-from typing import Tuple, List, NamedTuple, Callable
+from typing import Tuple, List, NamedTuple, Callable, Union
 
 import tensorflow as tf
 from typeguard import check_argument_types
@@ -18,9 +18,9 @@ from neuralmonkey.attention.base_attention import (
     BaseAttention, Attendable, get_attention_states, get_attention_mask)
 
 # pylint: disable=invalid-name
-MultiHeadLoopStateTA = NamedTuple("MultiHeadLoopStateTA",
-                                  [("contexts", tf.TensorArray),
-                                   ("head_weights", List[tf.TensorArray])])
+MultiHeadLoopState = NamedTuple("MultiHeadLoopState",
+                                [("contexts", tf.Tensor),
+                                 ("head_weights", List[tf.Tensor])])
 # pylint: enable=invalid-name
 
 
@@ -224,13 +224,20 @@ def attention(
 # pylint: enable=too-many-locals
 
 
-def empty_multi_head_loop_state(num_heads: int) -> MultiHeadLoopStateTA:
-    return MultiHeadLoopStateTA(
-        contexts=tf.TensorArray(
-            dtype=tf.float32, size=0, dynamic_size=True,
+def empty_multi_head_loop_state(
+        batch_size: Union[int, tf.Tensor],
+        num_heads: Union[int, tf.Tensor],
+        length: Union[int, tf.Tensor],
+        dimension: Union[int, tf.Tensor]) -> MultiHeadLoopState:
+
+    return MultiHeadLoopState(
+        contexts=tf.zeros(
+            shape=[0, batch_size, dimension],
+            dtype=tf.float32,
             name="contexts"),
-        head_weights=[tf.TensorArray(
-            dtype=tf.float32, size=0, dynamic_size=True,
+        head_weights=[tf.zeros(
+            shape=[0, batch_size, length],
+            dtype=tf.float32,
             name="distributions_head{}".format(i)) for i in range(num_heads)])
 
 
@@ -271,8 +278,8 @@ class MultiHeadAttention(BaseAttention):
                   query: tf.Tensor,
                   decoder_prev_state: tf.Tensor,
                   decoder_input: tf.Tensor,
-                  loop_state: MultiHeadLoopStateTA,
-                  step: tf.Tensor) -> Tuple[tf.Tensor, MultiHeadLoopStateTA]:
+                  loop_state: MultiHeadLoopState) -> Tuple[tf.Tensor,
+                                                           MultiHeadLoopState]:
         """Run a multi-head attention getting context vector for a given query.
 
         This method is an API-wrapper for the global function 'attention'
@@ -289,7 +296,6 @@ class MultiHeadAttention(BaseAttention):
             decoder_prev_state: Previous state of the decoder.
             decoder_input: Input to the RNN cell of the decoder.
             loop_state: Attention loop state.
-            step: Current decoding step.
 
         Returns:
             Vector of contexts and the following attention loop state.
@@ -310,31 +316,35 @@ class MultiHeadAttention(BaseAttention):
         context = tf.squeeze(context_3d, axis=1)
         head_weights = [tf.squeeze(w, axis=[1, 2]) for w in head_weights_3d]
 
-        next_contexts = loop_state.contexts.write(step, context)
-        next_head_weights = [loop_state.head_weights[i].write(step,
-                                                              head_weights[i])
-                             for i in range(self.n_heads)]
+        next_contexts = tf.concat(
+            [loop_state.contexts, tf.expand_dims(context, 0)], axis=0)
+        next_head_weights = [
+            tf.concat([loop_state.head_weights[i],
+                       tf.expand_dims(head_weights[i], 0)], axis=0)
+            for i in range(self.n_heads)]
 
-        next_loop_state = MultiHeadLoopStateTA(
+        next_loop_state = MultiHeadLoopState(
             contexts=next_contexts,
             head_weights=next_head_weights)
 
         return context, next_loop_state
 
-    def initial_loop_state(self) -> MultiHeadLoopStateTA:
-        return empty_multi_head_loop_state(self.n_heads)
+    def initial_loop_state(self) -> MultiHeadLoopState:
+        return empty_multi_head_loop_state(
+            self.batch_size, self.n_heads, tf.shape(self.attention_keys)[1],
+            self.context_vector_size)
 
     def finalize_loop(self, key: str,
-                      last_loop_state: MultiHeadLoopStateTA) -> None:
+                      last_loop_state: MultiHeadLoopState) -> None:
         for i in range(self.n_heads):
-            head_weights = last_loop_state.head_weights[i].stack()
+            head_weights = last_loop_state.head_weights[i]
             self.histories["{}_head{}".format(key, i)] = head_weights
 
     @property
     def context_vector_size(self) -> int:
         return self.attention_values.get_shape()[-1].value
 
-    def visualize_attention(self, key: str) -> None:
+    def visualize_attention(self, key: str, max_outputs: int = 16) -> None:
         for i in range(self.n_heads):
             head_key = "{}_head{}".format(key, i)
             if head_key not in self.histories:
@@ -346,7 +356,7 @@ class MultiHeadAttention(BaseAttention):
 
             tf.summary.image("{}_head{}".format(self.name, i), alignments,
                              collections=["summary_att_plots"],
-                             max_outputs=256)
+                             max_outputs=max_outputs)
 
 
 class ScaledDotProdAttention(MultiHeadAttention):
