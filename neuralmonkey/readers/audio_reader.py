@@ -6,12 +6,16 @@ import subprocess
 import sys
 
 import numpy as np
-
 from scipy.io import wavfile
 
 
-# pylint: disable=invalid-name
-Audio = NamedTuple("Audio", [("rate", int), ("data", np.ndarray)])
+class Audio(NamedTuple("Audio", [("rate", int), ("data", np.ndarray)])):
+    """A raw audio object with its rate as metadata.
+
+    Attribute:
+        rate: The sample rate of the audio.
+        data: The raw audio data.
+    """
 
 
 def audio_reader(prefix: str = "",

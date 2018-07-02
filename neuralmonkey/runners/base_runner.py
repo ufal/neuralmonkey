@@ -8,15 +8,29 @@ from neuralmonkey.model.model_part import ModelPart
 # pylint: disable=invalid-name
 FeedDict = Dict[tf.Tensor, Union[int, float, np.ndarray]]
 NextExecute = Tuple[Set[ModelPart], Union[Dict, List], List[FeedDict]]
-ExecutionResult = NamedTuple("ExecutionResult",
-                             [("outputs", List[Any]),
-                              ("losses", List[float]),
-                              ("scalar_summaries", tf.Summary),
-                              ("histogram_summaries", tf.Summary),
-                              ("image_summaries", tf.Summary)])
-
 MP = TypeVar("MP", bound=ModelPart)
 # pylint: enable=invalid-name
+
+
+class ExecutionResult(NamedTuple(
+        "ExecutionResult",
+        [("outputs", List[Any]),
+         ("losses", List[float]),
+         ("scalar_summaries", tf.Summary),
+         ("histogram_summaries", tf.Summary),
+         ("image_summaries", tf.Summary)])):
+    """A data structure that represents a result of a graph execution.
+
+    The goal of each runner is to populate this structure and set it as its
+    ``self.result``.
+
+    Attributes:
+        outputs: A batch of outputs of the runner.
+        losses: A (possibly empty) list of loss values computed during the run.
+        scalar_summaries: A TensorFlow summary object with scalar values.
+        histogram_summaries: A TensorFlow summary object with histograms.
+        image_summaries: A TensorFlow summary object with images.
+    """
 
 
 class Executable(object):
