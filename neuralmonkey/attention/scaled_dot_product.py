@@ -7,7 +7,7 @@ dimensionality. This attention function has no trainable parameters.
 See arxiv.org/abs/1706.03762
 """
 import math
-from typing import Tuple, List, NamedTuple, Callable, Union
+from typing import Tuple, Callable, Union
 
 import tensorflow as tf
 from typeguard import check_argument_types
@@ -16,12 +16,7 @@ from neuralmonkey.nn.utils import dropout
 from neuralmonkey.model.model_part import InitializerSpecs
 from neuralmonkey.attention.base_attention import (
     BaseAttention, Attendable, get_attention_states, get_attention_mask)
-
-# pylint: disable=invalid-name
-MultiHeadLoopState = NamedTuple("MultiHeadLoopState",
-                                [("contexts", tf.Tensor),
-                                 ("head_weights", List[tf.Tensor])])
-# pylint: enable=invalid-name
+from neuralmonkey.attention.namedtuples import MultiHeadLoopState
 
 
 def split_for_heads(x: tf.Tensor, n_heads: int, head_dim: int) -> tf.Tensor:
