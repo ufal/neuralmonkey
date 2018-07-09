@@ -62,7 +62,7 @@ def t2t_tokenized_text_reader(encoding: str = "utf-8") -> PlainTextFileReader:
         for line in lines(files):
             if not line:
                 yield []
-            line = line.rstrip("\n")
+            line = line.rstrip("\r\n")
 
             tokens = []
             is_alnum = [ch in alphanumeric_charset for ch in line]
@@ -72,9 +72,14 @@ def t2t_tokenized_text_reader(encoding: str = "utf-8") -> PlainTextFileReader:
                 # Boundary of alnum and non-alnum character groups
                 if is_alnum[pos] != is_alnum[pos - 1]:
                     token = line[current_token_start:pos]
+                    token = token.replace("\\", "\\\\")
+                    token = token.replace("_", "\\u")
+                    token = token.replace(' ', '_')
 
                     # Drop single space if it's not on the beginning
-                    if token != " " or current_token_start == 0:
+                    if token != "_" or current_token_start == 0:
+                        if line[pos] == ' ':
+                            token += '_'
                         tokens.append(token)
 
                     current_token_start = pos
