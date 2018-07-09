@@ -77,11 +77,12 @@ class RawRNNEncoder(ModelPart, TemporalStatefulWithOutput):
 
             for i, layer in enumerate(self._rnn_layers):
                 with tf.variable_scope("rnn_{}_{}".format(i, layer.direction)):
-                    cell = _make_rnn_cell(layer)
                     if layer.direction == "bidirectional":
+                        fw_cell = _make_rnn_cell(layer)
+                        bw_cell = _make_rnn_cell(layer)
                         outputs_tup, encoded_tup = (
                             tf.nn.bidirectional_dynamic_rnn(
-                                cell(), cell(), states, self._input_lengths,
+                                fw_cell, bw_cell, states, self._input_lengths,
                                 dtype=tf.float32))
 
                         if states_reversed:
@@ -97,8 +98,9 @@ class RawRNNEncoder(ModelPart, TemporalStatefulWithOutput):
                         if states_reversed != should_be_reversed:
                             reverse_states()
 
+                        cell = _make_rnn_cell(layer)
                         states, encoded = tf.nn.dynamic_rnn(
-                            cell(), states,
+                            cell, states,
                             sequence_length=self._input_lengths,
                             dtype=tf.float32)
                     else:
