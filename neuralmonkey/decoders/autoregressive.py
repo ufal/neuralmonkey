@@ -5,8 +5,7 @@ Either for the recurrent decoder, or for the transformer decoder.
 The autoregressive decoder uses the while loop to get the outputs.
 Descendants should only specify the initial state and the while loop body.
 """
-from typing import (
-    NamedTuple, Callable, Tuple, cast, Type, List, Optional, Any)
+from typing import NamedTuple, Callable, Tuple, Optional, Any
 
 import numpy as np
 import tensorflow as tf
@@ -21,49 +20,82 @@ from neuralmonkey.tf_utils import get_variable, get_state_shape_invariants
 from neuralmonkey.vocabulary import Vocabulary, START_TOKEN, UNK_TOKEN_INDEX
 
 
-def extend_namedtuple(name: str, parent: Type,
-                      fields: List[Tuple[str, Type]]) -> Type:
-    """Extend a named tuple to contain more elements."""
-    # pylint: disable=protected-access
-    ext_fields = [(k, parent._field_types[k]) for k in parent._fields] + fields
-    # pylint: enable=protected-access
-    return cast(Type, NamedTuple(name, ext_fields))
+class LoopState(NamedTuple(
+        "LoopState",
+        [("histories", Any),
+         ("constants", Any),
+         ("feedables", Any)])):
+    """The loop state object.
+
+    The LoopState is a structure that works with the tf.while_loop function the
+    decoder loop state stores all the information that is not invariant for the
+    decoder run.
+
+    Attributes:
+        histories: A set of tensors that grow in time as the decoder proceeds.
+        constants: A set of independent tensors that do not change during the
+            entire decoder run.
+        feedables: A set of tensors used as the input of a single decoder step.
+    """
 
 
-LoopState = NamedTuple(
-    "LoopState",
-    [("histories", Any),
-     ("constants", Any),
-     ("feedables", Any)])
-# pylint: enable=invalid-name
+class DecoderHistories(NamedTuple(
+        "DecoderHistories",
+        [("logits", tf.Tensor),
+         ("decoder_outputs", tf.Tensor),
+         ("outputs", tf.Tensor),
+         ("mask", tf.Tensor)])):
+    """The values collected during the run of an autoregressive decoder.
 
-# The LoopState is a structure that works with the tf.while_loop function
-# the decoder loop state stores all the information that is not invariant
-# for the decoder run.
-# pylint: disable=invalid-name
-DecoderHistories = NamedTuple(
-    "DecoderHistories",
-    [("logits", tf.Tensor),
-     ("decoder_outputs", tf.Tensor),
-     ("outputs", tf.Tensor),
-     ("mask", tf.Tensor)])  # float matrix, 0s and 1s
+    Attributes:
+        logits: A tensor of shape ``(time, batch, vocabulary)`` which contains
+            the unnormalized output scores of words in a vocabulary.
+        decoder_outputs: A tensor of shape ``(time, batch, state_size)``. The
+            states of the decoder before the final output (logit) projection.
+        outputs: An int tensor of shape ``(time, batch)``. Stores the generated
+            symbols. (Either an argmax-ed value from the logits, or a target
+            token, during training.)
+        mask: A float tensor of zeros and ones of shape ``(time, batch)``.
+            Keeps track of valid positions in the decoded data.
+    """
 
-DecoderConstants = NamedTuple(
-    "DecoderConstants",
-    [("train_inputs", Optional[tf.Tensor])])
 
-DecoderFeedables = NamedTuple(
-    "DecoderFeedables",
-    [("step", tf.Tensor),  # 1D int, number of the step
-     ("finished", tf.Tensor),  # batch-sized, bool
-     ("input_symbol", tf.Tensor),
-     ("prev_logits", tf.Tensor)])
+class DecoderConstants(NamedTuple(
+        "DecoderConstants",
+        [("train_inputs", Optional[tf.Tensor])])):
+    """The constants used by an autoregressive decoder.
+
+    Attributes:
+        train_inputs: During training, this is populated by the target token
+            ids.
+    """
+
+
+class DecoderFeedables(NamedTuple(
+        "DecoderFeedables",
+        [("step", tf.Tensor),
+         ("finished", tf.Tensor),
+         ("input_symbol", tf.Tensor),
+         ("prev_logits", tf.Tensor)])):
+    """The input of a single step of an autoregressive decoder.
+
+    Attributes:
+        step: A scalar int tensor, stores the number of the current time step.
+        finished: A boolean tensor of shape ``(batch)``,  which says whether
+            the decoding of a sentence in the batch is finished or not. (E.g.
+            whether the end token has already been generated.)
+        input_symbol: A boolean ``batch``-sized tensor with the inputs to the
+            decoder. During inference, this contains the previously generated
+            tokens. During training, this contains the reference tokens.
+        prev_logits: A tensor of shape ``(batch, vocabulary)``. Contains the
+            logits from the previous decoding step.
+    """
 
 
 # pylint: disable=too-many-public-methods,too-many-instance-attributes
 class AutoregressiveDecoder(ModelPart):
 
-    # pylint: disable=too-many-arguments,too-many-instance-attributes
+    # pylint: disable=too-many-arguments
     def __init__(self,
                  name: str,
                  vocabulary: Vocabulary,
@@ -143,7 +175,7 @@ class AutoregressiveDecoder(ModelPart):
                 tf.int32, [None, None], "train_inputs")
             self.train_mask = tf.placeholder(
                 tf.float32, [None, None], "train_mask")
-    # pylint: enable=too-many-arguments,too-many-instance-attributes
+    # pylint: enable=too-many-arguments
 
     @tensor
     def decoding_w(self) -> tf.Variable:

@@ -2,10 +2,10 @@ from typing import NamedTuple, List
 import tensorflow as tf
 
 
-class AttentionLoopState(
-        NamedTuple("AttentionLoopState",
-                   [("contexts", tf.Tensor),
-                    ("weights", tf.Tensor)])):
+class AttentionLoopState(NamedTuple(
+        "AttentionLoopState",
+        [("contexts", tf.Tensor),
+         ("weights", tf.Tensor)])):
     """Basic loop state of an attention mechanism.
 
     Attributes:
@@ -17,10 +17,10 @@ class AttentionLoopState(
     """
 
 
-class HierarchicalLoopState(
-        NamedTuple("HierarchicalLoopState",
-                   [("child_loop_states", List),
-                    ("loop_state", AttentionLoopState)])):
+class HierarchicalLoopState(NamedTuple(
+        "HierarchicalLoopState",
+        [("child_loop_states", List),
+         ("loop_state", AttentionLoopState)])):
     """Loop state of the hierarchical attention mechanism.
 
     The input to the hierarchical attetnion is the output of a set of
@@ -35,10 +35,10 @@ class HierarchicalLoopState(
     """
 
 
-class MultiHeadLoopState(
-        NamedTuple("MultiHeadLoopState",
-                   [("contexts", tf.Tensor),
-                    ("head_weights", List[tf.Tensor])])):
+class MultiHeadLoopState(NamedTuple(
+        "MultiHeadLoopState",
+        [("contexts", tf.Tensor),
+         ("head_weights", List[tf.Tensor])])):
     """Loop state of a multi-head attention.
 
     Attributes:

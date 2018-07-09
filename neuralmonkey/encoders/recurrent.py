@@ -27,11 +27,11 @@ RNNCellTuple = Tuple[tf.nn.rnn_cell.RNNCell, tf.nn.rnn_cell.RNNCell]
 # pylint: enable=invalid-name
 
 
-class RNNSpec(
-        NamedTuple("RNNSpec",
-                   [("size", int),
-                    ("direction", str),
-                    ("cell_type", str)])):
+class RNNSpec(NamedTuple(
+        "RNNSpec",
+        [("size", int),
+         ("direction", str),
+         ("cell_type", str)])):
     """Recurrent neural network specifications.
 
     Attributes:

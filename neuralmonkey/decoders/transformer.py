@@ -2,7 +2,7 @@
 
 Described in Vaswani et al. (2017), arxiv.org/abs/1706.03762
 """
-from typing import Callable, Set, List, Tuple  # pylint: disable=unused-import
+from typing import Callable, NamedTuple
 import math
 
 import tensorflow as tf
@@ -13,8 +13,7 @@ from neuralmonkey.attention.base_attention import (
     Attendable, get_attention_states, get_attention_mask)
 from neuralmonkey.decorators import tensor
 from neuralmonkey.decoders.autoregressive import (
-    AutoregressiveDecoder, LoopState, extend_namedtuple, DecoderHistories,
-    DecoderFeedables)
+    AutoregressiveDecoder, LoopState, DecoderFeedables)
 from neuralmonkey.encoders.transformer import (
     TransformerLayer, position_signal)
 from neuralmonkey.model.sequence import EmbeddedSequence
@@ -24,17 +23,28 @@ from neuralmonkey.vocabulary import (
     Vocabulary, PAD_TOKEN_INDEX, END_TOKEN_INDEX)
 from neuralmonkey.tf_utils import append_tensor, layer_norm
 
-# pylint: disable=invalid-name
-# TODO: handle attention histories
-TransformerHistories = extend_namedtuple(
-    "TransformerHistories",
-    DecoderHistories,
-    [("decoded_symbols", tf.Tensor),
-     # TODO(all) handle these!
-     # ("self_attention_histories", List[Tuple]),
-     # ("inter_attention_histories", List[Tuple]),
-     ("input_mask", tf.Tensor)])
-# pylint: enable=invalid-name
+
+class TransformerHistories(NamedTuple(
+        "TransformerHistories", [
+            ("logits", tf.Tensor),
+            ("decoder_outputs", tf.Tensor),
+            ("outputs", tf.Tensor),
+            ("mask", tf.Tensor),
+            ("decoded_symbols", tf.Tensor),
+            ("input_mask", tf.Tensor)])):
+    # TODO include these:
+    # ("self_attention_histories", List[Tuple]),
+    # ("inter_attention_histories", List[Tuple]),
+    """The loop state histories for the transformer decoder.
+
+    Shares attributes with the ``DecoderHistories`` class. The special
+    attributes are listed below.
+
+    Attributes:
+        decoded_symbols: A tensor which stores the decoded symbols.
+        input_mask: A float tensor with zeros and ones which marks the valid
+            positions on the input.
+    """
 
 
 class TransformerDecoder(AutoregressiveDecoder):
