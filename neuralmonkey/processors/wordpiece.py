@@ -31,7 +31,7 @@ def escape_token(token: str, alphabet: Set[str]) -> str:
 
     # replace OOA symbol `s` with \1234; where 1234 is `ord(s)`
     characters = [c if c in alphabet and c != "\n" else "\\{};".format(ord(c))
-                  for c in token]  # not sure about the "\n"-part
+                  for c in esc_token]  # not sure about the "\n"-part
 
     return "".join(characters) + "_"
 
