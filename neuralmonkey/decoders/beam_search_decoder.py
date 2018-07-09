@@ -108,7 +108,7 @@ class BeamSearchLoopState(NamedTuple(
 
 
 class BeamSearchOutput(NamedTuple(
-        "SearchResults",
+        "BeamSearchOutput",
         [("last_search_step_output", SearchResults),
          ("last_dec_loop_state", NamedTuple),
          ("last_search_state", SearchState),
