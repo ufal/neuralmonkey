@@ -6,24 +6,9 @@ As any autoregressive decoder, this decoder works dynamically, which means
 it uses the ``tf.while_loop`` function conditioned on both maximum output
 length and list of finished hypotheses.
 
-The beam search decoder uses four data strcutures during the decoding process:
-
-- ``SearchState`` - this structure keeps track of a current state of the beam
-  search algorithm. The search state contains tensors that represent hypotheses
-  in the beam, namely their log probability, length, and distribution over the
-  vocabulary when decoding the last word, as well as if the hypothesis is
-  finished or not.
-
-- ``SearchResults`` - a cummulative structure that holds the actual decoded
-  tokens and hypotheses scores (after applying a length penalty term).
-
-- ``BeamSearchLoopState`` - a loop state object that is used for transferring
-  data between cycles through the symbolic while loop. It groups together the
-  ``SearchState`` and ``SearchResults`` structures and also keeps track of the
-  underlying decoder loop state.
-
-- ``BeamSearchOutput`` - the final structure that is returned from the while
-  loop.
+The beam search decoder uses four data strcutures during the decoding process.
+``SearchState``, ``SearchResults``, ``BeamSearchLoopState``, and
+``BeamSearchOutput``. The purpose of these is described in their own docstring.
 
 These structures help the decoder to keep track of the decoding, enabling it
 to be called e.g. during ensembling, when the content of the structures can be
@@ -35,6 +20,7 @@ are functions that prepare and return values that are supplied to the
 
 """
 # pylint: disable=too-many-lines
+# Maybe move the definitions of the named tuple structures to a separate file?
 from typing import NamedTuple, List, Callable, Any
 
 import tensorflow as tf
@@ -53,32 +39,88 @@ from neuralmonkey.vocabulary import (
 # Constant we use in place of the np.inf
 INF = 1e9
 
-# pylint: disable=invalid-name
-SearchState = NamedTuple(
-    "SearchState",
-    [("logprob_sum", tf.Tensor),  # [batch, beam]
-     ("prev_logprobs", tf.Tensor),  # [batch, beam, Vocab]
-     ("lengths", tf.Tensor),  # [batch, beam]
-     ("finished", tf.Tensor)])  # [batch, beam]
 
-SearchResults = NamedTuple(
-    "SearchResults",
-    [("scores", tf.Tensor),  # [batch, beam]
-     ("token_ids", tf.Tensor)])  # [batch, beam]
+class SearchState(NamedTuple(
+        "SearchState",
+        [("logprob_sum", tf.Tensor),
+         ("prev_logprobs", tf.Tensor),
+         ("lengths", tf.Tensor),
+         ("finished", tf.Tensor)])):
+    """Search state of a beam search decoder.
 
-BeamSearchLoopState = NamedTuple(
-    "BeamSearchLoopState",
-    [("search_state", SearchState),
-     ("search_results", SearchResults),
-     ("decoder_loop_state", LoopState)])
+    This structure keeps track of a current state of the beam search
+    algorithm. The search state contains tensors that represent hypotheses in
+    the beam, namely their log probability, length, and distribution over the
+    vocabulary when decoding the last word, as well as if the hypothesis is
+    finished or not.
 
-BeamSearchOutput = NamedTuple(
-    "SearchResults",
-    [("last_search_step_output", SearchResults),
-     ("last_dec_loop_state", NamedTuple),
-     ("last_search_state", SearchState),
-     ("attention_loop_states", List[Any])])
-# pylint: enable=invalid-name
+    Attributes:
+        logprob_sum: A ``(batch, beam)``-shaped tensor with the sums of token
+            log-probabilities of each hypothesis.
+        prev_logprobs: A ``(batch, beam, vocabulary)``-sized tensor. Stores
+            the log-distribution over the vocabulary from the previous decoding
+            step for each hypothesis.
+        lengths: A ``(batch, beam)``-shaped tensor with the lengths of the
+            hypotheses.
+        finished: A boolean tensor with shape ``(batch, beam)``. Marks finished
+            and unfinished hypotheses.
+    """
+
+
+class SearchResults(NamedTuple(
+        "SearchResults",
+        [("scores", tf.Tensor),
+         ("token_ids", tf.Tensor)])):
+    """The intermediate results of the beam search decoding.
+
+    A cummulative structure that holds the actual decoded tokens and hypotheses
+    scores (after applying a length penalty term).
+
+    Attributes:
+        scores: A ``(time, batch, beam)``-shaped tensor with the scores for
+            each hypothesis. The score is computed from the ``logprob_sum`` of
+            a hypothesis and accounting for the hypothesis length.
+        token_ids: A ``(time, batch, beam)``-shaped tensor with the vocabulary
+            indices of the tokens in each hypothesis.
+    """
+
+
+class BeamSearchLoopState(NamedTuple(
+        "BeamSearchLoopState",
+        [("search_state", SearchState),
+         ("search_results", SearchResults),
+         ("decoder_loop_state", LoopState)])):
+    """The loop state of the beam search decoder.
+
+    A loop state object that is used for transferring data between cycles
+    through the symbolic while loop. It groups together the ``SearchState`` and
+    ``SearchResults`` structures and also keeps track of the underlying decoder
+    loop state.
+
+    Attributes:
+        search_state: A ``SearchState`` object representing the current search
+            state.
+        search_results: The growing ``SearchResults`` object which accummulates
+            the outputs of the decoding process.
+        decoder_loop_state: The current loop state of the underlying
+            autoregressive decoder.
+    """
+
+
+class BeamSearchOutput(NamedTuple(
+        "SearchResults",
+        [("last_search_step_output", SearchResults),
+         ("last_dec_loop_state", NamedTuple),
+         ("last_search_state", SearchState),
+         ("attention_loop_states", List[Any])])):
+    """The final structure that is returned from the while loop.
+
+    Attributes:
+        last_search_step_output: A populated ``SearchResults`` object.
+        last_dec_loop_state: Final loop state of the underlying decoder.
+        last_search_state: Final loop state of the beam search decoder.
+        attention_loop_states: The final loop states of the attention objects.
+    """
 
 
 class BeamSearchDecoder(ModelPart):
