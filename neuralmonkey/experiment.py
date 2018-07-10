@@ -3,7 +3,7 @@
 from argparse import Namespace  # pylint: disable=unused-import
 import os
 import random
-from shutil import copyfile
+import shutil
 import subprocess
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 from typing import Set  # pylint: disable=unused-import
@@ -15,7 +15,7 @@ from typeguard import check_argument_types
 
 from neuralmonkey.checking import (check_dataset_and_coders,
                                    CheckingException)
-from neuralmonkey.logging import Logging, log, debug
+from neuralmonkey.logging import Logging, log, debug, warn
 from neuralmonkey.config.configuration import Configuration
 from neuralmonkey.learning_utils import (training_loop, evaluation,
                                          run_on_dataset,
@@ -157,7 +157,7 @@ class Experiment(object):
 
         # Initialize the experiment directory.
         self.config.save_file(self.get_path("experiment.ini"))
-        copyfile(self._config_path, self.get_path("original.ini"))
+        shutil.copyfile(self._config_path, self.get_path("original.ini"))
         save_git_info(self.get_path("git_commit"), self.get_path("git_diff"))
         Logging.set_log_file(self.get_path("experiment.log"))
 
@@ -393,18 +393,23 @@ _DUMMY_EXPERIMENT = _DummyExperiment()
 
 def save_git_info(git_commit_file: str, git_diff_file: str,
                   branch: str = "HEAD", repo_dir: str = None) -> None:
-    if repo_dir is None:
-        # This points inside the neuralmonkey/ dir inside the repo, but
-        # it does not matter for git.
-        repo_dir = os.path.dirname(os.path.realpath(__file__))
+    if shutil.which("git") is not None:
+        if repo_dir is None:
+            # This points inside the neuralmonkey/ dir inside the repo, but
+            # it does not matter for git.
+            repo_dir = os.path.dirname(os.path.realpath(__file__))
 
-    with open(git_commit_file, "wb") as file:
-        subprocess.run(["git", "log", "-1", "--format=%H", branch],
-                       cwd=repo_dir, stdout=file)
+        with open(git_commit_file, "wb") as file:
+            subprocess.run(["git", "log", "-1", "--format=%H", branch],
+                           cwd=repo_dir, stdout=file)
 
-    with open(git_diff_file, "wb") as file:
-        subprocess.run(["git", "--no-pager", "diff", "--color=always", branch],
-                       cwd=repo_dir, stdout=file)
+        with open(git_diff_file, "wb") as file:
+            subprocess.run(
+                ["git", "--no-pager", "diff", "--color=always", branch],
+                cwd=repo_dir, stdout=file
+            )
+    else:
+        warn("No git executable found. Not storing git commit and diffs")
 
 
 def visualize_embeddings(sequences: List[EmbeddedFactorSequence],
