@@ -89,8 +89,9 @@ def training_loop(tf_manager: TensorFlowManager,
             if not specified
         initial_variables: variables used for initialization, for example for
             continuation of training. Provide it with a path to your model
-            directory and its variables.data without any of .index, .meta, etc.
-            suffixes.
+            directory and its checkpoint file group common prefix, e.g.
+            "variables.data", or "variables.data.3" in case of multiple
+            checkpoints per experiment.
         postprocess: A function which takes the dataset with its output series
             and generates additional series from them.
     """
