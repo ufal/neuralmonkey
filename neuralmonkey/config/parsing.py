@@ -14,7 +14,7 @@ from neuralmonkey.logging import log
 LINE_NUM = re.compile(r"^(.*) ([0-9]+)$")
 
 INTEGER = re.compile(r"^-?[0-9]+$")
-FLOAT = re.compile(r"^-?[0-9]*\.[0-9]*(e[+-]?[0-9]+)?$")
+FLOAT = re.compile(r"^-?[0-9]*\.[0-9]*(e[+-]?[0-9]+)?$|^-?[0-9]+e[+-]?[0-9]+$")
 LIST = re.compile(r"\[([^]]*)\]")
 TUPLE = re.compile(r"\(([^)]+)\)")
 STRING = re.compile(r'^"(.*)"$')
