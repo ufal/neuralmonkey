@@ -88,7 +88,8 @@ def training_loop(tf_manager: TensorFlowManager,
         runners_batch_size: batch size of runners. It is the same as batch_size
             if not specified
         initial_variables: variables used for initialization, for example for
-            continuation of training
+            continuation of training. Provide it with a path to your model and 
+            its variables.data without any suffix.
         postprocess: A function which takes the dataset with its output series
             and generates additional series from them.
     """
@@ -152,7 +153,7 @@ def training_loop(tf_manager: TensorFlowManager,
     try:
         for epoch_n in range(1, epochs + 1):
             log_print("")
-            log("Epoch {} starts".format(epoch_n), color="red")
+            log("Epoch {} begins".format(epoch_n), color="red")
 
             train_dataset.shuffle()
             train_batched_datasets = train_dataset.batch_dataset(batch_size)
