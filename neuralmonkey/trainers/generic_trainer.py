@@ -10,14 +10,30 @@ from neuralmonkey.runners.base_runner import (
 # pylint: disable=invalid-name
 Gradients = List[Tuple[tf.Tensor, tf.Variable]]
 ObjectiveWeight = Union[tf.Tensor, float, None]
-Objective = NamedTuple("Objective",
-                       [("name", str),
-                        ("decoder", ModelPart),
-                        ("loss", tf.Tensor),
-                        ("gradients", Optional[Gradients]),
-                        ("weight", ObjectiveWeight)])
+# pylint: enable=invalid-name
 
 BIAS_REGEX = re.compile(r"[Bb]ias")
+
+
+class Objective(NamedTuple(
+        "Objective",
+        [("name", str),
+         ("decoder", ModelPart),
+         ("loss", tf.Tensor),
+         ("gradients", Optional[Gradients]),
+         ("weight", ObjectiveWeight)])):
+    """The training objective.
+
+    Attributes:
+        name: The name for the objective. Used in TensorBoard.
+        decoder: The decoder which generates the value to optimize.
+        loss: The loss tensor fetched by the trainer.
+        gradients: Manually specified gradients. Useful for reinforcement
+            learning.
+        weight: The weight of this objective. The loss will be multiplied by
+            this so the gradients can be controled in case of multiple
+            objectives.
+    """
 
 
 # pylint: disable=too-few-public-methods,too-many-locals,too-many-arguments

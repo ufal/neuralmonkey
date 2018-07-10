@@ -1,4 +1,4 @@
-from typing import Tuple, List, NamedTuple, Union, Callable, cast, Set
+from typing import Tuple, List, Union, Callable, cast, Set, NamedTuple
 
 import tensorflow as tf
 from typeguard import check_argument_types
@@ -21,16 +21,26 @@ RNN_CELL_TYPES = {
 
 RNN_DIRECTIONS = ["forward", "backward", "bidirectional"]
 
-
 # pylint: disable=invalid-name
-RNNCellTuple = Tuple[tf.nn.rnn_cell.RNNCell, tf.nn.rnn_cell.RNNCell]
-
-RNNSpec = NamedTuple("RNNSpec", [("size", int),
-                                 ("direction", str),
-                                 ("cell_type", str)])
-
 RNNSpecTuple = Union[Tuple[int], Tuple[int, str], Tuple[int, str, str]]
+RNNCellTuple = Tuple[tf.nn.rnn_cell.RNNCell, tf.nn.rnn_cell.RNNCell]
 # pylint: enable=invalid-name
+
+
+class RNNSpec(NamedTuple(
+        "RNNSpec",
+        [("size", int),
+         ("direction", str),
+         ("cell_type", str)])):
+    """Recurrent neural network specifications.
+
+    Attributes:
+        size: The state size.
+        direction: The RNN processing direction. One of ``forward``,
+            ``backward``, and ``bidirectional``.
+        cell_type: The recurrent cell type to use. Refer to
+            ``encoders.recurrent.RNN_CELL_TYPES`` for possible values.
+    """
 
 
 def _make_rnn_spec(size: int,

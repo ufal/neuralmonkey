@@ -37,17 +37,16 @@ this data to be available in the ``histories`` dictionary. The single and most
 used example of two *modes* are the *train* and *runtime* modes of the
 autoregressive decoder.
 """
-from typing import NamedTuple, Dict, Optional, Any, Tuple, Union
+from typing import Dict, Optional, Any, Tuple, Union
 
 import tensorflow as tf
 
 from neuralmonkey.model.stateful import TemporalStateful, SpatialStateful
 from neuralmonkey.model.model_part import ModelPart, InitializerSpecs
+from neuralmonkey.attention.namedtuples import AttentionLoopState
 
 # pylint: disable=invalid-name
 Attendable = Union[TemporalStateful, SpatialStateful]
-AttentionLoopState = NamedTuple(
-    "AttentionLoopState", [("contexts", tf.Tensor), ("weights", tf.Tensor)])
 # pylint: enable=invalid-name
 
 

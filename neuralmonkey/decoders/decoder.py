@@ -1,11 +1,10 @@
-from typing import List, Callable, Tuple, cast
+from typing import List, Callable, Tuple, cast, NamedTuple
 
 import tensorflow as tf
 from typeguard import check_argument_types
 
 from neuralmonkey.decoders.autoregressive import (
-    AutoregressiveDecoder, LoopState, extend_namedtuple, DecoderHistories,
-    DecoderFeedables)
+    AutoregressiveDecoder, LoopState)
 from neuralmonkey.attention.base_attention import BaseAttention
 from neuralmonkey.vocabulary import (
     Vocabulary, END_TOKEN_INDEX, PAD_TOKEN_INDEX)
@@ -30,19 +29,51 @@ RNN_CELL_TYPES = {
     "LSTM": tf.contrib.rnn.LSTMCell
 }
 
-# pylint: disable=invalid-name
-RNNFeedables = extend_namedtuple(
-    "DecoderFeedables",
-    DecoderFeedables,
-    [("prev_rnn_state", tf.Tensor),
-     ("prev_rnn_output", tf.Tensor),
-     ("prev_contexts", List[tf.Tensor])])
 
-RNNHistories = extend_namedtuple(
-    "RNNHistories",
-    DecoderHistories,
-    [("attention_histories", List[Tuple])])  # AttentionLoopState and kids
-# pylint: enable=invalid-name
+# Inheriting namedtuples not yet fully supported in Python nor in mypy/pylint,
+# so we just copy the parent attributes.
+class RNNFeedables(NamedTuple(
+        "RNNFeedables", [
+            ("step", tf.Tensor),
+            ("finished", tf.Tensor),
+            ("input_symbol", tf.Tensor),
+            ("prev_logits", tf.Tensor),
+            ("prev_rnn_state", tf.Tensor),
+            ("prev_rnn_output", tf.Tensor),
+            ("prev_contexts", List[tf.Tensor])])):
+    """The feedables used by an RNN-based decoder.
+
+    Shares attributes with the ``DecoderFeedables`` class. The special
+    attributes are listed below.
+
+    Attributes:
+        prev_rnn_state: The recurrent state from the previous step. A tensor
+            of shape ``(batch, rnn_size)``
+        prev_rnn_output: The output of the recurrent network from the previous
+            step. A tensor of shape ``(batch, output_size)``
+        prev_contexts: A list of context vectors returned from attention
+            mechanisms. Tensors of shape ``(batch, encoder_state_size)`` for
+            each attended encoder.
+    """
+
+
+class RNNHistories(NamedTuple(
+        "RNNHistories", [
+            ("logits", tf.Tensor),
+            ("decoder_outputs", tf.Tensor),
+            ("outputs", tf.Tensor),
+            ("mask", tf.Tensor),
+            ("attention_histories", List[Tuple])])):
+    """The loop state histories for RNN-based decoders.
+
+    Shares attributes with the ``DecoderHistories`` class. The special
+    attributes are listed below.
+
+    Attributes:
+        attention_histories: A list of ``AttentionLoopState`` objects (or
+            similar) populated by values from the attention mechanisms used in
+            the decoder.
+    """
 
 
 # pylint: disable=too-many-instance-attributes

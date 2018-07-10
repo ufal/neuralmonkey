@@ -19,11 +19,22 @@ from neuralmonkey.model.model_part import ModelPart, FeedDict, InitializerSpecs
 from neuralmonkey.model.stateful import SpatialStatefulWithOutput
 
 
-ImageNetSpec = NamedTuple(
-    "ImageNetSpec",
-    [("scope", Callable),
-     ("image_size", Tuple[int, int]),
-     ("apply_net", Callable)])
+class ImageNetSpec(NamedTuple(
+        "ImageNetSpec",
+        [("scope", Callable),
+         ("image_size", Tuple[int, int]),
+         ("apply_net", Callable)])):
+    """Specification of the Imagenet encoder.
+
+    Do not use this object directly, instead, use one of the ``get_*``functions
+    in this module.
+
+    Attributes:
+        scope: The variable scope of the network to use.
+        image_size: A tuple of two integers giving the image width and height
+            in pixels.
+        apply_net: The function that receives an image and applies the network.
+    """
 
 
 # pylint: disable=import-error
