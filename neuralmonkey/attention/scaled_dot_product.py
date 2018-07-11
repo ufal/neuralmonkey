@@ -267,6 +267,9 @@ class MultiHeadAttention(BaseAttention):
         self.attention_keys = get_attention_states(keys_encoder)
         self.attention_mask = get_attention_mask(keys_encoder)
         self.attention_values = get_attention_states(values_encoder)
+
+        self._variable_scope.set_initializer(tf.variance_scaling_initializer(
+            mode="fan_avg", distribution="uniform"))
     # pylint: enable=too-many-arguments
 
     def attention(self,

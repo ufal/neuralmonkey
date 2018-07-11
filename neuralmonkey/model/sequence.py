@@ -114,6 +114,9 @@ class EmbeddedFactorSequence(Sequence):
             self.input_factors = [
                 tf.placeholder(tf.int32, [None, None], "factor_{}".format(did))
                 for did in self.data_ids]
+
+        self._variable_scope.set_initializer(
+            tf.random_normal_initializer(stddev=0.001))
     # pylint: enable=too-many-arguments
 
     # TODO this should be placed into the abstract embedding class
@@ -150,8 +153,7 @@ class EmbeddedFactorSequence(Sequence):
         return [
             get_variable(
                 name="embedding_matrix_{}".format(i),
-                shape=[vocab_size, emb_size],
-                initializer=tf.glorot_uniform_initializer())
+                shape=[vocab_size, emb_size])
             for i, (data_id, vocab_size, emb_size) in enumerate(zip(
                 self.data_ids, self.vocabulary_sizes, self.embedding_sizes))]
 
