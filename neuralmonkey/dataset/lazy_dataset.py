@@ -36,8 +36,9 @@ class LazyDataset(Dataset):
                 list of files and a reader.
             series_outputs: A mapping of series IDs to output files.
             preprocessors: The preprocessors to apply to the data series.
-                Each preprocessor is defined by soruce series ID, preprocessed
-                series ID, and a function that is applied on the source series.
+                Each preprocessor is defined by source series ID, resulting
+                preprocessed series ID, and a function that is applied on the
+                source series.
         """
         check_argument_types()
 
@@ -55,7 +56,7 @@ class LazyDataset(Dataset):
         Dataset.__init__(self, name, parent_series, series_outputs)
         self.series_paths_and_readers = series_paths_and_readers
 
-        # Check if all the input files exist.
+        # Check whether all input files exist.
         for series_name, (paths, _) in series_paths_and_readers.items():
             for path in paths:
                 if not os.path.isfile(path):
