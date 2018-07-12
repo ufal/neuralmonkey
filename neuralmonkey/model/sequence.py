@@ -256,7 +256,7 @@ class EmbeddedSequence(EmbeddedFactorSequence):
                  add_start_symbol: bool = False,
                  add_end_symbol: bool = False,
                  scale_embeddings_by_depth: bool = False,
-                 embeddings_source: EmbeddedFactorSequence = None,
+                 embeddings_source: "EmbeddedSequence" = None,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None,
                  initializers: InitializerSpecs = None) -> None:
@@ -273,8 +273,8 @@ class EmbeddedSequence(EmbeddedFactorSequence):
             add_start_symbol: Includes <s> in the sequence
             add_end_symbol: Includes </s> in the sequence
             scale_embeddings_by_depth: Set to True for T2T import compatibility
-            embeddings_source: EmbeddedSequence from which the embeedings will
-                be reused.
+            embeddings_source: `EmbeddedSequence` from which the embeedings
+                will be reused.
             save_checkpoint: The save_checkpoint parameter for `ModelPart`
             load_checkpoint: The load_checkpoint parameter for `ModelPart`
         """
@@ -288,6 +288,7 @@ class EmbeddedSequence(EmbeddedFactorSequence):
             add_start_symbol=add_start_symbol,
             add_end_symbol=add_end_symbol,
             scale_embeddings_by_depth=scale_embeddings_by_depth,
+            embeddings_source=embeddings_source,
             save_checkpoint=save_checkpoint,
             load_checkpoint=load_checkpoint,
             initializers=initializers)
