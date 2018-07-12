@@ -63,6 +63,7 @@ class EmbeddedFactorSequence(Sequence):
                  add_start_symbol: bool = False,
                  add_end_symbol: bool = False,
                  scale_embeddings_by_depth: bool = False,
+                 embeddings_source: "EmbeddedFactorSequence" = None,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None,
                  initializers: InitializerSpecs = None) -> None:
@@ -84,6 +85,8 @@ class EmbeddedFactorSequence(Sequence):
             add_start_symbol: Includes <s> in the sequence
             add_end_symbol: Includes </s> in the sequence
             scale_embeddings_by_depth: Set to True for T2T import compatibility
+            embeddings_source: EmbeddedSequence from which the embeedings will
+                be reused.
             save_checkpoint: The save_checkpoint parameter for `ModelPart`
             load_checkpoint: The load_checkpoint parameter for `ModelPart`
         """
@@ -99,6 +102,7 @@ class EmbeddedFactorSequence(Sequence):
         self.add_start_symbol = add_start_symbol
         self.add_end_symbol = add_end_symbol
         self.scale_embeddings_by_depth = scale_embeddings_by_depth
+        self.embeddings_source = embeddings_source
 
         if not (len(self.data_ids)
                 == len(self.vocabularies)
@@ -108,6 +112,16 @@ class EmbeddedFactorSequence(Sequence):
 
         if any([esize <= 0 for esize in self.embedding_sizes]):
             raise ValueError("Embedding size must be a positive integer.")
+
+        if embeddings_source is not None:
+            if not all(v1 == v2 for v1, v2 in zip(
+                    self.vocabularies, embeddings_source.vocabularies)):
+                raise ValueError(
+                    "When reusing embeedings, vocabularies must be the same.")
+            if not all(s1 == s2 for s1, s2 in zip(
+                    self.embedding_sizes, embeddings_source.embedding_sizes)):
+                raise ValueError(
+                    "When reusing embeedings, embeddings sizes must be equal.")
 
         with self.use_scope():
             self.mask = tf.placeholder(tf.float32, [None, None], "mask")
@@ -149,6 +163,9 @@ class EmbeddedFactorSequence(Sequence):
         # Note: Embedding matrices are numbered rather than named by the data
         # id so the data_id string does not need to be the same across
         # experiments
+
+        if self.embeddings_source is not None:
+            return self.embeddings_source.embedding_matrices
 
         return [
             get_variable(
@@ -239,6 +256,7 @@ class EmbeddedSequence(EmbeddedFactorSequence):
                  add_start_symbol: bool = False,
                  add_end_symbol: bool = False,
                  scale_embeddings_by_depth: bool = False,
+                 embeddings_source: "EmbeddedSequence" = None,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None,
                  initializers: InitializerSpecs = None) -> None:
@@ -255,6 +273,8 @@ class EmbeddedSequence(EmbeddedFactorSequence):
             add_start_symbol: Includes <s> in the sequence
             add_end_symbol: Includes </s> in the sequence
             scale_embeddings_by_depth: Set to True for T2T import compatibility
+            embeddings_source: `EmbeddedSequence` from which the embeedings
+                will be reused.
             save_checkpoint: The save_checkpoint parameter for `ModelPart`
             load_checkpoint: The load_checkpoint parameter for `ModelPart`
         """
@@ -268,6 +288,7 @@ class EmbeddedSequence(EmbeddedFactorSequence):
             add_start_symbol=add_start_symbol,
             add_end_symbol=add_end_symbol,
             scale_embeddings_by_depth=scale_embeddings_by_depth,
+            embeddings_source=embeddings_source,
             save_checkpoint=save_checkpoint,
             load_checkpoint=load_checkpoint,
             initializers=initializers)
