@@ -1,7 +1,7 @@
 """Implementation of the dataset class."""
 import random
 import collections
-from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
+from typing import Callable, Dict, Iterable, List, Optional, Tuple
 
 import numpy as np
 from typeguard import check_argument_types
@@ -166,10 +166,10 @@ class Dataset(collections.Sized):
             batch_index += 1
             yield dataset
 
-    def add_series(self, name: str, series: List[Any]) -> None:
+    def add_series(self, name: str, series: List) -> None:
         if name in self._series:
             raise ValueError(
-                "Can't series that already exist: {}".format(name))
+                "Can't add series that already exist: {}".format(name))
         self._series[name] = series
 
     def subset(self, start: int, length: int) -> "Dataset":
