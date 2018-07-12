@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List
 from typeguard import check_argument_types
 
 import tensorflow as tf
@@ -70,13 +70,15 @@ class SpatialFiller(ModelPart, SpatialStatefulWithOutput):
     maps image captioning). Optionally, the states are projected to given size.
     """
 
+    # pylint: disable=too-many-arguments
     def __init__(self,
                  name: str,
                  input_shape: List[int],
                  data_id: str,
                  projection_dim: int = None,
-                 save_checkpoint: Optional[str] = None,
-                 load_checkpoint: Optional[str] = None,
+                 ff_hidden_dim: int = None,
+                 save_checkpoint: str = None,
+                 load_checkpoint: str = None,
                  initializers: InitializerSpecs = None) -> None:
         """Instantiate SpatialFiller.
 
@@ -93,6 +95,11 @@ class SpatialFiller(ModelPart, SpatialStatefulWithOutput):
         self.data_id = data_id
         self.input_shape = input_shape
         self.projection_dim = projection_dim
+        self.ff_hidden_dim = ff_hidden_dim
+
+        if self.ff_hidden_dim is not None and self.projection_dim is None:
+            raise ValueError(
+                "projection_dim must be provided when using ff_hidden_dim")
 
         if len(self.input_shape) != 3:
             raise ValueError("The input shape should have 3 dimensions.")
@@ -101,6 +108,7 @@ class SpatialFiller(ModelPart, SpatialStatefulWithOutput):
         with self.use_scope():
             self.spatial_input = tf.placeholder(
                 tf.float32, shape=features_shape, name="spatial_states")
+    # pylint: enable=too-many-arguments
 
     @tensor
     def output(self) -> tf.Tensor:
@@ -109,10 +117,19 @@ class SpatialFiller(ModelPart, SpatialStatefulWithOutput):
 
     @tensor
     def spatial_states(self) -> tf.Tensor:
+        if self.ff_hidden_dim:
+            projected = tf.layers.conv2d(
+                self.spatial_input, filters=self.ff_hidden_dim,
+                kernel_size=1, activation=tf.nn.relu)
+        else:
+            projected = self.spatial_input
+
         if self.projection_dim:
             return tf.layers.conv2d(
-                self.spatial_input, filters=self.projection_dim,
+                projected, filters=self.projection_dim,
                 kernel_size=1, activation=None)
+
+        assert projected == self.spatial_input
         return self.spatial_input
 
     @tensor
