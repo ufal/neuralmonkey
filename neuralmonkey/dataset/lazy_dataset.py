@@ -27,22 +27,35 @@ class LazyDataset(Dataset):
                 ) -> None:
         """Create a new instance of the lazy dataset.
 
+        Lazy dataset first initializes the parent `Dataset` object with empty
+        series
+
         Arguments:
-            name: The name of the dataset series_paths_and_readers: The mapping
-            of series name to its file series_outputs: Dictionary mapping
-            series names to their output file preprocess: The preprocessor to
-            apply to the read lines
+            name: The name of the dataset
+            series_paths_and_readers: Dictionary that maps each series ID to a
+                list of files and a reader.
+            series_outputs: A mapping of series IDs to output files.
+            preprocessors: The preprocessors to apply to the data series.
+                Each preprocessor is defined by soruce series ID, preprocessed
+                series ID, and a function that is applied on the source series.
         """
         check_argument_types()
 
+        # Create empty data series for parent initialization. First, we take
+        # the data series connected to input files.
         parent_series = {s: [] for s in series_paths_and_readers} \
             # type: Dict[str, List]
-        if preprocessors:
-            parent_series.update({s[1]: [] for s in preprocessors})
-        Dataset.__init__(self, name, parent_series, series_outputs)
 
+        # Next, for each preprocessor, we create empty data series with the
+        # specified preprocessed series ID
+        if preprocessors is not None:
+            parent_series.update({s[1]: [] for s in preprocessors})
+
+        # Instantiate the parent dataset object. Note it contains no data.
+        Dataset.__init__(self, name, parent_series, series_outputs)
         self.series_paths_and_readers = series_paths_and_readers
 
+        # Check if all the input files exist.
         for series_name, (paths, _) in series_paths_and_readers.items():
             for path in paths:
                 if not os.path.isfile(path):
@@ -52,6 +65,8 @@ class LazyDataset(Dataset):
 
         self.preprocess_series = {} \
             # type: Dict[str, Tuple[Optional[str], Callable]]
+
+        # Populate preprocess_series dictionary with (valid) entries.
         if preprocessors is not None:
             for src_id, tgt_id, func in preprocessors:
                 if src_id == tgt_id:
@@ -145,9 +160,13 @@ class LazyDataset(Dataset):
         return (list(self.series_paths_and_readers.keys())
                 + list(self.preprocess_series.keys()))
 
-    def add_series(self, name: str, series: Iterable[Any]) -> None:
+    def add_lazy_series(self, name: str) -> None:
+        Dataset.add_series(self, name, [])
+
+    def add_series(self, name: str, series: List) -> None:
         raise NotImplementedError(
-            "Lazy dataset does not support adding series.")
+            "Lazy dataset does not support adding series. "
+            "Use add_lazy_series to add an empty series.")
 
     def subset(self, start: int, length: int) -> Dataset:
         subset_name = "{}.{}.{}".format(self.name, start, length)

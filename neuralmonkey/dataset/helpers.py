@@ -101,11 +101,19 @@ def _preprocessed_datasets(
         preprocessor = cast(DatasetPreprocess, series_config[key])
 
         if isinstance(dataset, LazyDataset):
+            # Store the preprocessed series in the right place in lazy dataset:
+            # Note the `None` in the assignment. Since there is no single
+            # source series ID, we just don't use it.
+            if name in dataset.preprocess_series:
+                raise ValueError(
+                    "Series already exists: {}".format(name))
+
             dataset.preprocess_series[name] = (None, preprocessor)
-            # TODO very ugly hack combo
-            # pylint: disable=protected-access
-            dataset._series[name] = None  # type: ignore
-            # pylint: enable=protected-access
+
+            # During initialization, lazy dataset provides empty series to the
+            # parent class. Here, we do this after the initialization:
+            dataset.add_lazy_series(name)
+
         elif isinstance(dataset, Dataset):
             new_series = list(preprocessor(dataset))
             dataset.add_series(name, new_series)
