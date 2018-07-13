@@ -66,7 +66,8 @@ def _make_rnn_cell(spec: RNNSpec) -> Callable[[], tf.nn.rnn_cell.RNNCell]:
     return RNN_CELL_TYPES[spec.cell_type](spec.size)
 
 
-def rnn_layer(rnn_input: tf.Tensor, lengths: tf.Tensor,
+def rnn_layer(rnn_input: tf.Tensor,
+              lengths: tf.Tensor,
               rnn_spec: RNNSpec) -> Tuple[tf.Tensor, tf.Tensor]:
     """Construct a RNN layer given its inputs and specs.
 
@@ -102,6 +103,9 @@ def rnn_layer(rnn_input: tf.Tensor, lengths: tf.Tensor,
 
         if rnn_spec.cell_type == "LSTM":
             final_state = final_state.h
+
+    # residual commenctions
+    outputs += rnn_input
 
     return outputs, final_state
 
@@ -409,7 +413,9 @@ class DeepSentenceEncoder(SentenceEncoder):
 
             with tf.variable_scope("layer_{}".format(level)):
                 outputs, state = rnn_layer(
-                    rnn_input_local, self.input_sequence.lengths, rnn_spec)
+                    rnn_input_local,
+                    self.input_sequence.lengths,
+                    rnn_spec)
 
             rnn_input_local = outputs
 
