@@ -194,7 +194,16 @@ class Experiment:
             self.build_model()
 
         if variable_files is None:
-            variable_files = [self.get_path("variables.data")]
+            if os.path.exists(self.get_path("variables.data.avg-0.index")):
+                variable_files = [self.get_path("variables.data.avg-0")]
+            elif os.path.exists(self.get_path("variables.data.avg.index")):
+                variable_files = [self.get_path("variables.data.avg")]
+            else:
+                best_var_file = self.get_path("variables.data.best")
+                with open(best_var_file, "r") as f_best:
+                    var_path = f_best.read().rstrip()
+                variable_files = [self.get_path(var_path)]
+
             log("Default variable file '{}' will be used for loading "
                 "variables.".format(variable_files[0]))
 
