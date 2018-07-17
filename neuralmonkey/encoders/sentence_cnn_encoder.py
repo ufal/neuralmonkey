@@ -145,6 +145,7 @@ class SentenceCNNEncoder(ModelPart, TemporalStatefulWithOutput):
         """Highway net projection following the CNN."""
         # pylint: disable=no-member
         cnn_out_size = self.cnn_encoded.get_shape().as_list()[-1]
+        # pylint: enable=no-member
         highway_layer = tf.reshape(self.cnn_encoded, [-1, cnn_out_size])
         for i in range(self.highway_depth):
             highway_layer = highway(

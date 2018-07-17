@@ -28,7 +28,6 @@ def highway(inputs, activation=tf.nn.relu, scope="HighwayNetwork"):
             # the last dimension and project.
             inputs = tf.concat(inputs, axis=-1)
 
-        # pylint: disable=no-member
         vec_size = inputs.get_shape().as_list()[-1]
 
         # pylint: disable=invalid-name

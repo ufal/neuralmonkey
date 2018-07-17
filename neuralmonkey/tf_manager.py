@@ -71,6 +71,7 @@ class TensorFlowManager:
         session_cfg.gpu_options.allow_growth = gpu_allow_growth
         session_cfg.gpu_options.per_process_gpu_memory_fraction = \
             per_process_gpu_memory_fraction
+        # pylint: enable=no-member
 
         if save_n_best < 1:
             raise Exception("save_n_best parameter must be greater than zero")

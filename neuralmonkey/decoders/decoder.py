@@ -233,11 +233,7 @@ class Decoder(AutoregressiveDecoder):
                 self.dropout_keep_prob,
                 self.train_mode)
 
-            # pylint: disable=no-member
-            # Pylint keeps complaining about initial shape being a tuple,
-            # but it is a tensor!!!
             init_state_shape = initial_state.get_shape()
-            # pylint: enable=no-member
 
             # Broadcast the initial state to the whole batch if needed
             if len(init_state_shape) == 1:

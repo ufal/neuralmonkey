@@ -11,7 +11,6 @@ import numpy as np
 
 
 def main() -> None:
-    # pylint: disable=no-member
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("score_files", nargs="+",
                         metavar="SCORE_FILES", type=argparse.FileType("r"),
