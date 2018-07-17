@@ -305,38 +305,40 @@ def training_loop(tf_manager: TensorFlowManager,
         raise interrupt  # pylint: disable=raising-bad-type
 
 
-def _is_logging_time(step: int, logging_period_batch: int,
-                     last_log_time: float, logging_period_time: int):
+def _is_logging_time(step: int, logging_period_batch: Optional[int],
+                     last_log_time: float, logging_period_time: Optional[int]):
     if logging_period_batch is not None:
         return step % logging_period_batch == logging_period_batch - 1
+
+    assert logging_period_time is not None
     return last_log_time + logging_period_time < time.process_time()
 
 
-def _resolve_period(period):
+def _resolve_period(
+        period: Union[str, int]) -> Tuple[Optional[int], Optional[int]]:
     if isinstance(period, int):
         return period, None
-    else:
-        regex = re.compile(
-            r"((?P<days>\d+?)d)?((?P<hours>\d+?)h)?((?P<minutes>\d+?)m)?"
-            r"((?P<seconds>\d+?)s)?")
-        parts = regex.match(period)
 
-        if not parts:
-            raise ValueError(
-                "Validation or logging period have incorrect format. "
-                "It should be in format: 3h; 5m; 14s")
+    regex = re.compile(
+        r"((?P<days>\d+?)d)?((?P<hours>\d+?)h)?((?P<minutes>\d+?)m)?"
+        r"((?P<seconds>\d+?)s)?")
+    parts = regex.match(period)
 
-        parts = parts.groupdict()
-        time_params = {}
-        for (name, param) in parts.items():
-            if param:
-                time_params[name] = int(param)
+    if not parts:
+        raise ValueError(
+            "Validation or logging period have incorrect format. "
+            "It should be in format: 3h; 5m; 14s")
 
-        delta_seconds = timedelta(**time_params).total_seconds()
-        if delta_seconds <= 0:
-            raise ValueError(
-                "Validation or logging period must be bigger than 0")
-        return None, delta_seconds
+    parts = parts.groupdict()
+    time_params = {}
+    for (name, param) in parts.items():
+        if param:
+            time_params[name] = int(param)
+
+    delta_seconds = timedelta(**time_params).total_seconds()
+    if delta_seconds <= 0:
+        raise ValueError("Validation or logging period must be bigger than 0")
+    return None, delta_seconds
 
 
 def _check_series_collisions(runners: List[BaseRunner],

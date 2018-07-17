@@ -139,15 +139,16 @@ class LazyDataset(Dataset):
         if name in self.series_paths_and_readers:
             paths, reader = self.series_paths_and_readers[name]
             return reader(paths)
-        elif name in self.preprocess_series:
+
+        if name in self.preprocess_series:
             src_id, func = self.preprocess_series[name]
             if src_id is None:
                 return func(self)
 
             src_series = self.get_series(src_id)
             return (func(item) for item in src_series)
-        else:
-            raise KeyError("Series '{}' is not in the dataset.".format(name))
+
+        raise KeyError("Series '{}' is not in the dataset.".format(name))
 
     def shuffle(self) -> None:
         """Do nothing, not in-memory shuffle is impossible.

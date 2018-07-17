@@ -78,12 +78,12 @@ def rl_objective(decoder: Decoder,
             hyp_seq = []
             for r_token in refs:
                 token = decoder.vocabulary.index_to_word[r_token]
-                if token == END_TOKEN or token == PAD_TOKEN:
+                if token in (END_TOKEN, PAD_TOKEN):
                     break
                 ref_seq.append(token)
             for h_token in hyps:
                 token = decoder.vocabulary.index_to_word[h_token]
-                if token == END_TOKEN or token == PAD_TOKEN:
+                if token in (END_TOKEN, PAD_TOKEN):
                     break
                 hyp_seq.append(token)
             # join BPEs, split on " " to prepare list for evaluator
