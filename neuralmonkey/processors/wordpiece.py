@@ -64,6 +64,10 @@ def wordpiece_encode(sentence: List[str], vocabulary: Vocabulary) -> List[str]:
     We search for the longest subtoken available in the vocabulary from left to
     right.
     """
+    # TODO ugly HACK
+    if sentence == ["<null>"]:
+        return sentence
+
     tokens = []
     for token in sentence:
         esc_token = escape_token(token, vocabulary.alphabet)

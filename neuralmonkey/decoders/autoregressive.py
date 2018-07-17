@@ -17,7 +17,8 @@ from neuralmonkey.logging import log, warn
 from neuralmonkey.model.sequence import EmbeddedSequence
 from neuralmonkey.nn.utils import dropout
 from neuralmonkey.tf_utils import get_variable, get_state_shape_invariants
-from neuralmonkey.vocabulary import Vocabulary, START_TOKEN, UNK_TOKEN_INDEX
+from neuralmonkey.vocabulary import (Vocabulary, START_TOKEN, UNK_TOKEN_INDEX,
+                                     NULL_TOKEN, NULL_TOKEN_INDEX)
 
 
 class LoopState(NamedTuple(
@@ -230,6 +231,12 @@ class AutoregressiveDecoder(ModelPart):
             unk_mask = tf.one_hot(
                 UNK_TOKEN_INDEX, depth=len(self.vocabulary), on_value=-1e9)
             logits += unk_mask
+
+        # # TODO ugly HACK
+        # if self.vocabulary.index_to_word[NULL_TOKEN_INDEX] == NULL_TOKEN:
+        #     null_mask = tf.one_hot(
+        #         NULL_TOKEN_INDEX, depth=len(self.vocabulary), on_value=-1e9)
+        #     logits += null_mask
 
         return logits
 
@@ -469,6 +476,12 @@ class AutoregressiveDecoder(ModelPart):
                 sentences_list, self.max_output_len, train_mode=False,
                 add_start_symbol=False, add_end_symbol=True,
                 pad_to_max_len=False)
+
+            # TODO ugly HACK
+            if self.vocabulary.index_to_word[NULL_TOKEN_INDEX] == NULL_TOKEN:
+                for i, s in enumerate(sentences_list):
+                    if s == [NULL_TOKEN]:
+                        weights[:, i] = 0
 
             fd[self.train_inputs] = inputs
             fd[self.train_mask] = weights
