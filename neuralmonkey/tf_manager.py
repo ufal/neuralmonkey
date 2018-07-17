@@ -28,7 +28,7 @@ from neuralmonkey.runners.base_runner import (ExecutionResult,
                                               reduce_execution_results)
 
 
-class TensorFlowManager(object):
+class TensorFlowManager:
     """Inteface between computational graph, data and TF sessions.
 
     Attributes:

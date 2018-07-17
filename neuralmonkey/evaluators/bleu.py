@@ -3,7 +3,7 @@ from typing import List, Tuple
 import numpy as np
 
 
-class BLEUEvaluator(object):
+class BLEUEvaluator:
 
     def __init__(self, n: int = 4,
                  deduplicate: bool = False,

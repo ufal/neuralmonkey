@@ -2,7 +2,7 @@ from typing import List, Optional
 
 
 # pylint: disable=too-few-public-methods
-class ChrFEvaluator(object):
+class ChrFEvaluator:
     """Compute ChrF score.
 
     See http://www.statmt.org/wmt15/pdf/WMT49.pdf

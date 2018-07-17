@@ -33,7 +33,7 @@ class ExecutionResult(NamedTuple(
     """
 
 
-class Executable(object):
+class Executable:
     def next_to_execute(self) -> NextExecute:
         raise NotImplementedError()
 

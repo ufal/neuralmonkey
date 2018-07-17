@@ -8,7 +8,7 @@ from neuralmonkey.logging import log
 # pylint: disable=too-few-public-methods
 
 
-class MultEvalWrapper(object):
+class MultEvalWrapper:
     """Wrapper for mult-eval's reference BLEU and METEOR scorer."""
 
     def __init__(self, wrapper: str, name: str = "MultEval",

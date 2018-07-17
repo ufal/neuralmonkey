@@ -16,7 +16,7 @@ from neuralmonkey.config.exceptions import (ConfigInvalidValueException,
 
 
 # pylint:disable=too-few-public-methods
-class ClassSymbol(object):
+class ClassSymbol:
     """Represents a class (or other callable) in configuration."""
 
     def __init__(self, string: str) -> None:
@@ -59,7 +59,7 @@ class ClassSymbol(object):
         return clazz
 
 
-class ObjectRef(object):
+class ObjectRef:
     """Represents a named object or its attribute in configuration."""
 
     def __init__(self, expression: str) -> None:

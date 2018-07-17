@@ -7,7 +7,7 @@ from neuralmonkey.logging import log
 
 # pylint: disable=too-few-public-methods
 
-class BeerWrapper(object):
+class BeerWrapper:
     """Wrapper for BEER scorer.
 
     Paper: http://aclweb.org/anthology/D14-1025

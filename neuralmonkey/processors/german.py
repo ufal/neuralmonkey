@@ -26,7 +26,7 @@ DER_TYPE_PRONOUNS = re.compile("^(dies|welch|jed|all)(e|es|er|em|en)$")
 # pylint: disable=too-few-public-methods
 
 
-class GermanPreprocessor(object):
+class GermanPreprocessor:
 
     def __init__(self, compounding=True, contracting=True, pronouns=True):
         self.compounding = compounding
@@ -61,7 +61,7 @@ class GermanPreprocessor(object):
         return result
 
 
-class GermanPostprocessor(object):
+class GermanPostprocessor:
 
     def __init__(self, compounding=True, contracting=True, pronouns=True):
         self.compounding = compounding

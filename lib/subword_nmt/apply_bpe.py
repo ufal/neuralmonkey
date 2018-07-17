@@ -28,7 +28,7 @@ from collections import defaultdict
 #   sys.stdout = codecs.getwriter('UTF-8')(sys.stdout)
 #   sys.stdin = codecs.getreader('UTF-8')(sys.stdin)
 
-class BPE(object):
+class BPE:
 
     def __init__(self, codes, separator='@@'):
         self.bpe_codes = [tuple(item.split()) for item in codes]

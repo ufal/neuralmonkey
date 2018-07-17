@@ -31,7 +31,7 @@ def crop_image(x, target_height=227, target_width=227):
 
     return skimage.transform.resize(resized_image, (target_height, target_width))
 
-class CNN(object):
+class CNN:
 
     def __init__(self, deploy, model, mean, batch_size=10, width=227, height=227):
 

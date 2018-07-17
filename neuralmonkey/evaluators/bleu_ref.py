@@ -7,7 +7,7 @@ from neuralmonkey.logging import log
 # to be further refactored
 
 
-class BLEUReferenceImplWrapper(object):
+class BLEUReferenceImplWrapper:
     """Wrapper for TectoMT's wrapper for reference NIST and BLEU scorer."""
 
     def __init__(self, wrapper, name="BLEU", encoding="utf-8"):

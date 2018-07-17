@@ -2,7 +2,7 @@ from typing import List
 import rouge
 
 
-class RougeEvaluator(object):
+class RougeEvaluator:
     """Compute ROUGE score using third-party library."""
 
     # pylint: disable=too-few-public-methods

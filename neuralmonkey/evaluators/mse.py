@@ -2,7 +2,7 @@ from typing import List
 import numpy as np
 
 
-class MeanSquaredErrorEvaluator(object):
+class MeanSquaredErrorEvaluator:
     # pylint: disable=too-few-public-methods
 
     def __init__(self, name: str = "MeanSquaredError") -> None:
