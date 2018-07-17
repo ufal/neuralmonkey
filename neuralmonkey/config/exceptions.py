@@ -6,6 +6,7 @@ from typing import Any
 
 class ParseError(Exception):
     """Parsing exception caused by a syntax error in INI file."""
+
     def __init__(self, message: str, line: int = None) -> None:
         super().__init__()
         self.message = message
