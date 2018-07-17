@@ -305,8 +305,9 @@ def training_loop(tf_manager: TensorFlowManager,
         raise interrupt  # pylint: disable=raising-bad-type
 
 
-def _is_logging_time(step: int, logging_period_batch: Optional[int],
-                     last_log_time: float, logging_period_time: Optional[int]):
+def _is_logging_time(
+        step: int, logging_period_batch: Optional[int],
+        last_log_time: float, logging_period_time: Optional[float]):
     if logging_period_batch is not None:
         return step % logging_period_batch == logging_period_batch - 1
 
@@ -315,7 +316,7 @@ def _is_logging_time(step: int, logging_period_batch: Optional[int],
 
 
 def _resolve_period(
-        period: Union[str, int]) -> Tuple[Optional[int], Optional[int]]:
+        period: Union[str, int]) -> Tuple[Optional[int], Optional[float]]:
     if isinstance(period, int):
         return period, None
 
@@ -329,9 +330,8 @@ def _resolve_period(
             "Validation or logging period have incorrect format. "
             "It should be in format: 3h; 5m; 14s")
 
-    parts = parts.groupdict()
     time_params = {}
-    for (name, param) in parts.items():
+    for (name, param) in parts.groupdict().items():
         if param:
             time_params[name] = int(param)
 
@@ -427,7 +427,7 @@ def run_on_dataset(tf_manager: TensorFlowManager,
             List[List[Dict[str, np.ndarray]]]]
 
         try:
-            check_type("data", data, supported_type, None)
+            check_type("data", data, supported_type, None)  # type: ignore
         except TypeError:
             return False
         return True
