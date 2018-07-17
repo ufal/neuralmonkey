@@ -1,6 +1,7 @@
 from typing import Callable, List
 
 import tensorflow as tf
+import numpy as np
 
 from typeguard import check_argument_types
 from neuralmonkey.nn.projection import multilayer_projection
@@ -29,9 +30,10 @@ class SequenceRegressor(ModelPart):
                  save_checkpoint: str = None,
                  load_checkpoint: str = None,
                  initializers: InitializerSpecs = None) -> None:
+        check_argument_types()
+
         ModelPart.__init__(self, name, save_checkpoint, load_checkpoint,
                            initializers)
-        assert check_argument_types()
 
         self.encoders = encoders
         self.data_id = data_id
@@ -43,7 +45,10 @@ class SequenceRegressor(ModelPart):
         self._dropout_keep_prob = dropout_keep_prob
 
         with self.use_scope():
-            self.train_inputs = tf.placeholder(tf.float32, [None], "targets")
+            self.train_inputs = tf.placeholder(
+                tf.float32, shape=[None, self.dimension], name="targets")
+            self.loss_valid_indices = tf.placeholder(
+                tf.int32, [None], name="loss_valid_indices")
 
         tf.summary.scalar(
             "val_optimization_cost", self.cost,
@@ -70,6 +75,7 @@ class SequenceRegressor(ModelPart):
 
     @tensor
     def cost(self):
+        # TODO handle loss mask
         return tf.reduce_mean(tf.square(
             self.predictions - tf.expand_dims(self.train_inputs, 1)))
 
@@ -87,10 +93,14 @@ class SequenceRegressor(ModelPart):
 
     def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
         fd = ModelPart.feed_dict(self, dataset, train)
+        fd[self.loss_valid_indices] = list(range(len(dataset)))
 
-        sentences = dataset.maybe_get_series(self.data_id)
-        sentences_list = list(sentences) if sentences is not None else None
-        if sentences_list is not None:
-            fd[self.train_inputs] = list(zip(*sentences_list))[0]
+        targets = dataset.maybe_get_series(self.data_id)
+        if targets is not None:
+            fd[self.train_inputs] = targets
+
+            # TODO co kdyz chci aby tam byly nuly?
+            fd[self.loss_valid_indices] = np.squeeze(np.argwhere(
+                np.any(np.array(targets) != 0, axis=1)))
 
         return fd
