@@ -4,7 +4,7 @@ import pyter
 
 
 # pylint: disable=too-few-public-methods
-class WEREvaluator(object):
+class WEREvaluator:
     """Compute WER (word error rate, used in speech recognition)."""
 
     def __init__(self, name: str = "WER") -> None:

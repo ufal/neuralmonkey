@@ -59,7 +59,7 @@ class Attention(BaseAttention):
     @property
     def context_vector_size(self) -> int:
         return self.attention_states.get_shape()[2].value
-    # pylint: disable=no-member
+    # pylint: enable=no-member
 
     @property
     def state_size(self) -> int:

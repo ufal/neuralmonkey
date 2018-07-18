@@ -14,7 +14,7 @@ class StatefulContext(BaseAttention):
     """Provides a `Stateful` encoder's output as context to a decoder.
 
     This is not really an attention mechanism, but rather a hack which
-    (mis)uses the attention interface to provide a "static" context vector to
+    (mis)uses the attention interface to provide a "static" context vector to
     the decoder cell. In other words, the context vector is the same for all
     positions in the sequence and doesn't depend on the query vector.
 
@@ -41,7 +41,7 @@ class StatefulContext(BaseAttention):
     # pylint: disable=no-self-use
     @tensor
     def attention_mask(self) -> Optional[tf.Tensor]:
-        return None
+        pass
     # pylint: enable=no-self-use
 
     # pylint: disable=no-member

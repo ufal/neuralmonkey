@@ -42,10 +42,7 @@ def _is_special_token(word: str) -> bool:
     Returns:
         True if the word is special, False otherwise.
     """
-    return (word == PAD_TOKEN
-            or word == START_TOKEN
-            or word == END_TOKEN
-            or word == UNK_TOKEN)
+    return word in _SPECIAL_TOKENS
 
 
 # pylint: disable=unused-argument

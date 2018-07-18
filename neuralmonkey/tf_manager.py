@@ -28,7 +28,7 @@ from neuralmonkey.runners.base_runner import (ExecutionResult,
                                               reduce_execution_results)
 
 
-class TensorFlowManager(object):
+class TensorFlowManager:
     """Inteface between computational graph, data and TF sessions.
 
     Attributes:
@@ -71,6 +71,7 @@ class TensorFlowManager(object):
         session_cfg.gpu_options.allow_growth = gpu_allow_growth
         session_cfg.gpu_options.per_process_gpu_memory_fraction = \
             per_process_gpu_memory_fraction
+        # pylint: enable=no-member
 
         if save_n_best < 1:
             raise Exception("save_n_best parameter must be greater than zero")
@@ -229,8 +230,7 @@ class TensorFlowManager(object):
         batch_results = [
             [] for _ in execution_scripts]  # type: List[List[ExecutionResult]]
         for batch_id, batch in enumerate(batched_dataset):
-            if (time.process_time() - last_log_time > log_progress
-                    and log_progress > 0):
+            if 0 < log_progress < time.process_time() - last_log_time:
                 log("Processed {} examples.".format(batch_id * batch_size))
                 last_log_time = time.process_time()
             executables = [s.get_executable(compute_losses=compute_losses,

@@ -39,7 +39,7 @@ _EXPERIMENT_FILES = ["experiment.log", "experiment.ini", "original.ini",
                      "git_commit", "git_diff", "variables.data.best"]
 
 
-class Experiment(object):
+class Experiment:
     # pylint: disable=no-member
 
     _current_experiment = None

@@ -3,7 +3,7 @@
 # pylint: disable=protected-access
 
 import unittest
-import neuralmonkey.config.parsing as parsing
+from neuralmonkey.config import parsing
 
 SPLITTER_TESTS = [
     ["empty", "", []],

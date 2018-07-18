@@ -93,6 +93,7 @@ class AttentiveEncoder(ModelPart, TemporalStatefulWithOutput):
     def output(self) -> tf.Tensor:
         # pylint: disable=no-member
         state_size = self.temporal_states.get_shape()[2].value
+        # pylint: enable=no-member
         output = tf.reshape(self.temporal_states,
                             [-1, self.num_heads * state_size])
         if self.output_size is not None:

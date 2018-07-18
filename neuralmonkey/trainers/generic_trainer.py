@@ -37,7 +37,7 @@ class Objective(NamedTuple(
 
 
 # pylint: disable=too-few-public-methods,too-many-locals,too-many-arguments
-class GenericTrainer(object):
+class GenericTrainer:
 
     def __init__(self,
                  objectives: List[Objective],

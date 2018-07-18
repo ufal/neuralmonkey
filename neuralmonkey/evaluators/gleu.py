@@ -2,7 +2,7 @@ from typing import List, Tuple, Optional
 from neuralmonkey.evaluators.bleu import BLEUEvaluator
 
 
-class GLEUEvaluator(object):
+class GLEUEvaluator:
     """Sentence-level evaluation metric correlating with BLEU on corpus-level.
 
     From "Google's Neural Machine Translation System: Bridging the Gap

@@ -2,7 +2,7 @@ from typing import List, Optional
 
 
 # pylint: disable=too-few-public-methods
-class ChrFEvaluator(object):
+class ChrFEvaluator:
     """Compute ChrF score.
 
     See http://www.statmt.org/wmt15/pdf/WMT49.pdf
@@ -47,7 +47,7 @@ class ChrFEvaluator(object):
             chr_p = 0.0
             chr_r = 0.0
 
-            if len(hyp_chars) < 1 or len(ref_chars) < 1:
+            if not hyp_chars or not ref_chars:
                 if "".join(hyp_chars) == "".join(ref_chars):
                     chr_f += 1.0
                 else:

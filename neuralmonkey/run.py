@@ -12,7 +12,7 @@ from neuralmonkey.logging import log
 
 
 def main() -> None:
-    # pylint: disable=no-member,broad-except
+    # pylint: disable=no-member
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("config", metavar="INI-FILE",
                         help="the configuration file of the experiment")

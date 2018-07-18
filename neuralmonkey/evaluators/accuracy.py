@@ -2,7 +2,7 @@ from typing import Any, List
 import numpy as np
 
 
-class AccuracyEvaluator(object):
+class AccuracyEvaluator:
     # pylint: disable=too-few-public-methods
 
     def __init__(self,
@@ -27,7 +27,7 @@ class AccuracyEvaluator(object):
         return (score1 > score2) - (score1 < score2)
 
 
-class AccuracySeqLevelEvaluator(object):
+class AccuracySeqLevelEvaluator:
     # pylint: disable=too-few-public-methods
 
     def __init__(self,

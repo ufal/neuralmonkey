@@ -89,12 +89,12 @@ def get_attention_states(encoder: Attendable) -> tf.Tensor:
     if isinstance(encoder, TemporalStateful):
         return encoder.temporal_states
 
-    elif isinstance(encoder, SpatialStateful):
+    if isinstance(encoder, SpatialStateful):
         shape = encoder.spatial_states.get_shape().as_list()
         return tf.reshape(encoder.spatial_states,
                           [-1, shape[1] * shape[2], shape[3]])
-    else:
-        raise TypeError("Unknown encoder type")
+
+    raise TypeError("Unknown encoder type")
 
 
 def get_attention_mask(encoder: Attendable) -> Optional[tf.Tensor]:
@@ -112,13 +112,13 @@ def get_attention_mask(encoder: Attendable) -> Optional[tf.Tensor]:
             raise ValueError("The encoder temporal mask should not be none")
         return encoder.temporal_mask
 
-    elif isinstance(encoder, SpatialStateful):
+    if isinstance(encoder, SpatialStateful):
         if encoder.spatial_mask is None:
             return None
         shape = encoder.spatial_states.get_shape().as_list()
         return tf.reshape(encoder.spatial_mask, [-1, shape[1] * shape[2]])
-    else:
-        raise TypeError("Unknown encoder type")
+
+    raise TypeError("Unknown encoder type")
 
 
 class BaseAttention(ModelPart):

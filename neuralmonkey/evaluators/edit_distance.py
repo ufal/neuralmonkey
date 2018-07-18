@@ -3,7 +3,7 @@ from difflib import SequenceMatcher
 import numpy as np
 
 
-class EditDistanceEvaluator(object):
+class EditDistanceEvaluator:
 
     def __init__(self, name: str = "Edit distance") -> None:
         self.name = name

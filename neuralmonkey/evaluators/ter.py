@@ -2,7 +2,7 @@ import pyter
 
 
 # pylint: disable=too-few-public-methods
-class TEREvaluator(object):
+class TEREvaluator:
     """Compute TER using the pyter library."""
 
     def __init__(self, name: str = "TER") -> None:

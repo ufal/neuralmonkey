@@ -16,7 +16,7 @@ from neuralmonkey.config.exceptions import (ConfigInvalidValueException,
 
 
 # pylint:disable=too-few-public-methods
-class ClassSymbol(object):
+class ClassSymbol:
     """Represents a class (or other callable) in configuration."""
 
     def __init__(self, string: str) -> None:
@@ -59,7 +59,7 @@ class ClassSymbol(object):
         return clazz
 
 
-class ObjectRef(object):
+class ObjectRef:
     """Represents a named object or its attribute in configuration."""
 
     def __init__(self, expression: str) -> None:
@@ -111,8 +111,8 @@ def build_object(value: str,
     if isinstance(value, tuple):
         return tuple(build_object(val, all_dicts, existing_objects, depth + 1)
                      for val in value)
-    elif (isinstance(value, collections.Iterable)
-          and not isinstance(value, str)):
+    if (isinstance(value, collections.Iterable)
+            and not isinstance(value, str)):
         return [build_object(val, all_dicts, existing_objects, depth + 1)
                 for val in value]
 

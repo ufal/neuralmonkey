@@ -9,7 +9,7 @@ from typing import Any, List
 from termcolor import colored
 
 
-class Logging(object):
+class Logging:
 
     log_file = None  # type: Any
 

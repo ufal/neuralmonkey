@@ -8,7 +8,7 @@ import numpy as np
 ID_SEP = re.compile(r"[-:]")
 
 
-class WordAlignmentPreprocessor(object):
+class WordAlignmentPreprocessor:
     """A preprocessor for word alignments in a text format.
 
     One of the following formats is expected:

@@ -8,7 +8,7 @@ from neuralmonkey.config.builder import build_config
 from neuralmonkey.config.parsing import parse_file, write_file
 
 
-class Configuration(object):
+class Configuration:
     """Configuration loader.
 
     Loads the configuration file in an analogical way the python's

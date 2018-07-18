@@ -64,7 +64,7 @@ def _main() -> None:
 
     try:
         exp.train()
-    except KeyboardInterrupt:
+    except KeyboardInterrupt:  # pylint: disable=try-except-raise
         raise
     except Exception:  # pylint: disable=broad-except
         log(traceback.format_exc(), color="red")

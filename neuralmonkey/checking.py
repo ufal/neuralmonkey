@@ -81,7 +81,7 @@ def assert_shape(tensor: tf.Tensor,
 
     mismatching_dims = []
     for i, (real, expected) in enumerate(zip(shape_list, expected_shape)):
-        if expected != -1 and real != expected:
+        if expected not in (real, -1):
             mismatching_dims.append(i)
 
     if mismatching_dims:

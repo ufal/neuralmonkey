@@ -3,7 +3,7 @@ import tensorflow as tf
 from neuralmonkey.nn.projection import multilayer_projection
 
 
-class MultilayerPerceptron(object):
+class MultilayerPerceptron:
     """General implementation of the multilayer perceptron."""
 
     # pylint: disable=too-many-arguments

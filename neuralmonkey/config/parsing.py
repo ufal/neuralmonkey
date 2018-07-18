@@ -8,7 +8,7 @@ import time
 from typing import Any, Dict, Callable, Iterable, IO, List, Tuple, Pattern
 
 from neuralmonkey.config.builder import ClassSymbol, ObjectRef
-from neuralmonkey.config.exceptions import IniError
+from neuralmonkey.config.exceptions import ParseError
 from neuralmonkey.logging import log
 
 LINE_NUM = re.compile(r"^(.*) ([0-9]+)$")
@@ -74,14 +74,14 @@ class VarsDict(OrderedDict, Dict[str, Any]):
         if key in os.environ:
             try:
                 value = _parse_value(os.environ[key], self)
-            except Exception:  # pylint: disable=broad-except
+            except ParseError:
                 # If we cannot parse it, use it as a string.
                 value = os.environ[key]
             log("Variable {}={!r} taken from the environment."
                 .format(key, value))
             return value
 
-        raise KeyError("Undefined variable: {}".format(key))
+        raise ParseError("Undefined variable: {}".format(key))
 
 
 def _split_on_commas(string: str) -> List[str]:
@@ -102,14 +102,14 @@ def _split_on_commas(string: str) -> List[str]:
             continue
         elif char == " " and not char_buffer:
             continue
-        elif char == "(" or char == "[":
+        elif char in ("(", "["):
             openings.append(char)
         elif char == ")":
             if openings.pop() != "(":
-                raise Exception("Invalid bracket end ')', col {}.".format(i))
+                raise ParseError("Invalid bracket end ')', col {}.".format(i))
         elif char == "]":
             if openings.pop() != "[":
-                raise Exception("Invalid bracket end ']', col {}.".format(i))
+                raise ParseError("Invalid bracket end ']', col {}.".format(i))
         char_buffer.append(char)
 
     if char_buffer:
@@ -133,7 +133,7 @@ def _parse_list(string: str, vars_dict: VarsDict) -> List[Any]:
     types = [type(val) for val in values]
 
     if len(set(types)) > 1:
-        raise Exception("List must of a same type, is: {}".format(types))
+        raise ParseError("List must of a same type, is: {}".format(types))
 
     return values
 
@@ -168,7 +168,7 @@ def _parse_value(string: str, vars_dict: VarsDict) -> Any:
         if matcher.match(string) is not None:
             return parser(string, vars_dict)
 
-    raise Exception("Cannot parse value: '{}'.".format(string)) from None
+    raise ParseError("Cannot parse value: '{}'.".format(string))
 
 
 def _parse_ini(config_file: Iterable[str],
@@ -188,9 +188,7 @@ def _parse_ini(config_file: Iterable[str],
 
         for key in config[section]:
             match = LINE_NUM.match(config[section][key])
-
-            if match is None:
-                raise AssertionError("Line does not match LINE_NUM pattern.")
+            assert match is not None
 
             new_config[section][key] = match.group(2), match.group(1)
 
@@ -199,7 +197,7 @@ def _parse_ini(config_file: Iterable[str],
 
 def _apply_change(config_dict: Dict[str, Any], setting: str) -> None:
     if "=" not in setting:
-        raise Exception("Invalid setting '{}'".format(setting))
+        raise ParseError("Invalid setting '{}'".format(setting))
     key, value = (s.strip() for s in setting.split("=", maxsplit=1))
 
     if "." in key:
@@ -235,12 +233,9 @@ def parse_file(config_file: Iterable[str],
         for key, (lineno, value_string) in config[section].items():
             try:
                 value = _parse_value(value_string, vars_dict)
-            except IniError as exc:
+            except ParseError as exc:
+                exc.set_line(lineno)
                 raise
-            except Exception as exc:
-                raise IniError(
-                    lineno, "Cannot parse value: '{}'.".format(value_string),
-                    exc) from None
 
             output_dict[key] = value
 

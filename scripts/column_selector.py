@@ -9,7 +9,6 @@ import argparse
 
 
 def main() -> None:
-    # pylint: disable=no-member
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--selector", metavar="SELECTOR",
                         type=argparse.FileType("r"),

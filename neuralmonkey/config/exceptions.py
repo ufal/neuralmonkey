@@ -1,38 +1,26 @@
 """Module that contains exceptions handled in config parsing and loading."""
 
 import traceback
-from typing import Any, Optional
+from typing import Any
 
 
-class IniError(Exception):
-    """Exception caused by error in INI file syntax."""
+class ParseError(Exception):
+    """Parsing exception caused by a syntax error in INI file."""
 
-    def __init__(self,
-                 line: int,
-                 message: str,
-                 original_exc: Optional[Exception] = None) -> None:
-        """Create an instance of the exception.
-
-        Arguments:
-            line: Line number on which the error occured
-            message: A string describing the nature of the error
-            original_exc (optional): An exception that caused this exception
-                                   to be thrown
-        """
+    def __init__(self, message: str, line: int = None) -> None:
         super().__init__()
-        self.line = line
         self.message = message
-        self.original_exc = original_exc
+        self.line = line
+
+    def set_line(self, line: int) -> None:
+        self.line = line
 
     def __str__(self) -> str:
         """Convert this exception to string."""
+        if self.line is not None:
+            return "INI error on line {}: {}".format(self.line, self.message)
 
-        msg = "Error on line {}: {}".format(self.line, self.message)
-        if self.original_exc is not None:
-            trc = "".join(traceback.format_list(traceback.extract_tb(
-                self.original_exc.__traceback__)))
-            msg += "\nTraceback:{}".format(trc)
-        return msg
+        return "INI parsing error: {}".format(self.message)
 
 
 class ConfigInvalidValueException(Exception):
@@ -50,8 +38,8 @@ class ConfigInvalidValueException(Exception):
 
     def __str__(self) -> str:
         """Convert this exception to string."""
-        return "Error in configuration of {}: {}".format(self.value,
-                                                         self.message)
+        return "Error in configuration of {}: {}".format(
+            self.value, self.message)
 
 
 class ConfigBuildException(Exception):

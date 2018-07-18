@@ -7,7 +7,7 @@ from lib.subword_nmt.apply_bpe import BPE, encode
 # pylint: disable=too-few-public-methods
 
 
-class BPEPreprocessor(object):
+class BPEPreprocessor:
     """Wrapper class for Byte-Pair Encoding.
 
     Paper: https://arxiv.org/abs/1508.07909
@@ -43,7 +43,7 @@ class BPEPreprocessor(object):
         return output
 
 
-class BPEPostprocessor(object):
+class BPEPostprocessor:
 
     def __init__(self, separator: str = "@@") -> None:
         esc = re.escape(separator)
