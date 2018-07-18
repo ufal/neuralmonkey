@@ -14,12 +14,6 @@ def contrastive_hinge_loss(regressor: SequenceRegressor,
     valid_predictions = tf.gather(
         regressor.predictions, regressor.loss_valid_indices)
 
-    # valid_train_inputs = tf.boolean_mask(
-    #     regressor.train_inputs, regressor.loss_mask == 1)
-
-    # valid_predictions = tf.boolean_mask(
-    #     regressor.predictions, regressor.loss_mask == 1)
-
     normalized_refs = tf.nn.l2_normalize(valid_train_inputs, 1)
     normalized_preds = tf.nn.l2_normalize(valid_predictions, 1)
 

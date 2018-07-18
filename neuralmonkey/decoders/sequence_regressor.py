@@ -27,18 +27,19 @@ class SequenceRegressor(ModelPart):
                  activation_fn: Callable[[tf.Tensor], tf.Tensor] = tf.nn.relu,
                  dropout_keep_prob: float = 1.0,
                  dimension: int = 1,
+                 allow_null_instances: bool = True,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None,
                  initializers: InitializerSpecs = None) -> None:
         check_argument_types()
-
-        ModelPart.__init__(self, name, save_checkpoint, load_checkpoint,
-                           initializers)
+        ModelPart.__init__(
+            self, name, save_checkpoint, load_checkpoint, initializers)
 
         self.encoders = encoders
         self.data_id = data_id
         self.max_output_len = 1
         self.dimension = dimension
+        self.allow_null_instances = allow_null_instances
 
         self._layers = layers
         self._activation_fn = activation_fn
@@ -99,8 +100,11 @@ class SequenceRegressor(ModelPart):
         if targets is not None:
             fd[self.train_inputs] = targets
 
-            # TODO co kdyz chci aby tam byly nuly?
-            fd[self.loss_valid_indices] = np.squeeze(np.argwhere(
-                np.any(np.array(targets) != 0, axis=1)))
+            # When allow_null_instances, we assume that zero-vector target
+            # denotes a null instance which should not count towards the loss
+            # when using contrastive hinge loss. This is an ugly hack.
+            if self.allow_null_instances:
+                fd[self.loss_valid_indices] = np.squeeze(np.argwhere(
+                    np.any(np.array(targets) != 0, axis=1)))
 
         return fd
