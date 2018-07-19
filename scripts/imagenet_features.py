@@ -38,12 +38,18 @@ def main():
                         "repository")
     parser.add_argument("--model-checkpoint", type=str, required=True,
                         help="Path to the ImageNet model checkpoint.")
-    parser.add_argument("--conv-map", type=str, required=True,
+    parser.add_argument("--conv-map", type=str, required=False, default=None,
                         help="Name of the convolutional map that is.")
+    parser.add_argument("--vector", type=str, required=False, default=None,
+                        help="Name of the feed-forward layer.")
     parser.add_argument("--images", type=str,
                         help="File with paths to images or stdin by default.")
     parser.add_argument("--batch-size", type=int, default=128)
     args = parser.parse_args()
+
+    if args.conv_map is None == args.vector is None:
+        raise ValueError(
+            "You must provide either convolutional map or feed-forward layer.")
 
     if not os.path.exists(args.input_prefix):
         raise ValueError("Directory {} does not exist.".format(
@@ -67,7 +73,7 @@ def main():
     imagenet = ImageNet(
         name="imagenet", data_id="images", network_type=args.net,
         slim_models_path=args.slim_models, load_checkpoint=args.model_checkpoint,
-        spatial_layer=args.conv_map)
+        spatial_layer=args.conv_map, encoded_layer=args.vector)
 
     log("Creating TensorFlow session.")
     session = tf.Session()
@@ -87,7 +93,9 @@ def main():
     def process_images():
         dataset = Dataset("dataset", {"images": np.array(images)}, {})
         feed_dict = imagenet.feed_dict(dataset)
-        feature_maps = session.run(imagenet.spatial_states, feed_dict=feed_dict)
+
+        fetch = imagenet.encoded if args.vector else imagenet.spatial_states
+        feature_maps = session.run(fetch, feed_dict=feed_dict)
 
         for features, rel_path in zip(feature_maps, image_paths):
             npz_path = os.path.join(args.output_prefix, rel_path + ".npz")
