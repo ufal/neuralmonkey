@@ -106,7 +106,6 @@ def rnn_layer(rnn_input: tf.Tensor,
         if rnn_spec.cell_type == "LSTM":
             final_state = final_state.h
 
-    # residual commenctions
     if add_residual:
         if outputs.get_shape()[-1].value != rnn_input.get_shape()[-1].value:
             warn("Size of the RNN layer input ({}) and layer output ({}) "
@@ -170,15 +169,12 @@ class RecurrentEncoder(ModelPart, TemporalStatefulWithOutput):
     @tensor
     def rnn_input(self) -> tf.Tensor:
         return dropout(self.input_sequence.temporal_states,
-                       self.dropout_keep_prob,
-                       self.train_mode)
+                       self.dropout_keep_prob, self.train_mode)
 
     @tensor
     def rnn(self) -> Tuple[tf.Tensor, tf.Tensor]:
-        return rnn_layer(self.rnn_input,
-                         self.input_sequence.lengths,
-                         self.rnn_spec,
-                         self.add_residual)
+        return rnn_layer(self.rnn_input, self.input_sequence.lengths,
+                         self.rnn_spec, self.add_residual)
 
     @tensor
     def temporal_states(self) -> tf.Tensor:
@@ -429,7 +425,6 @@ class DeepSentenceEncoder(SentenceEncoder):
         each layer are used as inputs to the next one. As a final state of the
         stacked RNN, the final state of the final layer is used.
         """
-        # pylint: disable=redefined-variable-type
         rnn_input_local = self.rnn_input
 
         for level, (rnn_size, rnn_dir) in enumerate(
@@ -438,11 +433,11 @@ class DeepSentenceEncoder(SentenceEncoder):
 
             with tf.variable_scope("layer_{}".format(level)):
                 outputs, state = rnn_layer(
-                    rnn_input_local,
-                    self.input_sequence.lengths,
-                    rnn_spec,
-                    self.add_residual)
+                    rnn_input_local, self.input_sequence.lengths,
+                    rnn_spec, self.add_residual)
 
+            # pylint: disable=redefined-variable-type
             rnn_input_local = outputs
+            # pylint: enable=redefined-variable-type
 
         return outputs, state
