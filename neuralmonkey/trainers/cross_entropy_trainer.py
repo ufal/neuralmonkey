@@ -5,6 +5,7 @@ from typeguard import check_argument_types
 
 from neuralmonkey.trainers.generic_trainer import (
     GenericTrainer, Objective, ObjectiveWeight)
+from neuralmonkey.trainers.regularizers import BaseRegularizer
 
 
 def xent_objective(decoder, weight=None) -> Objective:
@@ -25,10 +26,9 @@ class CrossEntropyTrainer(GenericTrainer):
     def __init__(self,
                  decoders: List[Any],
                  decoder_weights: List[ObjectiveWeight] = None,
-                 l1_weight: float = 0.,
-                 l2_weight: float = 0.,
                  clip_norm: float = None,
                  optimizer: tf.train.Optimizer = None,
+                 regularizers: List[BaseRegularizer] = None,
                  var_scopes: List[str] = None,
                  var_collection: str = None) -> None:
         check_argument_types()
@@ -47,9 +47,8 @@ class CrossEntropyTrainer(GenericTrainer):
         GenericTrainer.__init__(
             self,
             objectives=objectives,
-            l1_weight=l1_weight,
-            l2_weight=l2_weight,
             clip_norm=clip_norm,
             optimizer=optimizer,
+            regularizers=regularizers,
             var_scopes=var_scopes,
             var_collection=var_collection)

@@ -6,6 +6,7 @@ import tensorflow as tf
 from neuralmonkey.model.model_part import ModelPart
 from neuralmonkey.runners.base_runner import (
     Executable, ExecutionResult, NextExecute)
+from neuralmonkey.trainers.regularizers import BaseRegularizer
 
 # pylint: disable=invalid-name
 Gradients = List[Tuple[tf.Tensor, tf.Variable]]
@@ -41,12 +42,16 @@ class GenericTrainer:
 
     def __init__(self,
                  objectives: List[Objective],
-                 l1_weight: float = 0.0,
-                 l2_weight: float = 0.0,
                  clip_norm: float = None,
                  optimizer: tf.train.Optimizer = None,
+                 regularizers: List[BaseRegularizer] = None,
                  var_scopes: List[str] = None,
                  var_collection: str = None) -> None:
+
+        if regularizers is not None:
+            self.regularizers = regularizers
+        else:
+            self.regularizers = []
 
         if var_collection is None:
             var_collection = tf.GraphKeys.TRAINABLE_VARIABLES
@@ -84,18 +89,15 @@ class GenericTrainer:
                                  and not v.name.startswith("vgg")
                                  and not v.name.startswith("Inception")
                                  and not v.name.startswith("resnet")]
-                l1_value = sum(tf.reduce_sum(abs(v)) for v in regularizable)
-                l1_cost = l1_weight * l1_value if l1_weight > 0 else 0.0
-
-                l2_value = sum(tf.reduce_sum(v ** 2) for v in regularizable)
-                l2_cost = l2_weight * l2_value if l2_weight > 0 else 0.0
+                reg_values = [reg.value(regularizable)
+                              for reg in self.regularizers]
 
             # unweighted losses for fetching
-            self.losses = [o.loss for o in objectives] + [l1_value, l2_value]
-            tf.summary.scalar("train_l1", l1_value,
-                              collections=["summary_train"])
-            tf.summary.scalar("train_l2", l2_value,
-                              collections=["summary_train"])
+            self.losses = [o.loss for o in objectives] + reg_values
+
+            for reg, reg_value in zip(self.regularizers, reg_values):
+                tf.summary.scalar(reg.name, reg_value,
+                                  collections=["summary_train"])
 
             # log all objectives
             for obj in objectives:
@@ -108,7 +110,11 @@ class GenericTrainer:
                 differentiable_loss_sum = sum(
                     (o.weight if o.weight is not None else 1) * o.loss
                     for o in objectives
-                    if o.gradients is None) + l1_cost + l2_cost
+                    if o.gradients is None)
+                differentiable_loss_sum += sum(
+                    reg.weight * reg_value
+                    for reg, reg_value in zip(self.regularizers,
+                                              reg_values))
                 implicit_gradients = self._get_gradients(
                     differentiable_loss_sum)
 
@@ -136,10 +142,11 @@ class GenericTrainer:
             self.all_coders = set.union(*(obj.decoder.get_dependencies()
                                           for obj in objectives))
 
+            self.gradient = gradients
             self.train_op = self.optimizer.apply_gradients(
                 gradients, global_step=step)
 
-            for grad, var in gradients:
+            for grad, var in self.gradients:
                 if grad is not None:
                     tf.summary.histogram(
                         "gr_{}".format(var.name),
