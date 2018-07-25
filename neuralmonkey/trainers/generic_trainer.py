@@ -10,6 +10,7 @@ from neuralmonkey.model.feedable import Feedable
 from neuralmonkey.runners.base_runner import GraphExecutor, NextExecute
 from neuralmonkey.trainers.objective import (
     Objective, Gradients, ObjectiveWeight)
+from neuralmonkey.trainers.regularizers import BaseRegularizer
 
 BIAS_REGEX = re.compile(r"[Bb]ias")
 
@@ -58,10 +59,9 @@ class GenericTrainer(GraphExecutor, Feedable):
 
     def __init__(self,
                  objectives: Sequence[Objective],
-                 l1_weight: float = 0.0,
-                 l2_weight: float = 0.0,
                  clip_norm: float = None,
                  optimizer: tf.train.Optimizer = None,
+                 regularizers: List[BaseRegularizer] = None,
                  var_scopes: List[str] = None,
                  var_collection: str = None) -> None:
         check_argument_types()
