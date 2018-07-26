@@ -2,6 +2,7 @@ from typing import Dict, List, NamedTuple, Optional, Tuple, Union
 import re
 
 import tensorflow as tf
+from typeguard import check_argument_types
 
 from neuralmonkey.model.model_part import ModelPart
 from neuralmonkey.runners.base_runner import (
@@ -37,7 +38,7 @@ class Objective(NamedTuple(
     """
 
 
-# pylint: disable=too-few-public-methods,too-many-locals,too-many-arguments
+# pylint: disable=too-few-public-methods,too-many-locals,too-many-branches
 class GenericTrainer:
 
     def __init__(self,
@@ -47,11 +48,11 @@ class GenericTrainer:
                  regularizers: List[BaseRegularizer] = None,
                  var_scopes: List[str] = None,
                  var_collection: str = None) -> None:
+        check_argument_types()
 
+        self.regularizers = []  # type: List[BaseRegularizer]
         if regularizers is not None:
             self.regularizers = regularizers
-        else:
-            self.regularizers = []
 
         if var_collection is None:
             var_collection = tf.GraphKeys.TRAINABLE_VARIABLES
@@ -91,6 +92,9 @@ class GenericTrainer:
                                  and not v.name.startswith("resnet")]
                 reg_values = [reg.value(regularizable)
                               for reg in self.regularizers]
+                reg_costs = [
+                    reg.weight * reg_value
+                    for reg, reg_value in zip(self.regularizers, reg_values)]
 
             # unweighted losses for fetching
             self.losses = [o.loss for o in objectives] + reg_values
@@ -147,7 +151,7 @@ class GenericTrainer:
                 gradients, global_step=step)
 
             for grad, var in self.gradients:
-                if grad is not None:
+               # if grad is not None:
                     tf.summary.histogram(
                         "gr_{}".format(var.name),
                         grad, collections=["summary_gradients"])

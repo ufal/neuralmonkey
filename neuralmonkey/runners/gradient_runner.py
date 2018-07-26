@@ -1,9 +1,9 @@
-from typing import Dict, List, Set, Union
+from typing import Any, Dict, List, Set, Union, Optional
 
 from typeguard import check_argument_types
 
 from neuralmonkey.runners.base_runner import (
-    BaseRunner, Executable, FeedDict, ExecutionResult, NextExecute)
+    BaseRunner, Executable, ExecutionResult, NextExecute)
 from neuralmonkey.model.model_part import ModelPart
 from neuralmonkey.decoders.autoregressive import AutoregressiveDecoder
 from neuralmonkey.decoders.classifier import Classifier
@@ -14,15 +14,15 @@ SupportedDecoder = Union[AutoregressiveDecoder, Classifier]
 # pylint: enable=invalid-name
 
 
-class GradientRunExecutable(Executable):
+class GradientRunnerExecutable(Executable):
 
     def __init__(self,
                  all_coders: Set[ModelPart],
-                 fetches: FeedDict) -> None:
+                 fetches: Dict[str, List[Any]]) -> None:
         self._all_coders = all_coders
         self._fetches = fetches
 
-        self.result = None
+        self.result = None  # type: Optional[ExecutionResult]
 
     def next_to_execute(self) -> NextExecute:
         """Get the feedables and tensors to run."""
@@ -61,10 +61,10 @@ class GradientRunner(BaseRunner[SupportedDecoder]):
     def get_executable(self,
                        compute_losses: bool,
                        summaries: bool,
-                       num_sessions: int) -> GradientRunExecutable:
+                       num_sessions: int) -> GradientRunnerExecutable:
         fetches = {"gradients": [g[1] for g in self._gradients]}
 
-        return GradientRunExecutable(self.all_coders, fetches)
+        return GradientRunnerExecutable(self.all_coders, fetches)
     # pylint: enable=unused-argument
 
     @property
