@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional, Tuple, Sequence
+from typing import Dict, List, Optional, Sequence
 import re
 
 import tensorflow as tf
@@ -69,20 +69,22 @@ class GenericTrainer(GraphExecutor, Feedable):
         Feedable.__init__(self)
 
         self.objectives = objectives
-        self.l1_weight = l1_weight
-        self.l2_weight = l2_weight
         self.clip_norm = clip_norm
         self.var_scopes = var_scopes
         self.var_collection = var_collection
         if self.var_collection is None:
             self.var_collection = tf.GraphKeys.TRAINABLE_VARIABLES
 
+        self.regularizers = []  # type: List[BaseRegularizer]
+        if regularizers is not None:
+            self.regularizers = regularizers
+
         self.optimizer = (
             optimizer if optimizer is not None else self.default_optimizer())
 
     # pylint: disable=no-self-use
     @tensor
-    def regularization_losses(self) -> Tuple[tf.Tensor, tf.Tensor]:
+    def regularization_losses(self) -> List[tf.Tensor]:
         """Compute the regularization losses, e.g. L1 and L2."""
         regularizable = [v for v in tf.trainable_variables()
                          if not BIAS_REGEX.findall(v.name)
@@ -95,10 +97,10 @@ class GenericTrainer(GraphExecutor, Feedable):
             return tf.zeros([]), tf.zeros([])
 
         with tf.name_scope("regularization"):
-            l1_norm = sum(tf.reduce_sum(abs(v)) for v in regularizable)
-            l2_norm = sum(tf.reduce_sum(v ** 2) for v in regularizable)
+            reg_values = [reg.value(regularizable)
+                          for reg in self.regularizers]
 
-        return l1_norm, l2_norm
+        return reg_values
     # pylint: enable=no-self-use
 
     @tensor
@@ -108,11 +110,7 @@ class GenericTrainer(GraphExecutor, Feedable):
         # being built. We need to compute the regularizers after that.
         losses = [o.loss for o in self.objectives]
 
-        # pylint: disable=unpacking-non-sequence
-        l1_norm, l2_norm = self.regularization_losses
-        # pylint: disable=unpacking-non-sequence
-
-        return losses + [l1_norm, l2_norm]
+        return losses + self.regularization_losses
 
     @tensor
     def differentiable_loss_sum(self) -> tf.Tensor:
@@ -126,7 +124,7 @@ class GenericTrainer(GraphExecutor, Feedable):
             else:
                 obj_weights.append(obj.weight)
 
-        obj_weights += [self.l1_weight, self.l2_weight]
+        obj_weights += [reg.weights for reg in self.regularizers]
         diff_loss = sum(
             o * w for o, w in zip(self.objective_values, obj_weights)
             if w is not None)
@@ -214,11 +212,10 @@ class GenericTrainer(GraphExecutor, Feedable):
                               collections=["summary_train"])
         # pylint: enable=protected-access
 
-        # pylint: disable=unpacking-non-sequence
-        l1_norm, l2_norm = self.regularization_losses
-        # pylint: enable=unpacking-non-sequence
-        tf.summary.scalar("train_l1", l1_norm, collections=["summary_train"])
-        tf.summary.scalar("train_l2", l2_norm, collections=["summary_train"])
+        reg_values = self.regularization_losses
+        for reg, reg_value in zip(self.regularizers, reg_values):
+            tf.summary.scalar(reg.name, reg_value,
+                              collections=["summary_train"])
 
         for obj in self.objectives:
             tf.summary.scalar(obj.name, obj.loss,

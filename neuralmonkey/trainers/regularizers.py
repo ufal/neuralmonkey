@@ -14,7 +14,6 @@ from typeguard import check_argument_types
 from neuralmonkey.logging import log
 
 
-# pylint: disable=too-few-public-methods
 class BaseRegularizer:
     """Base class for the regularizers."""
 
@@ -22,8 +21,17 @@ class BaseRegularizer:
                  name: str,
                  weight: float) -> None:
         check_argument_types()
-        self.name = name
-        self.weight = weight
+
+        self._name = name
+        self._weight = weight
+
+    @property
+    def name(self) -> str:
+        return self._name
+
+    @property
+    def weight(self) -> float:
+        return self._weight
 
     def value(self, variables) -> float:
         raise NotImplementedError("Abstract method")
@@ -33,7 +41,7 @@ class L1Regularizer(BaseRegularizer):
 
     def __init__(self,
                  name: str = "train_l1",
-                 weight: float = 0.) -> None:
+                 weight: float = 1.0e-8) -> None:
         BaseRegularizer.__init__(self, name, weight)
 
     def value(self, variables: List[tf.Tensor]) -> float:
@@ -44,7 +52,7 @@ class L2Regularizer(BaseRegularizer):
 
     def __init__(self,
                  name: str = "train_l2",
-                 weight: float = 0.) -> None:
+                 weight: float = 1.0e-8) -> None:
         BaseRegularizer.__init__(self, name, weight)
 
     def value(self, variables: List[tf.Tensor]) -> float:
@@ -89,3 +97,7 @@ class EWCRegularizer(BaseRegularizer):
                 tf.square(gradient), tf.square(var - init_var)))
 
         return ewc_value
+
+
+L1 = L1Regularizer()
+L2 = L2Regularizer()
