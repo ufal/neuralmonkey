@@ -178,8 +178,6 @@ class TensorFlowManager:
 
         session_results = [sess.run(all_fetches, feed_dict=fd)
                            for sess, fd in zip(self.sessions, feed_dicts)]
-        except Exception as e:
-            import pdb; pdb.set_trace()
 
         for executable in executables:
             if executable.result is None:

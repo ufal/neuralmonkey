@@ -129,7 +129,6 @@ class TransformerDecoder(AutoregressiveDecoder):
             vocabulary=vocabulary,
             data_id=data_id,
             max_output_len=max_output_len,
-            reuse=reuse,
             dropout_keep_prob=dropout_keep_prob,
             embedding_size=embedding_size,
             embeddings_source=embeddings_source,
