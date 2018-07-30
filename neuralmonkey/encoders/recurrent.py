@@ -77,6 +77,7 @@ def rnn_layer(rnn_input: tf.Tensor,
         rnn_inputs: The input sequence to the RNN.
         lengths: Lengths of input sequences.
         rnn_spec: A valid RNNSpec tuple specifying the network architecture.
+        add_residual: Add residual connections to the layer output.
     """
     if rnn_spec.direction == "bidirectional":
         fw_cell = _make_rnn_cell(rnn_spec)
