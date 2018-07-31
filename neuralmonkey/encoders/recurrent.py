@@ -6,6 +6,7 @@ from typeguard import check_argument_types
 from neuralmonkey.model.stateful import (
     TemporalStatefulWithOutput, TemporalStateful)
 from neuralmonkey.model.model_part import ModelPart, InitializerSpecs
+from neuralmonkey.logging import warn
 from neuralmonkey.nn.ortho_gru_cell import OrthoGRUCell, NematusGRUCell
 from neuralmonkey.nn.utils import dropout
 from neuralmonkey.vocabulary import Vocabulary
@@ -66,14 +67,17 @@ def _make_rnn_cell(spec: RNNSpec) -> Callable[[], tf.nn.rnn_cell.RNNCell]:
     return RNN_CELL_TYPES[spec.cell_type](spec.size)
 
 
-def rnn_layer(rnn_input: tf.Tensor, lengths: tf.Tensor,
-              rnn_spec: RNNSpec) -> Tuple[tf.Tensor, tf.Tensor]:
+def rnn_layer(rnn_input: tf.Tensor,
+              lengths: tf.Tensor,
+              rnn_spec: RNNSpec,
+              add_residual: bool) -> Tuple[tf.Tensor, tf.Tensor]:
     """Construct a RNN layer given its inputs and specs.
 
     Arguments:
         rnn_inputs: The input sequence to the RNN.
         lengths: Lengths of input sequences.
         rnn_spec: A valid RNNSpec tuple specifying the network architecture.
+        add_residual: Add residual connections to the layer output.
     """
     if rnn_spec.direction == "bidirectional":
         fw_cell = _make_rnn_cell(rnn_spec)
@@ -103,6 +107,15 @@ def rnn_layer(rnn_input: tf.Tensor, lengths: tf.Tensor,
         if rnn_spec.cell_type == "LSTM":
             final_state = final_state.h
 
+    if add_residual:
+        if outputs.get_shape()[-1].value != rnn_input.get_shape()[-1].value:
+            warn("Size of the RNN layer input ({}) and layer output ({}) "
+                 "must match when applying residual connection. Reshaping "
+                 "the rnn output using linear projection.".format(
+                     outputs.get_shape(), rnn_input.get_shape()))
+            outputs = tf.layers.dense(outputs, rnn_input.shape.as_list()[-1])
+        outputs += rnn_input
+
     return outputs, final_state
 
 
@@ -115,6 +128,7 @@ class RecurrentEncoder(ModelPart, TemporalStatefulWithOutput):
                  rnn_size: int,
                  rnn_cell: str = "GRU",
                  rnn_direction: str = "bidirectional",
+                 add_residual: bool = False,
                  dropout_keep_prob: float = 1.0,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None,
@@ -131,6 +145,7 @@ class RecurrentEncoder(ModelPart, TemporalStatefulWithOutput):
                 what order to process the input sequence. Note that choosing
                 "bidirectional" will double the resulting vector dimension as
                 well as the number of encoder parameters.
+            add_residual: Add residual connections to the RNN layer output.
             dropout_keep_prob: 1 - dropout probability.
             save_checkpoint: ModelPart save checkpoint file.
             load_checkpoint: ModelPart load checkpoint file.
@@ -143,6 +158,7 @@ class RecurrentEncoder(ModelPart, TemporalStatefulWithOutput):
         self.input_sequence = input_sequence
         self.dropout_keep_prob = dropout_keep_prob
         self.rnn_spec = _make_rnn_spec(rnn_size, rnn_direction, rnn_cell)
+        self.add_residual = add_residual
 
         if self.dropout_keep_prob <= 0.0 or self.dropout_keep_prob > 1.0:
             raise ValueError("Dropout keep prob must be inside (0,1].")
@@ -158,8 +174,8 @@ class RecurrentEncoder(ModelPart, TemporalStatefulWithOutput):
 
     @tensor
     def rnn(self) -> Tuple[tf.Tensor, tf.Tensor]:
-        return rnn_layer(
-            self.rnn_input, self.input_sequence.lengths, self.rnn_spec)
+        return rnn_layer(self.rnn_input, self.input_sequence.lengths,
+                         self.rnn_spec, self.add_residual)
 
     @tensor
     def temporal_states(self) -> tf.Tensor:
@@ -198,6 +214,7 @@ class SentenceEncoder(RecurrentEncoder):
                  rnn_size: int,
                  rnn_cell: str = "GRU",
                  rnn_direction: str = "bidirectional",
+                 add_residual: bool = False,
                  max_input_len: int = None,
                  dropout_keep_prob: float = 1.0,
                  save_checkpoint: str = None,
@@ -221,6 +238,7 @@ class SentenceEncoder(RecurrentEncoder):
                 what order to process the input sequence. Note that choosing
                 "bidirectional" will double the resulting vector dimension as
                 well as the number of encoder parameters.
+            add_residual: Add residual connections to the RNN layer output.
             dropout_keep_prob: 1 - dropout probability.
             save_checkpoint: ModelPart save checkpoint file.
             load_checkpoint: ModelPart load checkpoint file.
@@ -256,6 +274,7 @@ class SentenceEncoder(RecurrentEncoder):
             rnn_size=rnn_size,
             rnn_cell=rnn_cell,
             rnn_direction=rnn_direction,
+            add_residual=add_residual,
             dropout_keep_prob=dropout_keep_prob,
             save_checkpoint=save_checkpoint,
             load_checkpoint=load_checkpoint,
@@ -273,6 +292,7 @@ class FactoredEncoder(RecurrentEncoder):
                  rnn_size: int,
                  rnn_cell: str = "GRU",
                  rnn_direction: str = "bidirectional",
+                 add_residual: bool = False,
                  max_input_len: int = None,
                  dropout_keep_prob: float = 1.0,
                  save_checkpoint: str = None,
@@ -296,6 +316,7 @@ class FactoredEncoder(RecurrentEncoder):
                 what order to process the input sequence. Note that choosing
                 "bidirectional" will double the resulting vector dimension as
                 well as the number of encoder parameters.
+            add_residual: Add residual connections to the RNN layer output.
             dropout_keep_prob: 1 - dropout probability.
             save_checkpoint: ModelPart save checkpoint file.
             load_checkpoint: ModelPart load checkpoint file.
@@ -321,6 +342,7 @@ class FactoredEncoder(RecurrentEncoder):
             rnn_size=rnn_size,
             rnn_cell=rnn_cell,
             rnn_direction=rnn_direction,
+            add_residual=add_residual,
             dropout_keep_prob=dropout_keep_prob,
             save_checkpoint=save_checkpoint,
             load_checkpoint=load_checkpoint,
@@ -338,6 +360,7 @@ class DeepSentenceEncoder(SentenceEncoder):
                  rnn_sizes: List[int],
                  rnn_directions: List[str],
                  rnn_cell: str = "GRU",
+                 add_residual: bool = False,
                  max_input_len: int = None,
                  dropout_keep_prob: float = 1.0,
                  save_checkpoint: str = None,
@@ -364,6 +387,7 @@ class DeepSentenceEncoder(SentenceEncoder):
                 what order to process the input sequence. Note that choosing
                 "bidirectional" will double the resulting vector dimension as
                 well as the number of the parameters in the given layer.
+            add_residual: Add residual connections to each RNN layer output.
             dropout_keep_prob: 1 - dropout probability.
             save_checkpoint: ModelPart save checkpoint file.
             load_checkpoint: ModelPart load checkpoint file.
@@ -386,6 +410,7 @@ class DeepSentenceEncoder(SentenceEncoder):
             rnn_size=rnn_sizes[-1],
             rnn_direction=rnn_directions[-1],
             rnn_cell=rnn_cell,
+            add_residual=add_residual,
             max_input_len=max_input_len,
             dropout_keep_prob=dropout_keep_prob,
             save_checkpoint=save_checkpoint,
@@ -409,8 +434,12 @@ class DeepSentenceEncoder(SentenceEncoder):
 
             with tf.variable_scope("layer_{}".format(level)):
                 outputs, state = rnn_layer(
-                    rnn_input_local, self.input_sequence.lengths, rnn_spec)
+                    rnn_input_local, self.input_sequence.lengths,
+                    rnn_spec, self.add_residual)
 
+            # pylint - redefinition from instancemethod to list
+            # pylint: disable=redefined-variable-type
             rnn_input_local = outputs
+            # pylint: enable=redefined-variable-type
 
         return outputs, state
