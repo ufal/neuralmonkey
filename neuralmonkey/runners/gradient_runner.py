@@ -46,6 +46,14 @@ class GradientRunnerExecutable(Executable):
 
 
 class GradientRunner(BaseRunner[SupportedDecoder]):
+    """Runner for fetching gradients computed over the dataset.
+
+    Gradient runner applies provided trainer on a desired dataset
+    and uses it to compute gradients over the gold data. It is currently
+    used to gather gradients for Elastic Weight Consolidation.
+
+    (https://arxiv.org/pdf/1612.00796.pdf)
+    """
 
     def __init__(self,
                  output_series: str,
