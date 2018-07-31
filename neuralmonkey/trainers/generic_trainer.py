@@ -7,7 +7,7 @@ from typeguard import check_argument_types
 from neuralmonkey.model.model_part import ModelPart
 from neuralmonkey.runners.base_runner import (
     Executable, ExecutionResult, NextExecute)
-from neuralmonkey.trainers.regularizers import BaseRegularizer
+from neuralmonkey.trainers.regularizers import Regularizer
 
 # pylint: disable=invalid-name
 Gradients = List[Tuple[tf.Tensor, tf.Variable]]
@@ -45,12 +45,12 @@ class GenericTrainer:
                  objectives: List[Objective],
                  clip_norm: float = None,
                  optimizer: tf.train.Optimizer = None,
-                 regularizers: List[BaseRegularizer] = None,
+                 regularizers: List[Regularizer] = None,
                  var_scopes: List[str] = None,
                  var_collection: str = None) -> None:
         check_argument_types()
 
-        self.regularizers = []  # type: List[BaseRegularizer]
+        self.regularizers = []  # type: List[Regularizer]
         if regularizers is not None:
             self.regularizers = regularizers
 
