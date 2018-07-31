@@ -437,6 +437,7 @@ class DeepSentenceEncoder(SentenceEncoder):
                     rnn_input_local, self.input_sequence.lengths,
                     rnn_spec, self.add_residual)
 
+            # pylint - redefinition from instancemethod to list
             # pylint: disable=redefined-variable-type
             rnn_input_local = outputs
             # pylint: enable=redefined-variable-type
