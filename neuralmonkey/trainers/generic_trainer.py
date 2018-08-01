@@ -7,7 +7,8 @@ from typeguard import check_argument_types
 from neuralmonkey.model.model_part import ModelPart
 from neuralmonkey.runners.base_runner import (
     Executable, ExecutionResult, NextExecute)
-from neuralmonkey.trainers.regularizers import Regularizer
+from neuralmonkey.trainers.regularizers import (
+    Regularizer, L2Regularizer)
 
 # pylint: disable=invalid-name
 Gradients = List[Tuple[tf.Tensor, tf.Variable]]
@@ -99,6 +100,9 @@ class GenericTrainer:
             # unweighted losses for fetching
             self.losses = [o.loss for o in objectives] + reg_values
 
+            # we always want to include l2 values in the summary
+            if L2Regularizer not in [type(r) for r in self.regularizers]:
+                reg_values.append(L2Regularizer().value(regularizable))
             for reg, reg_value in zip(self.regularizers, reg_values):
                 tf.summary.scalar(reg.name, reg_value,
                                   collections=["summary_train"])
