@@ -39,17 +39,13 @@ class CrossEntropyTrainer(GenericTrainer):
 
         if regularizers is None:
             regularizers = []
-        if l1_weight > 0.:
-            if L1Regularizer in [type(r) for r in regularizers]:
-                warn("You specified both trainer l1_weight "
-                     "and a L1Regularizer object in your config")
-            regularizers.append(L1Regularizer(weight=l1_weight))
 
+        if l1_weight > 0.:
+            regularizers.append(
+                L1Regularizer(name="train_l1", weight=l1_weight))
         if l2_weight > 0.:
-            if L2Regularizer in [type(r) for r in regularizers]:
-                warn("You specified both trainer l2_weight "
-                     "and a L2Regularizer object in your config")
-            regularizers.append(L2Regularizer(weight=l2_weight))
+            regularizers.append(
+                L2Regularizer(name="train_l2", weight=l2_weight))
 
         if len(decoder_weights) != len(decoders):
             raise ValueError(
