@@ -7,8 +7,7 @@ from typeguard import check_argument_types
 from neuralmonkey.model.model_part import ModelPart
 from neuralmonkey.runners.base_runner import (
     Executable, ExecutionResult, NextExecute)
-from neuralmonkey.trainers.regularizers import (
-    Regularizer, L2Regularizer)
+from neuralmonkey.trainers.regularizers import (Regularizer, L2Regularizer)
 
 # pylint: disable=invalid-name
 Gradients = List[Tuple[tf.Tensor, tf.Variable]]
@@ -40,6 +39,7 @@ class Objective(NamedTuple(
 
 
 # pylint: disable=too-few-public-methods,too-many-locals,too-many-branches
+# pylint: disable=too-many-statements
 class GenericTrainer:
 
     def __init__(self,
@@ -102,7 +102,9 @@ class GenericTrainer:
 
             # we always want to include l2 values in the summary
             if L2Regularizer not in [type(r) for r in self.regularizers]:
-                reg_values.append(L2Regularizer().value(regularizable))
+                l2_reg = L2Regularizer(name="train_l2", weight=0.)
+                tf.summary.scalar(l2_reg.name, l2_reg.value(regularizable),
+                                  collections=["summary_train"])
             for reg, reg_value in zip(self.regularizers, reg_values):
                 tf.summary.scalar(reg.name, reg_value,
                                   collections=["summary_train"])
@@ -119,10 +121,7 @@ class GenericTrainer:
                     (o.weight if o.weight is not None else 1) * o.loss
                     for o in objectives
                     if o.gradients is None)
-                differentiable_loss_sum += sum(
-                    reg.weight * reg_value
-                    for reg, reg_value in zip(self.regularizers,
-                                              reg_values))
+                differentiable_loss_sum += sum(reg_costs)
                 implicit_gradients = self._get_gradients(
                     differentiable_loss_sum)
 

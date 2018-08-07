@@ -3,8 +3,8 @@
 This module contains classes that can be used as a variable regularizers
 during training. All implementation should be derived from the Regularizer
 class.
-
 """
+from abc import ABCMeta, abstractmethod
 from typing import List
 
 import numpy as np
@@ -14,8 +14,14 @@ from typeguard import check_argument_types
 from neuralmonkey.logging import log
 
 
-class Regularizer:
-    """Base class for the regularizers."""
+class Regularizer(metaclass=ABCMeta):
+    """Base clas    s for regularizers.
+
+    Regularizer objects are used to introduce additional loss terms to
+    the trainerthus constraining the model variable during training. These
+    loss terms have an adjustable weight allowing to set the ``importance''
+    of the term.
+    """
 
     def __init__(self,
                  name: str,
@@ -24,10 +30,9 @@ class Regularizer:
 
         Arguments:
             name: Regularizer name.
-            weight: Weight of the regularization term.
+            weight: Weight of the regularization term (usually expressed
+                 as ``lambda'' in the literature).
         """
-        check_argument_types()
-
         self._name = name
         self._weight = weight
 
@@ -39,7 +44,13 @@ class Regularizer:
     def weight(self) -> float:
         return self._weight
 
-    def value(self, variables) -> float:
+    @abstractmethod
+    def value(self, variables: List[tf.Tensor]) -> tf.Tensor:
+        """Compute the unweighted value of the regularization loss term.
+
+        Arguments:
+            variables: List of the regularizable model variables.
+        """
         raise NotImplementedError("Abstract method")
 
 
@@ -47,17 +58,17 @@ class L1Regularizer(Regularizer):
     """L1 regularizer."""
 
     def __init__(self,
-                 name: str = "train_l1",
-                 weight: float = 1.0e-8) -> None:
+                 name: str,
+                 weight: float) -> None:
         """Create the regularizer.
 
         Arguments:
             name: Regularizer name.
-            weight: Weight of the regularization term.
+            weight: Weight of the regularization term (default=1.0e-8.
         """
         Regularizer.__init__(self, name, weight)
 
-    def value(self, variables: List[tf.Tensor]) -> float:
+    def value(self, variables: List[tf.Tensor]) -> tf.Tensor:
         return sum(tf.reduce_sum(abs(v)) for v in variables)
 
 
@@ -65,8 +76,8 @@ class L2Regularizer(Regularizer):
     """L2 regularizer."""
 
     def __init__(self,
-                 name: str = "train_l2",
-                 weight: float = 1.0e-8) -> None:
+                 name: str,
+                 weight: float) -> None:
         """Create the regularizer.
 
         Arguments:
@@ -75,7 +86,7 @@ class L2Regularizer(Regularizer):
         """
         Regularizer.__init__(self, name, weight)
 
-    def value(self, variables: List[tf.Tensor]) -> float:
+    def value(self, variables: List[tf.Tensor]) -> tf.Tensor:
         return sum(tf.reduce_sum(v ** 2) for v in variables)
 
 
@@ -84,15 +95,18 @@ class EWCRegularizer(Regularizer):
 
     Implements Elastic Weight Consolidation from the "Overcoming catastrophic
     forgetting in neural networks" paper.
+    The regularizer applies separate regularization weight to each trainable
+    variable based on how important the variable was for the previously
+    learned task.
 
     https://arxiv.org/pdf/1612.00796.pdf
     """
 
     def __init__(self,
-                 name: str = "train_ewc",
-                 weight: float = 0.,
-                 gradients_file: str = None,
-                 variables_file: str = None) -> None:
+                 name: str,
+                 weight: float,
+                 gradients_file: str,
+                 variables_file: str) -> None:
         """Create the regularizer.
 
         Arguments:
@@ -104,36 +118,35 @@ class EWCRegularizer(Regularizer):
                 on the previous task.
         """
         check_argument_types()
-
         Regularizer.__init__(self, name, weight)
 
-        if gradients_file is None:
-            raise ValueError("Missing gradients_file")
-        if variables_file is None:
-            raise ValueError("Missing variables_file")
-
-        log("Loading initial variables for EWC from {}".format(variables_file))
+        log("Loading initial variables for EWC from "
+            "{}.".format(variables_file))
         self.init_vars = tf.contrib.framework.load_checkpoint(variables_file)
-        log("EWC initial variables loaded")
+        log("EWC initial variables loaded.")
 
-        log("Loading gradient estimates from {}".format(gradients_file))
+        log("Loading gradient estimates from {}.".format(gradients_file))
         self.gradients = np.load(gradients_file)
-        log("Gradient estimates loaded")
+        log("Gradient estimates loaded.")
 
-    def value(self, variables: List[tf.Tensor]) -> float:
+    def value(self, variables: List[tf.Tensor]) -> tf.Tensor:
         ewc_value = tf.constant(0.0)
         for var in variables:
-            var_name = var.name.split(":")[0]
+            var_name = var.name
+            init_var_name = var_name.split(":")[0]
             if (var_name in self.gradients.files
-                    and self.init_vars.has_tensor(var_name)):
-                init_var = self.init_vars.get_tensor(var_name)
-                gradient = tf.constant(
-                    self.gradients[var_name], name="ewc_gradients")
+                    and self.init_vars.has_tensor(init_var_name)):
+                init_var = tf.constant(
+                    self.init_vars.get_tensor(init_var_name),
+                    name="{}_init_value".format(init_var_name))
+                grad_squared = tf.constant(
+                    np.square(self.gradients[var_name]),
+                    name="{}_ewc_weight".format(init_var_name))
                 ewc_value += tf.reduce_sum(tf.multiply(
-                    tf.square(gradient), tf.square(var - init_var)))
+                    grad_squared, tf.square(var - init_var)))
 
         return ewc_value
 
 
-L1 = L1Regularizer()
-L2 = L2Regularizer()
+L1 = L1Regularizer(name="train_l1", weight=1.0e-8)
+L2 = L2Regularizer(name="train_l2", weight=1.0e-8)
