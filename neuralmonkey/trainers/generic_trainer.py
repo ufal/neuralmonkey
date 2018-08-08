@@ -10,7 +10,8 @@ from neuralmonkey.model.feedable import Feedable
 from neuralmonkey.runners.base_runner import GraphExecutor, NextExecute
 from neuralmonkey.trainers.objective import (
     Objective, Gradients, ObjectiveWeight)
-from neuralmonkey.trainers.regularizers import (Regularizer, L2Regularizer)
+from neuralmonkey.trainers.regularizers import (
+    Regularizer, L1Regularizer, L2Regularizer)
 
 BIAS_REGEX = re.compile(r"[Bb]ias")
 
@@ -74,6 +75,8 @@ class GenericTrainer(GraphExecutor, Feedable):
         self.var_collection = var_collection
         if self.var_collection is None:
             self.var_collection = tf.GraphKeys.TRAINABLE_VARIABLES
+
+        self.objectives = objectives
 
         self.regularizers = []  # type: List[Regularizer]
         if regularizers is not None:
@@ -214,10 +217,15 @@ class GenericTrainer(GraphExecutor, Feedable):
 
         reg_values = self.regularization_losses
         # we always want to include l2 values in the summary
+        if L1Regularizer not in [type(r) for r in self.regularizers]:
+            l1_reg = L1Regularizer(name="train_l1", weight=0.)
+            tf.summary.scalar(l1_reg.name, l1_reg.value(regularizable),
+                              collections=["summary_train"])
         if L2Regularizer not in [type(r) for r in self.regularizers]:
             l2_reg = L2Regularizer(name="train_l2", weight=0.)
             tf.summary.scalar(l2_reg.name, l2_reg.value(regularizable),
                               collections=["summary_train"])
+
         for reg, reg_value in zip(self.regularizers, reg_values):
             tf.summary.scalar(reg.name, reg_value,
                               collections=["summary_train"])
