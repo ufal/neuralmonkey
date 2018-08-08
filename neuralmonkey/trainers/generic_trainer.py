@@ -7,7 +7,8 @@ from typeguard import check_argument_types
 from neuralmonkey.model.model_part import ModelPart
 from neuralmonkey.runners.base_runner import (
     Executable, ExecutionResult, NextExecute)
-from neuralmonkey.trainers.regularizers import (Regularizer, L2Regularizer)
+from neuralmonkey.trainers.regularizers import (
+    Regularizer, L1Regularizer, L2Regularizer)
 
 # pylint: disable=invalid-name
 Gradients = List[Tuple[tf.Tensor, tf.Variable]]
@@ -38,8 +39,7 @@ class Objective(NamedTuple(
     """
 
 
-# pylint: disable=too-few-public-methods,too-many-locals,too-many-branches
-# pylint: disable=too-many-statements
+# pylint: disable=too-few-public-methods
 class GenericTrainer:
 
     def __init__(self,
@@ -51,25 +51,15 @@ class GenericTrainer:
                  var_collection: str = None) -> None:
         check_argument_types()
 
+        self.objectives = objectives
+
         self.regularizers = []  # type: List[Regularizer]
         if regularizers is not None:
             self.regularizers = regularizers
 
-        if var_collection is None:
-            var_collection = tf.GraphKeys.TRAINABLE_VARIABLES
-
-        if var_scopes is None:
-            var_lists = [tf.get_collection(var_collection)]
-        else:
-            var_lists = [tf.get_collection(var_collection, scope)
-                         for scope in var_scopes]
-
-        # Flatten the list of lists
-        self.var_list = [var for var_list in var_lists for var in var_list]
+        self.var_list = _get_var_list(var_scopes, var_collection)
 
         with tf.variable_scope("trainer", reuse=tf.AUTO_REUSE):
-            step = tf.train.get_or_create_global_step()
-
             if optimizer:
                 self.optimizer = optimizer
             else:
@@ -85,41 +75,23 @@ class GenericTrainer:
                                   collections=["summary_train"])
             # pylint: enable=protected-access
 
-            with tf.name_scope("regularization"):
-                regularizable = [v for v in tf.trainable_variables()
-                                 if not BIAS_REGEX.findall(v.name)
-                                 and not v.name.startswith("vgg")
-                                 and not v.name.startswith("Inception")
-                                 and not v.name.startswith("resnet")]
-                reg_values = [reg.value(regularizable)
-                              for reg in self.regularizers]
-                reg_costs = [
-                    reg.weight * reg_value
-                    for reg, reg_value in zip(self.regularizers, reg_values)]
-
             # unweighted losses for fetching
-            self.losses = [o.loss for o in objectives] + reg_values
-
-            # we always want to include l2 values in the summary
-            if L2Regularizer not in [type(r) for r in self.regularizers]:
-                l2_reg = L2Regularizer(name="train_l2", weight=0.)
-                tf.summary.scalar(l2_reg.name, l2_reg.value(regularizable),
-                                  collections=["summary_train"])
-            for reg, reg_value in zip(self.regularizers, reg_values):
-                tf.summary.scalar(reg.name, reg_value,
-                                  collections=["summary_train"])
+            self.losses = [o.loss for o in self.objectives]
 
             # log all objectives
-            for obj in objectives:
+            for obj in self.objectives:
                 tf.summary.scalar(
                     obj.name, obj.loss, collections=["summary_train"])
+
+            # compute regularization costs
+            reg_costs = self._compute_regularization()
 
             # if the objective does not have its own gradients,
             # just use TF to do the derivative
             with tf.name_scope("gradient_collection"):
                 differentiable_loss_sum = sum(
                     (o.weight if o.weight is not None else 1) * o.loss
-                    for o in objectives
+                    for o in self.objectives
                     if o.gradients is None)
                 differentiable_loss_sum += sum(reg_costs)
                 implicit_gradients = self._get_gradients(
@@ -128,7 +100,7 @@ class GenericTrainer:
                 # objectives that have their gradients explictly computed
                 other_gradients = [
                     _scale_gradients(o.gradients, o.weight)
-                    for o in objectives if o.gradients is not None]
+                    for o in self.objectives if o.gradients is not None]
 
                 if other_gradients:
                     gradients = _sum_gradients(
@@ -147,11 +119,12 @@ class GenericTrainer:
                              if grad is not None]
 
             self.all_coders = set.union(*(obj.decoder.get_dependencies()
-                                          for obj in objectives))
+                                          for obj in self.objectives))
 
             self.gradient = gradients
             self.train_op = self.optimizer.apply_gradients(
-                gradients, global_step=step)
+                self.gradients,
+                global_step=tf.train.get_or_create_global_step())
 
             for grad, var in self.gradients:
                # if grad is not None:
@@ -163,6 +136,38 @@ class GenericTrainer:
                 tf.get_collection("summary_gradients"))
             self.scalar_summaries = tf.summary.merge(
                 tf.get_collection("summary_train"))
+
+    def _compute_regularization(self) -> List[tf.Tensor]:
+        with tf.name_scope("regularization"):
+            regularizable = [v for v in tf.trainable_variables()
+                             if not BIAS_REGEX.findall(v.name)
+                             and not v.name.startswith("vgg")
+                             and not v.name.startswith("Inception")
+                             and not v.name.startswith("resnet")]
+            reg_values = [reg.value(regularizable)
+                          for reg in self.regularizers]
+            reg_costs = [
+                reg.weight * reg_value
+                for reg, reg_value in zip(self.regularizers, reg_values)]
+
+        # add unweighted regularization values
+        self.losses += reg_values
+
+        # we always want to include l1 and l2 values in the summary
+        if L1Regularizer not in [type(r) for r in self.regularizers]:
+            l1_reg = L1Regularizer(name="train_l1", weight=0.)
+            tf.summary.scalar(l1_reg.name, l1_reg.value(regularizable),
+                              collections=["summary_train"])
+        if L2Regularizer not in [type(r) for r in self.regularizers]:
+            l2_reg = L2Regularizer(name="train_l2", weight=0.)
+            tf.summary.scalar(l2_reg.name, l2_reg.value(regularizable),
+                              collections=["summary_train"])
+
+        for reg, reg_value in zip(self.regularizers, reg_values):
+            tf.summary.scalar(reg.name, reg_value,
+                              collections=["summary_train"])
+
+        return reg_costs
 
     def _get_gradients(self, tensor: tf.Tensor) -> Gradients:
         gradient_list = self.optimizer.compute_gradients(tensor, self.var_list)
@@ -179,6 +184,20 @@ class GenericTrainer:
                                self.losses,
                                self.scalar_summaries if summaries else None,
                                self.histogram_summaries if summaries else None)
+
+
+def _get_var_list(var_scopes, var_collection) -> List[tf.Variable]:
+    if var_collection is None:
+        var_collection = tf.GraphKeys.TRAINABLE_VARIABLES
+
+    if var_scopes is None:
+        var_lists = [tf.get_collection(var_collection)]
+    else:
+        var_lists = [tf.get_collection(var_collection, scope)
+                     for scope in var_scopes]
+
+    # Flatten the list of lists
+    return [var for var_list in var_lists for var in var_list]
 
 
 def _sum_gradients(gradients_list: List[Gradients]) -> Gradients:
