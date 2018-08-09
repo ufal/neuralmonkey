@@ -144,7 +144,3 @@ class EWCRegularizer(Regularizer):
                     grad_squared, tf.square(var - init_var)))
 
         return ewc_value
-
-
-L1 = L1Regularizer(name="train_l1", weight=1.0e-8)
-L2 = L2Regularizer(name="train_l2", weight=1.0e-8)
