@@ -13,13 +13,14 @@ from datetime import timedelta
 import numpy as np
 import tensorflow as tf
 from termcolor import colored
-from typeguard import check_argument_types, check_type
+from typeguard import check_argument_types
 
 from neuralmonkey.logging import log, log_print, warn, notice
 from neuralmonkey.dataset import Dataset, LazyDataset
 from neuralmonkey.tf_manager import TensorFlowManager
 from neuralmonkey.runners.base_runner import BaseRunner, ExecutionResult
 from neuralmonkey.trainers.generic_trainer import GenericTrainer
+from neuralmonkey.checking import match_type
 
 # pylint: disable=invalid-name
 Evaluation = Dict[str, float]
@@ -430,11 +431,7 @@ def run_on_dataset(tf_manager: TensorFlowManager,
             List[Dict[str, np.ndarray]],
             List[List[Dict[str, np.ndarray]]]]
 
-        try:
-            check_type("data", data, supported_type, None)  # type: ignore
-        except TypeError:
-            return False
-        return True
+        return match_type(data, supported_type)
 
     if write_out:
         for series_id, data in result_data.items():
