@@ -366,15 +366,37 @@ def _check_series_collisions(runners: List[BaseRunner],
                 runners_outputs.add(series)
 
 
+def _check_savable_dict(data: Any) -> bool:
+    """Check if the data is of savable type.
+
+    Arguments:
+        data: Variable that holds some results.
+
+    Returns:
+        Boolean that says whether the saving of this type is implemented.
+    """
+    if not (data and data[0]):
+        return False
+
+    supported_type = Union[
+        List[Dict[str, np.ndarray]],
+        List[List[Dict[str, np.ndarray]]]]
+
+    return match_type(data, supported_type)
+
+
 def run_on_dataset(tf_manager: TensorFlowManager,
                    runners: List[BaseRunner],
                    dataset: Dataset,
                    postprocess: Postprocess,
+                   batch_size: int,
                    write_out: bool = False,
-                   batch_size: Optional[int] = None,
                    log_progress: int = 0) -> Tuple[
                        List[ExecutionResult], Dict[str, List[Any]]]:
     """Apply the model on a dataset and optionally write outputs to files.
+
+    This function processes the dataset in batches and optionally prints out
+    the execution progress.
 
     Args:
         tf_manager: TensorFlow manager with initialized sessions.
@@ -382,7 +404,7 @@ def run_on_dataset(tf_manager: TensorFlowManager,
         dataset: The dataset on which the model will be executed.
         evaluators: List of evaluators that are used for the model
             evaluation if the target data are provided.
-        postprocess: an object to use as postprocessing of the
+        postprocess: Dataset-level postprocessors
         write_out: Flag whether the outputs should be printed to a file defined
             in the dataset object.
         batch_size: size of the minibatch
@@ -395,18 +417,33 @@ def run_on_dataset(tf_manager: TensorFlowManager,
         they are available which are dictionary function -> value.
 
     """
+    # If the dataset contains the target series, compute also losses.
     contains_targets = all(dataset.has_series(runner.decoder_data_id)
                            for runner in runners
                            if runner.decoder_data_id is not None)
 
-    all_results = tf_manager.execute(dataset, runners,
-                                     compute_losses=contains_targets,
-                                     batch_size=batch_size,
-                                     log_progress=log_progress)
+    last_log_time = time.process_time()
+    batch_results = [[] for _ in runners]  # type: List[List[ExecutionResult]]
 
+    for i, batch in enumerate(dataset.batches(batch_size)):
+        if 0 < log_progress < time.process_time() - last_log_time:
+            log("Processed {} examples.".format(i * batch_size))
+            last_log_time = time.process_time()
+
+        execution_results = tf_manager.execute(
+            batch, runners, compute_losses=contains_targets)
+
+        for script_list, ex_result in zip(batch_results, execution_results):
+            script_list.append(ex_result)
+
+    # Transpose runner interim results.
+    all_results = [recude_execution_results(res) for res in batch_results]
+
+    # Convert execution results to dictionary.
     result_data = {runner.output_series: result.outputs
                    for runner, result in zip(runners, all_results)}
 
+    # Run dataset-level preprocessing.
     if postprocess is not None:
         for series_name, postprocessor in postprocess:
             postprocessed = postprocessor(dataset, result_data)
@@ -415,23 +452,12 @@ def run_on_dataset(tf_manager: TensorFlowManager,
 
             result_data[series_name] = postprocessed
 
-    # check output series lengths
+    # Check output series lengths.
     for series_id, data in result_data.items():
         if len(data) != len(dataset):
             warn("Output '{}' for dataset '{}' has length {}, but "
                  "len(dataset) == {}".format(series_id, dataset.name,
                                              len(data), len(dataset)))
-
-    def _check_savable_dict(data):
-        """Check if the data is of savable type."""
-        if not (data and data[0]):
-            return False
-
-        supported_type = Union[
-            List[Dict[str, np.ndarray]],
-            List[List[Dict[str, np.ndarray]]]]
-
-        return match_type(data, supported_type)
 
     if write_out:
         for series_id, data in result_data.items():

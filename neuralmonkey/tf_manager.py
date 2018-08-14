@@ -216,40 +216,39 @@ class TensorFlowManager:
 
     # pylint: disable=too-many-locals
     def execute(self,
-                dataset: Dataset,
-                execution_scripts,
-                train=False,
-                compute_losses=True,
-                summaries=True,
-                batch_size=None,
-                log_progress: int = 0) -> List[ExecutionResult]:
-        if batch_size is None:
-            batch_size = len(dataset)
-        batched_dataset = dataset.batch_dataset(batch_size)
-        last_log_time = time.process_time()
+                batch: Dataset,
+                runners: List[BaseRunner],
+                train: bool = False,
+                compute_losses: bool = True,
+                summaries: bool = True) -> List[ExecutionResult]:
+        """Execute runners on a batch of data.
 
-        batch_results = [
-            [] for _ in execution_scripts]  # type: List[List[ExecutionResult]]
-        for batch_id, batch in enumerate(batched_dataset):
-            if 0 < log_progress < time.process_time() - last_log_time:
-                log("Processed {} examples.".format(batch_id * batch_size))
-                last_log_time = time.process_time()
-            executables = [s.get_executable(compute_losses=compute_losses,
-                                            summaries=summaries,
-                                            num_sessions=len(self.sessions))
-                           for s in execution_scripts]
+        First, extract executables from the provided runners, telling the
+        runners whether to compute also losses and summaries. Second, until
+        all executables are satisfied (have the `result` attribute set),
+        run the executables on the batch.
 
-            while not all(ex.result is not None for ex in executables):
-                self._run_executables(batch, executables, train)
+        Arguments:
+            batch: A batch of data.
+            execution_scripts: List of runners to execute.
+            train: Training mode flag (this value is fed to the `train_mode`
+                 placeholders in model parts).
+            compute_losses: Flag to runners whether run loss operations.
+            summaries: Flag to runners whether to run summary operations.
 
-            for script_list, executable in zip(batch_results, executables):
-                script_list.append(executable.result)
+        Returns:
+            A list of `ExecutionResult` tuples, one for each executable
+            (runner).
+        """
+        executables = [runner.get_executable(compute_losses=compute_losses,
+                                             summaries=summaries,
+                                             num_sessions=len(self.sessions))
+                       for runner in runners]
 
-        collected_results = []  # type: List[ExecutionResult]
-        for result_list in batch_results:
-            collected_results.append(reduce_execution_results(result_list))
+        while not all(ex.result is not None for ex in executables):
+            self._run_executables(dataset, executables, train)
 
-        return collected_results
+        return [ex.result for ex in executables]
 
     def save(self, variable_files: Union[str, List[str]]) -> None:
         if isinstance(variable_files, str) and len(self.sessions) == 1:
