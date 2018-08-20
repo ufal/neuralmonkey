@@ -11,6 +11,18 @@ from neuralmonkey.experiment import Experiment
 from neuralmonkey.logging import log
 
 
+def load_runtime_config(config_path: str) -> argparse.Namespace:
+    """Load a runtime configuration file."""
+    cfg = Configuration()
+    cfg.add_argument("test_datasets")
+    cfg.add_argument("batch_size", cond=lambda x: x > 0)
+    cfg.add_argument("variables", cond=lambda x: isinstance(x, list))
+
+    cfg.load_file(config_path)
+    cfg.build_model()
+    return cfg.model
+
+
 def main() -> None:
     # pylint: disable=no-member
     parser = argparse.ArgumentParser(description=__doc__)
@@ -24,14 +36,7 @@ def main() -> None:
                         help="look at the SGE variables for slicing the data")
     args = parser.parse_args()
 
-    test_datasets = Configuration()
-    test_datasets.add_argument("test_datasets")
-    test_datasets.add_argument("batch_size", cond=lambda x: x > 0)
-    test_datasets.add_argument("variables", cond=lambda x: isinstance(x, list))
-
-    test_datasets.load_file(args.datasets)
-    test_datasets.build_model()
-    datasets_model = test_datasets.model
+    datasets_model = load_runtime_config(args.datasets)
 
     exp = Experiment(config_path=args.config)
     exp.build_model()
