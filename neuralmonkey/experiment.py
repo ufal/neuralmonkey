@@ -202,7 +202,8 @@ class Experiment:
                 best_var_file = self.get_path("variables.data.best")
                 with open(best_var_file, "r") as f_best:
                     var_path = f_best.read().rstrip()
-                variable_files = [self.get_path(var_path)]
+                variable_files = [os.path.join(self.config.args.output,
+                                               var_path)]
 
             log("Default variable file '{}' will be used for loading "
                 "variables.".format(variable_files[0]))
