@@ -137,7 +137,8 @@ class TensorRunner(BaseRunner[ModelPart]):
 
         total_tensors = len(tensors_by_name) + len(tensors_by_ref)
         if single_tensor and total_tensors > 1:
-            raise ValueError("single_tensor is True, but {} tensors were given".format(total_tensors))
+            raise ValueError("single_tensor is True, but {} tensors were given"
+                             .format(total_tensors))
 
         self._names = tensors_by_name
         self._tensors = tensors_by_ref
