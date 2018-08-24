@@ -148,13 +148,14 @@ class EmbeddedFactorSequence(Sequence):
             # the overriding is turned to true, because if the model would not
             # be allowed to override the output folder it would failed earlier.
             # TODO when vocabularies will have name parameter, change it
-            wordlist = os.path.join(logdir, self.name + "_" + str(i) + ".tsv")
-            self.vocabularies[i].save_wordlist(wordlist, True, True)
+            metadata_path = self.name + "_" + str(i) + ".tsv"
+            self.vocabularies[i].save_wordlist(
+                os.path.join(logdir, metadata_path), True, True)
 
             embedding = prj.embeddings.add()
             # pylint: disable=unsubscriptable-object
             embedding.tensor_name = self.embedding_matrices[i].name
-            embedding.metadata_path = wordlist
+            embedding.metadata_path = metadata_path
 
     @tensor
     def embedding_matrices(self) -> List[tf.Tensor]:
