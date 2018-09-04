@@ -25,7 +25,7 @@ START_TOKEN = "<s>"
 END_TOKEN = "</s>"
 UNK_TOKEN = "<unk>"
 
-_SPECIAL_TOKENS = [PAD_TOKEN, START_TOKEN, END_TOKEN, UNK_TOKEN]
+SPECIAL_TOKENS = [PAD_TOKEN, START_TOKEN, END_TOKEN, UNK_TOKEN]
 
 PAD_TOKEN_INDEX = 0
 START_TOKEN_INDEX = 1
@@ -33,7 +33,7 @@ END_TOKEN_INDEX = 2
 UNK_TOKEN_INDEX = 3
 
 
-def _is_special_token(word: str) -> bool:
+def is_special_token(word: str) -> bool:
     """Check whether word is a special token (such as <pad> or <s>).
 
     Arguments:
@@ -42,7 +42,7 @@ def _is_special_token(word: str) -> bool:
     Returns:
         True if the word is special, False otherwise.
     """
-    return word in _SPECIAL_TOKENS
+    return word in SPECIAL_TOKENS
 
 
 # pylint: disable=unused-argument
@@ -295,7 +295,7 @@ class Vocabulary(collections.Sized):
         self.word_to_index = {}  # type: Dict[str, int]
         self.index_to_word = []  # type: List[str]
         self.word_count = {}  # type: Dict[str, int]
-        self.alphabet = {tok for tok in _SPECIAL_TOKENS}
+        self.alphabet = {tok for tok in SPECIAL_TOKENS}
 
         # flag if the word count are in use
         self.correct_counts = False
@@ -340,7 +340,7 @@ class Vocabulary(collections.Sized):
             self.word_to_index[word] = len(self.index_to_word)
             self.index_to_word.append(word)
             self.word_count[word] = 0
-            if word not in _SPECIAL_TOKENS:
+            if not is_special_token(word):
                 self.add_characters(word)
         self.word_count[word] += occurences
 
@@ -424,7 +424,7 @@ class Vocabulary(collections.Sized):
         for word in words_by_freq:
             if len(words_to_delete) == to_delete:
                 break
-            if not _is_special_token(word):
+            if not is_special_token(word):
                 words_to_delete.append(word)
 
         # sort by index ... bigger indices needs to be removed first
@@ -452,7 +452,7 @@ class Vocabulary(collections.Sized):
             # ignoring special tokens
             infreq_word_count = sum([1 for w in self.word_count
                                      if self.word_count[w] < min_freq
-                                     and not _is_special_token(w)])
+                                     and not is_special_token(w)])
             log("Removing {} infrequent (<{}) words from vocabulary".format(
                 infreq_word_count, min_freq))
             new_size = len(self) - infreq_word_count
