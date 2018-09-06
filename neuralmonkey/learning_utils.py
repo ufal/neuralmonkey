@@ -34,22 +34,23 @@ Postprocess = Optional[List[Tuple[SeriesName, Callable]]]
 # pylint: disable=too-many-statements, too-many-nested-blocks
 def training_loop(tf_manager: TensorFlowManager,
                   epochs: int,
-                  trainer: GenericTrainer,  # TODO better annotate
+                  trainer: Union[GenericTrainer, List[GenericTrainer]],
                   batch_size: int,
                   log_directory: str,
                   evaluators: EvalConfiguration,
                   runners: List[BaseRunner],
+                  final_variables: str,
                   train_dataset: Dataset,
-                  val_dataset: Union[Dataset, List[Dataset]],
-                  test_datasets: Optional[List[Dataset]] = None,
+                  val_dataset: Union[Dataset, List[Dataset]] = None,
+                  test_datasets: List[Dataset] = None,
                   logging_period: Union[str, int] = 20,
                   validation_period: Union[str, int] = 500,
-                  val_preview_input_series: Optional[List[str]] = None,
-                  val_preview_output_series: Optional[List[str]] = None,
+                  val_preview_input_series: List[str] = None,
+                  val_preview_output_series: List[str] = None,
                   val_preview_num_examples: int = 15,
                   train_start_offset: int = 0,
-                  runners_batch_size: Optional[int] = None,
-                  initial_variables: Optional[Union[str, List[str]]] = None,
+                  runners_batch_size: int = None,
+                  initial_variables: Union[str, List[str]] = None,
                   postprocess: Postprocess = None) -> None:
     """Execute the training loop for given graph and data.
 
@@ -97,7 +98,9 @@ def training_loop(tf_manager: TensorFlowManager,
     """
     check_argument_types()
 
-    if isinstance(val_dataset, Dataset):
+    if val_dataset is None:
+        val_datasets = []
+    elif isinstance(val_dataset, Dataset):
         val_datasets = [val_dataset]
     else:
         val_datasets = val_dataset
@@ -107,7 +110,13 @@ def training_loop(tf_manager: TensorFlowManager,
 
     _check_series_collisions(runners, postprocess)
 
-    _log_model_variables(var_list=trainer.var_list)
+    if isinstance(trainer, List):
+        trainers = trainer
+    else:
+        trainers = [trainer]
+
+    _log_model_variables(
+        var_list=list(set().union(*[t.var_list for t in trainers])))
 
     if runners_batch_size is None:
         runners_batch_size = batch_size
@@ -134,8 +143,9 @@ def training_loop(tf_manager: TensorFlowManager,
     if initial_variables is None:
         # Assume we don't look at coder checkpoints when global
         # initial variables are supplied
+
         tf_manager.initialize_model_parts(
-            runners + [trainer], save=True)  # type: ignore
+            runners + trainers, save=True)  # type: ignore
     else:
         try:
             tf_manager.restore(initial_variables)
@@ -172,9 +182,11 @@ def training_loop(tf_manager: TensorFlowManager,
                 seen_instances += len(batch_dataset)
                 if _is_logging_time(step, log_period_batch,
                                     last_log_time, log_period_time):
-                    trainer_result = tf_manager.execute(
-                        batch_dataset, [trainer], train=True,
-                        summaries=True)
+
+                    for trainer in trainers:
+                        trainer_result = tf_manager.execute(
+                            batch_dataset, [trainer], train=True,
+                            summaries=True)
                     train_results, train_outputs = run_on_dataset(
                         tf_manager, runners, batch_dataset,
                         postprocess, write_out=False,
@@ -192,8 +204,9 @@ def training_loop(tf_manager: TensorFlowManager,
                         train=True)
                     last_log_time = time.process_time()
                 else:
-                    tf_manager.execute(batch_dataset, [trainer],
-                                       train=True, summaries=False)
+                    for trainer in trainers:
+                        tf_manager.execute(batch_dataset, [trainer],
+                                           train=True, summaries=False)
 
                 if _is_logging_time(step, val_period_batch,
                                     last_val_time, val_period_time):
@@ -239,7 +252,7 @@ def training_loop(tf_manager: TensorFlowManager,
                                 all_coders = set.union(
                                     *[rnr.all_coders
                                       for rnr in runners
-                                      + [trainer]])  # type: ignore
+                                      + trainers])  # type: ignore
                                 for coder in all_coders:
                                     for session in tf_manager.sessions:
                                         coder.save(session)
@@ -259,6 +272,7 @@ def training_loop(tf_manager: TensorFlowManager,
                             tb_writer, main_metric, val_evaluation,
                             seen_instances, epoch_n, epochs, val_results,
                             train=False, dataset_name=v_name)
+
 
                     # how long was the training between validations
                     training_duration = val_duration_start - last_val_time
@@ -285,6 +299,9 @@ def training_loop(tf_manager: TensorFlowManager,
     log("Training finished. Maximum {} on validation data: {:.4g}, epoch {}"
         .format(main_metric, tf_manager.best_score,
                 tf_manager.best_score_epoch))
+
+    log("Saving final variables in {}".format(final_variables))
+    tf_manager.save(final_variables)
 
     if test_datasets:
         tf_manager.restore_best_vars()

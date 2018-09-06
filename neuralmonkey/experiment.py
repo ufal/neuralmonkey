@@ -132,13 +132,14 @@ class Experiment:
             if self.train_mode:
                 check_dataset_and_coders(self.model.train_dataset,
                                          self.model.runners)
-                if isinstance(self.model.val_dataset, Dataset):
-                    check_dataset_and_coders(self.model.val_dataset,
-                                             self.model.runners)
-                else:
-                    for val_dataset in self.model.val_dataset:
-                        check_dataset_and_coders(val_dataset,
+                if self.model.val_dataset is not None:
+                    if isinstance(self.model.val_dataset, Dataset):
+                        check_dataset_and_coders(self.model.val_dataset,
                                                  self.model.runners)
+                    else:
+                        for val_dataset in self.model.val_dataset:
+                            check_dataset_and_coders(val_dataset,
+                                                     self.model.runners)
 
             if self.train_mode and self.model.visualize_embeddings:
                 visualize_embeddings(self.model.visualize_embeddings,
@@ -185,7 +186,8 @@ class Experiment:
                 postprocess=self.model.postprocess,
                 train_start_offset=self.model.train_start_offset,
                 runners_batch_size=self.model.runners_batch_size,
-                initial_variables=self.model.initial_variables)
+                initial_variables=self.model.initial_variables,
+                final_variables=self.get_path("variables.data.final"))
 
             self._vars_loaded = True
 
@@ -338,7 +340,7 @@ def create_config(train_mode: bool = True) -> Configuration:
         config.add_argument("epochs", cond=lambda x: x >= 0)
         config.add_argument("trainer")
         config.add_argument("train_dataset")
-        config.add_argument("val_dataset")
+        config.add_argument("val_dataset", required=False, default=[])
         config.add_argument("evaluation")
         config.add_argument("test_datasets", required=False, default=[])
         config.add_argument("logging_period", required=False, default=20)
