@@ -34,23 +34,23 @@ Postprocess = Optional[List[Tuple[SeriesName, Callable]]]
 # pylint: disable=too-many-statements, too-many-nested-blocks
 def training_loop(tf_manager: TensorFlowManager,
                   epochs: int,
-                  trainer: Union[GenericTrainer, List[GenericTrainer]],  # TODO better annotate
+                  trainer: Union[GenericTrainer, List[GenericTrainer]],
                   batch_size: int,
                   log_directory: str,
                   evaluators: EvalConfiguration,
                   runners: List[BaseRunner],
                   final_variables: str,
                   train_dataset: Dataset,
-                  val_dataset: Union[Dataset, List[Dataset]],
-                  test_datasets: Optional[List[Dataset]] = None,
+                  val_dataset: Union[Dataset, List[Dataset]] = None,
+                  test_datasets: List[Dataset] = None,
                   logging_period: Union[str, int] = 20,
                   validation_period: Union[str, int] = 500,
-                  val_preview_input_series: Optional[List[str]] = None,
-                  val_preview_output_series: Optional[List[str]] = None,
+                  val_preview_input_series: List[str] = None,
+                  val_preview_output_series: List[str] = None,
                   val_preview_num_examples: int = 15,
                   train_start_offset: int = 0,
-                  runners_batch_size: Optional[int] = None,
-                  initial_variables: Optional[Union[str, List[str]]] = None,
+                  runners_batch_size: int = None,
+                  initial_variables: Union[str, List[str]] = None,
                   postprocess: Postprocess = None) -> None:
     """Execute the training loop for given graph and data.
 
@@ -98,7 +98,9 @@ def training_loop(tf_manager: TensorFlowManager,
     """
     check_argument_types()
 
-    if isinstance(val_dataset, Dataset):
+    if val_dataset is None:
+        val_datasets = []
+    elif isinstance(val_dataset, Dataset):
         val_datasets = [val_dataset]
     else:
         val_datasets = val_dataset
@@ -107,7 +109,6 @@ def training_loop(tf_manager: TensorFlowManager,
     val_period_batch, val_period_time = _resolve_period(validation_period)
 
     _check_series_collisions(runners, postprocess)
-
 
     if isinstance(trainer, List):
         trainers = trainer
@@ -267,6 +268,7 @@ def training_loop(tf_manager: TensorFlowManager,
                             tb_writer, main_metric, val_evaluation,
                             seen_instances, epoch_n, epochs, val_results,
                             train=False, dataset_name=v_name)
+
 
                     # how long was the training between validations
                     training_duration = val_duration_start - last_val_time
