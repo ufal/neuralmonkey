@@ -39,6 +39,7 @@ def training_loop(tf_manager: TensorFlowManager,
                   log_directory: str,
                   evaluators: EvalConfiguration,
                   runners: List[BaseRunner],
+                  final_variables: str,
                   train_dataset: Dataset,
                   val_dataset: Union[Dataset, List[Dataset]],
                   test_datasets: Optional[List[Dataset]] = None,
@@ -285,6 +286,9 @@ def training_loop(tf_manager: TensorFlowManager,
     log("Training finished. Maximum {} on validation data: {:.4g}, epoch {}"
         .format(main_metric, tf_manager.best_score,
                 tf_manager.best_score_epoch))
+
+    log("Saving final variables in {}".format(final_variables))
+    tf_manager.save(final_variables)
 
     if test_datasets:
         tf_manager.restore_best_vars()
