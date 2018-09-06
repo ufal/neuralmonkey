@@ -189,6 +189,8 @@ class Experiment:
 
             self._vars_loaded = True
 
+            self.model.tf_manager.save(self.get_path("variables.data.final"))
+
     def load_variables(self, variable_files: List[str] = None) -> None:
         if not self._model_built:
             self.build_model()
