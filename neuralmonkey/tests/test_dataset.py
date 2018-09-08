@@ -5,18 +5,18 @@ import os
 import tempfile
 import unittest
 
-from neuralmonkey.dataset import LazyDataset, from_files
+from neuralmonkey.dataset import from_files
 from neuralmonkey.readers.plain_text_reader import UtfPlainTextReader
 
 
 class TestDataset(unittest.TestCase):
 
     def test_nonexistent_file(self):
-        paths_and_readers = {
-            "source": (["some_nonexistent_file"], UtfPlainTextReader)}
-
         with self.assertRaises(FileNotFoundError):
-            LazyDataset("name", paths_and_readers, {}, None)
+            from_files(
+                name="name",
+                s_source=(["some_nonexistent_file"], UtfPlainTextReader),
+                lazy=True)
 
     def test_lazy_dataset(self):
         i = 0  # iteration counter
@@ -27,11 +27,12 @@ class TestDataset(unittest.TestCase):
             for i in range(10):  # pylint: disable=unused-variable
                 yield ["foo"]
 
-        dataset = LazyDataset(
+        dataset = from_files(
             name="data",
-            series_paths_and_readers={"source": ([], reader)},
-            series_outputs={},
-            preprocessors=[("source", "source_prep", lambda x: x)])
+            s_source=([], reader),
+            preprocessors=[("source", "source_prep", lambda x: x)],
+            lazy=True)
+
         series = dataset.get_series("source_prep")
 
         # Check that the reader is being iterated lazily

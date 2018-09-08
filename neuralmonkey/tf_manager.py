@@ -6,11 +6,10 @@ variables.
 
 """
 # pylint: disable=unused-import
-from typing import Any, List, Union, Optional, Set
+from typing import Any, List, Union, Optional, Set, Sequence
 # pylint: enable=unused-import
 
 import os
-import time
 
 import numpy as np
 import tensorflow as tf
@@ -24,8 +23,8 @@ from neuralmonkey.dataset import Dataset
 # pylint: disable=unused-import
 from neuralmonkey.runners.base_runner import FeedDict
 # pylint: enable=unused-import
-from neuralmonkey.runners.base_runner import (ExecutionResult,
-                                              reduce_execution_results)
+from neuralmonkey.runners.base_runner import BaseRunner, ExecutionResult
+from neuralmonkey.trainers.generic_trainer import GenericTrainer
 
 
 class TensorFlowManager:
@@ -217,7 +216,7 @@ class TensorFlowManager:
     # pylint: disable=too-many-locals
     def execute(self,
                 batch: Dataset,
-                runners: List[BaseRunner],
+                runners: Sequence[Union[BaseRunner, GenericTrainer]],
                 train: bool = False,
                 compute_losses: bool = True,
                 summaries: bool = True) -> List[ExecutionResult]:
@@ -245,10 +244,11 @@ class TensorFlowManager:
                                              num_sessions=len(self.sessions))
                        for runner in runners]
 
-        while not all(ex.result is not None for ex in executables):
-            self._run_executables(dataset, executables, train)
+        # TODO refactor runner results to properties
+        while not all(getattr(ex, "result") is not None for ex in executables):
+            self._run_executables(batch, executables, train)
 
-        return [ex.result for ex in executables]
+        return [getattr(ex, "result") for ex in executables]
 
     def save(self, variable_files: Union[str, List[str]]) -> None:
         if isinstance(variable_files, str) and len(self.sessions) == 1:

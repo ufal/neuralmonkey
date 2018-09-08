@@ -3,11 +3,10 @@
 
 # pylint: disable=unused-import
 from typing import (Any, Callable, Dict, List, Tuple, Optional, Union,
-                    Iterable, Set)
+                    Iterable, Iterator, Set)
 # pylint: enable=unused-import
 
 import time
-import collections
 import re
 from datetime import timedelta
 import numpy as np
@@ -16,11 +15,11 @@ from termcolor import colored
 from typeguard import check_argument_types
 
 from neuralmonkey.logging import log, log_print, warn, notice
-from neuralmonkey.dataset import Dataset, LazyDataset
+from neuralmonkey.dataset import Dataset
 from neuralmonkey.tf_manager import TensorFlowManager
-from neuralmonkey.runners.base_runner import BaseRunner, ExecutionResult
+from neuralmonkey.runners.base_runner import (
+    BaseRunner, ExecutionResult, reduce_execution_results)
 from neuralmonkey.trainers.generic_trainer import GenericTrainer
-from neuralmonkey.util import match_type
 
 # pylint: disable=invalid-name
 Evaluation = Dict[str, float]
@@ -159,34 +158,31 @@ def training_loop(tf_manager: TensorFlowManager,
             log_print("")
             log("Epoch {} begins".format(epoch_n), color="red")
 
-            train_dataset.shuffle()
-            train_batched_datasets = train_dataset.batch_dataset(batch_size)
+            train_batches = train_dataset.batches(batch_size)
 
             if epoch_n == 1 and train_start_offset:
-                if not isinstance(train_dataset, LazyDataset):
-                    warn("Not skipping training instances with "
-                         "shuffled in-memory dataset")
+                if train_dataset.shuffled and not train_dataset.lazy:
+                    warn("Not skipping training instances with shuffled "
+                         "non-lazy dataset")
                 else:
-                    _skip_lines(train_start_offset, train_batched_datasets)
+                    _skip_lines(train_start_offset, train_batches)
 
-            for batch_n, batch_dataset in enumerate(train_batched_datasets):
+            for batch_n, batch in enumerate(train_batches):
                 step += 1
-                seen_instances += len(batch_dataset)
+                seen_instances += len(batch)
                 if _is_logging_time(step, log_period_batch,
                                     last_log_time, log_period_time):
                     trainer_result = tf_manager.execute(
-                        batch_dataset, [trainer], train=True,
-                        summaries=True)
+                        batch, [trainer], train=True, summaries=True)
                     train_results, train_outputs = run_on_dataset(
-                        tf_manager, runners, batch_dataset,
-                        postprocess, write_out=False,
-                        batch_size=runners_batch_size)
+                        tf_manager, runners, batch, postprocess,
+                        write_out=False, batch_size=len(batch))
                     # ensure train outputs are iterable more than once
-                    train_outputs = {k: list(v) for k, v
-                                     in train_outputs.items()}
+                    train_outputs = {
+                        k: list(v) for k, v in train_outputs.items()}
                     train_evaluation = evaluation(
-                        evaluators, batch_dataset, runners,
-                        train_results, train_outputs)
+                        evaluators, batch, runners, train_results,
+                        train_outputs)
 
                     _log_continuous_evaluation(
                         tb_writer, main_metric, train_evaluation,
@@ -194,7 +190,7 @@ def training_loop(tf_manager: TensorFlowManager,
                         train=True)
                     last_log_time = time.process_time()
                 else:
-                    tf_manager.execute(batch_dataset, [trainer],
+                    tf_manager.execute(batch, [trainer],
                                        train=True, summaries=False)
 
                 if _is_logging_time(step, val_period_batch,
@@ -366,25 +362,6 @@ def _check_series_collisions(runners: List[BaseRunner],
                 runners_outputs.add(series)
 
 
-def _check_savable_dict(data: Any) -> bool:
-    """Check if the data is of savable type.
-
-    Arguments:
-        data: Variable that holds some results.
-
-    Returns:
-        Boolean that says whether the saving of this type is implemented.
-    """
-    if not (data and data[0]):
-        return False
-
-    supported_type = Union[
-        List[Dict[str, np.ndarray]],
-        List[List[Dict[str, np.ndarray]]]]
-
-    return match_type(data, supported_type)
-
-
 def run_on_dataset(tf_manager: TensorFlowManager,
                    runners: List[BaseRunner],
                    dataset: Dataset,
@@ -437,7 +414,7 @@ def run_on_dataset(tf_manager: TensorFlowManager,
             script_list.append(ex_result)
 
     # Transpose runner interim results.
-    all_results = [recude_execution_results(res) for res in batch_results]
+    all_results = [reduce_execution_results(res) for res in batch_results]
 
     # Convert execution results to dictionary.
     result_data = {runner.output_series: result.outputs
@@ -460,38 +437,27 @@ def run_on_dataset(tf_manager: TensorFlowManager,
                                              len(data), len(dataset)))
 
     if write_out:
-        for series_id, data in result_data.items():
-            if series_id in dataset.series_outputs:
-                path = dataset.series_outputs[series_id]
-                if isinstance(data, np.ndarray):
-                    np.save(path, data)
-                    log("Result saved as numpy array to '{}'".format(path))
-                elif _check_savable_dict(data):
-                    unbatched = dict(
-                        zip(data[0], zip(*[d.values() for d in data])))
-
-                    np.savez(path, **unbatched)
-                    log("Result saved as numpy data to '{}.npz'".format(path))
+        if dataset.outputs is None:
+            log("Dataset does not have any outputs, nothing to write out.",
+                color="red")
+        else:
+            for series_id, data in result_data.items():
+                if series_id in dataset.outputs:
+                    path, writer = dataset.outputs[series_id]
+                    writer(path, data)
                 else:
-                    with open(path, "w", encoding="utf-8") as f_out:
-                        f_out.writelines(
-                            [" ".join(sent) + "\n"
-                             if isinstance(sent, collections.Iterable)
-                             else str(sent) + "\n" for sent in data])
-                    log("Result saved as plain text '{}'".format(path))
-            else:
-                log("There is no output file for dataset: {}"
-                    .format(dataset.name), color="red")
+                    log("There is no output file for dataset: {}"
+                        .format(dataset.name), color="red")
 
     return all_results, result_data
 
 
-def evaluation(evaluators, dataset, runners, execution_results, result_data):
+def evaluation(evaluators, batch, runners, execution_results, result_data):
     """Evaluate the model outputs.
 
     Args:
         evaluators: List of tuples of series and evaluation functions.
-        dataset: Dataset against which the evaluation is done.
+        batch: Batch of data against which the evaluation is done.
         runners: List of runners (contains series ids and loss names).
         execution_results: Execution results that include the loss values.
         result_data: Dictionary from series names to list of outputs.
@@ -508,14 +474,14 @@ def evaluation(evaluators, dataset, runners, execution_results, result_data):
             eval_result["{}/{}".format(runner.output_series, name)] = value
 
     # evaluation metrics
-    for generated_id, dataset_id, function in evaluators:
-        if (not dataset.has_series(dataset_id)
-                or generated_id not in result_data):
+    for hypothesis_id, reference_id, function in evaluators:
+        if (not batch.has_series(reference_id)
+                or hypothesis_id not in result_data):
             continue
 
-        desired_output = dataset.get_series(dataset_id)
-        model_output = result_data[generated_id]
-        eval_result["{}/{}".format(generated_id, function.name)] = function(
+        desired_output = batch.get_series(reference_id)
+        model_output = result_data[hypothesis_id]
+        eval_result["{}/{}".format(hypothesis_id, function.name)] = function(
             model_output, desired_output)
 
     return eval_result
@@ -625,8 +591,8 @@ def _print_examples(dataset: Dataset,
     """
     log_print(colored("Examples:", attrs=["bold"]))
 
-    source_series_names = [s for s in dataset.series_ids if s not in outputs]
-    target_series_names = [s for s in dataset.series_ids if s in outputs]
+    source_series_names = [s for s in dataset.series if s not in outputs]
+    target_series_names = [s for s in dataset.series if s in outputs]
     output_series_names = list(outputs.keys())
 
     assert outputs
@@ -648,7 +614,7 @@ def _print_examples(dataset: Dataset,
     source_series = {series_id: list(dataset.get_series(series_id))
                      for series_id in source_series_names}
 
-    if not isinstance(dataset, LazyDataset):
+    if not dataset.lazy:
         num_examples = min(len(dataset), num_examples)
 
     for i in range(num_examples):
@@ -681,19 +647,19 @@ def _print_examples(dataset: Dataset,
 
 
 def _skip_lines(start_offset: int,
-                batched_datasets: Iterable[Dataset]) -> None:
+                batches: Iterator[Dataset]) -> None:
     """Skip training instances from the beginning.
 
     Arguments:
         start_offset: How many training instances to skip (minimum)
-        batched_datasets: From where to throw away batches
+        batches: Iterator over batches to skip
     """
     log("Skipping first {} instances in the dataset".format(start_offset))
 
     skipped_instances = 0
     while skipped_instances < start_offset:
         try:
-            skipped_instances += len(next(batched_datasets))  # type: ignore
+            skipped_instances += len(next(batches))  # type: ignore
         except StopIteration:
             raise ValueError("Trying to skip more instances than "
                              "the size of the dataset")

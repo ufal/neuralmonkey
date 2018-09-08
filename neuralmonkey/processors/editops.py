@@ -1,4 +1,4 @@
-from typing import Any, Callable, Dict, Iterable, List
+from typing import Any, Callable, Dict, Iterable, Iterator, List
 
 import numpy as np
 
@@ -13,7 +13,7 @@ class Preprocess:
         self._source_id = source_id
         self._target_id = target_id
 
-    def __call__(self, dataset: Dataset) -> Iterable[List[str]]:
+    def __call__(self, dataset: Dataset) -> Iterator[List[str]]:
         source_series = dataset.get_series(self._source_id)
         target_series = dataset.get_series(self._target_id)
 
@@ -40,7 +40,7 @@ class Postprocess:
 
     def _do_postprocess(
             self, dataset: Dataset,
-            generated_series: Dict[str, Iterable[Any]]) -> Iterable[List[str]]:
+            generated_series: Dict[str, Iterable[Any]]) -> Iterator[List[str]]:
 
         source_series = generated_series.get(self._source_id)
         if source_series is None:

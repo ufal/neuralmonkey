@@ -18,7 +18,7 @@ import numpy as np
 from typeguard import check_argument_types
 
 from neuralmonkey.logging import log, warn
-from neuralmonkey.dataset import Dataset, LazyDataset
+from neuralmonkey.dataset import Dataset
 
 PAD_TOKEN = "<pad>"
 START_TOKEN = "<s>"
@@ -207,7 +207,7 @@ def from_dataset(datasets: List[Dataset], series_ids: List[str], max_size: int,
     vocabulary.correct_counts = True
 
     for dataset in datasets:
-        if isinstance(dataset, LazyDataset):
+        if dataset.lazy:
             warn("Inferring vocabulary from lazy dataset!")
 
         for series_id in series_ids:
