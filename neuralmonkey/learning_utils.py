@@ -436,18 +436,17 @@ def run_on_dataset(tf_manager: TensorFlowManager,
                  "len(dataset) == {}".format(series_id, dataset.name,
                                              len(data), len(dataset)))
 
-    if write_out:
-        if dataset.outputs is None:
-            log("Dataset does not have any outputs, nothing to write out.",
-                color="red")
-        else:
-            for series_id, data in result_data.items():
-                if series_id in dataset.outputs:
-                    path, writer = dataset.outputs[series_id]
-                    writer(path, data)
-                else:
-                    log("There is no output file for dataset: {}"
-                        .format(dataset.name), color="red")
+    if write_out and dataset.outputs is not None:
+        for series_id, data in result_data.items():
+            if series_id in dataset.outputs:
+                path, writer = dataset.outputs[series_id]
+                writer(path, data)
+            else:
+                log("There is no file for output series '{}' in dataset: '{}'"
+                    .format(series_id, dataset.name), color="red")
+    elif write_out:
+        log("Dataset does not have any outputs, nothing to write out.",
+            color="red")
 
     return all_results, result_data
 

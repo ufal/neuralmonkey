@@ -17,7 +17,8 @@ from neuralmonkey.config.parsing import get_first_match
 from neuralmonkey.logging import debug, log, warn
 from neuralmonkey.readers.plain_text_reader import UtfPlainTextReader
 from neuralmonkey.util import match_type
-from neuralmonkey.writers.plain_text_writer import Writer, UtfPlainTextWriter
+from neuralmonkey.writers.auto import AutoWriter
+from neuralmonkey.writers.plain_text_writer import Writer
 
 # pylint: disable=invalid-name
 DataType = TypeVar("DataType")
@@ -37,7 +38,7 @@ SeriesConfig = Dict[str, Union[ReaderDef, DatasetPreprocess]]
 
 # SourceSpec: either a ReaderDef, series and preprocessor, or a dataset-level
 # preprocessor
-SourceSpec = Union[ReaderDef, Tuple[str, Callable], DatasetPreprocess]
+SourceSpec = Union[ReaderDef, Tuple[Callable, str], DatasetPreprocess]
 
 # OutputSpec: Tuple of series name, path, and optionally a writer
 OutputSpec = Union[Tuple[str, str], Tuple[str, str, Writer]]
@@ -61,7 +62,7 @@ def _normalize_readerdef(reader_def: ReaderDef) -> Tuple[List[str], Reader]:
 
 def _normalize_outputspec(output_spec: OutputSpec) -> Tuple[str, str, Writer]:
     if len(output_spec) == 2:
-        return output_spec[0], output_spec[1], UtfPlainTextWriter
+        return output_spec[0], output_spec[1], AutoWriter
     return cast(Tuple[str, str, Writer], output_spec)
 
 
@@ -198,7 +199,7 @@ def load_dataset_from_files(
     if preprocessors:
         for src, tgt, fun in preprocessors:
             series.append(tgt)
-            sources.append((src, fun))
+            sources.append((fun, src))
 
     # Dataset-level preprocessors
     keys = [key for key in kwargs if PREPROCESSED_SERIES.match(key)]
@@ -280,6 +281,21 @@ def load(name: str,
     prep_sl = {}  # type: Dict[str, Tuple[str, Callable]]
     prep_dl = {}  # type: Dict[str, DatasetPreprocess]
 
+    def _make_iterator(reader, files):
+        def itergen():
+            return reader(files)
+        return itergen
+
+    def _make_sl_iterator(src, prep):
+        def itergen():
+            return (prep(item) for item in iterators[src]())
+        return itergen
+
+    def _make_dl_iterator(func):
+        def itergen():
+            return func(iterators)
+        return itergen
+
     # First, prepare iterators for series using file readers
     for s_name, source_spec in zip(series, sources):
         if match_type(source_spec, ReaderDef):  # type: ignore
@@ -290,10 +306,10 @@ def load(name: str,
                         "File not found. Series: {}, Path: {}"
                         .format(s_name, path))
 
-            iterators[s_name] = lambda r=reader, f=files: r(f)  # type: ignore
+            iterators[s_name] = _make_iterator(reader, files)
 
-        elif match_type(source_spec, Tuple[str, Callable]):
-            prep_sl[s_name] = cast(Tuple[str, Callable], source_spec)
+        elif match_type(source_spec, Tuple[Callable, str]):
+            prep_sl[s_name] = cast(Tuple[Callable, str], source_spec)
 
         else:
             assert match_type(source_spec, DatasetPreprocess)  # type: ignore
@@ -302,18 +318,16 @@ def load(name: str,
     # Second, prepare series-level preprocessors.
     # Note that series-level preprocessors cannot be stacked on the dataset
     # specification level.
-    for s_name, (source, preprocessor) in prep_sl.items():
+    for s_name, (preprocessor, source) in prep_sl.items():
         if source not in iterators:
             raise ValueError(
                 "Source series for series-level preprocessor nonexistent: "
                 "Preprocessed series '{}', source series '{}'")
-        iterators[s_name] = (
-            lambda src=source, prep=preprocessor: (  # type: ignore
-                prep(item) for item in iterators[src]()))
+        iterators[s_name] = _make_sl_iterator(source, preprocessor)
 
     # Finally, dataset-level preprocessors.
     for s_name, func in prep_dl.items():
-        iterators[s_name] = lambda fn=func: fn(iterators)  # type: ignore
+        iterators[s_name] = _make_dl_iterator(func)
 
     output_dict = None
     if outputs is not None:
@@ -471,13 +485,18 @@ class Dataset:
         if self.shuffled:
             random.shuffle(buf)  # type: ignore
 
+        def _make_datagen(rows, key):
+            def itergen():
+                return (row[key] for row in rows)
+            return itergen
+
         # Iterate over the rest of the data until buffer is empty
         batch_index = 0
         while buf:
             # Create the batch
             name = "{}.batch.{}".format(self.name, batch_index)
             rows = [buf.popleft() for _ in range(batch_size) if buf]
-            data = {key: lambda: (row[key] for row in rows) for key in rows[0]}
+            data = {key: _make_datagen(rows, key) for key in rows[0]}
 
             yield Dataset(name=name, iterators=data)
             batch_index += 1

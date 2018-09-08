@@ -1,4 +1,4 @@
-from typing import TypeVar, Iterator, List, Any, Callable
+from typing import Iterator, List, Any, Callable
 
 from neuralmonkey.logging import log
 
@@ -14,6 +14,8 @@ def tokenized_text_writer(encoding: str = "utf-8") -> Writer:
         with open(path, "w", encoding=encoding) as f_out:
             for sentence in data:
                 f_out.write(" ".join(sentence) + "\n")
+
+        import pudb;pu.db
         log("Result saved as tokenized text in '{}'".format(path))
 
     return writer

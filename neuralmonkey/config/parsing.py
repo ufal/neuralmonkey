@@ -132,8 +132,8 @@ def _parse_list(string: str, vars_dict: VarsDict) -> List[Any]:
     values = [_parse_value(val, vars_dict) for val in items]
     types = [type(val) for val in values]
 
-    if len(set(types)) > 1:
-        raise ParseError("List must of a same type, is: {}".format(types))
+    # if len(set(types)) > 1:
+    #     raise ParseError("List must of a same type, is: {}".format(types))
 
     return values
 
