@@ -583,6 +583,11 @@ class Dataset:
                 return (row[key] for row in rows)
             return itergen
 
+        def _make_datagen(rows, key):
+            def itergen():
+                return (row[key] for row in rows)
+            return itergen
+
         # Iterate over the rest of the data until buffer is empty
         batch_index = 0
         buckets = [[]]  # type: List[List[DataExample]]
