@@ -8,7 +8,6 @@ constructing the computational graph.
 from typing import List, Optional, Iterable
 
 import tensorflow as tf
-from typeguard import check_type
 
 from neuralmonkey.logging import log, debug
 from neuralmonkey.dataset import Dataset
@@ -17,14 +16,6 @@ from neuralmonkey.runners.base_runner import BaseRunner
 
 class CheckingException(Exception):
     pass
-
-
-def match_type(value: Any, type_: Type) -> bool:
-    try:
-        check_type("value", value, type_, None)  # type: ignore
-    except TypeError:
-        return False
-    return True
 
 
 def check_dataset_and_coders(dataset: Dataset,

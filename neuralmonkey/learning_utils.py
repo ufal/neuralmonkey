@@ -20,7 +20,7 @@ from neuralmonkey.dataset import Dataset, LazyDataset
 from neuralmonkey.tf_manager import TensorFlowManager
 from neuralmonkey.runners.base_runner import BaseRunner, ExecutionResult
 from neuralmonkey.trainers.generic_trainer import GenericTrainer
-from neuralmonkey.checking import match_type
+from neuralmonkey.util import match_type
 
 # pylint: disable=invalid-name
 Evaluation = Dict[str, float]
