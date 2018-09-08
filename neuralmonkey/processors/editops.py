@@ -13,8 +13,9 @@ class Preprocess:
         self._source_id = source_id
         self._target_id = target_id
 
-    def __call__(self,
-                 iterators: Dict[str, Callable[[], Iterator[List[str]]]]
+    def __call__(
+            self,
+            iterators: Dict[str, Callable[[], Iterator[List[str]]]]
     ) -> Iterator[List[str]]:
         source_series = iterators[self._source_id]()
         target_series = iterators[self._target_id]()

@@ -53,7 +53,8 @@ class TestDataset(unittest.TestCase):
                 s_data=[os.path.join(tmp_dir, "abc?"),
                         os.path.join(tmp_dir, "xyz*")])
 
-            self.assertEqual(dataset.get_series("data"), [["a"], ["b"], ["d"]])
+            series_iterator = dataset.get_series("data")
+            self.assertEqual(list(series_iterator), [["a"], ["b"], ["d"]])
 
 
 if __name__ == "__main__":

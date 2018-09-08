@@ -68,8 +68,20 @@ def _normalize_outputspec(output_spec: OutputSpec) -> Tuple[str, str, Writer]:
 
 def _normalize_filedef(file_def: FileDef) -> List[str]:
     if isinstance(file_def, str):
-        return [file_def]
-    return file_def
+        return _expand_patterns_flat([file_def])
+    return _expand_patterns_flat(file_def)
+
+
+def _expand_patterns_flat(patterns: List[str]) -> List[str]:
+    paths = []
+    for pattern in patterns:
+        matched_files = sorted(glob.glob(pattern))
+        if not matched_files:
+            raise FileNotFoundError(
+                "Pattern did not match any files: {}".format(pattern))
+        paths.extend(matched_files)
+
+    return paths
 
 
 def _get_series_paths_and_readers(
@@ -108,15 +120,7 @@ def _get_series_paths_and_readers(
         if isinstance(patterns, str):
             patterns = [patterns]
 
-        paths = []
-        for pattern in patterns:
-            matched_files = sorted(glob.glob(pattern))
-            if not matched_files:
-                raise FileNotFoundError(
-                    "Pattern did not match any files. Series: {}, Pattern: {}"
-                    .format(name, pattern))
-            paths.extend(matched_files)
-
+        paths = _expand_patterns_flat(patterns)
         debug("Series '{}' has the following files: {}".format(name, paths))
 
         series_sources[name] = (paths, reader)
@@ -147,7 +151,7 @@ def _get_series_outputs(series_config: SeriesConfig) -> List[OutputSpec]:
                     "Output path for '{}' series must be a string, was {}.".
                     format(name, type(value)))
             outputs[name] = cast(str, value)
-    return [(key, val, UtfPlainTextWriter) for key, val in outputs.items()]
+    return [(key, val, AutoWriter) for key, val in outputs.items()]
 
 
 # pylint: disable=too-many-locals
@@ -278,7 +282,7 @@ def load(name: str,
 
     iterators = {}  # type: Dict[str, Callable[[], DataSeries]]
 
-    prep_sl = {}  # type: Dict[str, Tuple[str, Callable]]
+    prep_sl = {}  # type: Dict[str, Tuple[Callable, str]]
     prep_dl = {}  # type: Dict[str, DatasetPreprocess]
 
     def _make_iterator(reader, files):

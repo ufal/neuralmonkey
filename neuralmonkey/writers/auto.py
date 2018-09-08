@@ -1,4 +1,5 @@
 from typing import Any, List, Dict, Union
+import collections
 import numpy as np
 
 from neuralmonkey.util import match_type
