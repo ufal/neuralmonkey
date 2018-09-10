@@ -5,17 +5,14 @@ def preprocess_char_based(sentence: List[str]) -> List[str]:
     return list(" ".join(sentence))
 
 
-def preprocess_add_noise(sentences: List[List[str]]) -> List[List[str]]:
-    noised=[]
-    for sentence in sentences:
-        sentence = sentence[:]
-        length = len(sentence)
-        if(length > 1):
-            for i in range(length//2):
-                swap = randint(0, length-2)
-                sentence[swap], sentence[swap+1] = sentence[swap+1], sentence[swap]
-        noised.append(sentence)
-    return noised
+def preprocess_add_noise(sentence: List[str]) -> List[str]:
+    sent = sentence[:]
+    length = len(sentence)
+    if(length > 1):
+        for i in range(length//2):
+            swap = randint(0, length-2)
+            sent[swap], sent[swap+1] = sent[swap+1], sent[swap]
+    return sent
 
 # TODO refactor post-processors to work on sentence level
 def postprocess_char_based(sentences: List[List[str]]) -> List[List[str]]:
