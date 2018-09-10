@@ -560,10 +560,12 @@ def print_final_evaluation(name: str, eval_result: Evaluation) -> None:
 
 def _data_item_to_str(item: Any) -> str:
     if isinstance(item, list):
-        return " ".join([str(i) for i in item])
+        return " ".join([_data_item_to_str(i) for i in item])
 
-    if isinstance(item, str):
-        return item
+    if isinstance(item, dict):
+        return "{\n      " + "\n      ".join(
+            ["{}: {}".format(_data_item_to_str(key), _data_item_to_str(val))
+             for key, val in item.items()]) + "\n    }"
 
     if isinstance(item, np.ndarray) and len(item.shape) > 1:
         return "[numpy tensor, shape {}]".format(item.shape)
