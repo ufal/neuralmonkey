@@ -186,7 +186,7 @@ def training_loop(tf_manager: TensorFlowManager,
                     for trainer in trainers:
                         trainer_result = tf_manager.execute(
                             batch_dataset, [trainer], train=True,
-                            summaries=True)
+                            summaries=False)
                     train_results, train_outputs = run_on_dataset(
                         tf_manager, runners, batch_dataset,
                         postprocess, write_out=False,

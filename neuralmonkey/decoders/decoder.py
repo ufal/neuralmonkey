@@ -101,6 +101,8 @@ class Decoder(AutoregressiveDecoder):
                  rnn_cell: str = "GRU",
                  conditional_gru: bool = False,
                  supress_unk: bool = False,
+                 always_runtime: bool = False,
+                 reuse: bool = False,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None,
                  initializers: InitializerSpecs = None) -> None:
@@ -134,7 +136,7 @@ class Decoder(AutoregressiveDecoder):
             supress_unk: If true, decoder will not produce symbols for unknown
                 tokens.
         """
-        check_argument_types()
+        ###
         AutoregressiveDecoder.__init__(
             self,
             name=name,
@@ -147,6 +149,8 @@ class Decoder(AutoregressiveDecoder):
             tie_embeddings=tie_embeddings,
             label_smoothing=label_smoothing,
             supress_unk=supress_unk,
+            always_runtime=always_runtime,
+            reuse=reuse,
             save_checkpoint=save_checkpoint,
             load_checkpoint=load_checkpoint,
             initializers=initializers)

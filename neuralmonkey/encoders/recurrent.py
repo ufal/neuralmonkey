@@ -130,6 +130,7 @@ class RecurrentEncoder(ModelPart, TemporalStatefulWithOutput):
                  rnn_direction: str = "bidirectional",
                  add_residual: bool = False,
                  dropout_keep_prob: float = 1.0,
+                 reuse: bool = False,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None,
                  initializers: InitializerSpecs = None) -> None:
@@ -150,8 +151,8 @@ class RecurrentEncoder(ModelPart, TemporalStatefulWithOutput):
             save_checkpoint: ModelPart save checkpoint file.
             load_checkpoint: ModelPart load checkpoint file.
         """
-        check_argument_types()
-        ModelPart.__init__(self, name, save_checkpoint, load_checkpoint,
+        ###
+        ModelPart.__init__(self, name, reuse, save_checkpoint, load_checkpoint,
                            initializers)
         TemporalStatefulWithOutput.__init__(self)
 
@@ -243,7 +244,7 @@ class SentenceEncoder(RecurrentEncoder):
             save_checkpoint: ModelPart save checkpoint file.
             load_checkpoint: ModelPart load checkpoint file.
         """
-        check_argument_types()
+        ###
         s_ckp = "input_{}".format(save_checkpoint) if save_checkpoint else None
         l_ckp = "input_{}".format(load_checkpoint) if load_checkpoint else None
         input_initializers = []
@@ -321,7 +322,7 @@ class FactoredEncoder(RecurrentEncoder):
             save_checkpoint: ModelPart save checkpoint file.
             load_checkpoint: ModelPart load checkpoint file.
         """
-        check_argument_types()
+        ###
         s_ckp = "input_{}".format(save_checkpoint) if save_checkpoint else None
         l_ckp = "input_{}".format(load_checkpoint) if load_checkpoint else None
 
@@ -392,7 +393,7 @@ class DeepSentenceEncoder(SentenceEncoder):
             save_checkpoint: ModelPart save checkpoint file.
             load_checkpoint: ModelPart load checkpoint file.
         """
-        check_argument_types()
+        ###
 
         if len(rnn_sizes) != len(rnn_directions):
             raise ValueError("Different number of rnn sizes and directions.")

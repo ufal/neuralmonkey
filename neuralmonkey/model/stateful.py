@@ -100,3 +100,23 @@ class TemporalStatefulWithOutput(Stateful, TemporalStateful):
 
 class SpatialStatefulWithOutput(Stateful, SpatialStateful):
     pass
+
+
+
+# TODO ugly HACK
+
+class HackyTemporalStateful(TemporalStateful):
+    def __init__(self, decoder, embeddings_source):
+        self.decoder = decoder
+
+        self.states = tf.nn.embedding_lookup(
+            embeddings_source.embedding_matrices[0],
+            tf.transpose(self.decoder.decoded))
+
+    @property
+    def temporal_states(self) -> tf.Tensor:
+        return self.states
+
+    @property
+    def temporal_mask(self) -> tf.Tensor:
+        return tf.to_float(tf.transpose(self.decoder.runtime_mask))

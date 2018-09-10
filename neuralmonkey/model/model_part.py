@@ -8,6 +8,8 @@ import tensorflow as tf
 
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.logging import log
+from neuralmonkey.model.stateful import HackyTemporalStateful
+from neuralmonkey.model.gradient_blocking import TemporalStatefulView
 from neuralmonkey import tf_utils
 
 # pylint: disable=invalid-name
@@ -21,6 +23,7 @@ class ModelPart(metaclass=ABCMeta):
 
     def __init__(self,
                  name: str,
+                 reuse: bool = False,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None,
                  initializers: InitializerSpecs = None) -> None:
@@ -40,6 +43,9 @@ class ModelPart(metaclass=ABCMeta):
         with self.use_scope():
             self.train_mode = tf.placeholder(tf.bool, [], "train_mode")
             self.batch_size = tf.placeholder(tf.int32, [], "batch_size")
+
+        if reuse:
+            self._variable_scope.reuse_variables()
 
     @property
     def name(self) -> str:
@@ -84,6 +90,9 @@ class ModelPart(metaclass=ABCMeta):
             inpseq = getattr(self, "input_sequence")
             if isinstance(inpseq, ModelPart):
                 to_return = to_return.union(inpseq.get_dependencies())
+            elif isinstance(inpseq, TemporalStatefulView):
+                to_return = to_return.union(
+                    inpseq._blocked_object.decoder.get_dependencies())
 
         if hasattr(self, "parent_decoder"):
             dec = getattr(self, "parent_decoder")

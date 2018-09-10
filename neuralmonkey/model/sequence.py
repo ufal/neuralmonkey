@@ -30,6 +30,7 @@ class Sequence(ModelPart, TemporalStateful):
     def __init__(self,
                  name: str,
                  max_length: int = None,
+                 reuse: bool = False,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None,
                  initializers: InitializerSpecs = None) -> None:
@@ -41,7 +42,7 @@ class Sequence(ModelPart, TemporalStateful):
             save_checkpoint: The save_checkpoint parameter for `ModelPart`
             load_checkpoint: The load_checkpoint parameter for `ModelPart`
         """
-        ModelPart.__init__(self, name, save_checkpoint, load_checkpoint,
+        ModelPart.__init__(self, name, reuse, save_checkpoint, load_checkpoint,
                            initializers)
 
         self.max_length = max_length
@@ -64,6 +65,8 @@ class EmbeddedFactorSequence(Sequence):
                  add_end_symbol: bool = False,
                  scale_embeddings_by_depth: bool = False,
                  embeddings_source: "EmbeddedFactorSequence" = None,
+                 fix_embeddings: bool = False,
+                 reuse: bool = False,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None,
                  initializers: InitializerSpecs = None) -> None:
@@ -90,9 +93,9 @@ class EmbeddedFactorSequence(Sequence):
             save_checkpoint: The save_checkpoint parameter for `ModelPart`
             load_checkpoint: The load_checkpoint parameter for `ModelPart`
         """
-        check_argument_types()
+        ###
         Sequence.__init__(
-            self, name, max_length, save_checkpoint, load_checkpoint,
+            self, name, max_length, reuse, save_checkpoint, load_checkpoint,
             initializers)
 
         self.vocabularies = vocabularies
@@ -103,6 +106,7 @@ class EmbeddedFactorSequence(Sequence):
         self.add_end_symbol = add_end_symbol
         self.scale_embeddings_by_depth = scale_embeddings_by_depth
         self.embeddings_source = embeddings_source
+        self.fix_embeddings = fix_embeddings
 
         if not (len(self.data_ids)
                 == len(self.vocabularies)
@@ -168,12 +172,17 @@ class EmbeddedFactorSequence(Sequence):
         if self.embeddings_source is not None:
             return self.embeddings_source.embedding_matrices
 
-        return [
+        matrices = [
             get_variable(
                 name="embedding_matrix_{}".format(i),
                 shape=[vocab_size, emb_size])
             for i, (data_id, vocab_size, emb_size) in enumerate(zip(
                 self.data_ids, self.vocabulary_sizes, self.embedding_sizes))]
+
+        if self.fix_embeddings:
+            return [tf.stop_gradient(m) for m in matrices]
+
+        return matrices
 
     @tensor
     def temporal_states(self) -> tf.Tensor:
@@ -258,6 +267,8 @@ class EmbeddedSequence(EmbeddedFactorSequence):
                  add_end_symbol: bool = False,
                  scale_embeddings_by_depth: bool = False,
                  embeddings_source: "EmbeddedSequence" = None,
+                 fix_embeddings: bool = False,
+                 reuse: bool = False,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None,
                  initializers: InitializerSpecs = None) -> None:
@@ -290,6 +301,8 @@ class EmbeddedSequence(EmbeddedFactorSequence):
             add_end_symbol=add_end_symbol,
             scale_embeddings_by_depth=scale_embeddings_by_depth,
             embeddings_source=embeddings_source,
+            fix_embeddings=fix_embeddings,
+            reuse=reuse,
             save_checkpoint=save_checkpoint,
             load_checkpoint=load_checkpoint,
             initializers=initializers)
