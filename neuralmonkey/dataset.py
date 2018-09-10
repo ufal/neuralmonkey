@@ -408,7 +408,10 @@ class Dataset:
         """Get the length of the dataset.
 
         Returns:
-            The length of the dataset. If the dataset is lazy, returns None.
+            The length of the dataset.
+
+        Raises:
+            `NotImplementedError` when the dataset is lazy.
         """
         if self.lazy:
             raise NotImplementedError("Querying the len of a lazy dataset.")
@@ -437,7 +440,7 @@ class Dataset:
             name: The name of the series to fetch.
 
         Returns:
-            The data series.
+            A freshly initialized iterator over the data series.
 
         Raises:
             KeyError if the series does not exists.
