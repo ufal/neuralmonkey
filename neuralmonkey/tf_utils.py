@@ -210,11 +210,11 @@ def layer_norm(x: tf.Tensor, epsilon: float = 1e-6) -> tf.Tensor:
             dtype=tf.float32,
             initializer=tf.zeros_initializer())
 
-        mean = tf.reduce_mean(x, axis=[-1], keep_dims=True)
+        mean = tf.reduce_mean(x, axis=[-1], keepdims=True)
         variance = tf.reduce_mean(
             tf.square(x - mean),
             axis=[-1],
-            keep_dims=True)
+            keepdims=True)
         norm_x = (x - mean) * tf.rsqrt(variance + epsilon)
         return norm_x * gamma + beta
 

@@ -140,7 +140,7 @@ class Attention(BaseAttention):
             weights = tf.nn.softmax(energies)
         else:
             weights_all = tf.nn.softmax(energies) * self.attention_mask
-            norm = tf.reduce_sum(weights_all, 1, keep_dims=True) + 1e-8
+            norm = tf.reduce_sum(weights_all, 1, keepdims=True) + 1e-8
             weights = weights_all / norm
 
             # condition = tf.equal(self.attention_mask, 1)

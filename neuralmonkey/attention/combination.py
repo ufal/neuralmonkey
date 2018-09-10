@@ -291,7 +291,7 @@ class FlatMultiAttention(MultiAttention):
     def _renorm_softmax(self, logits):
         """Renormalized softmax wrt. attention mask."""
         softmax_concat = tf.nn.softmax(logits) * self.masks_concat
-        norm = tf.reduce_sum(softmax_concat, 1, keep_dims=True) + 1e-8
+        norm = tf.reduce_sum(softmax_concat, 1, keepdims=True) + 1e-8
         attentions = softmax_concat / norm
 
         return attentions
