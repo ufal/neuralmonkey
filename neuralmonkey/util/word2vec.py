@@ -5,7 +5,8 @@ from typing import Callable, List
 import numpy as np
 from typeguard import check_argument_types
 
-from neuralmonkey.vocabulary import Vocabulary, is_special_token, UNK_TOKEN
+from neuralmonkey.vocabulary import (
+    Vocabulary, is_special_token, SPECIAL_TOKENS)
 
 
 class Word2Vec:
@@ -17,8 +18,8 @@ class Word2Vec:
         # Create the vocabulary object, load the words and vectors from the
         # file
 
-        self.vocabulary = Vocabulary()
-        self.embedding_vectors = []  # type: List[np.ndarray]
+        self.vocab = Vocabulary()
+        embedding_vectors = []  # type: List[np.ndarray]
         emb_size = None
 
         with open(path, encoding=encoding) as f_data:
@@ -29,38 +30,40 @@ class Word2Vec:
                                      dtype=np.float)
 
                 if emb_size is None:
-                    emb_size = vector.shape[0]
+                    emb_size = int(fields[1])
 
                     # Add zero embeddings for padding, start, and end token
-                    self.embedding_vectors.append(np.zeros(emb_size))
-                    self.embedding_vectors.append(np.zeros(emb_size))
-                    self.embedding_vectors.append(np.zeros(emb_size))
+                    embedding_vectors.append(np.zeros(emb_size))
+                    embedding_vectors.append(np.zeros(emb_size))
+                    embedding_vectors.append(np.zeros(emb_size))
                     # Add placeholder for embedding of the unknown symbol
-                    self.embedding_vectors.append(None)
-                else:
-                    assert vector.shape[0] == emb_size
+                    embedding_vectors.append(None)
+                    continue
+
+                assert vector.shape[0] == emb_size
 
                 # Embedding of unknown token should be at index 3 to match the
                 # vocabulary implementation
                 if is_special_token(word):
-                    assert word == UNK_TOKEN
-                    self.embedding_vectors[3] = vector
+                    embedding_vectors[SPECIAL_TOKENS.index(word)] = vector
                 else:
-                    self.vocabulary.add_word(word)
-                    self.embedding_vectors.append(vector)
+                    self.vocab.add_word(word)
+                    embedding_vectors.append(vector)
 
-        assert self.embedding_vectors[3] is not None
+        assert embedding_vectors[3] is not None
         assert emb_size is not None
+
+        self.embedding_matrix = np.stack(embedding_vectors)
 
     @property
     def vocabulary(self) -> Vocabulary:
         """Get a vocabulary object generated from this word2vec instance."""
-        return self.vocabulary
+        return self.vocab
 
     @property
     def embeddings(self) -> np.ndarray:
         """Get the embedding matrix."""
-        return np.array(self.embedding_vectors)
+        return self.embedding_matrix
 
 
 def get_word2vec_initializer(w2v: Word2Vec) -> Callable:
@@ -70,9 +73,8 @@ def get_word2vec_initializer(w2v: Word2Vec) -> Callable:
     """
     check_argument_types()
 
-    def init(shape: List[int], _) -> np.ndarray:
-
-        if shape != w2v.embeddings.shape:
+    def init(shape: List[int], **kwargs) -> np.ndarray:
+        if shape != list(w2v.embeddings.shape):
             raise ValueError(
                 "Shapes of model and word2vec embeddings do not match. "
                 "Word2Vec shape: {}, Should have been: {}"
