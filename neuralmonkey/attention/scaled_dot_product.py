@@ -213,8 +213,11 @@ def attention(
         [context_shape[0], context_shape[2], queries_dim])
 
     if num_heads > 1:
+        # pylint: disable=redefined-variable-type
+        # This seems like a pylint bug
         context = tf.layers.dense(
             context, queries_dim, use_bias=use_bias, name="output_proj")
+        # pylint: enable=redefined-variable-type
 
     return context, weights
 # pylint: enable=too-many-locals
