@@ -60,7 +60,7 @@ class GenericTrainer:
         # Flatten the list of lists
         self.var_list = [var for var_list in var_lists for var in var_list]
 
-        with tf.name_scope("trainer"):
+        with tf.variable_scope("trainer", reuse=tf.AUTO_REUSE):
             step = tf.train.get_or_create_global_step()
 
             if optimizer:
