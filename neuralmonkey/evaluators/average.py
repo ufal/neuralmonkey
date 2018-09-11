@@ -2,6 +2,7 @@
 # This evaluator here is just an ugly hack to work with perplexity runner
 from neuralmonkey.evaluators.evaluator import Evaluator
 
+import numpy as np
 
 class AverageEvaluator(Evaluator[float]):
     """Just average the numeric output of a runner."""

@@ -294,6 +294,7 @@ class AutoregressiveDecoder(ModelPart):
             train_targets,
             tf.transpose(self.train_mask),
             average_across_batch=False,
+            average_across_timesteps=False,
             softmax_loss_function=softmax_function)
 
     @tensor
@@ -345,7 +346,8 @@ class AutoregressiveDecoder(ModelPart):
             logits=batch_major_logits[:, :min_time],
             targets=train_targets[:, :min_time],
             weights=tf.transpose(self.train_mask)[:, :min_time],
-            average_across_batch=False)
+            average_across_batch=False,
+            average_across_timesteps=False)
 
     @tensor
     def runtime_loss(self) -> tf.Tensor:
