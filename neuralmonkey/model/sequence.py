@@ -201,6 +201,7 @@ class EmbeddedFactorSequence(Sequence):
             emb_factor = emb_factor * tf.expand_dims(self.mask, -1)
             embedded_factors.append(emb_factor)
 
+        
         return tf.concat(embedded_factors, 2)
 
     @tensor

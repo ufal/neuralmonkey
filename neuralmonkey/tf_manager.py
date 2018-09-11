@@ -208,9 +208,12 @@ class TensorFlowManager:
         for fdict in feed_dicts:
             fdict.update(feed_dict)
 
-        session_results = [sess.run(all_tensors_to_execute,
+        try:
+            session_results = [sess.run(all_tensors_to_execute,
                                     feed_dict=fd)
                            for sess, fd in zip(self.sessions, feed_dicts)]
+        except Exception as e:
+            import pdb; pdb.set_trace()
 
         for executable in executables:
             if executable.result is None:
