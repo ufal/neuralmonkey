@@ -420,7 +420,7 @@ def run_on_dataset(tf_manager: TensorFlowManager,
     result_data = {runner.output_series: result.outputs
                    for runner, result in zip(runners, all_results)}
 
-    # Run dataset-level preprocessing.
+    # Run dataset-level postprocessing.
     if postprocess is not None:
         for series_name, postprocessor in postprocess:
             postprocessed = postprocessor(dataset, result_data)
