@@ -339,7 +339,12 @@ def load(name: str,
                        for s_name, path, writer
                        in [_normalize_outputspec(out) for out in outputs]}
 
-    return Dataset(name, iterators, output_dict, lazy, buffer_size, shuffled)
+    if not lazy:
+        return Dataset(name, iterators, output_dict, False, None, shuffled)
+
+    assert buffer_size is not None
+    return Dataset(name, iterators, output_dict, lazy,
+                   (buffer_size // 2, buffer_size), shuffled)
 # pylint: enable=too-many-locals,too-many-branches
 
 
@@ -362,7 +367,7 @@ class Dataset:
                  iterators: Dict[str, Callable[[], Iterator]],
                  outputs: Dict[str, Tuple[str, Writer]] = None,
                  lazy: bool = False,
-                 buffer_size: int = None,
+                 buffer_size: Tuple[int, int] = None,
                  shuffled: bool = False) -> None:
         """Construct a new instance of the dataset class.
 
@@ -377,14 +382,22 @@ class Dataset:
             iterators: A series-iterator generator mapping.
             lazy: If False, load the data from iterators to a list and store
                 the list in memory.
-            buffer_size: If lazy, use this buffer size for pre-loading data.
+            buffer_size: If lazy, use this tuple as a minimum and maximum
+                buffer size for pre-loading data. This should be (a few times)
+                larger than the batch size used for mini-batching. When the
+                buffer size gets under the lower threshold, it is refilled with
+                the new data and optionally reshuffled.
             shuffled: Whether to shuffle the buffer during batching.
         """
         self.name = name
         self.iterators = iterators
         self.outputs = outputs
         self.lazy = lazy
-        self.buffer_size = buffer_size
+
+        assert self.lazy == (buffer_size is not None)
+        if buffer_size is not None:
+            self.buffer_min_size, self.buffer_size = buffer_size
+
         self.shuffled = shuffled
         self.length = None
 
@@ -464,14 +477,16 @@ class Dataset:
         """Split the dataset into batches.
 
         Arguments:
-            batch_size: The size of a batch.
+            batch_size: The size of a batch. In case of lazy datasets, this
+                should be lower than the dataset buffer size. Otherwise, the
+                batch size will be equal to the size of the buffer.
 
         Returns:
             Generator yielding the batches.
         """
-        if self.buffer_size is not None and self.buffer_size < batch_size:
-            warn("Buffer size ({}) is lower than batch size ({})."
-                 .format(self.buffer_size, batch_size))
+        if self.lazy and self.buffer_min_size < batch_size:
+            warn("Minimum buffer size ({}) is lower than batch size ({})."
+                 .format(self.buffer_min_size, batch_size))
 
         # Initialize iterators
         iterators = {s: it() for s, it in self.iterators.items()}
@@ -481,16 +496,16 @@ class Dataset:
             dict(zip(iterators, row)) for row in zip(*iterators.values()))
 
         # Fill the buffer with initial values, shuffle optionally
-        if self.buffer_size is not None:
+        if self.lazy:
             # pylint: disable=stop-iteration-return
             # This is pylint issue https://github.com/PyCQA/pylint/issues/2158
-            buf = deque(next(zipped_iterator) for _ in range(self.buffer_size))
+            lbuf = list(next(zipped_iterator) for _ in range(self.buffer_size))
             # pylint: enable=stop-iteration-return
         else:
-            assert not self.lazy
-            buf = deque(zipped_iterator)
+            lbuf = list(zipped_iterator)
         if self.shuffled:
-            random.shuffle(buf)  # type: ignore
+            random.shuffle(lbuf)
+        buf = deque(lbuf)
 
         def _make_datagen(rows, key):
             def itergen():
@@ -510,9 +525,7 @@ class Dataset:
 
             # If lazy, refill buffer & shuffle if needed
             # Otherwise, all of the data is already loaded in the buffer.
-            if self.lazy:
-                assert self.buffer_size is not None
-
+            if self.lazy and len(buf) < self.buffer_min_size:
                 # In case buffer_size is lower than batch_size
                 to_add = self.buffer_size - len(buf)
                 # pylint: disable=stop-iteration-return
@@ -521,7 +534,9 @@ class Dataset:
                 # pylint: enable=stop-iteration-return
 
                 if self.shuffled:
-                    random.shuffle(buf)  # type: ignore
+                    lbuf = list(buf)
+                    random.shuffle(lbuf)
+                    buf = deque(lbuf)
 
     def subset(self, start: int, length: int) -> "Dataset":
         """Create a subset of the dataset.
