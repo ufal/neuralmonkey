@@ -197,13 +197,13 @@ def load_dataset_from_files(
     if not series_paths_and_readers:
         raise ValueError("No input files were provided.")
 
-    series, sources = [list(x) for x in zip(*series_paths_and_readers.items())]
+    series, data = [list(x) for x in zip(*series_paths_and_readers.items())]
 
     # Series-level preprocessors
     if preprocessors:
         for src, tgt, fun in preprocessors:
             series.append(tgt)
-            sources.append((fun, src))
+            data.append((fun, src))
 
     # Dataset-level preprocessors
     keys = [key for key in kwargs if PREPROCESSED_SERIES.match(key)]
@@ -212,10 +212,10 @@ def load_dataset_from_files(
         s_name = get_first_match(PREPROCESSED_SERIES, key)
         preprocessor = cast(DatasetPreprocess, kwargs[key])
         series.append(s_name)
-        sources.append(preprocessor)
+        data.append(preprocessor)
 
     buffer_size = None if not lazy else 1000
-    return load(name, series, sources, outputs, lazy, buffer_size, False)
+    return load(name, series, data, outputs, lazy, buffer_size, False)
 # pylint: enable=too-many-locals
 
 
@@ -226,7 +226,7 @@ def from_files(*args, **kwargs):
 # pylint: disable=too-many-locals,too-many-branches
 def load(name: str,
          series: List[str],
-         sources: List[SourceSpec],
+         data: List[SourceSpec],
          outputs: List[OutputSpec] = None,
          lazy: bool = False,
          buffer_size: int = None,
@@ -240,7 +240,7 @@ def load(name: str,
     Arguments:
         name: The name of the dataset.
         series: A list of names of data series the dataset contains.
-        sources: The specification of the data sources for each series.
+        data: The specification of the data sources for each series.
         outputs: A list of output specifications.
         lazy: Boolean flag specifying whether to use lazy loading (useful
             for large files). Note that the lazy dataset cannot be shuffled
@@ -256,13 +256,13 @@ def load(name: str,
     if not series:
         raise ValueError("No dataset series specified.")
 
-    if not [s for s in sources if match_type(s, ReaderDef)]:  # type: ignore
+    if not [s for s in data if match_type(s, ReaderDef)]:  # type: ignore
         raise ValueError("At least one data series should be from a file")
 
-    if len(series) != len(sources):
+    if len(series) != len(data):
         raise ValueError(
-            "The 'series' and 'sources' lists should have the same number"
-            " of elements.")
+            "The 'series' and 'data' lists should have the same number"
+            " of elements: {} vs {}.".format(len(series), len(data)))
 
     if lazy and buffer_size is None:
         raise ValueError("You must specify buffer size for lazy datasets.")
@@ -301,7 +301,7 @@ def load(name: str,
         return itergen
 
     # First, prepare iterators for series using file readers
-    for s_name, source_spec in zip(series, sources):
+    for s_name, source_spec in zip(series, data):
         if match_type(source_spec, ReaderDef):  # type: ignore
             files, reader = _normalize_readerdef(cast(ReaderDef, source_spec))
             for path in files:

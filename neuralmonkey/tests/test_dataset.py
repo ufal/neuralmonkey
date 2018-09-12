@@ -15,7 +15,7 @@ class TestDataset(unittest.TestCase):
         with self.assertRaises(FileNotFoundError):
             load(name="name",
                  series=["source"],
-                 sources=[(["some_nonexistent_file"], UtfPlainTextReader)],
+                 data=[(["some_nonexistent_file"], UtfPlainTextReader)],
                  lazy=True,
                  buffer_size=5)
 
@@ -38,7 +38,7 @@ class TestDataset(unittest.TestCase):
         dataset = load(
             name="data",
             series=["source", "source_prep"],
-            sources=[([], reader), (lambda x: x, "source")],
+            data=[([], reader), (lambda x: x, "source")],
             lazy=True,
             buffer_size=5)
 
@@ -82,8 +82,8 @@ class TestDataset(unittest.TestCase):
             dataset = load(
                 name="dataset",
                 series=["data"],
-                sources=[[os.path.join(tmp_dir, "abc?"),
-                          os.path.join(tmp_dir, "xyz*")]])
+                data=[[os.path.join(tmp_dir, "abc?"),
+                       os.path.join(tmp_dir, "xyz*")]])
 
             series_iterator = dataset.get_series("data")
             self.assertEqual(list(series_iterator), [["a"], ["b"], ["d"]])
