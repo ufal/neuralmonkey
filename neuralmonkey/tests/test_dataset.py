@@ -16,7 +16,6 @@ class TestDataset(unittest.TestCase):
             load(name="name",
                  series=["source"],
                  data=[(["some_nonexistent_file"], UtfPlainTextReader)],
-                 lazy=True,
                  buffer_size=5)
 
     def test_nonexistent_file_deprec(self):
@@ -39,7 +38,6 @@ class TestDataset(unittest.TestCase):
             name="data",
             series=["source", "source_prep"],
             data=[([], reader), (lambda x: x, "source")],
-            lazy=True,
             buffer_size=5)
 
         series = dataset.get_series("source_prep")
@@ -111,7 +109,7 @@ class TestDataset(unittest.TestCase):
         }
 
         dataset = Dataset(
-            "dataset", iterators=iterators, lazy=False, shuffled=False)
+            "dataset", iterators=iterators, shuffled=False)
 
         batches = []
         for epoch in range(2):
@@ -134,8 +132,8 @@ class TestDataset(unittest.TestCase):
         }
 
         dataset = Dataset(
-            "dataset", iterators=iterators, lazy=True, shuffled=False,
-            buffer_size=4)
+            "dataset", iterators=iterators, shuffled=False,
+            buffer_size=(2, 4))
 
         batches = []
         for epoch in range(2):
@@ -158,7 +156,7 @@ class TestDataset(unittest.TestCase):
         }
 
         dataset = Dataset(
-            "dataset", iterators=iterators, lazy=False, shuffled=True)
+            "dataset", iterators=iterators, shuffled=True)
 
         batches = []
         for epoch in range(2):
@@ -185,8 +183,8 @@ class TestDataset(unittest.TestCase):
         }
 
         dataset = Dataset(
-            "dataset", iterators=iterators, lazy=True, shuffled=True,
-            buffer_size=4)
+            "dataset", iterators=iterators, shuffled=True,
+            buffer_size=(2, 4))
 
         batches = []
         for epoch in range(2):

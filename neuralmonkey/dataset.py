@@ -214,8 +214,8 @@ def load_dataset_from_files(
         series.append(s_name)
         data.append(preprocessor)
 
-    buffer_size = None if not lazy else 1000
-    return load(name, series, data, outputs, lazy, buffer_size, False)
+    buffer_size = None if not lazy else 5000
+    return load(name, series, data, outputs, buffer_size, False)
 # pylint: enable=too-many-locals
 
 
@@ -228,28 +228,30 @@ def load(name: str,
          series: List[str],
          data: List[SourceSpec],
          outputs: List[OutputSpec] = None,
-         lazy: bool = False,
          buffer_size: int = None,
          shuffled: bool = True) -> "Dataset":
     """Create a dataset using specification from the configuration.
 
-    The dataset provides iterators over data series. If the dataset is not
-    lazy, then the iterators are built on top of in-memory arrays.
-    Otherwise, the iterators operate on the data sources directly.
+    The dataset provides iterators over data series. The dataset has a buffer,
+    which pre-fetches a given number of the data series lazily. In case the
+    dataset is not lazy (buffer size is `None`), the iterators are built on top
+    of in-memory arrays. Otherwise, the iterators operate on the data sources
+    directly.
 
     Arguments:
         name: The name of the dataset.
         series: A list of names of data series the dataset contains.
         data: The specification of the data sources for each series.
         outputs: A list of output specifications.
-        lazy: Boolean flag specifying whether to use lazy loading (useful
-            for large files). Note that the lazy dataset cannot be shuffled
-            Defaults to False.
-        buffer_size: The size of the buffer. Needs to be specified for lazy
-            datasets. Number of sequences to pre-load (useful for
-            pseudo-shuffling of large data on-the-fly). Ideally, this
-            should be (much) larger than the batch size.
-        shuffled: Whether to shuffle the dataset buffer.
+        buffer_size: The size of the buffer. If set, the dataset will be loaded
+            lazily into the buffer (useful for large datasets). The buffer size
+            specifies the number of sequences to pre-load. This is useful for
+            pseudo-shuffling of large data on-the-fly. Ideally, this should be
+            (much) larger than the batch size. Note that the buffer gets
+            refilled each time its size is less than half the `buffer_size`.
+            When refilling, the buffer gets refilled to the specified size.
+        shuffled: Whether to shuffle the dataset buffer (done upon refill).
+
     """
     check_argument_types()
 
@@ -263,12 +265,6 @@ def load(name: str,
         raise ValueError(
             "The 'series' and 'data' lists should have the same number"
             " of elements: {} vs {}.".format(len(series), len(data)))
-
-    if lazy and buffer_size is None:
-        raise ValueError("You must specify buffer size for lazy datasets.")
-
-    if not lazy and buffer_size is not None:
-        raise ValueError("Buffering non-lazy datasets is not allowed.")
 
     if len(series) != len(set(series)):
         raise ValueError("There are duplicate series.")
@@ -339,12 +335,11 @@ def load(name: str,
                        for s_name, path, writer
                        in [_normalize_outputspec(out) for out in outputs]}
 
-    if not lazy:
-        return Dataset(name, iterators, output_dict, False, None, shuffled)
+    if buffer_size is not None:
+        return Dataset(name, iterators, output_dict,
+                       (buffer_size // 2, buffer_size), shuffled)
 
-    assert buffer_size is not None
-    return Dataset(name, iterators, output_dict, lazy,
-                   (buffer_size // 2, buffer_size), shuffled)
+    return Dataset(name, iterators, output_dict, None, shuffled)
 # pylint: enable=too-many-locals,too-many-branches
 
 
@@ -366,7 +361,6 @@ class Dataset:
                  name: str,
                  iterators: Dict[str, Callable[[], Iterator]],
                  outputs: Dict[str, Tuple[str, Writer]] = None,
-                 lazy: bool = False,
                  buffer_size: Tuple[int, int] = None,
                  shuffled: bool = False) -> None:
         """Construct a new instance of the dataset class.
@@ -382,26 +376,30 @@ class Dataset:
             iterators: A series-iterator generator mapping.
             lazy: If False, load the data from iterators to a list and store
                 the list in memory.
-            buffer_size: If lazy, use this tuple as a minimum and maximum
-                buffer size for pre-loading data. This should be (a few times)
-                larger than the batch size used for mini-batching. When the
-                buffer size gets under the lower threshold, it is refilled with
-                the new data and optionally reshuffled.
+            buffer_size: Use this tuple as a minimum and maximum buffer size
+                for pre-loading data. This should be (a few times) larger than
+                the batch size used for mini-batching. When the buffer size
+                gets under the lower threshold, it is refilled with the new
+                data and optionally reshuffled. If the buffer size is `None`,
+                all data is loaded into memory.
             shuffled: Whether to shuffle the buffer during batching.
         """
         self.name = name
         self.iterators = iterators
         self.outputs = outputs
-        self.lazy = lazy
 
-        assert self.lazy == (buffer_size is not None)
         if buffer_size is not None:
+            self.lazy = True
             self.buffer_min_size, self.buffer_size = buffer_size
+        else:
+            self.lazy = False
 
         self.shuffled = shuffled
         self.length = None
 
         if not self.lazy:
+            # Load the data from iterators to memory and point new iterators
+            # to these structures. (This prevents multiple loads from disk.)
             data = {s_name: list(it())
                     for s_name, it in self.iterators.items()}
 
@@ -485,7 +483,8 @@ class Dataset:
             Generator yielding the batches.
         """
         if self.lazy and self.buffer_min_size < batch_size:
-            warn("Minimum buffer size ({}) is lower than batch size ({})."
+            warn("Minimum buffer size ({}) lower than batch size ({}). "
+                 "It is recommended to use large buffer size."
                  .format(self.buffer_min_size, batch_size))
 
         # Initialize iterators
@@ -569,6 +568,5 @@ class Dataset:
             name=name,
             iterators=slices,
             outputs=outputs,
-            lazy=self.lazy,
             buffer_size=self.buffer_size,
             shuffled=self.shuffled)
