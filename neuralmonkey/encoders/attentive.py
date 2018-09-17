@@ -72,7 +72,7 @@ class AttentiveEncoder(ModelPart, TemporalStatefulWithOutput):
         weights = tf.nn.softmax(energies, dim=1)
         if mask is not None:
             weights *= tf.expand_dims(mask, -1)
-            weights /= tf.reduce_sum(weights, axis=1, keep_dims=True) + 1e-8
+            weights /= tf.reduce_sum(weights, axis=1, keepdims=True) + 1e-8
 
         return weights
 

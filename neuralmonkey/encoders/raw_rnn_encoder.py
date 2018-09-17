@@ -72,7 +72,7 @@ class RawRNNEncoder(ModelPart, TemporalStatefulWithOutput):
             def reverse_states():
                 nonlocal states, states_reversed
                 states = tf.reverse_sequence(
-                    states, self._input_lengths, batch_dim=0, seq_dim=1)
+                    states, self._input_lengths, batch_axis=0, seq_axis=1)
                 states_reversed = not states_reversed
 
             for i, layer in enumerate(self._rnn_layers):

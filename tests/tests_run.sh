@@ -39,7 +39,7 @@ score_ensemble=$(bin/neuralmonkey-run tests/beamsearch_ensembles.ini tests/test_
 echo "SINGLE SCORE: $score_single"
 echo "ENSEMBLE OF THE SAME VARS SCORE: $score_ensemble"
 
-if [ "$score_single" != "$score_ensemble" ] ; then
+if [ "${score_single:0:8}" != "${score_ensemble:0:8}" ] ; then
     echo "SCORES DO NOT MATCH" >&2
     exit 1
 fi

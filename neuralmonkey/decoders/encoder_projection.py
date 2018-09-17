@@ -123,7 +123,7 @@ def nematus_projection(dropout_keep_prob: float = 1.0) -> EncoderProjection:
             * tf.expand_dims(encoder.temporal_mask, 2), 1)
 
         # shape (batch, 1)
-        lengths = tf.reduce_sum(encoder.temporal_mask, 1, keep_dims=True)
+        lengths = tf.reduce_sum(encoder.temporal_mask, 1, keepdims=True)
 
         means = masked_sum / lengths
         means = dropout(means, dropout_keep_prob, train_mode)
