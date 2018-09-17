@@ -104,47 +104,45 @@ class GenericTrainer:
 
             # if the objective does not have its own gradients,
             # just use TF to do the derivative
-            update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
-            with tf.control_dependencies(update_ops):
-                with tf.name_scope("gradient_collection"):
-                    differentiable_loss_sum = sum(
-                        (o.weight if o.weight is not None else 1) * o.loss
-                        for o in objectives
-                        if o.gradients is None) + l1_cost + l2_cost
-                    implicit_gradients = self._get_gradients(
-                        differentiable_loss_sum)
+            with tf.name_scope("gradient_collection"):
+                differentiable_loss_sum = sum(
+                    (o.weight if o.weight is not None else 1) * o.loss
+                    for o in objectives
+                    if o.gradients is None) + l1_cost + l2_cost
+                implicit_gradients = self._get_gradients(
+                    differentiable_loss_sum)
 
-                    # objectives that have their gradients explictly computed
-                    other_gradients = [
-                        _scale_gradients(o.gradients, o.weight)
-                        for o in objectives if o.gradients is not None]
+                # objectives that have their gradients explictly computed
+                other_gradients = [
+                    _scale_gradients(o.gradients, o.weight)
+                    for o in objectives if o.gradients is not None]
 
-                    if other_gradients:
-                        gradients = _sum_gradients(
-                            [implicit_gradients] + other_gradients)
-                    else:
-                        gradients = implicit_gradients
+                if other_gradients:
+                    gradients = _sum_gradients(
+                        [implicit_gradients] + other_gradients)
+                else:
+                    gradients = implicit_gradients
 
-                    tf.summary.scalar("train_opt_cost",
-                                      differentiable_loss_sum,
-                                      collections=["summary_train"])
+                tf.summary.scalar("train_opt_cost",
+                                  differentiable_loss_sum,
+                                  collections=["summary_train"])
 
-                if clip_norm:
-                    assert clip_norm > 0.0
-                    gradients = [(tf.clip_by_norm(grad, clip_norm), var)
-                                 for grad, var in gradients
-                                 if grad is not None]
+            if clip_norm:
+                assert clip_norm > 0.0
+                gradients = [(tf.clip_by_norm(grad, clip_norm), var)
+                             for grad, var in gradients
+                             if grad is not None]
 
-                self.all_coders = set.union(*(obj.decoder.get_dependencies()
-                                              for obj in objectives))
+            self.all_coders = set.union(*(obj.decoder.get_dependencies()
+                                          for obj in objectives))
 
-                self.train_op = self.optimizer.apply_gradients(
-                    gradients, global_step=step)
+            self.train_op = self.optimizer.apply_gradients(
+                gradients, global_step=step)
 
             for grad, var in gradients:
                 if grad is not None:
                     tf.summary.histogram(
-                        "gr_" + var.name,
+                        "gr_{}".format(var.name),
                         grad, collections=["summary_gradients"])
 
             self.histogram_summaries = tf.summary.merge(
@@ -214,6 +212,7 @@ class TrainExecutable(Executable):
             fetches["scalar_summaries"] = self.scalar_summaries
             fetches["histogram_summaries"] = self.histogram_summaries
         fetches["losses"] = self.losses
+        fetches["_update_ops"] = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
 
         return self.all_coders, fetches, [{} for _ in range(self.num_sessions)]
 
