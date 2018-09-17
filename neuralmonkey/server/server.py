@@ -11,6 +11,7 @@ import flask
 from flask import Flask, request, Response, render_template
 import numpy as np
 
+from neuralmonkey.config.configuration import Configuration
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.experiment import Experiment
 
@@ -31,7 +32,8 @@ def get_file(filename):  # pragma: no cover
 
 def run(data):  # pragma: no cover
     exp = APP.config["experiment"]
-    dataset = Dataset("request", data, {})
+    dataset = Dataset(
+        "request", data, {}, preprocessors=APP.config["preprocess"])
 
     _, response_data = exp.run_model(dataset, write_out=False)
 
@@ -95,9 +97,19 @@ def main() -> None:
     parser.add_argument("--port", type=int, default=5000)
     parser.add_argument("--host", type=str, default="127.0.0.1")
     parser.add_argument("--configuration", type=str, required=True)
+    parser.add_argument("--preprocess", type=str, required=False, default=False)
     args = parser.parse_args()
 
     print("")
+
+    if args.preprocess is not None:
+        preprocessing = Configuration()
+        preprocessing.add_argument("preprocess")
+        preprocessing.load_file(args.preprocess)
+        preprocessing.build_model()
+        APP.config["preprocess"] = preprocessing.model.preprocess
+    else:
+        APP.config["preprocess"] = []
 
     exp = Experiment(config_path=args.configuration)
     exp.build_model()
