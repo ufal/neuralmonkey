@@ -1,4 +1,7 @@
-"""This module provides functionality needed to work with word2vec files."""
+"""Word2vec plug-in module.
+
+This module provides functionality needed to work with word2vec files.
+"""
 
 from typing import Callable, List
 
@@ -12,7 +15,7 @@ from neuralmonkey.vocabulary import (
 class Word2Vec:
 
     def __init__(self, path: str, encoding: str = "utf-8") -> None:
-        """Loads the word2vec file."""
+        """Load the word2vec file."""
         check_argument_types()
 
         # Create the vocabulary object, load the words and vectors from the
