@@ -97,7 +97,8 @@ def main() -> None:
     parser.add_argument("--port", type=int, default=5000)
     parser.add_argument("--host", type=str, default="127.0.0.1")
     parser.add_argument("--configuration", type=str, required=True)
-    parser.add_argument("--preprocess", type=str, required=False, default=False)
+    parser.add_argument("--preprocess", type=str,
+                        required=False, default=None)
     args = parser.parse_args()
 
     print("")
