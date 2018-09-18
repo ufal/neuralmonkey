@@ -132,14 +132,13 @@ class Experiment:
             if self.train_mode:
                 check_dataset_and_coders(self.model.train_dataset,
                                          self.model.runners)
-                if self.model.val_dataset is not None:
-                    if isinstance(self.model.val_dataset, Dataset):
-                        check_dataset_and_coders(self.model.val_dataset,
+                if isinstance(self.model.val_dataset, Dataset):
+                    check_dataset_and_coders(self.model.val_dataset,
+                                             self.model.runners)
+                else:
+                    for val_dataset in self.model.val_dataset:
+                        check_dataset_and_coders(val_dataset,
                                                  self.model.runners)
-                    else:
-                        for val_dataset in self.model.val_dataset:
-                            check_dataset_and_coders(val_dataset,
-                                                     self.model.runners)
 
             if self.train_mode and self.model.visualize_embeddings:
                 visualize_embeddings(self.model.visualize_embeddings,
@@ -340,7 +339,7 @@ def create_config(train_mode: bool = True) -> Configuration:
         config.add_argument("epochs", cond=lambda x: x >= 0)
         config.add_argument("trainer")
         config.add_argument("train_dataset")
-        config.add_argument("val_dataset", required=False, default=[])
+        config.add_argument("val_dataset")
         config.add_argument("evaluation")
         config.add_argument("test_datasets", required=False, default=[])
         config.add_argument("logging_period", required=False, default=20)
