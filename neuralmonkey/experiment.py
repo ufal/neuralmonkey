@@ -185,7 +185,8 @@ class Experiment:
                 postprocess=self.model.postprocess,
                 train_start_offset=self.model.train_start_offset,
                 runners_batch_size=self.model.runners_batch_size,
-                initial_variables=self.model.initial_variables)
+                initial_variables=self.model.initial_variables,
+                final_variables=self.get_path("variables.data.final"))
 
             self._vars_loaded = True
 
