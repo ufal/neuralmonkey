@@ -23,25 +23,24 @@ class Word2Vec:
 
         self.vocab = Vocabulary()
         embedding_vectors = []  # type: List[np.ndarray]
-        emb_size = None
 
         with open(path, encoding=encoding) as f_data:
+
+            header = next(f_data)
+            emb_size = int(header.split()[1])
+
+            # Add zero embeddings for padding, start, and end token
+            embedding_vectors.append(np.zeros(emb_size))
+            embedding_vectors.append(np.zeros(emb_size))
+            embedding_vectors.append(np.zeros(emb_size))
+            # Add placeholder for embedding of the unknown symbol
+            embedding_vectors.append(None)
+
             for line in f_data:
                 fields = line.split()
                 word = fields[0]
                 vector = np.fromiter((float(x) for x in fields[1:]),
                                      dtype=np.float)
-
-                if emb_size is None:
-                    emb_size = int(fields[1])
-
-                    # Add zero embeddings for padding, start, and end token
-                    embedding_vectors.append(np.zeros(emb_size))
-                    embedding_vectors.append(np.zeros(emb_size))
-                    embedding_vectors.append(np.zeros(emb_size))
-                    # Add placeholder for embedding of the unknown symbol
-                    embedding_vectors.append(None)
-                    continue
 
                 assert vector.shape[0] == emb_size
 
@@ -87,10 +86,10 @@ def get_word2vec_initializer(w2v: Word2Vec) -> Callable:
     return init
 
 
-def word2vec_vocabulary(word2vec: Word2Vec) -> Vocabulary:
+def word2vec_vocabulary(w2v: Word2Vec) -> Vocabulary:
     """Return the vocabulary from a word2vec object.
 
     This is a helper method used from configuration.
     """
     check_argument_types()
-    return word2vec.vocabulary
+    return w2v.vocabulary
