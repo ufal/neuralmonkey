@@ -330,7 +330,7 @@ max-args=8
 
 # Argument names that match this expression will be ignored. Default to name
 # with leading underscore
-ignored-argument-names=_.*
+ignored-argument-names=_.*|args|kwargs
 
 # Maximum number of locals for function / method body
 max-locals=15

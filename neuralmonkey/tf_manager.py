@@ -88,6 +88,7 @@ class TensorFlowManager:
         init_op = tf.global_variables_initializer()
         for sess in self.sessions:
             sess.run(init_op)
+
         self.saver = tf.train.Saver(max_to_keep=None,
                                     var_list=[g for g in tf.global_variables()
                                               if "reward_" not in g.name])
