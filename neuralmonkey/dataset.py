@@ -49,6 +49,9 @@ SERIES_SOURCE = re.compile("s_([^_]*)$")
 SERIES_OUTPUT = re.compile("s_(.*)_out")
 
 
+# The protected functions below are designed to convert the ambiguous spec
+# structures to a normalized form.
+
 def _normalize_readerdef(reader_def: ReaderDef) -> Tuple[List[str], Reader]:
     if isinstance(reader_def, tuple):
         reader = reader_def[1]
