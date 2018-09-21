@@ -2,7 +2,7 @@ from typing import Any, List, Dict, Union
 import collections
 import numpy as np
 
-from neuralmonkey.util import match_type
+from neuralmonkey.util.match_type import match_type
 from neuralmonkey.writers.plain_text_writer import (
     Writer, tokenized_text_writer, text_writer)
 from neuralmonkey.writers.numpy_writer import (

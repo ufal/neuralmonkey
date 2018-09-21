@@ -132,8 +132,7 @@ class TestDataset(unittest.TestCase):
         }
 
         dataset = Dataset(
-            "dataset", iterators=iterators, shuffled=False,
-            buffer_size=(2, 4))
+            "dataset", iterators=iterators, shuffled=False, buffer_size=(3, 5))
 
         batches = []
         for epoch in range(2):
@@ -155,8 +154,7 @@ class TestDataset(unittest.TestCase):
             "b": lambda: range(5, 10)
         }
 
-        dataset = Dataset(
-            "dataset", iterators=iterators, shuffled=True)
+        dataset = Dataset("dataset", iterators=iterators, shuffled=True)
 
         batches = []
         for epoch in range(2):
@@ -183,8 +181,7 @@ class TestDataset(unittest.TestCase):
         }
 
         dataset = Dataset(
-            "dataset", iterators=iterators, shuffled=True,
-            buffer_size=(2, 4))
+            "dataset", iterators=iterators, shuffled=True, buffer_size=(3, 5))
 
         batches = []
         for epoch in range(2):

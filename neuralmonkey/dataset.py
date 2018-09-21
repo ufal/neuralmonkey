@@ -16,7 +16,7 @@ from typeguard import check_argument_types
 from neuralmonkey.config.parsing import get_first_match
 from neuralmonkey.logging import debug, log, warn
 from neuralmonkey.readers.plain_text_reader import UtfPlainTextReader
-from neuralmonkey.util import match_type
+from neuralmonkey.util.match_type import match_type
 from neuralmonkey.writers.auto import AutoWriter
 from neuralmonkey.writers.plain_text_writer import Writer
 
@@ -527,10 +527,9 @@ class Dataset:
             if self.lazy and len(buf) < self.buffer_min_size:
                 # In case buffer_size is lower than batch_size
                 to_add = self.buffer_size - len(buf)
-                # pylint: disable=stop-iteration-return
-                # https://github.com/PyCQA/pylint/issues/2158
-                buf.extend(next(zipped_iterator) for _ in range(to_add))
-                # pylint: enable=stop-iteration-return
+
+                for _, item in zip(range(to_add), zipped_iterator):
+                    buf.append(item)
 
                 if self.shuffled:
                     lbuf = list(buf)
