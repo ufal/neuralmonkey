@@ -1,4 +1,4 @@
-from typing import Any, Callable, Dict, Iterable, List
+from typing import Any, Callable, Dict, Iterable, Iterator, List
 
 import numpy as np
 
@@ -13,9 +13,12 @@ class Preprocess:
         self._source_id = source_id
         self._target_id = target_id
 
-    def __call__(self, dataset: Dataset) -> Iterable[List[str]]:
-        source_series = dataset.get_series(self._source_id)
-        target_series = dataset.get_series(self._target_id)
+    def __call__(
+            self,
+            iterators: Dict[str, Callable[[], Iterator[List[str]]]]
+    ) -> Iterator[List[str]]:
+        source_series = iterators[self._source_id]()
+        target_series = iterators[self._target_id]()
 
         for src_seq, tgt_seq in zip(source_series, target_series):
             yield convert_to_edits(src_seq, tgt_seq)
@@ -40,7 +43,7 @@ class Postprocess:
 
     def _do_postprocess(
             self, dataset: Dataset,
-            generated_series: Dict[str, Iterable[Any]]) -> Iterable[List[str]]:
+            generated_series: Dict[str, Iterable[Any]]) -> Iterator[List[str]]:
 
         source_series = generated_series.get(self._source_id)
         if source_series is None:

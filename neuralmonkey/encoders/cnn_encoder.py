@@ -194,7 +194,7 @@ class CNNEncoder(ModelPart, SpatialStatefulWithOutput):
 
         # if it is from the pickled file, it is a list, not a numpy tensor,
         # so convert it as as a prevention
-        images = np.array(dataset.get_series(self.data_id))
+        images = np.array(list(dataset.get_series(self.data_id)))
 
         fd[self.image_input] = images / 255.0
 
