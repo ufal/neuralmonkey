@@ -230,8 +230,25 @@ def training_loop(tf_manager: TensorFlowManager,
 
                 if _is_logging_time(log_period_batch, log_period_time,
                                     last_log_time):
+                    train_results, train_outputs = run_on_dataset(
+                        tf_manager, runners, batch, postprocess,
+                        write_out=False, batch_size=len(batch))
+                    # ensure train outputs are iterable more than once
+                    train_outputs = {
+                        k: list(v) for k, v in train_outputs.items()}
+                    train_evaluation = evaluation(
+                        evaluators, batch, runners, train_results,
+                        train_outputs)
+
+                    _log_continuous_evaluation(
+                        tb_writer, main_metric, train_evaluation,
+                        seen_instances, epoch_n, epochs, train_results,
+                        train=True)
+
+                    # The actual training step follows:
                     trainer_result = tf_manager.execute(
-                        batch, trainers, train=True, summaries=True)
+                        batch, [trainer], train=True, summaries=True)
+
                     train_results, train_outputs = run_on_dataset(
                         tf_manager, runners, batch, postprocess,
                         write_out=False,
@@ -245,9 +262,10 @@ def training_loop(tf_manager: TensorFlowManager,
 
                     _log_continuous_evaluation(
                         tb_writer, main_metric, train_evaluation,
-                        seen_instances, epoch_n, epochs, trainer_result,
+                        seen_instances, epoch_n, epochs, train_results,
                         train=True)
                     last_log_time = time.process_time()
+                    log_print("")
                 else:
                     tf_manager.execute(
                         batch, trainers, train=True, summaries=False)

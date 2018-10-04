@@ -94,7 +94,7 @@ def from_wordlist(path: str,
                     raise ValueError(
                         "Vocabulary file {}:{}: line does not have two columns"
                         .format(path, line_number))
-                vocabulary.add_word(info[0], int(info[1]))
+                vocabulary.add_word(info[0], 0)
             else:
                 if "\t" in line:
                     warn("Vocabulary file {}:{}: line contains a tabulator"
