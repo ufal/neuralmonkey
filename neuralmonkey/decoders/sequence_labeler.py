@@ -1,15 +1,14 @@
-from typing import Union
+from typing import List, Callable
 
 import tensorflow as tf
 from typeguard import check_argument_types
 
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.model.model_part import ModelPart, FeedDict, InitializerSpecs
-from neuralmonkey.encoders.recurrent import RecurrentEncoder
-from neuralmonkey.encoders.facebook_conv import SentenceEncoder
+from neuralmonkey.model.stateful import TemporalStateful
 from neuralmonkey.vocabulary import Vocabulary
 from neuralmonkey.decorators import tensor
-from neuralmonkey.tf_utils import get_variable
+from neuralmonkey.nn.utils import dropout
 
 
 class SequenceLabeler(ModelPart):
@@ -18,9 +17,12 @@ class SequenceLabeler(ModelPart):
     # pylint: disable=too-many-arguments
     def __init__(self,
                  name: str,
-                 encoder: Union[RecurrentEncoder, SentenceEncoder],
+                 encoders: List[TemporalStateful],
                  vocabulary: Vocabulary,
                  data_id: str,
+                 max_output_len: int,
+                 hidden_dim: int = None,
+                 activation: Callable = tf.nn.relu,
                  dropout_keep_prob: float = 1.0,
                  reuse: ModelPart = None,
                  save_checkpoint: str = None,
@@ -30,12 +32,17 @@ class SequenceLabeler(ModelPart):
         ModelPart.__init__(self, name, reuse, save_checkpoint, load_checkpoint,
                            initializers)
 
-        self.encoder = encoder
+        self.encoders = encoders
         self.vocabulary = vocabulary
         self.data_id = data_id
+        self.max_output_len = max_output_len
+        self.hidden_dim = hidden_dim
+        self.activation = activation
         self.dropout_keep_prob = dropout_keep_prob
 
-        self.rnn_size = int(self.encoder.temporal_states.get_shape()[-1])
+        assert self.encoders
+
+        self.input_dim = sum(inp.dimension for inp in self.encoders)
 
         with self.use_scope():
             self.train_targets = tf.placeholder(
@@ -45,53 +52,23 @@ class SequenceLabeler(ModelPart):
     # pylint: enable=too-many-arguments
 
     @tensor
-    def decoding_w(self) -> tf.Variable:
-        return get_variable(
-            name="state_to_word_W",
-            shape=[self.rnn_size, len(self.vocabulary)])
-
-    @tensor
-    def decoding_b(self) -> tf.Variable:
-        return get_variable(
-            name="state_to_word_b",
-            shape=[len(self.vocabulary)],
-            initializer=tf.zeros_initializer())
-
-    @tensor
-    def decoding_residual_w(self) -> tf.Variable:
-        input_dim = self.encoder.input_sequence.dimension
-        return get_variable(
-            name="emb_to_word_W",
-            shape=[input_dim, len(self.vocabulary)])
+    def concatenated_inputs(self) -> tf.Tensor:
+        return tf.concat(
+            [inp.temporal_states for inp in self.encoders], axis=2)
 
     @tensor
     def logits(self) -> tf.Tensor:
-        # To multiply 3-D matrix (encoder hidden states) by a 2-D matrix
-        # (weights), we use 1-by-1 convolution (similar trick can be found in
-        # attention computation)
 
-        # TODO dropout needs to be revisited
+        state = dropout(
+            self.concatenated_inputs, self.dropout_keep_prob, self.train_mode)
 
-        encoder_states = tf.expand_dims(self.encoder.temporal_states, 2)
-        weights_4d = tf.expand_dims(tf.expand_dims(self.decoding_w, 0), 0)
+        if self.hidden_dim is not None:
+            hidden = tf.layers.dense(
+                state, self.hidden_dim, self.activation,
+                name="hidden_layer")
+            state = dropout(hidden, self.dropout_keep_prob, self.train_mode)
 
-        multiplication = tf.nn.conv2d(
-            encoder_states, weights_4d, [1, 1, 1, 1], "SAME")
-        multiplication_3d = tf.squeeze(multiplication, squeeze_dims=[2])
-
-        biases_3d = tf.expand_dims(tf.expand_dims(self.decoding_b, 0), 0)
-
-        embedded_inputs = tf.expand_dims(
-            self.encoder.input_sequence.temporal_states, 2)
-        dweights_4d = tf.expand_dims(
-            tf.expand_dims(self.decoding_residual_w, 0), 0)
-
-        dmultiplication = tf.nn.conv2d(
-            embedded_inputs, dweights_4d, [1, 1, 1, 1], "SAME")
-        dmultiplication_3d = tf.squeeze(dmultiplication, squeeze_dims=[2])
-
-        logits = multiplication_3d + dmultiplication_3d + biases_3d
-        return logits
+        return tf.layers.dense(state, len(self.vocabulary), name="logits")
 
     @tensor
     def logprobs(self) -> tf.Tensor:
@@ -109,7 +86,7 @@ class SequenceLabeler(ModelPart):
         # loss is now of shape [batch, time]. Need to mask it now by
         # element-wise multiplication with weights placeholder
         weighted_loss = loss * self.train_weights
-        return tf.reduce_sum(weighted_loss)
+        return tf.reduce_sum(weighted_loss) / tf.reduce_sum(self.train_weights)
 
     @property
     def train_loss(self) -> tf.Tensor:
@@ -125,7 +102,8 @@ class SequenceLabeler(ModelPart):
         sentences = dataset.maybe_get_series(self.data_id)
         if sentences is not None:
             vectors, paddings = self.vocabulary.sentences_to_tensor(
-                list(sentences), pad_to_max_len=False, train_mode=train)
+                list(sentences), max_len=self.max_output_len,
+                pad_to_max_len=False, train_mode=train)
 
             fd[self.train_targets] = vectors.T
             fd[self.train_weights] = paddings.T

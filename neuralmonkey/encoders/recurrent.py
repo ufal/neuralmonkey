@@ -11,6 +11,7 @@ from neuralmonkey.nn.ortho_gru_cell import OrthoGRUCell, NematusGRUCell
 from neuralmonkey.nn.utils import dropout
 from neuralmonkey.vocabulary import Vocabulary
 from neuralmonkey.decorators import tensor
+from neuralmonkey.tf_utils import layer_norm
 from neuralmonkey.model.sequence import (
     EmbeddedSequence, EmbeddedFactorSequence)
 
@@ -69,8 +70,7 @@ def _make_rnn_cell(spec: RNNSpec) -> Callable[[], tf.nn.rnn_cell.RNNCell]:
 
 def rnn_layer(rnn_input: tf.Tensor,
               lengths: tf.Tensor,
-              rnn_spec: RNNSpec,
-              add_residual: bool) -> Tuple[tf.Tensor, tf.Tensor]:
+              rnn_spec: RNNSpec) -> Tuple[tf.Tensor, tf.Tensor]:
     """Construct a RNN layer given its inputs and specs.
 
     Arguments:
@@ -107,14 +107,14 @@ def rnn_layer(rnn_input: tf.Tensor,
         if rnn_spec.cell_type == "LSTM":
             final_state = final_state.h
 
-    if add_residual:
-        if outputs.get_shape()[-1].value != rnn_input.get_shape()[-1].value:
-            warn("Size of the RNN layer input ({}) and layer output ({}) "
-                 "must match when applying residual connection. Reshaping "
-                 "the rnn output using linear projection.".format(
-                     outputs.get_shape(), rnn_input.get_shape()))
-            outputs = tf.layers.dense(outputs, rnn_input.shape.as_list()[-1])
-        outputs += rnn_input
+    # if add_residual:
+    #     if outputs.get_shape()[-1].value != rnn_input.get_shape()[-1].value:
+    #         warn("Size of the RNN layer input ({}) and layer output ({}) "
+    #              "must match when applying residual connection. Reshaping "
+    #              "the rnn output using linear projection.".format(
+    #                  outputs.get_shape(), rnn_input.get_shape()))
+    #         outputs = tf.layers.dense(outputs, rnn_input.shape.as_list()[-1])
+    #     outputs += rnn_input
 
     return outputs, final_state
 
@@ -125,10 +125,9 @@ class RecurrentEncoder(ModelPart, TemporalStatefulWithOutput):
     def __init__(self,
                  name: str,
                  input_sequence: TemporalStateful,
-                 rnn_size: int,
-                 rnn_cell: str = "GRU",
-                 rnn_direction: str = "bidirectional",
+                 rnn_layers: List[RNNSpecTuple],
                  add_residual: bool = False,
+                 add_layer_norm: bool = False,
                  dropout_keep_prob: float = 1.0,
                  reuse: ModelPart = None,
                  save_checkpoint: str = None,
@@ -158,8 +157,9 @@ class RecurrentEncoder(ModelPart, TemporalStatefulWithOutput):
 
         self.input_sequence = input_sequence
         self.dropout_keep_prob = dropout_keep_prob
-        self.rnn_spec = _make_rnn_spec(rnn_size, rnn_direction, rnn_cell)
+        self.rnn_specs = [_make_rnn_spec(*r) for r in rnn_layers]
         self.add_residual = add_residual
+        self.add_layer_norm = add_layer_norm
 
         if self.dropout_keep_prob <= 0.0 or self.dropout_keep_prob > 1.0:
             raise ValueError("Dropout keep prob must be inside (0,1].")
@@ -175,8 +175,30 @@ class RecurrentEncoder(ModelPart, TemporalStatefulWithOutput):
 
     @tensor
     def rnn(self) -> Tuple[tf.Tensor, tf.Tensor]:
-        return rnn_layer(self.rnn_input, self.input_sequence.lengths,
-                         self.rnn_spec, self.add_residual)
+        layer_input = self.rnn_input
+        layer_final = None
+
+        for i, rnn_spec in enumerate(self.rnn_specs):
+            with tf.variable_scope("rnn_{}_{}".format(i, rnn_spec.direction)):
+
+                if self.add_layer_norm:
+                    layer_input = layer_norm(layer_input)
+
+                layer_output, layer_final = rnn_layer(
+                    layer_input, self.input_sequence.lengths, rnn_spec)
+
+                layer_output = dropout(
+                    layer_output, self.dropout_keep_prob, self.train_mode)
+
+                if self.add_residual:
+                    layer_input = layer_input + layer_output
+                else:
+                    layer_input = layer_output
+
+        ### TODO resid na final state? drpout driv?
+
+        assert layer_final is not None
+        return layer_input, layer_final
 
     @tensor
     def temporal_states(self) -> tf.Tensor:

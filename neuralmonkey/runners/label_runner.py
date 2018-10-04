@@ -87,7 +87,7 @@ class LabelRunner(BaseRunner[SequenceLabeler]):
                        num_sessions: int) -> LabelRunExecutable:
         fetches = {
             "label_logprobs": self._decoder.logprobs,
-            "input_mask": self._decoder.encoder.input_sequence.temporal_mask}
+            "input_mask": self._decoder.encoders[0].temporal_mask}
 
         if compute_losses:
             fetches["loss"] = self._decoder.cost
