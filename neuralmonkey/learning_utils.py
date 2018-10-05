@@ -41,7 +41,6 @@ def training_loop(tf_manager: TensorFlowManager,
                   log_directory: str,
                   evaluators: EvalConfiguration,
                   runners: List[BaseRunner],
-                  final_variables: str,
                   train_dataset: Dataset,
                   val_dataset: Union[Dataset, List[Dataset]],
                   test_datasets: Optional[List[Dataset]] = None,
@@ -290,9 +289,6 @@ def training_loop(tf_manager: TensorFlowManager,
         .format(main_metric, tf_manager.best_score,
                 tf_manager.best_score_epoch))
 
-    log("Saving final variables in {}".format(final_variables))
-    tf_manager.save(final_variables)
-
     if test_datasets:
         tf_manager.restore_best_vars()
 
@@ -408,9 +404,11 @@ def run_on_dataset(tf_manager: TensorFlowManager,
     last_log_time = time.process_time()
     batch_results = [[] for _ in runners]  # type: List[List[ExecutionResult]]
 
-    for i, batch in enumerate(dataset.batches(batch_size)):
+    num_processed = 0
+    for batch in dataset.batches(batch_size):
+        num_processed += len(batch)
         if 0 < log_progress < time.process_time() - last_log_time:
-            log("Processed {} examples.".format(i * batch_size))
+            log("Processed {} examples.".format(processed))
             last_log_time = time.process_time()
 
         execution_results = tf_manager.execute(
@@ -558,12 +556,10 @@ def print_final_evaluation(name: str, eval_result: Evaluation) -> None:
 
 def _data_item_to_str(item: Any) -> str:
     if isinstance(item, list):
-        return " ".join([_data_item_to_str(i) for i in item])
+        return " ".join([str(i) for i in item])
 
-    if isinstance(item, dict):
-        return "{\n      " + "\n      ".join(
-            ["{}: {}".format(_data_item_to_str(key), _data_item_to_str(val))
-             for key, val in item.items()]) + "\n    }"
+    if isinstance(item, str):
+        return item
 
     if isinstance(item, np.ndarray) and len(item.shape) > 1:
         return "[numpy tensor, shape {}]".format(item.shape)
