@@ -15,7 +15,7 @@ from neuralmonkey.decorators import tensor
 from neuralmonkey.decoders.autoregressive import (
     AutoregressiveDecoder, LoopState, DecoderFeedables)
 from neuralmonkey.encoders.transformer import (
-    TransformerLayer, position_signal)
+    TransformerLayer, position_signal, timestep_signal)
 from neuralmonkey.model.sequence import EmbeddedSequence
 from neuralmonkey.logging import log
 from neuralmonkey.nn.utils import dropout
@@ -55,7 +55,7 @@ class TransformerDecoder(AutoregressiveDecoder):
                  encoders: List[Attendable],
                  vocabulary: Vocabulary,
                  data_id: str,
-                 # TODO infer the default for these three from the encoder
+                 # TODO infer the default for these three from the encoders
                  ff_hidden_size: int,
                  n_heads_self: int,
                  n_heads_enc: int,
@@ -67,6 +67,8 @@ class TransformerDecoder(AutoregressiveDecoder):
                  embeddings_source: EmbeddedSequence = None,
                  tie_embeddings: bool = True,
                  label_smoothing: float = None,
+                 use_timestep_encoding: bool = False,
+                 tie_layer_weights: bool = False,
                  attention_dropout_keep_prob: float = 1.0,
                  use_att_transform_bias: bool = False,
                  supress_unk: bool = False,
@@ -124,6 +126,8 @@ class TransformerDecoder(AutoregressiveDecoder):
         self.depth = depth
         self.attention_dropout_keep_prob = attention_dropout_keep_prob
         self.use_att_transform_bias = use_att_transform_bias
+        self.use_timestep_encoding = use_timestep_encoding
+        self.tie_layer_weights = tie_layer_weights
 
         self.encoders_states = [
             get_attention_states(enc) for enc in self.encoders]
@@ -226,8 +230,8 @@ class TransformerDecoder(AutoregressiveDecoder):
         """Create the encoder-decoder attention sublayer."""
 
         for i, _ in enumerate(self.encoders_states):
-            # Layer normalization
             with tf.variable_scope("{}".format(i)):
+                # Layer normalization
                 normalized_queries = layer_norm(queries)
 
                 # Attend to the encoder
@@ -284,7 +288,16 @@ class TransformerDecoder(AutoregressiveDecoder):
         # Compute the outputs of the previous layer
         prev_layer = self.layer(level - 1, inputs, mask)
 
-        with tf.variable_scope("layer_{}".format(level - 1)):
+        scope_name = "layer_{}".format(level - 1)
+        if self.tie_layer_weights:
+            scope_name = "universal_layer"
+        reuse_layer = ((level > 1) and self.tie_layer_weights)
+        with tf.variable_scope(scope_name, reuse=reuse_layer):
+            if self.use_timestep_encoding:
+                length = tf.shape(prev_layer.temporal_states)[1]
+                states = prev_layer.temporal_states + timestep_signal(
+                    self.dimension, length, level)
+                prev_layer = TransformerLayer(states, prev_layer.temporal_mask)
 
             with tf.variable_scope("self_attention"):
                 self_context = self.self_attention_sublayer(prev_layer)

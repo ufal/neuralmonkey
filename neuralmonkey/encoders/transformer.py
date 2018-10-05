@@ -22,7 +22,8 @@ from neuralmonkey.nn.utils import dropout
 from neuralmonkey.tf_utils import get_variable, layer_norm
 
 
-def position_signal(dimension: int, length: tf.Tensor) -> tf.Tensor:
+def position_signal(dimension: int,
+                    length: tf.Tensor) -> tf.Tensor:
     # Code simplified and copied from github.com/tensorflow/tensor2tensor
 
     # TODO write this down on a piece of paper and understand the code and
@@ -38,6 +39,28 @@ def position_signal(dimension: int, length: tf.Tensor) -> tf.Tensor:
                             * -log_timescale_increment)
 
     scaled_time = tf.expand_dims(positions, 1) * tf.expand_dims(
+        inv_timescales, 0)
+
+    signal = tf.concat([tf.sin(scaled_time), tf.cos(scaled_time)], axis=1)
+    signal = tf.pad(signal, [[0, 0], [0, tf.mod(dimension, 2)]])
+    signal = tf.reshape(signal, [1, length, dimension])
+
+    return signal
+
+
+def timestep_signal(dimension: int,
+                    length: tf.Tensor,
+                    time: int = 0) -> tf.Tensor:
+    """Add signal to each position based on the current recurrence timestep."""
+    timestep = tf.to_float(tf.tile([time], [length]))
+
+    num_timescales = dimension // 2
+
+    log_timescale_increment = math.log(1.0e4) / (num_timescales - 1)
+    inv_timescales = tf.exp(tf.range(num_timescales, dtype=tf.float32)
+                            * -log_timescale_increment)
+
+    scaled_time = tf.expand_dims(timestep, 1) * tf.expand_dims(
         inv_timescales, 0)
 
     signal = tf.concat([tf.sin(scaled_time), tf.cos(scaled_time)], axis=1)
@@ -76,6 +99,8 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
                  target_space_id: int = None,
                  use_att_transform_bias: bool = False,
                  use_positional_encoding: bool = True,
+                 use_timestep_encoding: bool = False,
+                 tie_layer_weights: bool = False,
                  input_for_cross_attention: Attendable = None,
                  n_cross_att_heads: int = None,
                  save_checkpoint: str = None,
@@ -94,6 +119,8 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
                 for attention.
             use_positional_encoding: If True, position encoding signal is added
                 to the input.
+            use_timestep_encoding: TODO
+            tie_layer_weights: TODO
 
         Keyword arguments:
             ff_hidden_size: Size of the feedforward sublayers.
@@ -120,6 +147,8 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
         self.target_space_id = target_space_id
         self.use_att_transform_bias = use_att_transform_bias
         self.use_positional_encoding = use_positional_encoding
+        self.use_timestep_encoding = use_timestep_encoding
+        self.tie_layer_weights = tie_layer_weights
         self.input_for_cross_attention = input_for_cross_attention
         self.n_cross_att_heads = n_cross_att_heads
 
@@ -290,8 +319,17 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
 
         # Compute the outputs of the previous layer
         prev_layer = self.layer(level - 1)
+        scope_name = "layer_{}".format(level - 1)
+        if self.tie_layer_weights:
+            scope_name = "universal_layer"
+        reuse_layer = ((level > 1) and self.tie_layer_weights)
+        with tf.variable_scope(scope_name, reuse=reuse_layer):
+            if self.use_timestep_encoding:
+                length = tf.shape(prev_layer.temporal_states)[1]
+                states = prev_layer.temporal_states + timestep_signal(
+                     self.model_dimension, length, level)
+                prev_layer = TransformerLayer(states, prev_layer.temporal_mask)
 
-        with tf.variable_scope("layer_{}".format(level - 1)):
             with tf.variable_scope("self_attention"):
                 self_context = self.self_attention_sublayer(prev_layer)
 
