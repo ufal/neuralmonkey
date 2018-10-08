@@ -476,13 +476,19 @@ class Dataset:
             return self.get_series(name)
         return None
 
-    def batches(self, batch_size: int) -> Iterator["Dataset"]:
+    # pylint: disable=too-many-locals,too-many-branches
+    def batches(self,
+                batch_size: int,
+                bucket_span: int = -1,
+                token_level: bool = False) -> Iterator["Dataset"]:
         """Split the dataset into batches.
 
         Arguments:
             batch_size: The size of a batch. In case of lazy datasets, this
                 should be lower than the dataset buffer size. Otherwise, the
                 batch size will be equal to the size of the buffer.
+            bucket_span: Max length span between the buckets.
+            token_level: Compute the batch_size as a number of tokens.
 
         Returns:
             Generator yielding the batches.
@@ -518,14 +524,35 @@ class Dataset:
 
         # Iterate over the rest of the data until buffer is empty
         batch_index = 0
+        buckets = {}  # type: Dict[int, List[Dict[str, Callable[[], Iterator]]]]
         while buf:
-            # Create the batch
-            name = "{}.batch.{}".format(self.name, batch_index)
-            rows = [buf.popleft() for _ in range(batch_size) if buf]
-            data = {key: _make_datagen(rows, key) for key in rows[0]}
+            row = buf.popleft()
 
-            yield Dataset(name=name, iterators=data)
-            batch_index += 1
+            if bucket_span == -1:
+                bucket_id = 0
+            else:
+                # TODO: use only specific series to determine the bucket number
+                bucket_id = max(len(row[key]) for key in row) // bucket_span
+
+            if bucket_id not in buckets:
+                buckets[bucket_id] = []
+            buckets[bucket_id].append(row)
+
+            is_full = (len(buckets[bucket_id]) >= batch_size)
+            if token_level:
+                is_full = ((bucket_id + 1) * bucket_span
+                           * len(buckets[bucket_id]) >= batch_size)
+
+            if is_full:
+                # Create the batch
+                name = "{}.batch.{}".format(self.name, batch_index)
+                data = {key: _make_datagen(buckets[bucket_id], key)
+                        for key in buckets[bucket_id][0]}
+
+                yield Dataset(name=name, iterators=data)
+                batch_index += 1
+                buckets[bucket_id] = []
+
 
             # If lazy, refill buffer & shuffle if needed
             # Otherwise, all of the data is already loaded in the buffer.
@@ -540,6 +567,16 @@ class Dataset:
                     lbuf = list(buf)
                     random.shuffle(lbuf)
                     buf = deque(lbuf)
+
+        for bucket_id in buckets:
+            if buckets[bucket_id]:
+                name = "{}.batch.{}".format(self.name, batch_index)
+                data = {key: _make_datagen(buckets[bucket_id], key)
+                        for key in buckets[bucket_id][0]}
+
+                yield Dataset(name=name, iterators=data)
+                batch_index += 1
+    # pylint: enable=too-many-locals,too-many-branches
 
     def subset(self, start: int, length: int) -> "Dataset":
         """Create a subset of the dataset.
