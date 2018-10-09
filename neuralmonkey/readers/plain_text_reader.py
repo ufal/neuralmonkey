@@ -14,6 +14,12 @@ PlainTextFileReader = Callable[[List[str]], Iterable[List[str]]]
 
 csv.field_size_limit(sys.maxsize)
 
+_ALNUM_CHARSET = set(
+    chr(i) for i in range(sys.maxunicode)
+    if (unicodedata.category(chr(i)).startswith("L")
+        or unicodedata.category(chr(i)).startswith("N")))
+
+
 
 def string_reader(
         encoding: str = "utf-8") -> Callable[[List[str]], Iterable[str]]:
@@ -52,34 +58,24 @@ def t2t_tokenized_text_reader(encoding: str = "utf-8") -> PlainTextFileReader:
     to preserve the whitespace around weird characters and whitespace on weird
     positions (beginning and end of the text).
     """
-    alphanumeric_charset = set(
-        chr(i) for i in range(sys.maxunicode)
-        if (unicodedata.category(chr(i)).startswith("L")
-            or unicodedata.category(chr(i)).startswith("N")))
-
     def reader(files: List[str]) -> Iterable[List[str]]:
         lines = string_reader(encoding)
         for line in lines(files):
             if not line:
                 yield []
-            line = line.rstrip("\r\n")
+            line = line.strip()
 
             tokens = []
-            is_alnum = [ch in alphanumeric_charset for ch in line]
+            is_alnum = [ch in _ALNUM_CHARSET for ch in line]
             current_token_start = 0
 
             for pos in range(1, len(line)):
                 # Boundary of alnum and non-alnum character groups
                 if is_alnum[pos] != is_alnum[pos - 1]:
                     token = line[current_token_start:pos]
-                    token = token.replace("\\", "\\\\")
-                    token = token.replace("_", "\\u")
-                    token = token.replace(' ', '_')
 
                     # Drop single space if it's not on the beginning
-                    if token != "_" or current_token_start == 0:
-                        if line[pos] == ' ':
-                            token += '_'
+                    if token != " " or current_token_start == 0:
                         tokens.append(token)
 
                     current_token_start = pos
