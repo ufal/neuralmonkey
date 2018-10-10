@@ -20,7 +20,6 @@ _ALNUM_CHARSET = set(
         or unicodedata.category(chr(i)).startswith("N")))
 
 
-
 def string_reader(
         encoding: str = "utf-8") -> Callable[[List[str]], Iterable[str]]:
     def reader(files: List[str]) -> Iterable[str]:
@@ -63,6 +62,8 @@ def t2t_tokenized_text_reader(encoding: str = "utf-8") -> PlainTextFileReader:
         for line in lines(files):
             if not line:
                 yield []
+            # github.com/tensorflow/tensor2tensor/blob/master/
+            #            tensor2tensor/data_generators/translate.py#L148
             line = line.strip()
 
             tokens = []

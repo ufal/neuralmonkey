@@ -51,6 +51,7 @@ def t2t_tokenized_text_writer(encoding: str = "utf-8") -> Writer:
 
     return writer
 
+
 # pylint: disable=invalid-name
 UtfPlainTextWriter = tokenized_text_writer()
 T2TWriter = t2t_tokenized_text_writer()
