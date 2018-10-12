@@ -143,7 +143,6 @@ def training_loop(tf_manager: TensorFlowManager,
     if initial_variables is None:
         # Assume we don't look at coder checkpoints when global
         # initial variables are supplied
-
         tf_manager.initialize_model_parts(
             runners + trainers, save=True)  # type: ignore
     else:
@@ -183,8 +182,7 @@ def training_loop(tf_manager: TensorFlowManager,
                                     last_log_time, log_period_time):
 
                     trainer_result = tf_manager.execute(
-                        batch_dataset, trainers, train=True,
-                        summaries=True)
+                        batch, trainers, train=True, summaries=True)
                     train_results, train_outputs = run_on_dataset(
                         tf_manager, runners, batch, postprocess,
                         write_out=False, batch_size=len(batch))
@@ -201,8 +199,8 @@ def training_loop(tf_manager: TensorFlowManager,
                         train=True)
                     last_log_time = time.process_time()
                 else:
-                    tf_manager.execute(batch_dataset, trainers,
-                                       train=True, summaries=False)
+                    tf_manager.execute(
+                        batch, trainers, train=True, summaries=False)
 
                 if _is_logging_time(step, val_period_batch,
                                     last_val_time, val_period_time):
@@ -268,7 +266,6 @@ def training_loop(tf_manager: TensorFlowManager,
                             tb_writer, main_metric, val_evaluation,
                             seen_instances, epoch_n, epochs, val_results,
                             train=False, dataset_name=v_name)
-
 
                     # how long was the training between validations
                     training_duration = val_duration_start - last_val_time

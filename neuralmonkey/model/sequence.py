@@ -30,6 +30,7 @@ class Sequence(ModelPart, TemporalStateful):
     def __init__(self,
                  name: str,
                  max_length: int = None,
+                 reuse: bool = False,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None,
                  initializers: InitializerSpecs = None) -> None:
@@ -41,7 +42,7 @@ class Sequence(ModelPart, TemporalStateful):
             save_checkpoint: The save_checkpoint parameter for `ModelPart`
             load_checkpoint: The load_checkpoint parameter for `ModelPart`
         """
-        ModelPart.__init__(self, name, save_checkpoint, load_checkpoint,
+        ModelPart.__init__(self, name, reuse, save_checkpoint, load_checkpoint,
                            initializers)
 
         self.max_length = max_length
@@ -64,6 +65,7 @@ class EmbeddedFactorSequence(Sequence):
                  add_end_symbol: bool = False,
                  scale_embeddings_by_depth: bool = False,
                  embeddings_source: "EmbeddedFactorSequence" = None,
+                 reuse: bool = False,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None,
                  initializers: InitializerSpecs = None) -> None:
@@ -92,7 +94,7 @@ class EmbeddedFactorSequence(Sequence):
         """
         check_argument_types()
         Sequence.__init__(
-            self, name, max_length, save_checkpoint, load_checkpoint,
+            self, name, max_length, reuse, save_checkpoint, load_checkpoint,
             initializers)
 
         self.vocabularies = vocabularies
@@ -258,6 +260,7 @@ class EmbeddedSequence(EmbeddedFactorSequence):
                  add_end_symbol: bool = False,
                  scale_embeddings_by_depth: bool = False,
                  embeddings_source: "EmbeddedSequence" = None,
+                 reuse: bool = False,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None,
                  initializers: InitializerSpecs = None) -> None:
@@ -290,6 +293,7 @@ class EmbeddedSequence(EmbeddedFactorSequence):
             add_end_symbol=add_end_symbol,
             scale_embeddings_by_depth=scale_embeddings_by_depth,
             embeddings_source=embeddings_source,
+            reuse=reuse,
             save_checkpoint=save_checkpoint,
             load_checkpoint=load_checkpoint,
             initializers=initializers)

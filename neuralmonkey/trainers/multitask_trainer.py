@@ -8,6 +8,12 @@ from neuralmonkey.trainers.generic_trainer import GenericTrainer, Objective
 
 # pylint: disable=too-few-public-methods
 class MultitaskTrainer(GenericTrainer):
+    """Wrapper for scheduling multitask training.
+
+    The wrapper contains a list of trainer objects. They are being
+    called in the order defined by this list thus simulating a task
+    switching schedule.
+    """
 
     def __init__(self,
                  trainers: List[GenericTrainer] = None):
