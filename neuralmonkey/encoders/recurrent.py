@@ -130,6 +130,7 @@ class RecurrentEncoder(ModelPart, TemporalStatefulWithOutput):
                  rnn_direction: str = "bidirectional",
                  add_residual: bool = False,
                  dropout_keep_prob: float = 1.0,
+                 reuse: bool = False,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None,
                  initializers: InitializerSpecs = None) -> None:
@@ -151,7 +152,7 @@ class RecurrentEncoder(ModelPart, TemporalStatefulWithOutput):
             load_checkpoint: ModelPart load checkpoint file.
         """
         check_argument_types()
-        ModelPart.__init__(self, name, save_checkpoint, load_checkpoint,
+        ModelPart.__init__(self, name, reuse, save_checkpoint, load_checkpoint,
                            initializers)
         TemporalStatefulWithOutput.__init__(self)
 

@@ -107,6 +107,7 @@ class AutoregressiveDecoder(ModelPart):
                  tie_embeddings: bool = False,
                  label_smoothing: float = None,
                  supress_unk: bool = False,
+                 reuse: bool = False,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None,
                  initializers: InitializerSpecs = None) -> None:
@@ -127,7 +128,7 @@ class AutoregressiveDecoder(ModelPart):
             supress_unk: If true, decoder will not produce symbols for unknown
                 tokens.
         """
-        ModelPart.__init__(self, name, save_checkpoint, load_checkpoint,
+        ModelPart.__init__(self, name, reuse, save_checkpoint, load_checkpoint,
                            initializers)
 
         log("Initializing decoder, name: '{}'".format(name))

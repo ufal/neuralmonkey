@@ -101,6 +101,7 @@ class Decoder(AutoregressiveDecoder):
                  rnn_cell: str = "GRU",
                  conditional_gru: bool = False,
                  supress_unk: bool = False,
+                 reuse: bool = False,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None,
                  initializers: InitializerSpecs = None) -> None:
@@ -147,6 +148,7 @@ class Decoder(AutoregressiveDecoder):
             tie_embeddings=tie_embeddings,
             label_smoothing=label_smoothing,
             supress_unk=supress_unk,
+            reuse=reuse,
             save_checkpoint=save_checkpoint,
             load_checkpoint=load_checkpoint,
             initializers=initializers)
