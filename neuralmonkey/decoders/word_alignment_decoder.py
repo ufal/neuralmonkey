@@ -24,7 +24,7 @@ class WordAlignmentDecoder(ModelPart):
                  data_id: str,
                  name: str,
                  initializers: InitializerSpecs = None) -> None:
-        ModelPart.__init__(self, name, None, None, initializers)
+        ModelPart.__init__(self, name, False, None, None, initializers)
 
         self.encoder = encoder
         self.decoder = decoder

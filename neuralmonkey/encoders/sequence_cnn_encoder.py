@@ -47,7 +47,7 @@ class SequenceCNNEncoder(ModelPart, Stateful):
                 (default 1.0)
         """
         check_argument_types()
-        ModelPart.__init__(self, name, save_checkpoint, load_checkpoint,
+        ModelPart.__init__(self, name, False, save_checkpoint, load_checkpoint,
                            initializers)
 
         self.vocabulary = vocabulary

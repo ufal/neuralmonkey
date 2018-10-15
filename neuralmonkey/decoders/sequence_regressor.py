@@ -29,7 +29,7 @@ class SequenceRegressor(ModelPart):
                  save_checkpoint: str = None,
                  load_checkpoint: str = None,
                  initializers: InitializerSpecs = None) -> None:
-        ModelPart.__init__(self, name, save_checkpoint, load_checkpoint,
+        ModelPart.__init__(self, name, False, save_checkpoint, load_checkpoint,
                            initializers)
         assert check_argument_types()
 

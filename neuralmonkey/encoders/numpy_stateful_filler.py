@@ -35,7 +35,7 @@ class StatefulFiller(ModelPart, Stateful):
         """
         check_argument_types()
         ModelPart.__init__(
-            self, name, save_checkpoint, load_checkpoint, initializers)
+            self, name, False, save_checkpoint, load_checkpoint, initializers)
 
         self.data_id = data_id
         self.dimension = dimension
@@ -90,7 +90,7 @@ class SpatialFiller(ModelPart, SpatialStatefulWithOutput):
         """
         check_argument_types()
         ModelPart.__init__(
-            self, name, save_checkpoint, load_checkpoint, initializers)
+            self, name, False, save_checkpoint, load_checkpoint, initializers)
 
         self.data_id = data_id
         self.input_shape = input_shape

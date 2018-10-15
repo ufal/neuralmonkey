@@ -21,6 +21,7 @@ from neuralmonkey.decoders.autoregressive import (
 from neuralmonkey.encoders.transformer import (
     TransformerLayer, position_signal)
 from neuralmonkey.model.sequence import EmbeddedSequence
+from neuralmonkey.model.model_part import ModelPart
 from neuralmonkey.logging import log, warn
 from neuralmonkey.nn.utils import dropout
 from neuralmonkey.vocabulary import (
@@ -79,6 +80,7 @@ class TransformerDecoder(AutoregressiveDecoder):
                  attention_dropout_keep_prob: Union[float, List[float]] = 1.0,
                  use_att_transform_bias: bool = False,
                  supress_unk: bool = False,
+                 reuse: ModelPart = None,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None) -> None:
         """Create a decoder of the Transformer model.
@@ -92,6 +94,7 @@ class TransformerDecoder(AutoregressiveDecoder):
             name: Name of the decoder. Should be unique accross all Neural
                 Monkey objects.
             max_output_len: Maximum length of an output sequence.
+            reuse: Reuse the model variables.
             dropout_keep_prob: Probability of keeping a value during dropout.
             embedding_size: Size of embedding vectors for target words.
             embeddings_source: Embedded sequence to take embeddings from.
@@ -131,6 +134,7 @@ class TransformerDecoder(AutoregressiveDecoder):
             tie_embeddings=tie_embeddings,
             label_smoothing=label_smoothing,
             supress_unk=supress_unk,
+            reuse=reuse,
             save_checkpoint=save_checkpoint,
             load_checkpoint=load_checkpoint)
 

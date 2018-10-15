@@ -20,6 +20,7 @@ from neuralmonkey.tf_manager import TensorFlowManager
 from neuralmonkey.runners.base_runner import (
     BaseRunner, ExecutionResult, reduce_execution_results)
 from neuralmonkey.trainers.generic_trainer import GenericTrainer
+from neuralmonkey.trainers.multitask_trainer import MultitaskTrainer
 
 # pylint: disable=invalid-name
 Evaluation = Dict[str, float]
@@ -27,6 +28,7 @@ SeriesName = str
 EvalConfiguration = List[Union[Tuple[SeriesName, Any],
                                Tuple[SeriesName, SeriesName, Any]]]
 Postprocess = Optional[List[Tuple[SeriesName, Callable]]]
+Trainer = Union[GenericTrainer, MultitaskTrainer]
 # pylint: enable=invalid-name
 
 
@@ -34,7 +36,7 @@ Postprocess = Optional[List[Tuple[SeriesName, Callable]]]
 # pylint: disable=too-many-statements, too-many-nested-blocks
 def training_loop(tf_manager: TensorFlowManager,
                   epochs: int,
-                  trainer: Union[GenericTrainer, List[GenericTrainer]],
+                  trainer: Union[Trainer, List[Trainer]],
                   batch_size: int,
                   log_directory: str,
                   evaluators: EvalConfiguration,
@@ -99,7 +101,7 @@ def training_loop(tf_manager: TensorFlowManager,
     check_argument_types()
 
     if val_dataset is None:
-        val_datasets = []
+        val_datasets = []  # type: List[Dataset]
     elif isinstance(val_dataset, Dataset):
         val_datasets = [val_dataset]
     else:
@@ -243,10 +245,12 @@ def training_loop(tf_manager: TensorFlowManager,
                                     attrs=["bold"])
 
                                 # store also graph parts
+                                rnrs = runners + trainers  # type: ignore
+                                # TODO: refactor trainers/runners so that they
+                                # have the same API predecessor
                                 all_coders = set.union(
                                     *[rnr.all_coders
-                                      for rnr in runners
-                                      + trainers])  # type: ignore
+                                      for rnr in rnrs])
                                 for coder in all_coders:
                                     for session in tf_manager.sessions:
                                         coder.save(session)

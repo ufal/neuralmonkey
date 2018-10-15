@@ -67,7 +67,7 @@ class CNNEncoder(ModelPart, SpatialStatefulWithOutput):
         """
         check_argument_types()
         ModelPart.__init__(
-            self, name, save_checkpoint, load_checkpoint, initializers)
+            self, name, False, save_checkpoint, load_checkpoint, initializers)
 
         self.data_id = data_id
         self.dropout_keep_prob = dropout_keep_prob

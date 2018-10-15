@@ -24,7 +24,7 @@ class SequenceLabeler(ModelPart):
                  save_checkpoint: Optional[str] = None,
                  load_checkpoint: Optional[str] = None,
                  initializers: InitializerSpecs = None) -> None:
-        ModelPart.__init__(self, name, save_checkpoint, load_checkpoint,
+        ModelPart.__init__(self, name, False, save_checkpoint, load_checkpoint,
                            initializers)
 
         self.encoder = encoder
