@@ -20,7 +20,7 @@ class SequencePooling(ModelPart, Stateful):
                  initializers: InitializerSpecs = None) -> None:
         """Initialize an instance of the pooling layer."""
         check_argument_types()
-        ModelPart.__init__(self, name, save_checkpoint, load_checkpoint,
+        ModelPart.__init__(self, name, False, save_checkpoint, load_checkpoint,
                            initializers)
 
         self.input_sequence = input_sequence

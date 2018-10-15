@@ -63,7 +63,7 @@ class SentenceCNNEncoder(ModelPart, TemporalStatefulWithOutput):
             dropout_keep_prob: The dropout keep probability
                 (default 1.0)
         """
-        ModelPart.__init__(self, name, save_checkpoint, load_checkpoint,
+        ModelPart.__init__(self, name, False, save_checkpoint, load_checkpoint,
                            initializers)
         check_argument_types()
 

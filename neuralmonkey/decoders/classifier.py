@@ -45,7 +45,7 @@ class Classifier(ModelPart):
                            hidden layer.
             dropout_keep_prob: Probability of keeping a value during dropout
         """
-        ModelPart.__init__(self, name, save_checkpoint, load_checkpoint,
+        ModelPart.__init__(self, name, False, save_checkpoint, load_checkpoint,
                            initializers)
 
         self.encoders = encoders

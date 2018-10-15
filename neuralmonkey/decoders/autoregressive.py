@@ -95,19 +95,19 @@ class DecoderFeedables(NamedTuple(
 # pylint: disable=too-many-public-methods,too-many-instance-attributes
 class AutoregressiveDecoder(ModelPart):
 
-    # pylint: disable=too-many-arguments
+    # pylint: disable=too-many-arguments,too-many-locals
     def __init__(self,
                  name: str,
                  vocabulary: Vocabulary,
                  data_id: str,
                  max_output_len: int,
+                 reuse: bool = False,
                  dropout_keep_prob: float = 1.0,
                  embedding_size: int = None,
                  embeddings_source: EmbeddedSequence = None,
                  tie_embeddings: bool = False,
                  label_smoothing: float = None,
                  supress_unk: bool = False,
-                 reuse: bool = False,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None,
                  initializers: InitializerSpecs = None) -> None:
@@ -119,6 +119,7 @@ class AutoregressiveDecoder(ModelPart):
             vocabulary: Target vocabulary.
             data_id: Target data series.
             max_output_len: Maximum length of an output sequence.
+            reuse: Reuse the model variables.
             dropout_keep_prob: Probability of keeping a value during dropout.
             embedding_size: Size of embedding vectors for target words.
             embeddings_source: Embedded sequence to take embeddings from.
@@ -176,7 +177,7 @@ class AutoregressiveDecoder(ModelPart):
                 tf.int32, [None, None], "train_inputs")
             self.train_mask = tf.placeholder(
                 tf.float32, [None, None], "train_mask")
-    # pylint: enable=too-many-arguments
+    # pylint: enable=too-many-arguments,too-many-locals
 
     @tensor
     def decoding_w(self) -> tf.Variable:

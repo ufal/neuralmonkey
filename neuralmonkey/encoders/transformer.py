@@ -71,6 +71,7 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
                  ff_hidden_size: int,
                  depth: int,
                  n_heads: int,
+                 reuse: bool = False,
                  dropout_keep_prob: float = 1.0,
                  attention_dropout_keep_prob: float = 1.0,
                  target_space_id: int = None,
@@ -88,6 +89,7 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
             input_sequence: Embedded input sequence.
             name: Name of the decoder. Should be unique accross all Neural
                 Monkey objects.
+            reuse: Reuse the model variables.
             dropout_keep_prob: Probability of keeping a value during dropout.
             target_space_id: Specifies the modality of the target space.
             use_att_transform_bias: Add bias when transforming qkv vectors
@@ -108,7 +110,7 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
 
         """
         check_argument_types()
-        ModelPart.__init__(self, name, save_checkpoint, load_checkpoint)
+        ModelPart.__init__(self, name, reuse, save_checkpoint, load_checkpoint)
 
         self.input_sequence = input_sequence
         self.model_dimension = self.input_sequence.dimension

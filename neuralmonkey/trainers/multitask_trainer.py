@@ -1,13 +1,11 @@
-from typing import List, Optional
-
-import tensorflow as tf
+from typing import Any, List
 
 from neuralmonkey.runners.base_runner import Executable
-from neuralmonkey.trainers.generic_trainer import GenericTrainer, Objective
+from neuralmonkey.trainers.generic_trainer import GenericTrainer
 
 
 # pylint: disable=too-few-public-methods
-class MultitaskTrainer(GenericTrainer):
+class MultitaskTrainer:
     """Wrapper for scheduling multitask training.
 
     The wrapper contains a list of trainer objects. They are being
@@ -16,14 +14,14 @@ class MultitaskTrainer(GenericTrainer):
     """
 
     def __init__(self,
-                 trainers: List[GenericTrainer] = None):
+                 trainers: List[GenericTrainer]) -> None:
+        assert trainers is not None
+
         self.trainers = trainers
-        self.trainer_idx = len(self.trainers)
+        self.trainer_idx = len(trainers)
 
-        # TODO: everything except trainers is ignored now,
-        # find a better solution
-
-        self.var_list = list(set().union(*[t.var_list for t in trainers]))
+        self.var_list = list(set().union(*[t.var_list for t in trainers])) \
+            # type: List[Any]
         self.all_coders = set.union(*[t.all_coders for t in self.trainers])
 
     def get_executable(
