@@ -103,6 +103,7 @@ class AutoregressiveDecoder(ModelPart):
                  vocabulary: Vocabulary,
                  data_id: str,
                  max_output_len: int,
+                 reuse: bool = False,
                  dropout_keep_prob: float = 1.0,
                  embedding_size: int = None,
                  embeddings_source: EmbeddedSequence = None,

@@ -69,6 +69,7 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
                  ff_hidden_size: int,
                  depth: int,
                  n_heads: int,
+                 reuse: bool = False,
                  dropout_keep_prob: float = 1.0,
                  attention_dropout_keep_prob: float = 1.0,
                  target_space_id: int = None,

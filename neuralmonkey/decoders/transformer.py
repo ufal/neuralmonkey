@@ -96,6 +96,7 @@ class TransformerDecoder(AutoregressiveDecoder):
             name: Name of the decoder. Should be unique accross all Neural
                 Monkey objects.
             max_output_len: Maximum length of an output sequence.
+            reuse: Reuse the model variables.
             dropout_keep_prob: Probability of keeping a value during dropout.
             embedding_size: Size of embedding vectors for target words.
             embeddings_source: Embedded sequence to take embeddings from.
@@ -128,6 +129,7 @@ class TransformerDecoder(AutoregressiveDecoder):
             vocabulary=vocabulary,
             data_id=data_id,
             max_output_len=max_output_len,
+            reuse=reuse,
             dropout_keep_prob=dropout_keep_prob,
             embedding_size=embedding_size,
             embeddings_source=embeddings_source,

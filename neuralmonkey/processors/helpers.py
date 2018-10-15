@@ -1,5 +1,6 @@
 from typing import Any, Callable, Generator, List
-from random import randint
+
+import numpy as np
 
 
 def preprocess_char_based(sentence: List[str]) -> List[str]:
