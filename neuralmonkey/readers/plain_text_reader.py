@@ -14,7 +14,7 @@ PlainTextFileReader = Callable[[List[str]], Iterable[List[str]]]
 
 csv.field_size_limit(sys.maxsize)
 
-_ALNUM_CHARSET = set(
+ALNUM_CHARSET = set(
     chr(i) for i in range(sys.maxunicode)
     if (unicodedata.category(chr(i)).startswith("L")
         or unicodedata.category(chr(i)).startswith("N")))
@@ -62,12 +62,10 @@ def t2t_tokenized_text_reader(encoding: str = "utf-8") -> PlainTextFileReader:
         for line in lines(files):
             if not line:
                 yield []
-            # github.com/tensorflow/tensor2tensor/blob/master/
-            #            tensor2tensor/data_generators/translate.py#L148
             line = line.strip()
 
             tokens = []
-            is_alnum = [ch in _ALNUM_CHARSET for ch in line]
+            is_alnum = [ch in ALNUM_CHARSET for ch in line]
             current_token_start = 0
 
             for pos in range(1, len(line)):
