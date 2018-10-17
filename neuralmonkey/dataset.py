@@ -171,8 +171,6 @@ def load_dataset_from_files(
     Keyword arguments:
         name: The name of the dataset to use. If None (default), the name will
               be inferred from the file names.
-        primary_series: A series that is used for measuring (token_level)
-                        batch size, bucketing, etc.
         lazy: Boolean flag specifying whether to use lazy loading (useful for
               large files). Note that the lazy dataset cannot be shuffled.
               Defaults to False.
@@ -487,8 +485,10 @@ class Dataset:
             batch_size: The size of a batch. In case of lazy datasets, this
                 should be lower than the dataset buffer size. Otherwise, the
                 batch size will be equal to the size of the buffer.
-            bucket_span: Max length span between the buckets.
-            token_level: Compute the batch_size as a number of tokens.
+            bucket_span: Max length span between the buckets. Non-positive
+                integer values indicate using of a single bucket.
+            token_level: If true, regard the batch_size as a number of tokens.
+                Otherwise, the batch_size indicates the number of examples.
 
         Returns:
             Generator yielding the batches.
@@ -529,7 +529,7 @@ class Dataset:
         while buf:
             row = buf.popleft()
 
-            if bucket_span == -1:
+            if bucket_span <= 0:
                 bucket_id = 0
             else:
                 # TODO: use only specific series to determine the bucket number
