@@ -51,10 +51,6 @@ class CTCDecoder(ModelPart):
     @tensor
     def train_targets(self) -> tf.Tensor:
         return tf.sparse_placeholder(tf.int32, name="targets")
-
-    @tensor
-    def train_mode(self) -> tf.Tensor:
-        return tf.placeholder(tf.bool, name="train_mode")
     # pylint: disable=no-self-use
 
     @tensor
@@ -125,12 +121,14 @@ class CTCDecoder(ModelPart):
         return tf.transpose(logits, perm=[1, 0, 2])  # time major
 
     def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
-        fd = {}  # type: FeedDict
+        fd = ModelPart.feed_dict(self, dataset, train)
 
         sentences = cast(Iterable[List[str]],
-                         dataset.get_series(self.data_id, allow_none=True))
+                         dataset.maybe_get_series(self.data_id))
 
-        fd[self.train_mode] = train
+        if sentences is None and train:
+            raise ValueError("When training, you must feed "
+                             "reference sentences")
 
         if sentences is not None:
             vectors, paddings = self.vocabulary.sentences_to_tensor(

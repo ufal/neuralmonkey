@@ -1,4 +1,4 @@
-from typing import Dict, List, Set
+from typing import Dict, List, Set, Optional
 
 import numpy as np
 from typeguard import check_argument_types
@@ -20,11 +20,11 @@ class CTCDebugExecutable(Executable):
         self._fetches = fetches
         self._vocabulary = vocabulary
 
-        self.result = None  # type: ExecutionResult
+        self.result = None  # type: Optional[ExecutionResult]
 
     def next_to_execute(self) -> NextExecute:
         """Get the feedables and tensors to run."""
-        return self._all_coders, self._fetches, None
+        return self._all_coders, self._fetches, []
 
     def collect_results(self, results: List[Dict]) -> None:
         if len(results) != 1:
@@ -53,7 +53,7 @@ class CTCDebugExecutable(Executable):
 
 
 class CTCDebugRunner(BaseRunner[CTCDecoder]):
-    "A runner that print out raw CTC output including the blank symbols."
+    """A runner that print out raw CTC output including the blank symbols."""
 
     def __init__(self,
                  output_series: str,
