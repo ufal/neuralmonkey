@@ -1,3 +1,5 @@
+from typing import cast, Iterable, List
+
 import numpy as np
 import tensorflow as tf
 from typeguard import check_argument_types
@@ -43,11 +45,17 @@ class CTCDecoder(ModelPart):
         self.merge_repeated_outputs = merge_repeated_outputs
         self.beam_width = beam_width
         log("CTC output tensor {}.".format(self.decoded))
-
-        with self.use_scope():
-            self.train_targets = tf.sparse_placeholder(
-                tf.int32, name="targets")
     # pylint: enable=too-many-arguments
+
+    # pylint: disable=no-self-use
+    @tensor
+    def train_targets(self) -> tf.Tensor:
+        return tf.sparse_placeholder(tf.int32, name="targets")
+
+    @tensor
+    def train_mode(self) -> tf.Tensor:
+        return tf.placeholder(tf.bool, name="train_mode")
+    # pylint: disable=no-self-use
 
     @tensor
     def decoded(self) -> tf.Tensor:
@@ -93,8 +101,7 @@ class CTCDecoder(ModelPart):
         weights = get_variable(
             name="state_to_word_W",
             shape=[encoder_states.shape[2], vocabulary_size + 1],
-            initializer=tf.variance_scaling_initializer(
-                mode="fan_avg", distribution="uniform"))
+            initializer=tf.random_uniform_initializer(-0.5, 0.5))
 
         biases = get_variable(
             name="state_to_word_b",
@@ -118,9 +125,12 @@ class CTCDecoder(ModelPart):
         return tf.transpose(logits, perm=[1, 0, 2])  # time major
 
     def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
-        fd = ModelPart.feed_dict(self, dataset, train)
+        fd = {}  # type: FeedDict
 
-        sentences = dataset.maybe_get_series(self.data_id)
+        sentences = cast(Iterable[List[str]],
+                         dataset.get_series(self.data_id, allow_none=True))
+
+        fd[self.train_mode] = train
 
         if sentences is not None:
             vectors, paddings = self.vocabulary.sentences_to_tensor(
