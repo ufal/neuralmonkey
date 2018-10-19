@@ -20,7 +20,11 @@ from neuralmonkey.tf_manager import TensorFlowManager
 from neuralmonkey.runners.base_runner import (
     BaseRunner, ExecutionResult, reduce_execution_results)
 from neuralmonkey.trainers.generic_trainer import GenericTrainer
+<<<<<<< HEAD
 from neuralmonkey.trainers.multitask_trainer import MultitaskTrainer
+=======
+from neuralmonkey.trainers.delayed_update_trainer import DelayedUpdateTrainer
+>>>>>>> added support for delayed update trainer and all sorts of logging periods
 
 # pylint: disable=invalid-name
 Evaluation = Dict[str, float]
@@ -154,9 +158,39 @@ def training_loop(tf_manager: TensorFlowManager,
                              "TensorFlowManager when using loss as "
                              "the main metric")
 
+    if log_period_batch is not None and isinstance(
+            trainer, DelayedUpdateTrainer):
+        if log_period_batch % trainer.batches_per_update != 0:
+            raise ValueError("When using delayed update trainer, the logging "
+                             "period must be divisible by batches_per_update.")
+
+    if val_period_batch is not None and isinstance(
+            trainer, DelayedUpdateTrainer):
+        if val_period_batch % trainer.batches_per_update != 0:
+            raise ValueError("When using delayed update trainer, validation "
+                             "period must be divisible by batches_per_update.")
+
     step = 0
     seen_instances = 0
     last_seen_instances = 0
+
+    def _is_logging_time(period_batch: Optional[int],
+                         period_time: Optional[float],
+                         last_time: float) -> bool:
+        if step == 0:
+            return False
+
+        if period_batch is not None:
+            return step % period_batch == 0
+
+        assert period_time is not None
+
+        # deal with delayed trainer
+        if isinstance(trainer, DelayedUpdateTrainer):
+            if step % trainer.batches_per_update != 0:
+                return False
+
+        return last_time + period_time < time.process_time()
 
     if initial_variables is None:
         # Assume we don't look at coder checkpoints when global
@@ -196,9 +230,9 @@ def training_loop(tf_manager: TensorFlowManager,
             for batch_n, batch in enumerate(train_batches):
                 step += 1
                 seen_instances += len(batch)
-                if _is_logging_time(step, log_period_batch,
-                                    last_log_time, log_period_time):
 
+                if _is_logging_time(log_period_batch, log_period_time,
+                                    last_log_time):
                     trainer_result = tf_manager.execute(
                         batch, trainers, train=True, summaries=True)
                     train_results, train_outputs = run_on_dataset(
@@ -221,8 +255,8 @@ def training_loop(tf_manager: TensorFlowManager,
                     tf_manager.execute(
                         batch, trainers, train=True, summaries=False)
 
-                if _is_logging_time(step, val_period_batch,
-                                    last_val_time, val_period_time):
+                if _is_logging_time(val_period_batch, val_period_time,
+                                    last_val_time):
                     log_print("")
                     val_duration_start = time.process_time()
                     val_examples = 0
@@ -334,16 +368,6 @@ def training_loop(tf_manager: TensorFlowManager,
 
     if interrupt is not None:
         raise interrupt  # pylint: disable=raising-bad-type
-
-
-def _is_logging_time(
-        step: int, logging_period_batch: Optional[int],
-        last_log_time: float, logging_period_time: Optional[float]):
-    if logging_period_batch is not None:
-        return step % logging_period_batch == logging_period_batch - 1
-
-    assert logging_period_time is not None
-    return last_log_time + logging_period_time < time.process_time()
 
 
 def _resolve_period(
