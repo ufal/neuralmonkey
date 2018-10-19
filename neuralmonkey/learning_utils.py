@@ -29,7 +29,7 @@ SeriesName = str
 EvalConfiguration = List[Union[Tuple[SeriesName, Any],
                                Tuple[SeriesName, SeriesName, Any]]]
 Postprocess = Optional[List[Tuple[SeriesName, Callable]]]
-Trainer = Union[GenericTrainer, MultitaskTrainer]
+Trainer = Union[GenericTrainer, MultitaskTrainer, DelayedUpdateTrainer]
 # pylint: enable=invalid-name
 
 
