@@ -313,9 +313,6 @@ class DelayedUpdateTrainer:
                         "gr_{}".format(var.name),
                         grad, collections=["summary_gradients"])
 
-            ### TODO jeste je tu problem s tim, ze se skalary ani histogramy
-            ### neukazujou v tensorboardu, když je batches_per_update > 1.
-
             self.histogram_summaries = tf.summary.merge(
                 tf.get_collection("summary_gradients"))
             self.scalar_summaries = tf.summary.merge(
@@ -390,6 +387,8 @@ class DelayedTrainExecutable(Executable):
             self.state = 2
             return
 
+        if self.summaries:
+            print("returning summary result in state: {}".format(self.state))
         self.result = ExecutionResult(
             [], losses=self.res_losses,
             scalar_summaries=self.res_scal_sums,
