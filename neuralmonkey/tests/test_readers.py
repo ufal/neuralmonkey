@@ -105,7 +105,7 @@ class TestT2TReader(unittest.TestCase):
     def test_reader(self):
         text = "Ich bin  der čermák -=- - !!! alfonso "
         gold_tokens = ["Ich", "bin", "  ", "der", "čermák", " -=- - !!! ",
-                       "alfonso", " "]
+                       "alfonso"]
 
         tmpfile = _make_file(text)
 

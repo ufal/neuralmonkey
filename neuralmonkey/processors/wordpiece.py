@@ -20,12 +20,13 @@ UNESCAPE_REGEX = re.compile(r"\\u|\\\\|\\([0-9]+);")
 
 
 def escape_token(token: str, alphabet: Set[str]) -> str:
-    """Escapes the token in the t2t fasion.
+    """Escapes the token in the t2t fashion.
 
     Underscores are regarded as an end of a token, so they must be escaped.
     Additionally, they/we escape also the OOA (out-of-alphabet) characters
     using their unicode code.
     """
+
     esc_token = token.replace("\\", "\\\\")  # replace 1 backslash with 2
     esc_token = esc_token.replace("_", "\\u")  # replace underscore with "\u"
 
