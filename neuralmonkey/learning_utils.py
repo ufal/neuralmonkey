@@ -20,11 +20,8 @@ from neuralmonkey.tf_manager import TensorFlowManager
 from neuralmonkey.runners.base_runner import (
     BaseRunner, ExecutionResult, reduce_execution_results)
 from neuralmonkey.trainers.generic_trainer import GenericTrainer
-<<<<<<< HEAD
 from neuralmonkey.trainers.multitask_trainer import MultitaskTrainer
-=======
 from neuralmonkey.trainers.delayed_update_trainer import DelayedUpdateTrainer
->>>>>>> added support for delayed update trainer and all sorts of logging periods
 
 # pylint: disable=invalid-name
 Evaluation = Dict[str, float]
@@ -32,7 +29,7 @@ SeriesName = str
 EvalConfiguration = List[Union[Tuple[SeriesName, Any],
                                Tuple[SeriesName, SeriesName, Any]]]
 Postprocess = Optional[List[Tuple[SeriesName, Callable]]]
-Trainer = Union[GenericTrainer, MultitaskTrainer]
+Trainer = Union[GenericTrainer, MultitaskTrainer, DelayedUpdateTrainer]
 # pylint: enable=invalid-name
 
 
