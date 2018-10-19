@@ -154,18 +154,16 @@ class GenericTrainer:
         gradient_list = self.optimizer.compute_gradients(tensor, self.var_list)
         return gradient_list
 
-    def get_executable(
-            self, compute_losses=True, summaries=True,
-            num_sessions=1) -> Executable:
+    def get_executable(self,
+                       compute_losses: bool = True,
+                       summaries: bool = True,
+                       num_sessions: int = 1) -> Executable:
         assert compute_losses
+        if num_sessions != 1:
+            raise ValueError(
+                "Trainer only supports execution in a single session")
 
-        return TrainExecutable(self.all_coders,
-                               num_sessions,
-                               self.train_op,
-                               self.losses,
-                               self.scalar_summaries if summaries else None,
-                               self.histogram_summaries if summaries else None)
-
+        return TrainExecutable(self, summaries)
 
 def _sum_gradients(gradients_list: List[Gradients]) -> Gradients:
     summed_dict = {}  # type: Dict[tf.Variable, tf.Tensor]
@@ -194,46 +192,32 @@ def _scale_gradients(gradients: Gradients,
 
 class TrainExecutable(Executable):
 
-    def __init__(self, all_coders, num_sessions,
-                 train_op, losses, scalar_summaries,
-                 histogram_summaries):
-        self.all_coders = all_coders
-        self.num_sessions = num_sessions
-        self.train_op = train_op
-        self.losses = losses
-        self.scalar_summaries = scalar_summaries
-        self.histogram_summaries = histogram_summaries
-
+    def __init__(self, trainer: GenericTrainer, summaries: bool) -> None:
+        self.trainer = trainer
+        self.summaries = summaries
         self.result = None
 
     def next_to_execute(self) -> NextExecute:
-        fetches = {"train_op": self.train_op}
-        if self.scalar_summaries is not None:
-            fetches["scalar_summaries"] = self.scalar_summaries
-            fetches["histogram_summaries"] = self.histogram_summaries
-        fetches["losses"] = self.losses
+        fetches = {"train_op": self.trainer.train_op}
+        if self.summaries:
+            fetches["scalar_summaries"] = self.trainer.scalar_summaries
+            fetches["histogram_summaries"] = self.trainer.histogram_summaries
+        fetches["losses"] = self.trainer.losses
         fetches["_update_ops"] = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
 
-        return self.all_coders, fetches, [{} for _ in range(self.num_sessions)]
+        return self.trainer.all_coders, fetches, [{}]
 
     def collect_results(self, results: List[Dict]) -> None:
-        if self.scalar_summaries is None:
-            scalar_summaries = None
-            histogram_summaries = None
-        else:
-            # TODO collect summaries from different sessions
-            scalar_summaries = results[0]["scalar_summaries"]
-            histogram_summaries = results[0]["histogram_summaries"]
+        assert len(results) == 1
+        result = results[0]
 
-        losses_sum = [0. for _ in self.losses]
-        for session_result in results:
-            for i in range(len(self.losses)):
-                # from the end, losses are last ones
-                losses_sum[i] += session_result["losses"][i]
-        avg_losses = [s / len(results) for s in losses_sum]
+        scalar_summaries = (
+            result["scalar_summaries"] if self.summaries else None)
+        histogram_summaries = (
+            result["histogram_summaries"] if self.summaries else None)
 
         self.result = ExecutionResult(
-            [], losses=avg_losses,
+            [], losses=result["losses"],
             scalar_summaries=scalar_summaries,
             histogram_summaries=histogram_summaries,
             image_summaries=None)

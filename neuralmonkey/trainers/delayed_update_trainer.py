@@ -321,43 +321,25 @@ class DelayedUpdateTrainer:
             self.scalar_summaries = tf.summary.merge(
                 tf.get_collection("summary_train"))
 
-    def get_executable(self, compute_losses=True, summaries=True,
-                       num_sessions=1) -> Executable:
+    def get_executable(self,
+                       compute_losses: bool = True,
+                       summaries: bool = True,
+                       num_sessions: int = 1) -> Executable:
         assert compute_losses
+        if num_sessions != 1:
+            raise ValueError(
+                "Trainer only supports execution in a single session")
 
-        return DelayedTrainExecutable(
-            self.all_coders,
-            num_sessions,
-            self.batches_per_update,
-            self.reset_ops,
-            self.accumulate_ops,
-            self.train_op,
-            self.cumulator_counter,
-            self.losses,
-            self.scalar_summaries if summaries else None,
-            self.histogram_summaries if summaries else None)
-
+        return DelayedTrainExecutable(self, summaries)
 
 class DelayedTrainExecutable(Executable):
 
-    def __init__(self, all_coders, num_sessions, batches_per_update,
-                 reset_ops, accumulate_ops, train_op, cumulator_counter,
-                 losses, scalar_summaries,
-                 histogram_summaries):
-        self.all_coders = all_coders
-        self.num_sessions = num_sessions
-        self.batches_per_update = batches_per_update
-        self.reset_ops = reset_ops
-        self.accumulate_ops = accumulate_ops
-        self.cumulator_counter = cumulator_counter
-        self.train_op = train_op
-        self.losses = losses
-        self.scalar_summaries = scalar_summaries
-        self.histogram_summaries = histogram_summaries
-
-        self.state = 0
+    def __init__(self, trainer: DelayedUpdateTrainer, summaries: bool) -> None:
+        self.trainer = trainer
+        self.summaries = summaries
         self.result = None
 
+        self.state = 0
         self.res_hist_sums = None
         self.res_scal_sums = None
         self.res_losses = None
@@ -365,44 +347,43 @@ class DelayedTrainExecutable(Executable):
     def next_to_execute(self) -> NextExecute:
 
         if self.state == 0:  # ACCUMULATING
-            fetches = {"accumulators": self.accumulate_ops,
-                       "counter": self.cumulator_counter,
-                       "losses": self.losses}
-            coders = self.all_coders
+            fetches = {"accumulators": self.trainer.accumulate_ops,
+                       "counter": self.trainer.cumulator_counter,
+                       "losses": self.trainer.losses}
+            coders = self.trainer.all_coders
 
         elif self.state == 1:  # UPDATING
             fetches = {
-                "train_op": self.train_op,
+                "train_op": self.trainer.train_op,
                 "_update_ops": tf.get_collection(tf.GraphKeys.UPDATE_OPS)}
 
-            if self.scalar_summaries is not None:
-                fetches["scalar_summaries"] = self.scalar_summaries
-                fetches["histogram_summaries"] = self.histogram_summaries
+            if self.summaries:
+                fetches["scalar_summaries"] = self.trainer.scalar_summaries
+                fetches["histogram_summaries"] = self.trainer.histogram_summaries
 
             coders = []
 
         else:  # RESETTING
-            fetches = {"resets": self.reset_ops}
+            fetches = {"resets": self.trainer.reset_ops}
             coders = []
 
-        return coders, fetches, [{} for _ in range(self.num_sessions)]
+        return coders, fetches, [{}]
 
     def collect_results(self, results: List[Dict]) -> None:
-
         assert len(results) == 1
         result = results[0]
 
         if self.state == 0:  # ACCUMULATING
-            self.losses = result["losses"]
+            self.res_losses = result["losses"]
 
             # Are we updating?
             counter = result["counter"]
 
-            if counter == self.batches_per_update:
+            if counter == self.trainer.batches_per_update:
                 self.state = 1
                 return
         elif self.state == 1:
-            if self.scalar_summaries is not None:
+            if self.summaries:
                 self.res_scal_sums = result["scalar_summaries"]
                 self.res_hist_sums = result["histogram_summaries"]
 
@@ -410,7 +391,7 @@ class DelayedTrainExecutable(Executable):
             return
 
         self.result = ExecutionResult(
-            [], losses=self.losses,
+            [], losses=self.res_losses,
             scalar_summaries=self.res_scal_sums,
             histogram_summaries=self.res_hist_sums,
             image_summaries=None)
