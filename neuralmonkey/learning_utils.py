@@ -182,13 +182,13 @@ def training_loop(tf_manager: TensorFlowManager,
                                     last_log_time, log_period_time):
 
                     train_results, train_outputs = run_on_dataset(
-                        tf_manager, runners, batch, postprocess,
-                        write_out=False, batch_size=len(batch))
+                        tf_manager, runners, batch_dataset, postprocess,
+                        write_out=False, batch_size=runners_batch_size)
                     # ensure train outputs are iterable more than once
                     train_outputs = {
                         k: list(v) for k, v in train_outputs.items()}
                     train_evaluation = evaluation(
-                        evaluators, batch, runners, train_results,
+                        evaluators, batch_dataset, runners, train_results,
                         train_outputs)
 
                     _log_continuous_evaluation(
