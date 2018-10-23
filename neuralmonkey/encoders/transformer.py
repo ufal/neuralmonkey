@@ -77,6 +77,8 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
                  use_positional_encoding: bool = True,
                  input_for_cross_attention: Attendable = None,
                  n_cross_att_heads: int = None,
+                 mask_left_context: bool = False,
+                 mask_right_context: bool = False,
                  reuse: ModelPart = None,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None,
@@ -107,7 +109,15 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
                 attended using cross-attention on every layer of the decoder,
                 analogically to how encoder is attended in the decoder.
             n_cross_att_heads: Number of heads used in the cross-attention.
-
+            mask_left_context: Enabling this will replace the self-attention
+                layer with a masked self-attention, where the mask is applied
+                the left context of the given position (meaning the attention
+                will be computed only on the tokens to the right of the given
+                position.
+            mask_right_context: Same as `mask_left_context`, except the
+                attention is done on the tokens to the left of the given
+                position (this is what is done by default in the autoregressive
+                transformer decoder).
         """
         check_argument_types()
         ModelPart.__init__(self, name, reuse, save_checkpoint, load_checkpoint,
@@ -125,6 +135,8 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
         self.use_positional_encoding = use_positional_encoding
         self.input_for_cross_attention = input_for_cross_attention
         self.n_cross_att_heads = n_cross_att_heads
+        self.mask_left_context = mask_left_context
+        self.mask_right_context = mask_right_context
 
         if self.depth <= 0:
             raise ValueError("Depth must be a positive integer.")
@@ -223,6 +235,8 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
             num_heads=self.n_heads,
             dropout_callback=lambda x: dropout(
                 x, self.attention_dropout_keep_prob, self.train_mode),
+            mask_left_context=self.mask_left_context,
+            mask_right_context=self.mask_right_context,
             use_bias=self.use_att_transform_bias)
 
         # Apply dropout
