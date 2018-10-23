@@ -113,7 +113,7 @@ class DelayedUpdateTrainer(GenericTrainer):
 
     @tensor
     def raw_gradients(self) -> Gradients:
-        """Return averaged gradients over buffers"""
+        """Return averaged gradients over buffers."""
         # pylint: disable=not-an-iterable
         # Pylint does not understand @tensor annotations
         averaged_grads = [grad / tf.to_float(self.cumulator_counter)
