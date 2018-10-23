@@ -2,6 +2,35 @@
 from typing import List, Callable
 import tensorflow as tf
 from neuralmonkey.nn.utils import dropout
+from neuralmonkey.decorators import tensor
+from neuralmonkey.model.stateful import TemporalStateful
+
+
+class TemporalSatefulProjection(TemporalStateful):
+
+    def __init__(self, inputs: List[TemporalStateful], dim: int) -> None:
+        self.inputs = inputs
+        self.dim = dim
+
+        if not inputs:
+            raise ValueError("At least one input is required")
+
+    @tensor
+    def assertions(self) -> tf.Tensor:
+        first_mask = inputs[0].temporal_mask
+        return [tf.assert_equal(inp.temporal_mask, first_mask)
+                for inp in self.inputs[1:]]
+
+    @tensor
+    def temporal_states(self) -> tf.Tensor:
+        with tf.control_dependencies(self.assertions):
+            cat = tf.concat([i.temporal_mask for i in self.inputs], axis=2)
+            return tf.layers.dense(cat, self.dim)
+
+    @tensor
+    def temporal_mask(self) -> tf.Tensor:
+        with tf.control_dependencies(self.assertions):
+            return self.inputs[0].temporal_mask
 
 
 def maxout(inputs: tf.Tensor,
