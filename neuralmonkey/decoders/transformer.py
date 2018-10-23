@@ -270,7 +270,7 @@ class TransformerDecoder(AutoregressiveDecoder):
             values=normalized_states,
             keys_mask=prev_layer.temporal_mask,
             num_heads=self.n_heads_self,
-            masked=True,
+            mask_right_context=True,
             dropout_callback=lambda x: dropout(
                 x, self.self_att_dropout_keep_prob, self.train_mode),
             use_bias=self.use_att_transform_bias)

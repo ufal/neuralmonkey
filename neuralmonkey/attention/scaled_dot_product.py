@@ -67,7 +67,9 @@ def mask_energies(energies_4d: tf.Tensor,
     return energies_all + (1.0 - mask_4d) * mask_value
 
 
-def mask_future(energies: tf.Tensor, mask_value=-1e9) -> tf.Tensor:
+def mask_context(energies: tf.Tensor,
+                 left: bool = False,
+                 mask_value: float = -1e9) -> tf.Tensor:
     """Mask energies of keys using lower triangular matrix.
 
     Mask simulates autoregressive decoding, such that it prevents
@@ -77,12 +79,18 @@ def mask_future(energies: tf.Tensor, mask_value=-1e9) -> tf.Tensor:
 
     Arguments:
         energies: A tensor to mask.
+        left: By default, mask future states (right of the given position).
+            Setting this to True will mask past states (left of pos).
         mask_value: Value used to mask energies.
 
     Returns:
         Masked energies tensor.
     """
-    triangular_mask = tf.matrix_band_part(tf.ones_like(energies), -1, 0)
+    if not left:
+        triangular_mask = tf.matrix_band_part(tf.ones_like(energies), -1, 0)
+    else:
+        triangular_mask = tf.matrix_band_part(tf.ones_like(energies), 0, -1)
+
     mask_area = tf.equal(triangular_mask, 1)
 
     # Note that for compatibility with tensor2tensor, we use -1e9 for negative
@@ -100,7 +108,8 @@ def attention(
         keys_mask: tf.Tensor,
         num_heads: int,
         dropout_callback: Callable[[tf.Tensor], tf.Tensor],
-        masked: bool = False,
+        mask_left_context: bool = False,
+        mask_right_context: bool = False,
         use_bias: bool = False) -> tf.Tensor:
     """Run multi-head scaled dot-product attention.
 
@@ -133,9 +142,10 @@ def attention(
         keys_mask: A float Tensor for masking sequences in keys.
         num_heads: Number of attention heads.
         dropout_callback: Callable function implementing dropout.
-        masked: Boolean indicating whether we want to mask future energies.
         use_bias: If True, enable bias in the attention head projections
             (for all queries, keys and values).
+        mask_left_context: Flag whether to mask past energies (left context).
+        mask_right_context: Flag whether to mask future energies (right ctx.)
 
     Returns:
         Contexts of shape ``(batch, time(q), v_channels)`` and
@@ -190,8 +200,11 @@ def attention(
 
     # To protect the attention from looking ahead of time, we must replace the
     # energies of future keys with negative infinity
-    if masked:
-        energies = mask_future(energies)
+    if mask_right_context:
+        energies = mask_context(energies)
+
+    if mask_left_context:
+        energies = mask_context(energies, left=True)
 
     # To exclude the padded positions (those after the end of sentence),
     # we mask the attention energies given this mask.
