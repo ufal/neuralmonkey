@@ -232,7 +232,7 @@ def load(name: str,
          data: List[SourceSpec],
          outputs: List[OutputSpec] = None,
          buffer_size: int = None,
-         shuffled: bool = True) -> "Dataset":
+         shuffled: bool = False) -> "Dataset":
     """Create a dataset using specification from the configuration.
 
     The dataset provides iterators over data series. The dataset has a buffer,
