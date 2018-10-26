@@ -7,7 +7,7 @@ from neuralmonkey.attention.base_attention import (
     BaseAttention, AttentionLoopState, empty_attention_loop_state)
 from neuralmonkey.model.stateful import Stateful
 from neuralmonkey.decorators import tensor
-from neuralmonkey.model.model_part import InitializerSpecs
+from neuralmonkey.model.model_part import InitializerSpecs, ModelPart
 
 
 class StatefulContext(BaseAttention):
@@ -25,12 +25,13 @@ class StatefulContext(BaseAttention):
     def __init__(self,
                  name: str,
                  encoder: Stateful,
+                 reuse: ModelPart = None,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None,
                  initializers: InitializerSpecs = None) -> None:
         check_argument_types()
-        BaseAttention.__init__(self, name, save_checkpoint, load_checkpoint,
-                               initializers)
+        BaseAttention.__init__(self, name, reuse, save_checkpoint,
+                               load_checkpoint, initializers)
 
         self.encoder = encoder
 

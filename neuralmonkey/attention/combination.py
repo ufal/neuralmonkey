@@ -23,7 +23,7 @@ from neuralmonkey.attention.base_attention import (
     get_attention_states, get_attention_mask, Attendable)
 from neuralmonkey.attention.namedtuples import HierarchicalLoopState
 from neuralmonkey.checking import assert_shape
-from neuralmonkey.model.model_part import InitializerSpecs
+from neuralmonkey.model.model_part import InitializerSpecs, ModelPart
 from neuralmonkey.tf_utils import get_variable
 
 
@@ -36,11 +36,12 @@ class MultiAttention(BaseAttention):
                  attention_state_size: int,
                  share_attn_projections: bool = False,
                  use_sentinels: bool = False,
+                 reuse: ModelPart = None,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None,
                  initializers: InitializerSpecs = None) -> None:
-        BaseAttention.__init__(self, name, save_checkpoint, load_checkpoint,
-                               initializers)
+        BaseAttention.__init__(self, name, reuse, save_checkpoint,
+                               load_checkpoint, initializers)
         self.attentions_in_time = []  # type: List[tf.Tensor]
         self.attention_state_size = attention_state_size
         self._share_projections = share_attn_projections
@@ -118,6 +119,7 @@ class FlatMultiAttention(MultiAttention):
                  attention_state_size: int,
                  share_attn_projections: bool = False,
                  use_sentinels: bool = False,
+                 reuse: ModelPart = None,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None,
                  initializers: InitializerSpecs = None) -> None:
@@ -128,6 +130,7 @@ class FlatMultiAttention(MultiAttention):
             attention_state_size=attention_state_size,
             share_attn_projections=share_attn_projections,
             use_sentinels=use_sentinels,
+            reuse=reuse,
             save_checkpoint=save_checkpoint,
             load_checkpoint=load_checkpoint,
             initializers=initializers)
@@ -336,6 +339,7 @@ class HierarchicalMultiAttention(MultiAttention):
                  attention_state_size: int,
                  use_sentinels: bool,
                  share_attn_projections: bool,
+                 reuse: ModelPart = None,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None,
                  initializers: InitializerSpecs = None) -> None:
@@ -346,6 +350,7 @@ class HierarchicalMultiAttention(MultiAttention):
             attention_state_size=attention_state_size,
             use_sentinels=use_sentinels,
             share_attn_projections=share_attn_projections,
+            reuse=reuse,
             save_checkpoint=save_checkpoint,
             load_checkpoint=load_checkpoint,
             initializers=initializers)

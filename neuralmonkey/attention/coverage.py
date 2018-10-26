@@ -10,7 +10,7 @@ from typeguard import check_argument_types
 
 from neuralmonkey.attention.base_attention import Attendable
 from neuralmonkey.attention.feed_forward import Attention
-from neuralmonkey.model.model_part import InitializerSpecs
+from neuralmonkey.model.model_part import InitializerSpecs, ModelPart
 
 
 class CoverageAttention(Attention):
@@ -21,12 +21,14 @@ class CoverageAttention(Attention):
                  dropout_keep_prob: float = 1.0,
                  state_size: int = None,
                  max_fertility: int = 5,
+                 reuse: ModelPart = None,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None,
                  initializers: InitializerSpecs = None) -> None:
         check_argument_types()
         Attention.__init__(self, name, encoder, dropout_keep_prob, state_size,
-                           save_checkpoint, load_checkpoint, initializers)
+                           reuse, save_checkpoint, load_checkpoint,
+                           initializers)
 
         self.max_fertility = max_fertility
 

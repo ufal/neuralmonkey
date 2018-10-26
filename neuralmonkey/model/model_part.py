@@ -21,7 +21,7 @@ class ModelPart(metaclass=ABCMeta):
 
     def __init__(self,
                  name: str,
-                 reuse: ModelPart = None,
+                 reuse: "ModelPart" = None,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None,
                  initializers: InitializerSpecs = None) -> None:
@@ -38,7 +38,7 @@ class ModelPart(metaclass=ABCMeta):
                                  .format(name, reuse.name))
 
             # pylint: disable=protected-access
-            self._variable_scope = reuse._variable_scope
+            self._variable_scope = reuse._variable_scope  # type: ignore
             self._variable_scope.reuse_variables()
             # pylint: enable=protected-access
         else:
