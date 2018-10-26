@@ -32,7 +32,7 @@ class ModelPart(metaclass=ABCMeta):
         self._saver = None  # type: tf.train.Saver
         self._reuse = reuse is not None
 
-        if self._reuse:
+        if reuse is not None:
             if initializers is not None:
                 raise ValueError("Cannot use initializers in model part '{}' "
                                  "that reuses variables from '{}'."
