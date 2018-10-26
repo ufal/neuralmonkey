@@ -1,3 +1,6 @@
+"""Input combination strategies for multi-source Transformer decoder."""
+# TODO add citation when URL becomes available
+
 from typing import Callable, List
 import tensorflow as tf
 
@@ -17,6 +20,24 @@ def single(
         use_dropout: bool = True,
         residual: bool = True,
         use_att_transform_bias: bool = False):
+    """Run attention on a single encoder.
+
+    Arguments:
+        queries: The input for the attention.
+        states: The encoder states (keys & values).
+        mask: The temporal mask of the encoder.
+        n_heads: Number of attention heads to use.
+        attention_dropout_callback: Dropout function to apply in attention.
+        dropout_callback: Dropout function to apply on the attention output.
+        normalize: If True, run layer normalization on the queries.
+        use_dropout: If True, perform dropout on the attention output.
+        residual: If True, sum the context vector with the input queries.
+        use_att_transform_bias: If True, enable bias in the attention head
+            projections (for all queries, keys and values).
+
+    Returns:
+        A Tensor that contains the context vector.
+    """
 
     # Layer normalization
     normalized_queries = layer_norm(queries) if normalize else queries
@@ -50,11 +71,26 @@ def serial(queries: tf.Tensor,
            heads: List[int],
            attention_dropout_callbacks: List[Callable[[tf.Tensor], tf.Tensor]],
            dropout_callback: Callable[[tf.Tensor], tf.Tensor]) -> tf.Tensor:
-    # serial:
-    # * repeat for every encoder:
-    #   - lnorm + attend + dropout + add residual
-    # * update queiies between layers
+    """Run attention with serial input combination.
 
+    The procedure is as follows:
+    1. repeat for every encoder:
+       - lnorm + attend + dropout + add residual
+    2. update queries between layers
+
+    Arguments:
+        queries: The input for the attention.
+        encoder_states: The states of each encoder.
+        encoder_masks: The temporal mask of each encoder.
+        heads: Number of attention heads to use for each encoder.
+        attention_dropout_callbacks: Dropout functions to apply in attention
+            over each encoder.
+        dropout_callback: The dropout function to apply on the outputs of each
+            sub-attention.
+
+    Returns:
+        A Tensor that contains the context vector.
+    """
     context = queries
     for i, (states, mask, n_heads, attn_drop_cb) in enumerate(zip(
             encoder_states, encoder_masks, heads,
@@ -74,12 +110,27 @@ def parallel(
         heads: List[int],
         attention_dropout_callbacks: List[Callable[[tf.Tensor], tf.Tensor]],
         dropout_callback: Callable[[tf.Tensor], tf.Tensor]) -> tf.Tensor:
-    # parallel:
-    # * normalize queries,
-    # * attend and dropout independently for every encoder,
-    # * sum up the results
-    # * add residual and return
+    """Run attention with parallel input combination.
 
+    The procedure is as follows:
+    1. normalize queries,
+    2. attend and dropout independently for every encoder,
+    3. sum up the results
+    4. add residual and return
+
+    Arguments:
+        queries: The input for the attention.
+        encoder_states: The states of each encoder.
+        encoder_masks: The temporal mask of each encoder.
+        heads: Number of attention heads to use for each encoder.
+        attention_dropout_callbacks: Dropout functions to apply in attention
+            over each encoder.
+        dropout_callback: The dropout function to apply on the outputs of each
+            sub-attention.
+
+    Returns:
+        A Tensor that contains the context vector.
+    """
     normalized_queries = layer_norm(queries)
     contexts = []
 
@@ -106,12 +157,28 @@ def hierarchical(
         heads_hier: int,
         attention_dropout_callbacks: List[Callable[[tf.Tensor], tf.Tensor]],
         dropout_callback: Callable[[tf.Tensor], tf.Tensor]) -> tf.Tensor:
-    # hierarchical:
-    # * normalize queries
-    # * attend to every encoder
-    # * attend to the resulting context vectors (reuse normalized queries)
-    # * apply dropout, add residual connection and return
+    """Run attention with hierarchical input combination.
 
+    The procedure is as follows:
+    1. normalize queries
+    2. attend to every encoder
+    3. attend to the resulting context vectors (reuse normalized queries)
+    4. apply dropout, add residual connection and return
+
+    Arguments:
+        queries: The input for the attention.
+        encoder_states: The states of each encoder.
+        encoder_masks: The temporal mask of each encoder.
+        heads: Number of attention heads to use for each encoder.
+        heads_hier: Number of attention heads to use in the second attention.
+        attention_dropout_callbacks: Dropout functions to apply in attention
+            over each encoder.
+        dropout_callback: The dropout function to apply in the second attention
+            and over the outputs of each sub-attention.
+
+    Returns:
+        A Tensor that contains the context vector.
+    """
     normalized_queries = layer_norm(queries)
     contexts = []
 
@@ -170,11 +237,25 @@ def flat(queries: tf.Tensor,
          heads: int,
          attention_dropout_callback: Callable[[tf.Tensor], tf.Tensor],
          dropout_callback: Callable[[tf.Tensor], tf.Tensor]) -> tf.Tensor:
+    """Run attention with flat input combination.
 
-    # flat:
-    # * concatenate the states and mask along the time axis
-    # * run attention over the concatenation
+    The procedure is as follows:
+    1. concatenate the states and mask along the time axis
+    2. run attention over the concatenation
 
+    Arguments:
+        queries: The input for the attention.
+        encoder_states: The states of each encoder.
+        encoder_masks: The temporal mask of each encoder.
+        heads: Number of attention heads to use for each encoder.
+        attention_dropout_callbacks: Dropout functions to apply in attention
+            over each encoder.
+        dropout_callback: The dropout function to apply on the output of the
+            attention.
+
+    Returns:
+        A Tensor that contains the context vector.
+    """
     concat_states = tf.concat(encoder_states, 1)
     concat_mask = tf.concat(encoder_masks, 1)
 
