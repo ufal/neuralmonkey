@@ -15,7 +15,7 @@ from neuralmonkey.attention.base_attention import (
 from neuralmonkey.decorators import tensor
 from neuralmonkey.attention.scaled_dot_product import attention
 from neuralmonkey.logging import log
-from neuralmonkey.model.model_part import ModelPart
+from neuralmonkey.model.model_part import ModelPart, InitializerSpecs
 from neuralmonkey.model.stateful import (TemporalStateful,
                                          TemporalStatefulWithOutput)
 from neuralmonkey.nn.utils import dropout
@@ -71,7 +71,6 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
                  ff_hidden_size: int,
                  depth: int,
                  n_heads: int,
-                 reuse: bool = False,
                  dropout_keep_prob: float = 1.0,
                  attention_dropout_keep_prob: float = 1.0,
                  target_space_id: int = None,
@@ -79,8 +78,10 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
                  use_positional_encoding: bool = True,
                  input_for_cross_attention: Attendable = None,
                  n_cross_att_heads: int = None,
+                 reuse: ModelPart = None,
                  save_checkpoint: str = None,
-                 load_checkpoint: str = None) -> None:
+                 load_checkpoint: str = None
+                 initializers: InitializerSpecs) -> None:
         """Create an encoder of the Transformer model.
 
         Described in Vaswani et al. (2017), arxiv.org/abs/1706.03762
@@ -110,7 +111,8 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
 
         """
         check_argument_types()
-        ModelPart.__init__(self, name, reuse, save_checkpoint, load_checkpoint)
+        ModelPart.__init__(self, name, reuse, save_checkpoint, load_checkpoint,
+                           initializers)
 
         self.input_sequence = input_sequence
         self.model_dimension = self.input_sequence.dimension

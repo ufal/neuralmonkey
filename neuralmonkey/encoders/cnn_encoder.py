@@ -40,6 +40,7 @@ class CNNEncoder(ModelPart, SpatialStatefulWithOutput):
                  fully_connected: List[int] = None,
                  batch_normalize: bool = False,
                  dropout_keep_prob: float = 0.5,
+                 reuse: ModelPart = None,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None,
                  initializers: InitializerSpecs = None) -> None:
@@ -67,7 +68,7 @@ class CNNEncoder(ModelPart, SpatialStatefulWithOutput):
         """
         check_argument_types()
         ModelPart.__init__(
-            self, name, False, save_checkpoint, load_checkpoint, initializers)
+            self, name, reuse, save_checkpoint, load_checkpoint, initializers)
 
         self.data_id = data_id
         self.dropout_keep_prob = dropout_keep_prob

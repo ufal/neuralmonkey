@@ -101,13 +101,13 @@ class AutoregressiveDecoder(ModelPart):
                  vocabulary: Vocabulary,
                  data_id: str,
                  max_output_len: int,
-                 reuse: bool = False,
                  dropout_keep_prob: float = 1.0,
                  embedding_size: int = None,
                  embeddings_source: EmbeddedSequence = None,
                  tie_embeddings: bool = False,
                  label_smoothing: float = None,
                  supress_unk: bool = False,
+                 reuse: ModelPart = None,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None,
                  initializers: InitializerSpecs = None) -> None:
@@ -119,7 +119,7 @@ class AutoregressiveDecoder(ModelPart):
             vocabulary: Target vocabulary.
             data_id: Target data series.
             max_output_len: Maximum length of an output sequence.
-            reuse: Reuse the model variables.
+            reuse: Reuse the variables from the model part.
             dropout_keep_prob: Probability of keeping a value during dropout.
             embedding_size: Size of embedding vectors for target words.
             embeddings_source: Embedded sequence to take embeddings from.

@@ -2,6 +2,7 @@ from typing import cast
 
 import numpy as np
 import tensorflow as tf
+from typeguard import check_argument_types
 
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.encoders.recurrent import RecurrentEncoder
@@ -23,8 +24,10 @@ class WordAlignmentDecoder(ModelPart):
                  decoder: Decoder,
                  data_id: str,
                  name: str,
+                 reuse: ModelPart = None,
                  initializers: InitializerSpecs = None) -> None:
-        ModelPart.__init__(self, name, False, None, None, initializers)
+        check_argument_types()
+        ModelPart.__init__(self, name, reuse, None, None, initializers)
 
         self.encoder = encoder
         self.decoder = decoder

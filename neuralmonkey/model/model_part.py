@@ -21,7 +21,7 @@ class ModelPart(metaclass=ABCMeta):
 
     def __init__(self,
                  name: str,
-                 reuse: bool = False,
+                 reuse: ModelPart = None,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None,
                  initializers: InitializerSpecs = None) -> None:
@@ -31,19 +31,25 @@ class ModelPart(metaclass=ABCMeta):
 
         self._saver = None  # type: tf.train.Saver
 
-        with tf.variable_scope(name) as scope:
-            self._variable_scope = scope
+        if reuse is not None:
             if initializers is not None:
-                tf_utils.update_initializers(
-                    (scope.name + "/" + name, initializer)
-                    for name, initializer in initializers)
+                raise ValueError("Cannot use initializers in model part '{}' "
+                                 "that reuses variables from '{}'."
+                                 .format(name, reuse.name))
+
+            self._variable_scope = reuse._variable_scope
+            self._variable_scope.reuse_variables()
+        else:
+            with tf.variable_scope(scope_name) as scope:
+                self._variable_scope = scope
+                if initializers is not None:
+                    tf_utils.update_initializers(
+                        (scope.name + "/" + name, initializer)
+                        for name, initializer in initializers)
 
         with self.use_scope():
             self.train_mode = tf.placeholder(tf.bool, [], "train_mode")
             self.batch_size = tf.placeholder(tf.int32, [], "batch_size")
-
-        if reuse:
-            self._variable_scope.reuse_variables()
 
     @property
     def name(self) -> str:

@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List
 
 import numpy as np
 import tensorflow as tf
@@ -25,10 +25,11 @@ class RawRNNEncoder(ModelPart, TemporalStatefulWithOutput):
                  data_id: str,
                  input_size: int,
                  rnn_layers: List[RNNSpecTuple],
-                 max_input_len: Optional[int] = None,
+                 max_input_len: int = None,
                  dropout_keep_prob: float = 1.0,
-                 save_checkpoint: Optional[str] = None,
-                 load_checkpoint: Optional[str] = None,
+                 reuse: ModelPart = None,
+                 save_checkpoint: str = None,
+                 load_checkpoint: str = None,
                  initializers: InitializerSpecs = None) -> None:
         """Create a new instance of the encoder.
 
@@ -38,13 +39,11 @@ class RawRNNEncoder(ModelPart, TemporalStatefulWithOutput):
             rnn_layers: A list of tuples specifying the size and, optionally,
                 the direction ('forward', 'backward' or 'bidirectional')
                 and cell type ('GRU' or 'LSTM') of each RNN layer.
-
-        Keyword arguments:
             dropout_keep_prob: The dropout keep probability
                 (default 1.0)
         """
         check_argument_types()
-        ModelPart.__init__(self, name, False, save_checkpoint, load_checkpoint,
+        ModelPart.__init__(self, name, reuse, save_checkpoint, load_checkpoint,
                            initializers)
 
         self.data_id = data_id

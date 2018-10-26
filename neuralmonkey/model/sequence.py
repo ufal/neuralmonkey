@@ -30,7 +30,7 @@ class Sequence(ModelPart, TemporalStateful):
     def __init__(self,
                  name: str,
                  max_length: int = None,
-                 reuse: bool = False,
+                 reuse: ModelPart = None,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None,
                  initializers: InitializerSpecs = None) -> None:
@@ -65,7 +65,7 @@ class EmbeddedFactorSequence(Sequence):
                  add_end_symbol: bool = False,
                  scale_embeddings_by_depth: bool = False,
                  embeddings_source: "EmbeddedFactorSequence" = None,
-                 reuse: bool = False,
+                 reuse: ModelPart = None,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None,
                  initializers: InitializerSpecs = None) -> None:
@@ -260,7 +260,7 @@ class EmbeddedSequence(EmbeddedFactorSequence):
                  add_end_symbol: bool = False,
                  scale_embeddings_by_depth: bool = False,
                  embeddings_source: "EmbeddedSequence" = None,
-                 reuse: bool = False,
+                 reuse: ModelPart = None,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None,
                  initializers: InitializerSpecs = None) -> None:

@@ -29,11 +29,12 @@ class CTCDecoder(ModelPart):
                  merge_repeated_targets: bool = False,
                  merge_repeated_outputs: bool = True,
                  beam_width: int = 1,
+                 reuse: ModelPart = None,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None,
                  initializers: InitializerSpecs = None) -> None:
         check_argument_types()
-        ModelPart.__init__(self, name, False, save_checkpoint, load_checkpoint,
+        ModelPart.__init__(self, name, reuse, save_checkpoint, load_checkpoint,
                            initializers)
 
         self.encoder = encoder

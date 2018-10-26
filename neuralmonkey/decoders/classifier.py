@@ -1,6 +1,7 @@
-from typing import Callable, Optional, List
+from typing import Callable, List
 
 import tensorflow as tf
+from typeguard import check_argument_types
 
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.vocabulary import Vocabulary
@@ -26,8 +27,9 @@ class Classifier(ModelPart):
                  layers: List[int],
                  activation_fn: Callable[[tf.Tensor], tf.Tensor] = tf.nn.relu,
                  dropout_keep_prob: float = 0.5,
-                 save_checkpoint: Optional[str] = None,
-                 load_checkpoint: Optional[str] = None,
+                 reuse: ModelPart = None,
+                 save_checkpoint: str = None,
+                 load_checkpoint: str = None,
                  initializers: InitializerSpecs = None) -> None:
         """Construct a new instance of the sequence classifier.
 
@@ -45,7 +47,8 @@ class Classifier(ModelPart):
                            hidden layer.
             dropout_keep_prob: Probability of keeping a value during dropout
         """
-        ModelPart.__init__(self, name, False, save_checkpoint, load_checkpoint,
+        check_argument_types()
+        ModelPart.__init__(self, name, reuse, save_checkpoint, load_checkpoint,
                            initializers)
 
         self.encoders = encoders

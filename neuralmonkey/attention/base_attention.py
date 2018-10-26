@@ -126,12 +126,13 @@ class BaseAttention(ModelPart):
 
     def __init__(self,
                  name: str,
+                 reuse: ModelPart = None,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None,
                  initializers: InitializerSpecs = None) -> None:
         """Create a new ``BaseAttention`` object."""
         ModelPart.__init__(
-            self, name, False, save_checkpoint, load_checkpoint, initializers)
+            self, name, reuse, save_checkpoint, load_checkpoint, initializers)
 
         self.query_state_size = None  # type: tf.Tensor
         self._histories = {}  # type: Dict[str, tf.Tensor]

@@ -26,11 +26,12 @@ class SentenceEncoder(ModelPart, TemporalStatefulWithOutput):
                  encoder_layers: int,
                  kernel_width: int = 5,
                  dropout_keep_prob: float = 1.0,
+                 reuse: ModelPart = None,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None,
                  initializers: InitializerSpecs = None) -> None:
         check_argument_types()
-        ModelPart.__init__(self, name, False, save_checkpoint, load_checkpoint,
+        ModelPart.__init__(self, name, reuse, save_checkpoint, load_checkpoint,
                            initializers)
 
         self.input_sequence = input_sequence
