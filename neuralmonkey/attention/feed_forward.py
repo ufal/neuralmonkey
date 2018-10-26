@@ -21,6 +21,7 @@ from neuralmonkey.tf_utils import get_variable
 
 class Attention(BaseAttention):
 
+    # pylint: disable=too-many-arguments
     def __init__(self,
                  name: str,
                  encoder: Attendable,
@@ -44,6 +45,7 @@ class Attention(BaseAttention):
         # TODO blessing
         log("Hidden features: {}".format(self.hidden_features))
         log("Attention mask: {}".format(self.attention_mask))
+    # pylint: enable=too-many-arguments
 
     @tensor
     def attention_states(self) -> tf.Tensor:

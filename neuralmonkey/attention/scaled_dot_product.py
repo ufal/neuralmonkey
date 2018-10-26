@@ -366,6 +366,7 @@ class MultiHeadAttention(BaseAttention):
 
 class ScaledDotProdAttention(MultiHeadAttention):
 
+    # pylint: disable=too-many-arguments
     def __init__(self,
                  name: str,
                  keys_encoder: Attendable,
@@ -379,3 +380,4 @@ class ScaledDotProdAttention(MultiHeadAttention):
         MultiHeadAttention.__init__(
             self, name, 1, keys_encoder, values_encoder, dropout_keep_prob,
             reuse, save_checkpoint, load_checkpoint, initializers)
+    # pylint: enable=too-many-arguments

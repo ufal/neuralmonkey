@@ -30,7 +30,7 @@ from neuralmonkey.tf_utils import get_variable
 class MultiAttention(BaseAttention):
     """Base class for attention combination."""
 
-    # pylint: disable=unused-argument
+    # pylint: disable=unused-argument,too-many-arguments
     def __init__(self,
                  name: str,
                  attention_state_size: int,
@@ -53,7 +53,7 @@ class MultiAttention(BaseAttention):
             self.attn_v = get_variable(
                 "attn_v", [1, 1, self.attention_state_size],
                 initializer=tf.random_normal_initializer(stddev=0.001))
-    # pylint: enable=unused-argument
+    # pylint: enable=unused-argument,too-many-arguments
 
     def attention(self,
                   query: tf.Tensor,
