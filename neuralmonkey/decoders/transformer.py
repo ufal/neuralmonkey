@@ -13,6 +13,8 @@ from typeguard import check_argument_types
 from neuralmonkey.attention.scaled_dot_product import attention
 from neuralmonkey.attention.base_attention import (
     Attendable, get_attention_states, get_attention_mask)
+from neuralmonkey.attention.transformer_cross_layer import (
+    serial, parallel, flat, hierarchical)
 from neuralmonkey.decorators import tensor
 from neuralmonkey.decoders.autoregressive import (
     AutoregressiveDecoder, LoopState, DecoderFeedables)
@@ -277,160 +279,49 @@ class TransformerDecoder(AutoregressiveDecoder):
         # Add residual connections
         return self_context + prev_layer.temporal_states
 
-    # pylint: disable=too-many-arguments
-    def generic_encatt_sublayer(
-            self,
-            queries: tf.Tensor,
-            states: tf.Tensor,
-            mask: tf.Tensor,
-            n_heads: int,
-            attention_dropout_keep_prob: float,
-            normalize: bool = True,
-            use_dropout: bool = True,
-            residual: bool = True) -> tf.Tensor:
-        # Layer normalization
-        if normalize:
-            normalized_queries = layer_norm(queries)
-        else:
-            normalized_queries = queries
-
-        # Attend to the encoder
-        # TODO handle attention histories
-        encoder_context, _ = attention(
-            queries=normalized_queries,
-            keys=states,
-            values=states,
-            keys_mask=mask,
-            num_heads=n_heads,
-            dropout_callback=lambda x: dropout(
-                x, attention_dropout_keep_prob, self.train_mode),
-            use_bias=self.use_att_transform_bias)
-
-        # Apply dropout
-        if use_dropout:
-            encoder_context = dropout(
-                encoder_context, self.dropout_keep_prob, self.train_mode)
-
-        # Add residual connections
-        if residual:
-            encoder_context += queries
-
-        return encoder_context
-    # pylint: enable=too-many-arguments
-
-    # pylint: disable=too-many-locals
     def encoder_attention_sublayer(self, queries: tf.Tensor) -> tf.Tensor:
         """Create the encoder-decoder attention sublayer."""
-
         assert self.encoder_states is not None
         assert self.encoder_masks is not None
 
-        # serial:
-        # * repeat for every encoder:
-        #   - lnorm + attend + dropout + add residual
-        # * update queiies between layers
+        # Attention dropout callbacks are created in a loop so we need to
+        # use a factory function to prevent late binding.
+        def make_attn_callback(
+                prob: float) -> Callable[[tf.Tensor], tf.Tensor]:
+            def callback(x: tf.Tensor) -> tf.Tensor:
+                return dropout(x, prob, self.train_mode)
+            return callback
+
+        dropout_cb = make_attn_callback(self.dropout_keep_prob)
+        attn_dropout_cbs = [make_attn_callback(prob)
+                            for prob in self.attention_dropout_keep_prob]
+
         if self.attention_combination_strategy == "serial":
-            for i, (heads, states, mask, drop_prob) in enumerate(zip(
-                    self.n_heads_enc, self.encoder_states,
-                    self.encoder_masks, self.attention_dropout_keep_prob)):
+            return serial(queries, self.encoder_states, self.encoder_masks,
+                          self.n_heads_enc, attn_dropout_cbs, dropout_cb)
 
-                with tf.variable_scope("enc_{}".format(i)):
-                    queries = self.generic_encatt_sublayer(
-                        queries, states, mask, heads, drop_prob)
-
-            encoder_context = queries
-
-        # parallel:
-        # * normalize queries,
-        # * attend and dropout independently for every encoder,
-        # * sum up the results
-        # * add residual and return
         if self.attention_combination_strategy == "parallel":
-            normalized_queries = layer_norm(queries)
-            contexts = []
+            return parallel(queries, self.encoder_states, self.encoder_masks,
+                            self.n_heads_enc, attn_dropout_cbs, dropout_cb)
 
-            for i, (heads, states, mask, drop_prob) in enumerate(zip(
-                    self.n_heads_enc, self.encoder_states,
-                    self.encoder_masks, self.attention_dropout_keep_prob)):
+        if self.attention_combination_strategy == "flat":
+            assert len(set(self.n_heads_enc)) == 1
+            assert len(set(self.attention_dropout_keep_prob)) == 1
 
-                with tf.variable_scope("enc_{}".format(i)):
-                    contexts.append(
-                        self.generic_encatt_sublayer(
-                            normalized_queries, states, mask, heads,
-                            drop_prob, normalize=False, residual=False))
+            return flat(queries, self.encoder_states, self.encoder_masks,
+                        self.n_heads_enc[0], attn_dropout_cbs[0], dropout_cb)
 
-            encoder_context = sum(contexts) + queries
-
-        # hierarachical:
-        # * normalize queries
-        # * attend to every encoder
-        # * attend to the resulting context vectors (reuse normalized queries)
-        # * apply dropout, add residual connection and return
         if self.attention_combination_strategy == "hierarchical":
             assert self.n_heads_hier is not None
 
-            normalized_queries = layer_norm(queries)
-            contexts = []
+            return hierarchical(
+                queries, self.encoder_states, self.encoder_masks,
+                self.n_heads_enc, self.n_heads_hier, attn_dropout_cbs,
+                dropout_cb)
 
-            batch = tf.shape(queries)[0]
-            time_q = tf.shape(queries)[1]
-
-            for i, (heads, states, mask, drop_prob) in enumerate(zip(
-                    self.n_heads_enc, self.encoder_states,
-                    self.encoder_masks, self.attention_dropout_keep_prob)):
-
-                with tf.variable_scope("enc_{}".format(i)):
-                    contexts.append(
-                        self.generic_encatt_sublayer(
-                            normalized_queries, states, mask, heads,
-                            drop_prob, normalize=False, residual=False))
-
-            # context is of shape [batch, time(q), channels(v)],
-            # stack to [batch, time(q), n_encoders, channels(v)]
-            # reshape to [batch x time(q), n_encoders, channels(v)]
-            stacked_contexts = tf.reshape(
-                tf.stack(contexts, axis=2),
-                [batch * time_q, len(self.encoders), self.dimension])
-
-            # hierarchical mask: ones of shape [batch x time(q), n_encoders]
-            hier_mask = tf.ones([batch * time_q, len(self.encoders)])
-
-            # reshape queries to [batch x time(q), 1, channels(v)]
-            reshaped_queries = tf.reshape(
-                normalized_queries, [batch * time_q, 1, self.dimension])
-
-            # returned shape [batch x time(q), 1, channels(v)]
-            with tf.variable_scope("enc_hier"):
-                assert self.n_heads_hier is not None
-                encoder_context_stacked_batch = self.generic_encatt_sublayer(
-                    reshaped_queries, stacked_contexts, hier_mask,
-                    self.n_heads_hier, self.dropout_keep_prob,
-                    normalize=False, use_dropout=False,
-                    residual=False)
-
-            # reshape back to [batch, time(q), channels(v)]
-            encoder_context = tf.reshape(
-                encoder_context_stacked_batch, [batch, time_q, self.dimension])
-
-            encoder_context = dropout(
-                encoder_context, self.dropout_keep_prob, self.train_mode)
-
-            encoder_context += queries
-
-        # flat:
-        # * concatenate the states and mask along the time axis
-        # * run attention over the concatenation
-        if self.attention_combination_strategy == "flat":
-
-            concat_mask = tf.concat(self.encoder_masks, 1)
-            concat_states = tf.concat(self.encoder_states, 1)
-
-            encoder_context = self.generic_encatt_sublayer(
-                queries, concat_states, concat_mask, self.n_heads_enc[0],
-                self.attention_dropout_keep_prob[0])
-
-        return encoder_context
-    # pylint: enable=too-many-locals
+        raise NotImplementedError(
+            "Unknown attention combination strategy: {}"
+            .format(self.attention_combination_strategy))
 
     def feedforward_sublayer(self, layer_input: tf.Tensor) -> tf.Tensor:
         """Create the feed-forward network sublayer."""
