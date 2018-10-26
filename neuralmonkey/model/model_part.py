@@ -37,10 +37,12 @@ class ModelPart(metaclass=ABCMeta):
                                  "that reuses variables from '{}'."
                                  .format(name, reuse.name))
 
+            # pylint: disable=protected-access
             self._variable_scope = reuse._variable_scope
             self._variable_scope.reuse_variables()
+            # pylint: enable=protected-access
         else:
-            with tf.variable_scope(scope_name) as scope:
+            with tf.variable_scope(name) as scope:
                 self._variable_scope = scope
                 if initializers is not None:
                     tf_utils.update_initializers(

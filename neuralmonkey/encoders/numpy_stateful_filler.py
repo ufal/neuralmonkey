@@ -17,6 +17,7 @@ class StatefulFiller(ModelPart, Stateful):
     projects the states to given dimension.
     """
 
+    # pylint: disable=too-many-arguments
     def __init__(self,
                  name: str,
                  dimension: int,
@@ -50,6 +51,7 @@ class StatefulFiller(ModelPart, Stateful):
         with self.use_scope():
             self.vector = tf.placeholder(
                 tf.float32, [None, self.dimension], "input_vector")
+    # pylint: enable=too-many-arguments
 
     @tensor
     def output(self) -> tf.Tensor:

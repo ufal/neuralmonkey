@@ -10,7 +10,7 @@ from neuralmonkey.vocabulary import (
     Vocabulary, END_TOKEN_INDEX, PAD_TOKEN_INDEX)
 from neuralmonkey.model.sequence import EmbeddedSequence
 from neuralmonkey.model.stateful import Stateful
-from neuralmonkey.model.model_part import InitializerSpecs
+from neuralmonkey.model.model_part import ModelPart, InitializerSpecs
 from neuralmonkey.logging import log
 from neuralmonkey.nn.ortho_gru_cell import OrthoGRUCell, NematusGRUCell
 from neuralmonkey.nn.utils import dropout

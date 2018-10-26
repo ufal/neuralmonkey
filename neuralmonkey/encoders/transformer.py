@@ -80,8 +80,8 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
                  n_cross_att_heads: int = None,
                  reuse: ModelPart = None,
                  save_checkpoint: str = None,
-                 load_checkpoint: str = None
-                 initializers: InitializerSpecs) -> None:
+                 load_checkpoint: str = None,
+                 initializers: InitializerSpecs = None) -> None:
         """Create an encoder of the Transformer model.
 
         Described in Vaswani et al. (2017), arxiv.org/abs/1706.03762
