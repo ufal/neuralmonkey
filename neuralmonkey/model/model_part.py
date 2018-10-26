@@ -30,8 +30,9 @@ class ModelPart(metaclass=ABCMeta):
         self._load_checkpoint = load_checkpoint
 
         self._saver = None  # type: tf.train.Saver
+        self._reuse = reuse is not None
 
-        if reuse is not None:
+        if self._reuse:
             if initializers is not None:
                 raise ValueError("Cannot use initializers in model part '{}' "
                                  "that reuses variables from '{}'."
@@ -39,7 +40,6 @@ class ModelPart(metaclass=ABCMeta):
 
             # pylint: disable=protected-access
             self._variable_scope = reuse._variable_scope  # type: ignore
-            self._variable_scope.reuse_variables()
             # pylint: enable=protected-access
         else:
             with tf.variable_scope(name) as scope:
@@ -65,7 +65,10 @@ class ModelPart(metaclass=ABCMeta):
         Return a context manager that (re)opens the model part's variable
         and name scope.
         """
-        with tf.variable_scope(self._variable_scope):
+        # If we are already reusing, reuse regardless of self._reuse.
+        reuse = self._variable_scope.reuse or self._reuse
+
+        with tf.variable_scope(self._variable_scope, reuse=reuse):
             # tf.variable_scope always creates a NEW name scope for ops, but
             # we want to use the original one:
             with tf.name_scope(self._variable_scope.original_name_scope):
