@@ -54,7 +54,7 @@ class BatchingScheme(NamedTuple(
         [("batch_size", int),
          ("batch_bucket_span", Optional[int]),
          ("token_level_batching", bool),
-         ("bucketing_ignore_series", List[str])]):
+         ("bucketing_ignore_series", List[str])])):
     """The baching scheme.
 
     Attributes:
