@@ -100,10 +100,10 @@ def training_loop(tf_manager: TensorFlowManager,
     """
     check_argument_types()
 
-    if isinstance(val_dataset, Dataset):
-        val_datasets = [val_dataset]
-    else:
+    if isinstance(val_dataset, List):
         val_datasets = val_dataset
+    else:
+        val_datasets = [val_dataset]
 
     log_period_batch, log_period_time = _resolve_period(logging_period)
     val_period_batch, val_period_time = _resolve_period(validation_period)
