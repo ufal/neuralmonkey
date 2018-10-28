@@ -1,6 +1,6 @@
 """Encoder for sentences withou explicit segmentation."""
 
-from typing import Optional, Tuple, List
+from typing import Tuple, List
 
 import tensorflow as tf
 from typeguard import check_argument_types
@@ -42,8 +42,9 @@ class SentenceCNNEncoder(ModelPart, TemporalStatefulWithOutput):
                  filters: List[Tuple[int, int]],
                  dropout_keep_prob: float = 1.0,
                  use_noisy_activations: bool = False,
-                 save_checkpoint: Optional[str] = None,
-                 load_checkpoint: Optional[str] = None,
+                 reuse: ModelPart = None,
+                 save_checkpoint: str = None,
+                 load_checkpoint: str = None,
                  initializers: InitializerSpecs = None) -> None:
         """Create a new instance of the sentence encoder.
 
@@ -63,7 +64,7 @@ class SentenceCNNEncoder(ModelPart, TemporalStatefulWithOutput):
             dropout_keep_prob: The dropout keep probability
                 (default 1.0)
         """
-        ModelPart.__init__(self, name, save_checkpoint, load_checkpoint,
+        ModelPart.__init__(self, name, reuse, save_checkpoint, load_checkpoint,
                            initializers)
         check_argument_types()
 

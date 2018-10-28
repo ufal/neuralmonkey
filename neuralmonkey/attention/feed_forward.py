@@ -15,23 +15,25 @@ from neuralmonkey.attention.base_attention import (
 from neuralmonkey.decorators import tensor
 from neuralmonkey.nn.utils import dropout
 from neuralmonkey.logging import log
-from neuralmonkey.model.model_part import InitializerSpecs
+from neuralmonkey.model.model_part import InitializerSpecs, ModelPart
 from neuralmonkey.tf_utils import get_variable
 
 
 class Attention(BaseAttention):
 
+    # pylint: disable=too-many-arguments
     def __init__(self,
                  name: str,
                  encoder: Attendable,
                  dropout_keep_prob: float = 1.0,
                  state_size: int = None,
+                 reuse: ModelPart = None,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None,
                  initializers: InitializerSpecs = None) -> None:
         check_argument_types()
         BaseAttention.__init__(
-            self, name, save_checkpoint, load_checkpoint, initializers)
+            self, name, reuse, save_checkpoint, load_checkpoint, initializers)
 
         self.encoder = encoder
         self.dropout_keep_prob = dropout_keep_prob
@@ -43,6 +45,7 @@ class Attention(BaseAttention):
         # TODO blessing
         log("Hidden features: {}".format(self.hidden_features))
         log("Attention mask: {}".format(self.attention_mask))
+    # pylint: enable=too-many-arguments
 
     @tensor
     def attention_states(self) -> tf.Tensor:

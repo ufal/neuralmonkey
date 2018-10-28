@@ -25,6 +25,11 @@ from neuralmonkey.runners.base_runner import FeedDict
 # pylint: enable=unused-import
 from neuralmonkey.runners.base_runner import BaseRunner, ExecutionResult
 from neuralmonkey.trainers.generic_trainer import GenericTrainer
+from neuralmonkey.trainers.multitask_trainer import MultitaskTrainer
+
+# pylint: disable=invalid-name
+Trainer = Union[GenericTrainer, MultitaskTrainer]
+# pylint: enable=invalid-name
 
 
 class TensorFlowManager:
@@ -87,7 +92,6 @@ class TensorFlowManager:
         init_op = tf.global_variables_initializer()
         for sess in self.sessions:
             sess.run(init_op)
-
         self.saver = tf.train.Saver(max_to_keep=None,
                                     var_list=[g for g in tf.global_variables()
                                               if "reward_" not in g.name])
@@ -216,7 +220,7 @@ class TensorFlowManager:
     # pylint: disable=too-many-locals
     def execute(self,
                 batch: Dataset,
-                runners: Sequence[Union[BaseRunner, GenericTrainer]],
+                runners: Sequence[Union[BaseRunner, Trainer]],
                 train: bool = False,
                 compute_losses: bool = True,
                 summaries: bool = True) -> List[ExecutionResult]:

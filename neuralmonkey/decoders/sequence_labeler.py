@@ -1,6 +1,7 @@
-from typing import Optional, Union
+from typing import Union
 
 import tensorflow as tf
+from typeguard import check_argument_types
 
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.model.model_part import ModelPart, FeedDict, InitializerSpecs
@@ -21,10 +22,12 @@ class SequenceLabeler(ModelPart):
                  vocabulary: Vocabulary,
                  data_id: str,
                  dropout_keep_prob: float = 1.0,
-                 save_checkpoint: Optional[str] = None,
-                 load_checkpoint: Optional[str] = None,
+                 reuse: ModelPart = None,
+                 save_checkpoint: str = None,
+                 load_checkpoint: str = None,
                  initializers: InitializerSpecs = None) -> None:
-        ModelPart.__init__(self, name, save_checkpoint, load_checkpoint,
+        check_argument_types()
+        ModelPart.__init__(self, name, reuse, save_checkpoint, load_checkpoint,
                            initializers)
 
         self.encoder = encoder

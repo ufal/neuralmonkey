@@ -339,7 +339,7 @@ def create_config(train_mode: bool = True) -> Configuration:
         config.add_argument("epochs", cond=lambda x: x >= 0)
         config.add_argument("trainer")
         config.add_argument("train_dataset")
-        config.add_argument("val_dataset")
+        config.add_argument("val_dataset", required=False, default=[])
         config.add_argument("evaluation")
         config.add_argument("test_datasets", required=False, default=[])
         config.add_argument("logging_period", required=False, default=20)

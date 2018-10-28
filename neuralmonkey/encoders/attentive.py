@@ -34,12 +34,13 @@ class AttentiveEncoder(ModelPart, TemporalStatefulWithOutput):
                  output_size: int = None,
                  state_proj_size: int = None,
                  dropout_keep_prob: float = 1.0,
+                 reuse: ModelPart = None,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None,
                  initializers: InitializerSpecs = None) -> None:
         """Initialize an instance of the encoder."""
         check_argument_types()
-        ModelPart.__init__(self, name, save_checkpoint, load_checkpoint,
+        ModelPart.__init__(self, name, reuse, save_checkpoint, load_checkpoint,
                            initializers)
 
         self.input_sequence = input_sequence

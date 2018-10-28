@@ -22,6 +22,7 @@ from neuralmonkey.encoders.transformer import (
     TransformerLayer, position_signal)
 from neuralmonkey.model.sequence import EmbeddedSequence
 from neuralmonkey.logging import log, warn
+from neuralmonkey.model.model_part import ModelPart, InitializerSpecs
 from neuralmonkey.nn.utils import dropout
 from neuralmonkey.vocabulary import (
     Vocabulary, PAD_TOKEN_INDEX, END_TOKEN_INDEX)
@@ -79,8 +80,10 @@ class TransformerDecoder(AutoregressiveDecoder):
                  attention_dropout_keep_prob: Union[float, List[float]] = 1.0,
                  use_att_transform_bias: bool = False,
                  supress_unk: bool = False,
+                 reuse: ModelPart = None,
                  save_checkpoint: str = None,
-                 load_checkpoint: str = None) -> None:
+                 load_checkpoint: str = None,
+                 initializers: InitializerSpecs = None) -> None:
         """Create a decoder of the Transformer model.
 
         Described in Vaswani et al. (2017), arxiv.org/abs/1706.03762
@@ -97,8 +100,6 @@ class TransformerDecoder(AutoregressiveDecoder):
             embeddings_source: Embedded sequence to take embeddings from.
             tie_embeddings: Use decoder.embedding_matrix also in place
                 of the output decoding matrix.
-
-        Keyword arguments:
             ff_hidden_size: Size of the feedforward sublayers.
             n_heads_self: Number of the self-attention heads.
             n_heads_enc: Number of the attention heads over each encoder.
@@ -117,6 +118,7 @@ class TransformerDecoder(AutoregressiveDecoder):
                 during dropout on the attention output.
             supress_unk: If true, decoder will not produce symbols for unknown
                 tokens.
+            reuse: Reuse the variables from the given model part.
         """
         check_argument_types()
         AutoregressiveDecoder.__init__(
@@ -131,6 +133,7 @@ class TransformerDecoder(AutoregressiveDecoder):
             tie_embeddings=tie_embeddings,
             label_smoothing=label_smoothing,
             supress_unk=supress_unk,
+            reuse=reuse,
             save_checkpoint=save_checkpoint,
             load_checkpoint=load_checkpoint)
 

@@ -130,6 +130,7 @@ class RecurrentEncoder(ModelPart, TemporalStatefulWithOutput):
                  rnn_direction: str = "bidirectional",
                  add_residual: bool = False,
                  dropout_keep_prob: float = 1.0,
+                 reuse: ModelPart = None,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None,
                  initializers: InitializerSpecs = None) -> None:
@@ -151,7 +152,7 @@ class RecurrentEncoder(ModelPart, TemporalStatefulWithOutput):
             load_checkpoint: ModelPart load checkpoint file.
         """
         check_argument_types()
-        ModelPart.__init__(self, name, save_checkpoint, load_checkpoint,
+        ModelPart.__init__(self, name, reuse, save_checkpoint, load_checkpoint,
                            initializers)
         TemporalStatefulWithOutput.__init__(self)
 
@@ -217,6 +218,7 @@ class SentenceEncoder(RecurrentEncoder):
                  add_residual: bool = False,
                  max_input_len: int = None,
                  dropout_keep_prob: float = 1.0,
+                 reuse: ModelPart = None,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None,
                  initializers: InitializerSpecs = None,
@@ -276,6 +278,7 @@ class SentenceEncoder(RecurrentEncoder):
             rnn_direction=rnn_direction,
             add_residual=add_residual,
             dropout_keep_prob=dropout_keep_prob,
+            reuse=reuse,
             save_checkpoint=save_checkpoint,
             load_checkpoint=load_checkpoint,
             initializers=initializers)
@@ -295,6 +298,7 @@ class FactoredEncoder(RecurrentEncoder):
                  add_residual: bool = False,
                  max_input_len: int = None,
                  dropout_keep_prob: float = 1.0,
+                 reuse: ModelPart = None,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None,
                  initializers: InitializerSpecs = None,
@@ -344,6 +348,7 @@ class FactoredEncoder(RecurrentEncoder):
             rnn_direction=rnn_direction,
             add_residual=add_residual,
             dropout_keep_prob=dropout_keep_prob,
+            reuse=reuse,
             save_checkpoint=save_checkpoint,
             load_checkpoint=load_checkpoint,
             initializers=initializers)
@@ -363,6 +368,7 @@ class DeepSentenceEncoder(SentenceEncoder):
                  add_residual: bool = False,
                  max_input_len: int = None,
                  dropout_keep_prob: float = 1.0,
+                 reuse: ModelPart = None,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None,
                  initializers: InitializerSpecs = None,
@@ -413,6 +419,7 @@ class DeepSentenceEncoder(SentenceEncoder):
             add_residual=add_residual,
             max_input_len=max_input_len,
             dropout_keep_prob=dropout_keep_prob,
+            reuse=reuse,
             save_checkpoint=save_checkpoint,
             load_checkpoint=load_checkpoint,
             initializers=initializers,

@@ -20,6 +20,7 @@ from neuralmonkey.tf_manager import TensorFlowManager
 from neuralmonkey.runners.base_runner import (
     BaseRunner, ExecutionResult, reduce_execution_results)
 from neuralmonkey.trainers.generic_trainer import GenericTrainer
+from neuralmonkey.trainers.multitask_trainer import MultitaskTrainer
 
 # pylint: disable=invalid-name
 Evaluation = Dict[str, float]
@@ -27,6 +28,7 @@ SeriesName = str
 EvalConfiguration = List[Union[Tuple[SeriesName, Any],
                                Tuple[SeriesName, SeriesName, Any]]]
 Postprocess = Optional[List[Tuple[SeriesName, Callable]]]
+Trainer = Union[GenericTrainer, MultitaskTrainer]
 # pylint: enable=invalid-name
 
 
@@ -34,7 +36,7 @@ Postprocess = Optional[List[Tuple[SeriesName, Callable]]]
 # pylint: disable=too-many-statements, too-many-nested-blocks
 def training_loop(tf_manager: TensorFlowManager,
                   epochs: int,
-                  trainer: GenericTrainer,  # TODO better annotate
+                  trainer: Union[Trainer, List[Trainer]],
                   batch_size: int,
                   log_directory: str,
                   evaluators: EvalConfiguration,
@@ -42,15 +44,15 @@ def training_loop(tf_manager: TensorFlowManager,
                   final_variables: str,
                   train_dataset: Dataset,
                   val_dataset: Union[Dataset, List[Dataset]],
-                  test_datasets: Optional[List[Dataset]] = None,
+                  test_datasets: List[Dataset] = None,
                   logging_period: Union[str, int] = 20,
                   validation_period: Union[str, int] = 500,
-                  val_preview_input_series: Optional[List[str]] = None,
-                  val_preview_output_series: Optional[List[str]] = None,
+                  val_preview_input_series: List[str] = None,
+                  val_preview_output_series: List[str] = None,
                   val_preview_num_examples: int = 15,
                   train_start_offset: int = 0,
-                  runners_batch_size: Optional[int] = None,
-                  initial_variables: Optional[Union[str, List[str]]] = None,
+                  runners_batch_size: int = None,
+                  initial_variables: Union[str, List[str]] = None,
                   postprocess: Postprocess = None) -> None:
     """Execute the training loop for given graph and data.
 
@@ -98,17 +100,23 @@ def training_loop(tf_manager: TensorFlowManager,
     """
     check_argument_types()
 
-    if isinstance(val_dataset, Dataset):
-        val_datasets = [val_dataset]
-    else:
+    if isinstance(val_dataset, List):
         val_datasets = val_dataset
+    else:
+        val_datasets = [val_dataset]
 
     log_period_batch, log_period_time = _resolve_period(logging_period)
     val_period_batch, val_period_time = _resolve_period(validation_period)
 
     _check_series_collisions(runners, postprocess)
 
-    _log_model_variables(var_list=trainer.var_list)
+    if isinstance(trainer, List):
+        trainers = trainer
+    else:
+        trainers = [trainer]
+
+    _log_model_variables(
+        var_list=list(set().union(*[t.var_list for t in trainers])))
 
     if runners_batch_size is None:
         runners_batch_size = batch_size
@@ -136,7 +144,7 @@ def training_loop(tf_manager: TensorFlowManager,
         # Assume we don't look at coder checkpoints when global
         # initial variables are supplied
         tf_manager.initialize_model_parts(
-            runners + [trainer], save=True)  # type: ignore
+            runners + trainers, save=True)  # type: ignore
     else:
         try:
             tf_manager.restore(initial_variables)
@@ -172,8 +180,9 @@ def training_loop(tf_manager: TensorFlowManager,
                 seen_instances += len(batch)
                 if _is_logging_time(step, log_period_batch,
                                     last_log_time, log_period_time):
+
                     trainer_result = tf_manager.execute(
-                        batch, [trainer], train=True, summaries=True)
+                        batch, trainers, train=True, summaries=True)
                     train_results, train_outputs = run_on_dataset(
                         tf_manager, runners, batch, postprocess,
                         write_out=False, batch_size=len(batch))
@@ -190,8 +199,8 @@ def training_loop(tf_manager: TensorFlowManager,
                         train=True)
                     last_log_time = time.process_time()
                 else:
-                    tf_manager.execute(batch, [trainer],
-                                       train=True, summaries=False)
+                    tf_manager.execute(
+                        batch, trainers, train=True, summaries=False)
 
                 if _is_logging_time(step, val_period_batch,
                                     last_val_time, val_period_time):
@@ -234,10 +243,12 @@ def training_loop(tf_manager: TensorFlowManager,
                                     attrs=["bold"])
 
                                 # store also graph parts
+                                rnrs = runners + trainers  # type: ignore
+                                # TODO: refactor trainers/runners so that they
+                                # have the same API predecessor
                                 all_coders = set.union(
                                     *[rnr.all_coders
-                                      for rnr in runners
-                                      + [trainer]])  # type: ignore
+                                      for rnr in rnrs])
                                 for coder in all_coders:
                                     for session in tf_manager.sessions:
                                         coder.save(session)

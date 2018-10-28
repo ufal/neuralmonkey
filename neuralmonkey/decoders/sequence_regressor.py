@@ -1,8 +1,8 @@
 from typing import Callable, List
 
 import tensorflow as tf
-
 from typeguard import check_argument_types
+
 from neuralmonkey.nn.projection import multilayer_projection
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.model.model_part import ModelPart, FeedDict, InitializerSpecs
@@ -26,12 +26,13 @@ class SequenceRegressor(ModelPart):
                  activation_fn: Callable[[tf.Tensor], tf.Tensor] = tf.nn.relu,
                  dropout_keep_prob: float = 1.0,
                  dimension: int = 1,
+                 reuse: ModelPart = None,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None,
                  initializers: InitializerSpecs = None) -> None:
-        ModelPart.__init__(self, name, save_checkpoint, load_checkpoint,
+        check_argument_types()
+        ModelPart.__init__(self, name, reuse, save_checkpoint, load_checkpoint,
                            initializers)
-        assert check_argument_types()
 
         self.encoders = encoders
         self.data_id = data_id

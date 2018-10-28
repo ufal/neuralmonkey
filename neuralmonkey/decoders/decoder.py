@@ -10,7 +10,7 @@ from neuralmonkey.vocabulary import (
     Vocabulary, END_TOKEN_INDEX, PAD_TOKEN_INDEX)
 from neuralmonkey.model.sequence import EmbeddedSequence
 from neuralmonkey.model.stateful import Stateful
-from neuralmonkey.model.model_part import InitializerSpecs
+from neuralmonkey.model.model_part import ModelPart, InitializerSpecs
 from neuralmonkey.logging import log
 from neuralmonkey.nn.ortho_gru_cell import OrthoGRUCell, NematusGRUCell
 from neuralmonkey.nn.utils import dropout
@@ -101,6 +101,7 @@ class Decoder(AutoregressiveDecoder):
                  rnn_cell: str = "GRU",
                  conditional_gru: bool = False,
                  supress_unk: bool = False,
+                 reuse: ModelPart = None,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None,
                  initializers: InitializerSpecs = None) -> None:
@@ -118,8 +119,6 @@ class Decoder(AutoregressiveDecoder):
             embeddings_source: Embedded sequence to take embeddings from.
             tie_embeddings: Use decoder.embedding_matrix also in place
                 of the output decoding matrix.
-
-        Keyword arguments:
             rnn_size: Size of the decoder hidden state, if None set
                 according to encoders.
             output_projection: How to generate distribution over vocabulary
@@ -133,6 +132,7 @@ class Decoder(AutoregressiveDecoder):
                 step should be combined with the input in the next step.
             supress_unk: If true, decoder will not produce symbols for unknown
                 tokens.
+            reuse: Reuse the model variables from the given model part.
         """
         check_argument_types()
         AutoregressiveDecoder.__init__(
@@ -147,6 +147,7 @@ class Decoder(AutoregressiveDecoder):
             tie_embeddings=tie_embeddings,
             label_smoothing=label_smoothing,
             supress_unk=supress_unk,
+            reuse=reuse,
             save_checkpoint=save_checkpoint,
             load_checkpoint=load_checkpoint,
             initializers=initializers)

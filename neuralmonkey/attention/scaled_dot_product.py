@@ -13,7 +13,7 @@ import tensorflow as tf
 from typeguard import check_argument_types
 
 from neuralmonkey.nn.utils import dropout
-from neuralmonkey.model.model_part import InitializerSpecs
+from neuralmonkey.model.model_part import InitializerSpecs, ModelPart
 from neuralmonkey.attention.base_attention import (
     BaseAttention, Attendable, get_attention_states, get_attention_mask)
 from neuralmonkey.attention.namedtuples import MultiHeadLoopState
@@ -251,12 +251,13 @@ class MultiHeadAttention(BaseAttention):
                  keys_encoder: Attendable,
                  values_encoder: Attendable = None,
                  dropout_keep_prob: float = 1.0,
+                 reuse: ModelPart = None,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None,
                  initializers: InitializerSpecs = None) -> None:
         check_argument_types()
-        BaseAttention.__init__(self, name, save_checkpoint, load_checkpoint,
-                               initializers)
+        BaseAttention.__init__(self, name, reuse, save_checkpoint,
+                               load_checkpoint, initializers)
 
         self.n_heads = n_heads
         self.dropout_keep_prob = dropout_keep_prob
@@ -365,15 +366,18 @@ class MultiHeadAttention(BaseAttention):
 
 class ScaledDotProdAttention(MultiHeadAttention):
 
+    # pylint: disable=too-many-arguments
     def __init__(self,
                  name: str,
                  keys_encoder: Attendable,
                  values_encoder: Attendable = None,
                  dropout_keep_prob: float = 1.0,
+                 reuse: ModelPart = None,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None,
                  initializers: InitializerSpecs = None) -> None:
         check_argument_types()
         MultiHeadAttention.__init__(
             self, name, 1, keys_encoder, values_encoder, dropout_keep_prob,
-            save_checkpoint, load_checkpoint, initializers)
+            reuse, save_checkpoint, load_checkpoint, initializers)
+    # pylint: enable=too-many-arguments

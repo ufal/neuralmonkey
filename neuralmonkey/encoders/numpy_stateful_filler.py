@@ -17,11 +17,13 @@ class StatefulFiller(ModelPart, Stateful):
     projects the states to given dimension.
     """
 
+    # pylint: disable=too-many-arguments
     def __init__(self,
                  name: str,
                  dimension: int,
                  data_id: str,
                  output_shape: int = None,
+                 reuse: ModelPart = None,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None,
                  initializers: InitializerSpecs = None) -> None:
@@ -35,7 +37,7 @@ class StatefulFiller(ModelPart, Stateful):
         """
         check_argument_types()
         ModelPart.__init__(
-            self, name, save_checkpoint, load_checkpoint, initializers)
+            self, name, reuse, save_checkpoint, load_checkpoint, initializers)
 
         self.data_id = data_id
         self.dimension = dimension
@@ -49,6 +51,7 @@ class StatefulFiller(ModelPart, Stateful):
         with self.use_scope():
             self.vector = tf.placeholder(
                 tf.float32, [None, self.dimension], "input_vector")
+    # pylint: enable=too-many-arguments
 
     @tensor
     def output(self) -> tf.Tensor:
@@ -77,6 +80,7 @@ class SpatialFiller(ModelPart, SpatialStatefulWithOutput):
                  data_id: str,
                  projection_dim: int = None,
                  ff_hidden_dim: int = None,
+                 reuse: ModelPart = None,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None,
                  initializers: InitializerSpecs = None) -> None:
@@ -90,7 +94,7 @@ class SpatialFiller(ModelPart, SpatialStatefulWithOutput):
         """
         check_argument_types()
         ModelPart.__init__(
-            self, name, save_checkpoint, load_checkpoint, initializers)
+            self, name, reuse, save_checkpoint, load_checkpoint, initializers)
 
         self.data_id = data_id
         self.input_shape = input_shape

@@ -1,6 +1,6 @@
 """Encoder for sentence classification with 1D convolutions and max-pooling."""
 
-from typing import Optional, Tuple, List
+from typing import Tuple, List
 
 from typeguard import check_argument_types
 import tensorflow as tf
@@ -24,10 +24,11 @@ class SequenceCNNEncoder(ModelPart, Stateful):
                  data_id: str,
                  embedding_size: int,
                  filters: List[Tuple[int, int]],
-                 max_input_len: Optional[int] = None,
+                 max_input_len: int = None,
                  dropout_keep_prob: float = 1.0,
-                 save_checkpoint: Optional[str] = None,
-                 load_checkpoint: Optional[str] = None,
+                 reuse: ModelPart = None,
+                 save_checkpoint: str = None,
+                 load_checkpoint: str = None,
                  initializers: InitializerSpecs = None) -> None:
         """Create a new instance of the CNN sequence encoder.
 
@@ -47,7 +48,7 @@ class SequenceCNNEncoder(ModelPart, Stateful):
                 (default 1.0)
         """
         check_argument_types()
-        ModelPart.__init__(self, name, save_checkpoint, load_checkpoint,
+        ModelPart.__init__(self, name, reuse, save_checkpoint, load_checkpoint,
                            initializers)
 
         self.vocabulary = vocabulary
