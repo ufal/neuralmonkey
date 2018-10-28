@@ -1,6 +1,5 @@
 from typing import Any, Callable, Generator, List
-
-import numpy as np
+from random import randint
 
 
 def preprocess_char_based(sentence: List[str]) -> List[str]:
@@ -8,7 +7,14 @@ def preprocess_char_based(sentence: List[str]) -> List[str]:
 
 
 def preprocess_add_noise(sentence: List[str]) -> List[str]:
-    return np.random.permutation(sentence)
+    sent = sentence[:]
+    length = len(sentence)
+    if length > 1:
+        for i in range(length // 2):
+            swap = randint(0, length - 2)
+            sent[swap] = sent[swap + 1]
+            sent[swap + 1] = sent[swap]
+    return sent
 
 
 # TODO refactor post-processors to work on sentence level
