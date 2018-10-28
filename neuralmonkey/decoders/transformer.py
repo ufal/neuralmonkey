@@ -23,7 +23,6 @@ from neuralmonkey.encoders.transformer import (
 from neuralmonkey.model.sequence import EmbeddedSequence
 from neuralmonkey.logging import log, warn
 from neuralmonkey.model.model_part import ModelPart, InitializerSpecs
-from neuralmonkey.logging import log
 from neuralmonkey.nn.utils import dropout
 from neuralmonkey.vocabulary import (
     Vocabulary, PAD_TOKEN_INDEX, END_TOKEN_INDEX)
