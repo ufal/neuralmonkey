@@ -2,7 +2,9 @@
 
 Described in Vaswani et al. (2017), arxiv.org/abs/1706.03762
 """
-from typing import Callable, NamedTuple
+# TODO make this code simpler
+# pylint: disable=too-many-lines
+from typing import Callable, NamedTuple, List, Union
 import math
 
 import tensorflow as tf
@@ -11,17 +13,21 @@ from typeguard import check_argument_types
 from neuralmonkey.attention.scaled_dot_product import attention
 from neuralmonkey.attention.base_attention import (
     Attendable, get_attention_states, get_attention_mask)
+from neuralmonkey.attention.transformer_cross_layer import (
+    serial, parallel, flat, hierarchical)
 from neuralmonkey.decorators import tensor
 from neuralmonkey.decoders.autoregressive import (
     AutoregressiveDecoder, LoopState, DecoderFeedables)
 from neuralmonkey.encoders.transformer import (
     TransformerLayer, position_signal)
 from neuralmonkey.model.sequence import EmbeddedSequence
-from neuralmonkey.logging import log
+from neuralmonkey.logging import log, warn
 from neuralmonkey.nn.utils import dropout
 from neuralmonkey.vocabulary import (
     Vocabulary, PAD_TOKEN_INDEX, END_TOKEN_INDEX)
 from neuralmonkey.tf_utils import append_tensor, layer_norm
+
+STRATEGIES = ["serial", "parallel", "flat", "hierarchical"]
 
 
 class TransformerHistories(NamedTuple(
@@ -47,26 +53,30 @@ class TransformerHistories(NamedTuple(
     """
 
 
+# pylint: disable=too-many-instance-attributes
 class TransformerDecoder(AutoregressiveDecoder):
 
-    # pylint: disable=too-many-arguments,too-many-locals
+    # pylint: disable=too-many-arguments,too-many-locals,too-many-branches
     def __init__(self,
                  name: str,
-                 encoder: Attendable,
+                 encoders: List[Attendable],
                  vocabulary: Vocabulary,
                  data_id: str,
                  # TODO infer the default for these three from the encoder
                  ff_hidden_size: int,
                  n_heads_self: int,
-                 n_heads_enc: int,
+                 n_heads_enc: Union[List[int], int],
                  depth: int,
                  max_output_len: int,
+                 attention_combination_strategy: str = "serial",
+                 n_heads_hier: int = None,
                  dropout_keep_prob: float = 1.0,
                  embedding_size: int = None,
                  embeddings_source: EmbeddedSequence = None,
                  tie_embeddings: bool = True,
                  label_smoothing: float = None,
-                 attention_dropout_keep_prob: float = 1.0,
+                 self_attention_dropout_keep_prob: float = 1.0,
+                 attention_dropout_keep_prob: Union[float, List[float]] = 1.0,
                  use_att_transform_bias: bool = False,
                  supress_unk: bool = False,
                  save_checkpoint: str = None,
@@ -76,7 +86,7 @@ class TransformerDecoder(AutoregressiveDecoder):
         Described in Vaswani et al. (2017), arxiv.org/abs/1706.03762
 
         Arguments:
-            encoder: Input encoder of the decoder.
+            encoders: Input encoders for the decoder.
             vocabulary: Target vocabulary.
             data_id: Target data series.
             name: Name of the decoder. Should be unique accross all Neural
@@ -91,7 +101,15 @@ class TransformerDecoder(AutoregressiveDecoder):
         Keyword arguments:
             ff_hidden_size: Size of the feedforward sublayers.
             n_heads_self: Number of the self-attention heads.
-            n_heads_enc: Number of the attention heads over the encoder.
+            n_heads_enc: Number of the attention heads over each encoder.
+                Either a list which size must be equal to ``encoders``, or a
+                single integer. In the latter case, the number of heads is
+                equal for all encoders.
+            attention_comnbination_strategy: One of ``serial``, ``parallel``,
+                ``flat``, ``hierarchical``. Controls the attention combination
+                strategy for enc-dec attention.
+            n_heads_hier: Number of the attention heads for the second
+                attention in the ``hierarchical`` attention combination.
             depth: Number of sublayers.
             label_smoothing: A label smoothing parameter for cross entropy
                 loss computation.
@@ -116,22 +134,79 @@ class TransformerDecoder(AutoregressiveDecoder):
             save_checkpoint=save_checkpoint,
             load_checkpoint=load_checkpoint)
 
-        self.encoder = encoder
+        self.encoders = encoders
         self.ff_hidden_size = ff_hidden_size
         self.n_heads_self = n_heads_self
-        self.n_heads_enc = n_heads_enc
-        self.depth = depth
-        self.attention_dropout_keep_prob = attention_dropout_keep_prob
-        self.use_att_transform_bias = use_att_transform_bias
 
-        self.encoder_states = get_attention_states(self.encoder)
-        self.encoder_mask = get_attention_mask(self.encoder)
-        self.dimension = (
-            self.encoder_states.get_shape()[2].value)  # type: ignore
+        if isinstance(n_heads_enc, int):
+            if attention_combination_strategy == "flat":
+                self.n_heads_enc = [n_heads_enc]
+            else:
+                self.n_heads_enc = [n_heads_enc for _ in self.encoders]
+        else:
+            self.n_heads_enc = n_heads_enc
+
+        self.depth = depth
+        if isinstance(attention_dropout_keep_prob, float):
+            self.attention_dropout_keep_prob = [
+                attention_dropout_keep_prob for _ in encoders]
+        else:
+            self.attention_dropout_keep_prob = attention_dropout_keep_prob
+        self.self_att_dropout_keep_prob = self_attention_dropout_keep_prob
+        self.use_att_transform_bias = use_att_transform_bias
+        self.attention_combination_strategy = attention_combination_strategy
+        self.n_heads_hier = n_heads_hier
+
+        self.encoder_states = [get_attention_states(e) for e in self.encoders]
+        self.encoder_masks = [get_attention_mask(e) for e in self.encoders]
+
+        if self.encoder_states:
+            self.dimension = (
+                self.encoder_states[0].get_shape()[2].value)  # type: int
+
+            for i, enc_states in enumerate(self.encoder_states):
+                enc_dim = enc_states.get_shape()[2].value
+                if enc_dim != self.dimension:
+                    raise ValueError(
+                        "Dimension of the {}-th encoder ({}) differs from the "
+                        "dimension of the first one ({})."
+                        .format(i, enc_dim, self.dimension))
+
+        elif not self.embedding_size:
+            raise ValueError("'embedding_size' must be specified when "
+                             "no encoders are provided")
+        else:
+            self.dimension = self.embedding_size
+
+        if not self.dimension:
+            raise ValueError("Decoder could not infer model dimension")
 
         if self.embedding_size != self.dimension:
             raise ValueError("Model dimension and input embedding size"
                              "do not match")
+
+        if self.attention_combination_strategy not in STRATEGIES:
+            raise ValueError(
+                "Unknown attention combination strategy '{}'. "
+                "Allowed: {}.".format(self.attention_combination_strategy,
+                                      ", ".join(STRATEGIES)))
+
+        if (self.attention_combination_strategy == "hierarchical"
+                and self.n_heads_hier is None):
+            raise ValueError(
+                "You must provide n_heads_hier when using the hierarchical "
+                "attention combination strategy.")
+
+        if (self.attention_combination_strategy != "hierarchical"
+                and self.n_heads_hier is not None):
+            warn("Ignoring n_heads_hier parameter -- use the hierarchical "
+                 "attention combination strategy instead.")
+
+        if (self.attention_combination_strategy == "flat"
+                and len(self.n_heads_enc) != 1):
+            raise ValueError(
+                "For the flat attention combination strategy, only a single "
+                "value is permitted in n_heads_enc.")
 
         self._variable_scope.set_initializer(tf.variance_scaling_initializer(
             mode="fan_avg", distribution="uniform"))
@@ -139,7 +214,7 @@ class TransformerDecoder(AutoregressiveDecoder):
         log("Decoder cost op: {}".format(self.cost))
         self._variable_scope.reuse_variables()
         log("Runtime logits: {}".format(self.runtime_logits))
-    # pylint: enable=too-many-arguments,too-many-locals
+    # pylint: enable=too-many-arguments,too-many-locals,too-many-branches
 
     @property
     def output_dimension(self) -> int:
@@ -194,7 +269,7 @@ class TransformerDecoder(AutoregressiveDecoder):
             num_heads=self.n_heads_self,
             masked=True,
             dropout_callback=lambda x: dropout(
-                x, self.attention_dropout_keep_prob, self.train_mode),
+                x, self.self_att_dropout_keep_prob, self.train_mode),
             use_bias=self.use_att_transform_bias)
 
         # Apply dropout
@@ -206,28 +281,47 @@ class TransformerDecoder(AutoregressiveDecoder):
 
     def encoder_attention_sublayer(self, queries: tf.Tensor) -> tf.Tensor:
         """Create the encoder-decoder attention sublayer."""
+        assert self.encoder_states is not None
+        assert self.encoder_masks is not None
 
-        # Layer normalization
-        normalized_queries = layer_norm(queries)
+        # Attention dropout callbacks are created in a loop so we need to
+        # use a factory function to prevent late binding.
+        def make_attn_callback(
+                prob: float) -> Callable[[tf.Tensor], tf.Tensor]:
+            def callback(x: tf.Tensor) -> tf.Tensor:
+                return dropout(x, prob, self.train_mode)
+            return callback
 
-        # Attend to the encoder
-        # TODO handle attention histories
-        encoder_context, _ = attention(
-            queries=normalized_queries,
-            keys=self.encoder_states,
-            values=self.encoder_states,
-            keys_mask=self.encoder_mask,
-            num_heads=self.n_heads_enc,
-            dropout_callback=lambda x: dropout(
-                x, self.attention_dropout_keep_prob, self.train_mode),
-            use_bias=self.use_att_transform_bias)
+        dropout_cb = make_attn_callback(self.dropout_keep_prob)
+        attn_dropout_cbs = [make_attn_callback(prob)
+                            for prob in self.attention_dropout_keep_prob]
 
-        # Apply dropout
-        encoder_context = dropout(
-            encoder_context, self.dropout_keep_prob, self.train_mode)
+        if self.attention_combination_strategy == "serial":
+            return serial(queries, self.encoder_states, self.encoder_masks,
+                          self.n_heads_enc, attn_dropout_cbs, dropout_cb)
 
-        # Add residual connections
-        return encoder_context + queries
+        if self.attention_combination_strategy == "parallel":
+            return parallel(queries, self.encoder_states, self.encoder_masks,
+                            self.n_heads_enc, attn_dropout_cbs, dropout_cb)
+
+        if self.attention_combination_strategy == "flat":
+            assert len(set(self.n_heads_enc)) == 1
+            assert len(set(self.attention_dropout_keep_prob)) == 1
+
+            return flat(queries, self.encoder_states, self.encoder_masks,
+                        self.n_heads_enc[0], attn_dropout_cbs[0], dropout_cb)
+
+        if self.attention_combination_strategy == "hierarchical":
+            assert self.n_heads_hier is not None
+
+            return hierarchical(
+                queries, self.encoder_states, self.encoder_masks,
+                self.n_heads_enc, self.n_heads_hier, attn_dropout_cbs,
+                dropout_cb)
+
+        raise NotImplementedError(
+            "Unknown attention combination strategy: {}"
+            .format(self.attention_combination_strategy))
 
     def feedforward_sublayer(self, layer_input: tf.Tensor) -> tf.Tensor:
         """Create the feed-forward network sublayer."""
@@ -429,3 +523,4 @@ class TransformerDecoder(AutoregressiveDecoder):
         # pylint: enable=too-many-locals
 
         return body
+# pylint: enable=too-many-instance-attributes

@@ -134,6 +134,8 @@ def attention(
         num_heads: Number of attention heads.
         dropout_callback: Callable function implementing dropout.
         masked: Boolean indicating whether we want to mask future energies.
+        use_bias: If True, enable bias in the attention head projections
+            (for all queries, keys and values).
 
     Returns:
         Contexts of shape ``(batch, time(q), v_channels)`` and
