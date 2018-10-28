@@ -33,9 +33,12 @@ class ModelPart(metaclass=ABCMeta):
         self._reuse = reuse is not None
 
         if reuse is not None:
+            # pylint: disable=unidiomatic-typecheck
+            # Here we need an exact match of types
             if type(self) != type(reuse):
                 raise TypeError("Can only reuse parameters of ModelPart "
                                 "objects within the same sub-class.")
+            # pylint: enable=unidiomatic-typecheck
 
             if initializers is not None:
                 raise ValueError("Cannot use initializers in model part '{}' "

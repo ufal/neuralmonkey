@@ -10,7 +10,7 @@ def preprocess_add_noise(sentence: List[str]) -> List[str]:
     sent = sentence[:]
     length = len(sentence)
     if length > 1:
-        for i in range(length // 2):
+        for _ in range(length // 2):
             swap = randint(0, length - 2)
             sent[swap] = sent[swap + 1]
             sent[swap + 1] = sent[swap]
