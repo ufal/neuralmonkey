@@ -49,6 +49,23 @@ SERIES_SOURCE = re.compile("s_([^_]*)$")
 SERIES_OUTPUT = re.compile("s_(.*)_out")
 
 
+class BatchingScheme(NamedTuple(
+        "BatchingScheme",
+        [("batch_size", int),
+         ("batch_bucket_span", Optional[int]),
+         ("token_level_batching", bool),
+         ("bucketing_ignore_series", List[str])]):
+    """The baching scheme.
+
+    Attributes:
+        batch_size: Number of examples in one mini-batch.
+        batch_bucket_span: The span of the bucket for bucketed batching.
+        token_level_batching: Count the batch_size per individual tokens
+            in the batch instead of examples.
+        bucketing_ignore_series: Series to ignore during bucketing.
+    """
+
+
 # The protected functions below are designed to convert the ambiguous spec
 # structures to a normalized form.
 
@@ -476,24 +493,16 @@ class Dataset:
 
     # pylint: disable=too-many-locals,too-many-branches
     def batches(self,
-                batch_size: int,
-                bucket_span: int = -1,
-                token_level: bool = False) -> Iterator["Dataset"]:
+                scheme: BatchingScheme) -> Iterator["Dataset"]:
         """Split the dataset into batches.
 
         Arguments:
-            batch_size: The size of a batch. In case of lazy datasets, this
-                should be lower than the dataset buffer size. Otherwise, the
-                batch size will be equal to the size of the buffer.
-            bucket_span: Max length span between the buckets. Non-positive
-                integer values indicate using of a single bucket.
-            token_level: If true, regard the batch_size as a number of tokens.
-                Otherwise, the batch_size indicates the number of examples.
+            scheme: `BatchingScheme` configuration object.
 
         Returns:
             Generator yielding the batches.
         """
-        if self.lazy and self.buffer_min_size < batch_size:
+        if self.lazy and self.buffer_min_size < scheme.batch_size:
             warn("Minimum buffer size ({}) lower than batch size ({}). "
                  "It is recommended to use large buffer size."
                  .format(self.buffer_min_size, batch_size))
@@ -529,20 +538,21 @@ class Dataset:
         while buf:
             row = buf.popleft()
 
-            if bucket_span <= 0:
+            if scheme.batch_bucket_span is None:
                 bucket_id = 0
             else:
                 # TODO: use only specific series to determine the bucket number
-                bucket_id = max(len(row[key]) for key in row) // bucket_span
+                bucket_id = (max(len(row[key]) for key in row)
+                             // scheme.batch_bucket_span)
 
             if bucket_id not in buckets:
                 buckets[bucket_id] = []
             buckets[bucket_id].append(row)
 
-            is_full = (len(buckets[bucket_id]) >= batch_size)
-            if token_level:
-                is_full = ((bucket_id + 1) * bucket_span
-                           * len(buckets[bucket_id]) >= batch_size)
+            is_full = (len(buckets[bucket_id]) >= scheme.batch_size)
+            if scheme.token_level_batching:
+                is_full = ((bucket_id + 1) * scheme.batch_bucket_span
+                           * len(buckets[bucket_id]) >= scheme.batch_size)
 
             if is_full:
                 # Create the batch
