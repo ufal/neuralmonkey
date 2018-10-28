@@ -42,9 +42,10 @@ class TestMultitaskTrainer(unittest.TestCase):
         self.trainer1 = GenericTrainer([objective])
         self.trainer2 = GenericTrainer([objective_2], clip_norm=1.0)
 
-    def test_trainer(self):
+    def test_mt_trainer(self):
 
-        trainer = MultitaskTrainer([self.trainer1, self.trainer2])
+        trainer = MultitaskTrainer(
+            [self.trainer1, self.trainer2, self.trainer1])
 
         self.assertSetEqual(trainer.all_coders, {self.mpart, self.mpart_2})
         self.assertSetEqual(
@@ -65,8 +66,16 @@ class TestMultitaskTrainer(unittest.TestCase):
         self.assertSetEqual(mparts, {self.mpart_2})
         self.assertFalse(feeds[0])
 
-        self.assertTrue(trainer.trainer_idx == 0)
+        self.assertTrue(trainer.trainer_idx == 2)
         self.assertTrue(fetches["losses"][0] == self.mpart_2.loss)
+
+        execut = trainer.get_executable()
+        mparts, fetches, feeds = execut.next_to_execute()
+        self.assertSetEqual(mparts, {self.mpart})
+        self.assertFalse(feeds[0])
+
+        self.assertTrue(trainer.trainer_idx == 0)
+        self.assertTrue(fetches["losses"][0] == self.mpart.loss)
 
 
 if __name__ == "__main__":
