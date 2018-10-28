@@ -33,6 +33,10 @@ class ModelPart(metaclass=ABCMeta):
         self._reuse = reuse is not None
 
         if reuse is not None:
+            if type(self) != type(reuse):
+                raise TypeError("Can only reuse parameters of ModelPart "
+                                "objects within the same sub-class.")
+
             if initializers is not None:
                 raise ValueError("Cannot use initializers in model part '{}' "
                                  "that reuses variables from '{}'."
