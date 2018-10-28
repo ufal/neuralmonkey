@@ -43,7 +43,7 @@ def training_loop(tf_manager: TensorFlowManager,
                   runners: List[BaseRunner],
                   final_variables: str,
                   train_dataset: Dataset,
-                  val_dataset: Union[Dataset, List[Dataset]] = None,
+                  val_dataset: Union[Dataset, List[Dataset]],
                   test_datasets: List[Dataset] = None,
                   logging_period: Union[str, int] = 20,
                   validation_period: Union[str, int] = 500,
@@ -100,9 +100,7 @@ def training_loop(tf_manager: TensorFlowManager,
     """
     check_argument_types()
 
-    if val_dataset is None:
-        val_datasets = []  # type: List[Dataset]
-    elif isinstance(val_dataset, Dataset):
+    if isinstance(val_dataset, Dataset):
         val_datasets = [val_dataset]
     else:
         val_datasets = val_dataset
