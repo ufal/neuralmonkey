@@ -132,14 +132,13 @@ class Experiment:
             if self.train_mode:
                 check_dataset_and_coders(self.model.train_dataset,
                                          self.model.runners)
-                if self.model.val_dataset is not None:
-                    if isinstance(self.model.val_dataset, Dataset):
-                        check_dataset_and_coders(self.model.val_dataset,
+                if isinstance(self.model.val_dataset, Dataset):
+                    check_dataset_and_coders(self.model.val_dataset,
+                                             self.model.runners)
+                else:
+                    for val_dataset in self.model.val_dataset:
+                        check_dataset_and_coders(val_dataset,
                                                  self.model.runners)
-                    else:
-                        for val_dataset in self.model.val_dataset:
-                            check_dataset_and_coders(val_dataset,
-                                                     self.model.runners)
 
             if self.train_mode and self.model.visualize_embeddings:
                 visualize_embeddings(self.model.visualize_embeddings,
