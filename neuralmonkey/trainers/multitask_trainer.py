@@ -20,7 +20,7 @@ class MultitaskTrainer:
         check_argument_types()
 
         self.trainers = trainers
-        self.trainer_idx = len(trainers)
+        self.trainer_idx = 0
 
         self.var_list = list(set.union(*[set(t.var_list) for t in trainers]))
         self.all_coders = set.union(*[t.all_coders for t in self.trainers])
@@ -29,7 +29,8 @@ class MultitaskTrainer:
             self, compute_losses: bool = True, summaries: bool = True,
             num_sessions: int = 1) -> Executable:
 
+        focused_trainer = self.trainers[self.trainer_idx]
         self.trainer_idx = (self.trainer_idx + 1) % len(self.trainers)
 
-        return self.trainers[self.trainer_idx].get_executable(
+        return focused_trainer.get_executable(
             compute_losses, summaries, num_sessions)
