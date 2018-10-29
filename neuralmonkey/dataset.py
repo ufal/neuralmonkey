@@ -10,7 +10,8 @@ import re
 from collections import deque
 from itertools import islice
 from typing import (
-    Any, TypeVar, Iterator, Callable, Optional, Dict, Union, List, Tuple, cast)
+    Any, TypeVar, Iterator, Callable, Optional, Dict, Union, List, Tuple,
+    NamedTuple, cast)
 
 from typeguard import check_argument_types
 from neuralmonkey.config.parsing import get_first_match
@@ -505,7 +506,7 @@ class Dataset:
         if self.lazy and self.buffer_min_size < scheme.batch_size:
             warn("Minimum buffer size ({}) lower than batch size ({}). "
                  "It is recommended to use large buffer size."
-                 .format(self.buffer_min_size, batch_size))
+                 .format(self.buffer_min_size, scheme.batch_size))
 
         # Initialize iterators
         iterators = {s: it() for s, it in self.iterators.items()}
