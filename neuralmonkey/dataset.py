@@ -552,8 +552,10 @@ class Dataset:
 
             is_full = (len(buckets[bucket_id]) >= scheme.batch_size)
             if scheme.token_level_batching:
-                is_full = ((bucket_id + 1) * scheme.batch_bucket_span
-                           * len(buckets[bucket_id]) >= scheme.batch_size)
+                bucket_width = max(max(len(row[key]) for key in row)
+                                   for row in buckets[bucket_id])
+                is_full = (bucket_width * len(buckets[bucket_id])
+                           >= scheme.batch_size)
 
             if is_full:
                 # Create the batch

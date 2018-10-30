@@ -103,7 +103,7 @@ def training_loop(tf_manager: TensorFlowManager,
     """
     check_argument_types()
 
-    if batch_size is None == batching_scheme is None:
+    if (batch_size is None) == (batching_scheme is None):
         raise ValueError("You must specify either batch_size or "
                          "batching_scheme (not both).")
 
