@@ -113,6 +113,7 @@ def training_loop(tf_manager: TensorFlowManager,
                                          batch_bucket_span=None,
                                          token_level_batching=False,
                                          bucketing_ignore_series=[])
+    assert batching_scheme is not None
 
     runners_batching_scheme = batching_scheme._replace(batch_bucket_span=None)
     if runners_batch_size is not None:

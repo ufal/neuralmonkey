@@ -5,8 +5,14 @@ import os
 import tempfile
 import unittest
 
-from neuralmonkey.dataset import Dataset, from_files, load
+from neuralmonkey.dataset import Dataset, from_files, load, BatchingScheme
 from neuralmonkey.readers.plain_text_reader import UtfPlainTextReader
+
+DEFAULT_BATCHING_SCHEME = BatchingScheme(
+    batch_size=3,
+    batch_bucket_span=None,
+    token_level_batching=False,
+    bucketing_ignore_series=[])
 
 
 class TestDataset(unittest.TestCase):
@@ -114,7 +120,7 @@ class TestDataset(unittest.TestCase):
         batches = []
         for epoch in range(2):
             epoch = []
-            for batch in dataset.batches(3):
+            for batch in dataset.batches(DEFAULT_BATCHING_SCHEME):
                 epoch.append({s: list(batch.get_series(s)) for s in iterators})
 
             batches.append(epoch)
@@ -137,7 +143,7 @@ class TestDataset(unittest.TestCase):
         batches = []
         for epoch in range(2):
             epoch = []
-            for batch in dataset.batches(3):
+            for batch in dataset.batches(DEFAULT_BATCHING_SCHEME):
                 epoch.append({s: list(batch.get_series(s)) for s in iterators})
 
             batches.append(epoch)
@@ -159,7 +165,7 @@ class TestDataset(unittest.TestCase):
         batches = []
         for epoch in range(2):
             epoch = []
-            for batch in dataset.batches(3):
+            for batch in dataset.batches(DEFAULT_BATCHING_SCHEME):
                 epoch.append({s: list(batch.get_series(s)) for s in iterators})
 
             batches.append(epoch)
@@ -186,7 +192,7 @@ class TestDataset(unittest.TestCase):
         batches = []
         for epoch in range(2):
             epoch = []
-            for batch in dataset.batches(3):
+            for batch in dataset.batches(DEFAULT_BATCHING_SCHEME):
                 epoch.append({s: list(batch.get_series(s)) for s in iterators})
 
             batches.append(epoch)
