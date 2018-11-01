@@ -24,6 +24,7 @@ from neuralmonkey.writers.plain_text_writer import Writer
 # pylint: disable=invalid-name
 DataType = TypeVar("DataType")
 DataSeries = Iterator[DataType]
+DataExample = Dict[str, DataType]
 
 # Reader: function that gets list of files and yields data
 Reader = Callable[[List[str]], Any]
@@ -535,7 +536,7 @@ class Dataset:
         # Iterate over the rest of the data until buffer is empty
         batch_index = 0
         buckets = {} \
-            # type: Dict[int, List[Dict[str, Callable[[], Iterator]]]]
+            # type: Dict[int, List[DataExample]]
         while buf:
             row = buf.popleft()
 
