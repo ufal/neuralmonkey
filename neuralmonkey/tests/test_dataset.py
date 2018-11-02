@@ -207,6 +207,72 @@ class TestDataset(unittest.TestCase):
         self.assertEqual(set(epoch_data[0]), set(epoch_data[1]))
         self.assertNotEqual(epoch_data[0], epoch_data[1])
 
+    def test_bucketing(self):
+
+        # testing dataset is 50 sequences of lengths 1 - 50
+        iterators = {
+            "sentences": lambda: (["word" for _ in range(l)]
+                                  for l in range(1, 50))
+        }
+
+        dataset = Dataset("dataset", iterators=iterators, shuffled=False)
+
+        # we use batch size 7 and bucket span 10
+        scheme = BatchingScheme(7, 10, False, None)
+
+        # we process the dataset in two epochs and save what did the batches
+        # look like
+        batches = []
+        for batch in dataset.batches(scheme):
+            batches.append(list(batch.get_series("sentences")))
+
+        ref_batches = [
+            [["word" for _ in range(l)] for l in range(1, 8)],
+            [["word" for _ in range(l)] for l in range(10, 17)],
+            [["word" for _ in range(l)] for l in range(20, 27)],
+            [["word" for _ in range(l)] for l in range(30, 37)],
+            [["word" for _ in range(l)] for l in range(40, 47)],
+            [["word" for _ in range(l)] for l in range(8, 10)],
+            [["word" for _ in range(l)] for l in range(17, 20)],
+            [["word" for _ in range(l)] for l in range(27, 30)],
+            [["word" for _ in range(l)] for l in range(37, 40)],
+            [["word" for _ in range(l)] for l in range(47, 50)]]
+
+        self.assertSequenceEqual(ref_batches, batches)
+
+    def test_buckets_similar_size(self):
+        # testing dataset is 3 x 6 sequences of lengths 0 - 5
+        iterators = {
+            "sentences": lambda: [["word" for _ in range(l)]
+                                  for l in range(6)] * 3
+        }
+
+        dataset = Dataset("dataset", iterators=iterators, shuffled=True)
+
+        # we use batch size 6 and bucket span 2
+        scheme = BatchingScheme(6, 2, False, None)
+
+        # we process the dataset in two epochs and save what did the batches
+        # look like
+        batches = []
+        for batch in dataset.batches(scheme):
+            batches.append(list(batch.get_series("sentences")))
+
+        # this setup should divide the data to 3 batches
+        self.assertEqual(len(batches), 3)
+
+        for batch in batches:
+            # each batch should contain 6 values
+            self.assertEqual(len(batch), 6)
+
+            lengths = set(len(b) for b in batch)
+
+            # the values in the batch should have two lengths
+            self.assertEqual(len(lengths), 2)
+
+            # the lengths should differ by one
+            self.assertEqual(max(lengths) - min(lengths), 1)
+
 
 if __name__ == "__main__":
     unittest.main()
