@@ -5,6 +5,7 @@ from typeguard import check_argument_types
 
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.model.model_part import ModelPart, FeedDict, InitializerSpecs
+from neuralmonkey.model.sequence import EmbeddedSequence
 from neuralmonkey.model.stateful import TemporalStateful
 from neuralmonkey.vocabulary import Vocabulary
 from neuralmonkey.decorators import tensor
@@ -57,18 +58,20 @@ class SequenceLabeler(ModelPart):
             [inp.temporal_states for inp in self.encoders], axis=2)
 
     @tensor
-    def logits(self) -> tf.Tensor:
-
-        state = dropout(
+    def states(self) -> tf.Tensor:
+        states = dropout(
             self.concatenated_inputs, self.dropout_keep_prob, self.train_mode)
 
         if self.hidden_dim is not None:
             hidden = tf.layers.dense(
-                state, self.hidden_dim, self.activation,
+                states, self.hidden_dim, self.activation,
                 name="hidden_layer")
-            state = dropout(hidden, self.dropout_keep_prob, self.train_mode)
+            states = dropout(hidden, self.dropout_keep_prob, self.train_mode)
+        return states
 
-        return tf.layers.dense(state, len(self.vocabulary), name="logits")
+    @tensor
+    def logits(self) -> tf.Tensor:
+        return tf.layers.dense(self.states, len(self.vocabulary), name="logits")
 
     @tensor
     def logprobs(self) -> tf.Tensor:
@@ -109,3 +112,50 @@ class SequenceLabeler(ModelPart):
             fd[self.train_weights] = paddings.T
 
         return fd
+
+
+class EmbeddingsLabeler(SequenceLabeler):
+    """SequenceLabeler that uses an embedding matrix for output projection."""
+    def __init__(self,
+                 name: str,
+                 encoders: List[TemporalStateful],
+                 embedded_sequence: EmbeddedSequence,
+                 data_id: str,
+                 max_output_len: int,
+                 hidden_dim: int = None,
+                 activation: Callable = tf.nn.relu,
+                 train_embeddings: bool = True,
+                 dropout_keep_prob: float = 1.0,
+                 save_checkpoint: str = None,
+                 load_checkpoint: str = None,
+                 initializers: InitializerSpecs = None) -> None:
+
+        check_argument_types()
+        SequenceLabeler.__init__(self, name, encoders,
+                 embedded_sequence.vocabulary, data_id, max_output_len,
+                 hidden_dim=hidden_dim, activation=activation,
+                 dropout_keep_prob=dropout_keep_prob,
+                 save_checkpoint=save_checkpoint, load_checkpoint=load_checkpoint,
+                 initializers=initializers)
+
+        self.embedded_sequence = embedded_sequence
+        self.train_embeddings = train_embeddings
+
+    @tensor
+    def logits(self) -> tf.Tensor:
+        embeddings = self.embedded_sequence.embedding_matrix
+        if not self.train_embeddings:
+            embeddings = tf.stop_gradient(embeddings)
+
+        states = self.states
+        states_dim = self.states.get_shape()[-1].value
+        embedding_dim = self.embedded_sequence.embedding_sizes[0]
+        if states_dim != embedding_dim:
+           states = tf.layers.dense(
+                states, embedding_dim, name="project_for_embeddings")
+
+        reshaped_states = tf.reshape(states, [-1, embedding_dim])
+        reshaped_logits = tf.matmul(
+            reshaped_states, embeddings, transpose_b=True, name="logits")
+        return tf.reshape(
+            reshaped_logits, [self.batch_size, -1, len(self.vocabulary)])
