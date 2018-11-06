@@ -207,7 +207,7 @@ class DelayedTrainExecutable(Executable):
             if self.summaries:
                 fetches.update(self.trainer.summaries)
 
-            coders = set()
+            coders = self.trainer.all_coders
 
         else:  # RESETTING
             fetches = {"resets": self.trainer.reset_ops}
