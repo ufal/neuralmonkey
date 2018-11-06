@@ -1,6 +1,7 @@
 from typing import Callable, List
 
 import tensorflow as tf
+from tensorflow.python.framework import ops
 from typeguard import check_argument_types
 
 from neuralmonkey.dataset import Dataset
@@ -26,6 +27,7 @@ class Classifier(ModelPart):
                  data_id: str,
                  layers: List[int],
                  activation_fn: Callable[[tf.Tensor], tf.Tensor] = tf.nn.relu,
+                 adversarial: bool = False,
                  dropout_keep_prob: float = 0.5,
                  reuse: ModelPart = None,
                  save_checkpoint: str = None,
@@ -34,7 +36,7 @@ class Classifier(ModelPart):
         """Construct a new instance of the sequence classifier.
 
         Args:
-            name: Name of the decoder. Should be unique accross all Neural
+            name: Name of the decoder. Should be unique across all Neural
                 Monkey objects
             encoders: Input encoders of the decoder
             vocabulary: Target vocabulary
@@ -45,6 +47,10 @@ class Classifier(ModelPart):
                                        depending on the size of vocabulary
             activation_fn: activation function used on the output of each
                            hidden layer.
+            adversarial: Flag enabling adversarial classification that
+                simultaneously trains the classifier and reverse the gradient
+                to the encoders, such that worsen representation for the
+                classifier.
             dropout_keep_prob: Probability of keeping a value during dropout
         """
         check_argument_types()
@@ -58,26 +64,33 @@ class Classifier(ModelPart):
         self.activation_fn = activation_fn
         self.dropout_keep_prob = dropout_keep_prob
         self.max_output_len = 1
-
-        with self.use_scope():
-            self.gt_inputs = [tf.placeholder(tf.int32, [None], "targets")]
-
-            mlp_input = tf.concat([enc.output for enc in self.encoders], 1)
-            self._mlp = MultilayerPerceptron(
-                mlp_input, self.layers,
-                self.dropout_keep_prob, len(self.vocabulary),
-                activation_fn=self.activation_fn, train_mode=self.train_mode)
-
-        tf.summary.scalar(
-            "train_optimization_cost",
-            self.cost, collections=["summary_train"])
+        self.adversarial = adversarial
     # pylint: enable=too-many-arguments
+
+    @tensor
+    def targets(self) -> tf.Tensor:
+        return [tf.placeholder(tf.int32, [None], "targets")]
+
+    @tensor
+    def mlp_input(self) -> tf.Tensor:
+        mlp_input = tf.concat([enc.output for enc in self.encoders], 1)
+
+        if self.adversarial:
+            return _reverse_gradient(mlp_input)
+        return mlp_input
+
+    @tensor
+    def mlp(self) -> MultilayerPerceptron:
+        return MultilayerPerceptron(
+            self.mlp_input, self.layers,
+            self.dropout_keep_prob, len(self.vocabulary),
+            activation_fn=self.activation_fn, train_mode=self.train_mode)
 
     @tensor
     def loss_with_gt_ins(self) -> tf.Tensor:
         return tf.reduce_mean(
             tf.nn.sparse_softmax_cross_entropy_with_logits(
-                logits=self._mlp.logits, labels=self.gt_inputs[0]))
+                logits=self.mlp.logits, labels=self.targets[0]))
 
     @property
     def loss_with_decoded_ins(self) -> tf.Tensor:
@@ -85,19 +98,23 @@ class Classifier(ModelPart):
 
     @property
     def cost(self) -> tf.Tensor:
+        tf.summary.scalar(
+            "train_optimization_cost",
+            self.loss_with_gt_ins, collections=["summary_train"])
+
         return self.loss_with_gt_ins
 
     @tensor
     def decoded_seq(self) -> tf.Tensor:
-        return tf.expand_dims(self._mlp.classification, 0)
+        return tf.expand_dims(self.mlp.classification, 0)
 
     @tensor
     def decoded_logits(self) -> tf.Tensor:
-        return tf.expand_dims(self._mlp.logits, 0)
+        return tf.expand_dims(self.mlp.logits, 0)
 
     @tensor
     def runtime_logprobs(self) -> tf.Tensor:
-        return tf.expand_dims(tf.nn.log_softmax(self._mlp.logits), 0)
+        return tf.expand_dims(tf.nn.log_softmax(self.mlp.logits), 0)
 
     @property
     def train_loss(self):
@@ -118,6 +135,23 @@ class Classifier(ModelPart):
         if sentences is not None:
             label_tensors, _ = self.vocabulary.sentences_to_tensor(
                 list(sentences), self.max_output_len)
-            fd[self.gt_inputs[0]] = label_tensors[0]
+            fd[self.targets[0]] = label_tensors[0]
 
         return fd
+
+
+def _reverse_gradient(x: tf.Tensor) -> tf.Tensor:
+    """Flips the sign of the incoming gradient during training."""
+
+    grad_name = "gradient_reversal_{}".format(x.name)
+
+    @ops.RegisterGradient(grad_name)
+    def _flip_gradients(op, grad):
+        return [tf.negative(grad) ]
+
+    from neuralmonkey.experiment import Experiment
+    graph = Experiment.get_current().graph
+    with graph.gradient_override_map({"Identity": grad_name}):
+        y = tf.identity(x)
+
+    return y
