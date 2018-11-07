@@ -71,7 +71,7 @@ class SequenceSplitter(TemporalStateful, ModelPart):
         return tf.squeeze(
             split_by_factor(double_mask, self.batch_size, self.factor), axis=2)
 
-    def feed_dict(self, dataset: Dataset, train: bool) -> FeedDict:
+    def feed_dict(self, dataset: Dataset, train: bool = True) -> FeedDict:
         return ModelPart.feed_dict(self, dataset, train)
 
     def get_dependencies(self) -> Set[ModelPart]:
