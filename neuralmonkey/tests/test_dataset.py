@@ -218,7 +218,7 @@ class TestDataset(unittest.TestCase):
         dataset = Dataset("dataset", iterators=iterators, shuffled=False)
 
         # we use batch size 7 and bucket span 10
-        scheme = BatchingScheme(7, 10, False, None)
+        scheme = BatchingScheme(7, 10, False, None, True)
 
         # we process the dataset in two epochs and save what did the batches
         # look like
@@ -237,6 +237,34 @@ class TestDataset(unittest.TestCase):
             [["word" for _ in range(l)] for l in range(27, 30)],
             [["word" for _ in range(l)] for l in range(37, 40)],
             [["word" for _ in range(l)] for l in range(47, 50)]]
+
+        self.assertSequenceEqual(ref_batches, batches)
+
+    def test_bucketing_no_leftovers(self):
+
+        # testing dataset is 50 sequences of lengths 1 - 50
+        iterators = {
+            "sentences": lambda: (["word" for _ in range(l)]
+                                  for l in range(1, 50))
+        }
+
+        dataset = Dataset("dataset", iterators=iterators, shuffled=False)
+
+        # we use batch size 7 and bucket span 10
+        scheme = BatchingScheme(7, 10, False, None, False)
+
+        # we process the dataset in two epochs and save what did the batches
+        # look like
+        batches = []
+        for batch in dataset.batches(scheme):
+            batches.append(list(batch.get_series("sentences")))
+
+        ref_batches = [
+            [["word" for _ in range(l)] for l in range(1, 8)],
+            [["word" for _ in range(l)] for l in range(10, 17)],
+            [["word" for _ in range(l)] for l in range(20, 27)],
+            [["word" for _ in range(l)] for l in range(30, 37)],
+            [["word" for _ in range(l)] for l in range(40, 47)]]
 
         self.assertSequenceEqual(ref_batches, batches)
 

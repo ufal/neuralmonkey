@@ -109,16 +109,17 @@ def training_loop(tf_manager: TensorFlowManager,
 
     if batch_size is not None:
         assert batching_scheme is None
-        batching_scheme = BatchingScheme(batch_size=batch_size,
-                                         batch_bucket_span=None,
-                                         token_level_batching=False,
-                                         bucketing_ignore_series=[])
+        batching_scheme = BatchingScheme(batch_size=batch_size)
+
     assert batching_scheme is not None
 
-    runners_batching_scheme = batching_scheme._replace(batch_bucket_span=None)
-    if runners_batch_size is not None:
-        runners_batching_scheme = runners_batching_scheme._replace(
-            batch_size=runners_batch_size)
+    if runners_batch_size is None:
+        runners_batch_size = batching_scheme.batch_size
+
+    runners_batching_scheme = BatchingScheme(
+        batch_size=runners_batch_size,
+        token_level_batching=batching_scheme.token_level_batching,
+        use_leftover_buckets=True)
 
     if isinstance(val_dataset, List):
         val_datasets = val_dataset

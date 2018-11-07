@@ -10,8 +10,7 @@ import re
 from collections import deque
 from itertools import islice
 from typing import (
-    Any, TypeVar, Iterator, Callable, Optional, Dict, Union, List, Tuple,
-    NamedTuple, cast)
+    Any, TypeVar, Iterator, Callable, Optional, Dict, Union, List, Tuple, cast)
 
 from typeguard import check_argument_types
 from neuralmonkey.config.parsing import get_first_match
@@ -51,21 +50,38 @@ SERIES_SOURCE = re.compile("s_([^_]*)$")
 SERIES_OUTPUT = re.compile("s_(.*)_out")
 
 
-class BatchingScheme(NamedTuple(
-        "BatchingScheme",
-        [("batch_size", int),
-         ("batch_bucket_span", Optional[int]),
-         ("token_level_batching", bool),
-         ("bucketing_ignore_series", List[str])])):
-    """The baching scheme.
+# pylint: disable=too-few-public-methods
+# After migrating to py3.7, make this dataclass or namedtuple with defaults
+class BatchingScheme:
 
-    Attributes:
-        batch_size: Number of examples in one mini-batch.
-        batch_bucket_span: The span of the bucket for bucketed batching.
-        token_level_batching: Count the batch_size per individual tokens
-            in the batch instead of examples.
-        bucketing_ignore_series: Series to ignore during bucketing.
-    """
+    def __init__(self,
+                 batch_size: int,
+                 batch_bucket_span: int = None,
+                 token_level_batching: bool = False,
+                 bucketing_ignore_series: List[str] = None,
+                 use_leftover_buckets: bool = True) -> None:
+        """Construct the baching scheme.
+
+        Attributes:
+            batch_size: Number of examples in one mini-batch.
+            batch_bucket_span: The span of the bucket for bucketed batching.
+            token_level_batching: Count the batch_size per individual tokens
+                in the batch instead of examples.
+            bucketing_ignore_series: Series to ignore during bucketing.
+            use_leftover_buckets: Whether to throw out bucket contents at the
+                end of the epoch or to use them.
+        """
+        check_argument_types()
+
+        self.batch_size = batch_size
+        self.batch_bucket_span = batch_bucket_span
+        self.token_level_batching = token_level_batching
+        self.use_leftover_buckets = use_leftover_buckets
+
+        self.bucketing_ignore_series = []  # type: List[str]
+        if bucketing_ignore_series is not None:
+            self.bucketing_ignore_series = bucketing_ignore_series
+# pylint: enable=too-few-public-methods
 
 
 # The protected functions below are designed to convert the ambiguous spec
@@ -582,14 +598,15 @@ class Dataset:
                     random.shuffle(lbuf)
                     buf = deque(lbuf)
 
-        for bucket_id in buckets:
-            if buckets[bucket_id]:
-                name = "{}.batch.{}".format(self.name, batch_index)
-                data = {key: _make_datagen(buckets[bucket_id], key)
-                        for key in buckets[bucket_id][0]}
+        if scheme.use_leftover_buckets:
+            for bucket_id in buckets:
+                if buckets[bucket_id]:
+                    name = "{}.batch.{}".format(self.name, batch_index)
+                    data = {key: _make_datagen(buckets[bucket_id], key)
+                            for key in buckets[bucket_id][0]}
 
-                yield Dataset(name=name, iterators=data)
-                batch_index += 1
+                    yield Dataset(name=name, iterators=data)
+                    batch_index += 1
     # pylint: enable=too-many-locals,too-many-branches
 
     def subset(self, start: int, length: int) -> "Dataset":
