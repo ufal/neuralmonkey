@@ -23,6 +23,7 @@ from neuralmonkey.writers.plain_text_writer import Writer
 # pylint: disable=invalid-name
 DataType = TypeVar("DataType")
 DataSeries = Iterator[DataType]
+DataExample = Dict[str, DataType]
 
 # Reader: function that gets list of files and yields data
 Reader = Callable[[List[str]], Any]
@@ -47,6 +48,40 @@ OutputSpec = Union[Tuple[str, str], Tuple[str, str, Writer]]
 PREPROCESSED_SERIES = re.compile("pre_([^_]*)$")
 SERIES_SOURCE = re.compile("s_([^_]*)$")
 SERIES_OUTPUT = re.compile("s_(.*)_out")
+
+
+# pylint: disable=too-few-public-methods
+# After migrating to py3.7, make this dataclass or namedtuple with defaults
+class BatchingScheme:
+
+    def __init__(self,
+                 batch_size: int,
+                 batch_bucket_span: int = None,
+                 token_level_batching: bool = False,
+                 bucketing_ignore_series: List[str] = None,
+                 use_leftover_buckets: bool = True) -> None:
+        """Construct the baching scheme.
+
+        Attributes:
+            batch_size: Number of examples in one mini-batch.
+            batch_bucket_span: The span of the bucket for bucketed batching.
+            token_level_batching: Count the batch_size per individual tokens
+                in the batch instead of examples.
+            bucketing_ignore_series: Series to ignore during bucketing.
+            use_leftover_buckets: Whether to throw out bucket contents at the
+                end of the epoch or to use them.
+        """
+        check_argument_types()
+
+        self.batch_size = batch_size
+        self.batch_bucket_span = batch_bucket_span
+        self.token_level_batching = token_level_batching
+        self.use_leftover_buckets = use_leftover_buckets
+
+        self.bucketing_ignore_series = []  # type: List[str]
+        if bucketing_ignore_series is not None:
+            self.bucketing_ignore_series = bucketing_ignore_series
+# pylint: enable=too-few-public-methods
 
 
 # The protected functions below are designed to convert the ambiguous spec
@@ -474,21 +509,21 @@ class Dataset:
             return self.get_series(name)
         return None
 
-    def batches(self, batch_size: int) -> Iterator["Dataset"]:
+    # pylint: disable=too-many-locals,too-many-branches
+    def batches(self,
+                scheme: BatchingScheme) -> Iterator["Dataset"]:
         """Split the dataset into batches.
 
         Arguments:
-            batch_size: The size of a batch. In case of lazy datasets, this
-                should be lower than the dataset buffer size. Otherwise, the
-                batch size will be equal to the size of the buffer.
+            scheme: `BatchingScheme` configuration object.
 
         Returns:
             Generator yielding the batches.
         """
-        if self.lazy and self.buffer_min_size < batch_size:
+        if self.lazy and self.buffer_min_size < scheme.batch_size:
             warn("Minimum buffer size ({}) lower than batch size ({}). "
                  "It is recommended to use large buffer size."
-                 .format(self.buffer_min_size, batch_size))
+                 .format(self.buffer_min_size, scheme.batch_size))
 
         # Initialize iterators
         iterators = {s: it() for s, it in self.iterators.items()}
@@ -516,14 +551,38 @@ class Dataset:
 
         # Iterate over the rest of the data until buffer is empty
         batch_index = 0
+        buckets = {} \
+            # type: Dict[int, List[DataExample]]
         while buf:
-            # Create the batch
-            name = "{}.batch.{}".format(self.name, batch_index)
-            rows = [buf.popleft() for _ in range(batch_size) if buf]
-            data = {key: _make_datagen(rows, key) for key in rows[0]}
+            row = buf.popleft()
 
-            yield Dataset(name=name, iterators=data)
-            batch_index += 1
+            if scheme.batch_bucket_span is None:
+                bucket_id = 0
+            else:
+                # TODO: use only specific series to determine the bucket number
+                bucket_id = (max(len(row[key]) for key in row)
+                             // scheme.batch_bucket_span)
+
+            if bucket_id not in buckets:
+                buckets[bucket_id] = []
+            buckets[bucket_id].append(row)
+
+            is_full = (len(buckets[bucket_id]) >= scheme.batch_size)
+            if scheme.token_level_batching:
+                bucket_width = max(max(len(row[key]) for key in row)
+                                   for row in buckets[bucket_id])
+                is_full = (bucket_width * len(buckets[bucket_id])
+                           >= scheme.batch_size)
+
+            if is_full:
+                # Create the batch
+                name = "{}.batch.{}".format(self.name, batch_index)
+                data = {key: _make_datagen(buckets[bucket_id], key)
+                        for key in buckets[bucket_id][0]}
+
+                yield Dataset(name=name, iterators=data)
+                batch_index += 1
+                buckets[bucket_id] = []
 
             # If lazy, refill buffer & shuffle if needed
             # Otherwise, all of the data is already loaded in the buffer.
@@ -538,6 +597,17 @@ class Dataset:
                     lbuf = list(buf)
                     random.shuffle(lbuf)
                     buf = deque(lbuf)
+
+        if scheme.use_leftover_buckets:
+            for bucket_id in buckets:
+                if buckets[bucket_id]:
+                    name = "{}.batch.{}".format(self.name, batch_index)
+                    data = {key: _make_datagen(buckets[bucket_id], key)
+                            for key in buckets[bucket_id][0]}
+
+                    yield Dataset(name=name, iterators=data)
+                    batch_index += 1
+    # pylint: enable=too-many-locals,too-many-branches
 
     def subset(self, start: int, length: int) -> "Dataset":
         """Create a subset of the dataset.

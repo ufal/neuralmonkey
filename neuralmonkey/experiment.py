@@ -20,7 +20,7 @@ from neuralmonkey.config.configuration import Configuration
 from neuralmonkey.learning_utils import (training_loop, evaluation,
                                          run_on_dataset,
                                          print_final_evaluation)
-from neuralmonkey.dataset import Dataset
+from neuralmonkey.dataset import Dataset, BatchingScheme
 from neuralmonkey.model.sequence import EmbeddedFactorSequence
 from neuralmonkey.runners.base_runner import ExecutionResult
 from neuralmonkey.tf_manager import get_default_tf_manager
@@ -171,6 +171,7 @@ class Experiment:
                 epochs=self.model.epochs,
                 trainer=self.model.trainer,
                 batch_size=self.model.batch_size,
+                batching_scheme=self.model.batching_scheme,
                 log_directory=self.model.output,
                 evaluators=self.model.evaluation,
                 runners=self.model.runners,
@@ -241,13 +242,19 @@ class Experiment:
         if not self._vars_loaded:
             self.load_variables()
 
+        batching_scheme = BatchingScheme(
+            batch_size=batch_size or self.model.runners_batch_size,
+            batch_bucket_span=None,
+            token_level_batching=False,
+            bucketing_ignore_series=[])
+
         with self.graph.as_default():
             # TODO: check_dataset_and_coders(dataset, self.model.runners)
             return run_on_dataset(
                 self.model.tf_manager, self.model.runners, dataset,
                 self.model.postprocess,
                 write_out=write_out, log_progress=log_progress,
-                batch_size=batch_size or self.model.runners_batch_size)
+                batching_scheme=batching_scheme)
 
     def evaluate(self,
                  dataset: Dataset,
@@ -329,7 +336,9 @@ class Experiment:
 def create_config(train_mode: bool = True) -> Configuration:
     config = Configuration()
     config.add_argument("tf_manager", required=False, default=None)
-    config.add_argument("batch_size", cond=lambda x: x > 0)
+    config.add_argument("batch_size", required=False, default=None,
+                        cond=lambda x: x is None or x > 0)
+    config.add_argument("batching_scheme", required=False, default=None)
     config.add_argument("output")
     config.add_argument("postprocess", required=False, default=None)
     config.add_argument("runners")

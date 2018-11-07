@@ -15,7 +15,7 @@ from termcolor import colored
 from typeguard import check_argument_types
 
 from neuralmonkey.logging import log, log_print, warn, notice
-from neuralmonkey.dataset import Dataset
+from neuralmonkey.dataset import Dataset, BatchingScheme
 from neuralmonkey.tf_manager import TensorFlowManager
 from neuralmonkey.runners.base_runner import (
     BaseRunner, ExecutionResult, reduce_execution_results)
@@ -37,7 +37,6 @@ Trainer = Union[GenericTrainer, MultitaskTrainer]
 def training_loop(tf_manager: TensorFlowManager,
                   epochs: int,
                   trainer: Union[Trainer, List[Trainer]],
-                  batch_size: int,
                   log_directory: str,
                   evaluators: EvalConfiguration,
                   runners: List[BaseRunner],
@@ -51,6 +50,8 @@ def training_loop(tf_manager: TensorFlowManager,
                   val_preview_output_series: List[str] = None,
                   val_preview_num_examples: int = 15,
                   train_start_offset: int = 0,
+                  batch_size: int = None,
+                  batching_scheme: BatchingScheme = None,
                   runners_batch_size: int = None,
                   initial_variables: Union[str, List[str]] = None,
                   postprocess: Postprocess = None) -> None:
@@ -61,7 +62,9 @@ def training_loop(tf_manager: TensorFlowManager,
         epochs: Number of epochs for which the algoritm will learn.
         trainer: The trainer object containg the TensorFlow code for computing
             the loss and optimization operation.
-        batch_size: number of examples in one mini-batch
+        batch_size: Number of examples in one mini-batch.
+        batching_scheme: Batching scheme specification. Cannot be provided when
+            batch_size is specified.
         log_directory: Directory where the TensordBoard log will be generated.
             If None, nothing will be done.
         evaluators: List of evaluators. The last evaluator is used as the main.
@@ -88,8 +91,8 @@ def training_loop(tf_manager: TensorFlowManager,
             validation
         train_start_offset: how many lines from the training dataset should be
             skipped. The training starts from the next batch.
-        runners_batch_size: batch size of runners. It is the same as batch_size
-            if not specified
+        runners_batch_size: batch size of runners. Reuses the training batching
+            scheme with bucketing turned off.
         initial_variables: variables used for initialization, for example for
             continuation of training. Provide it with a path to your model
             directory and its checkpoint file group common prefix, e.g.
@@ -99,6 +102,24 @@ def training_loop(tf_manager: TensorFlowManager,
             and generates additional series from them.
     """
     check_argument_types()
+
+    if (batch_size is None) == (batching_scheme is None):
+        raise ValueError("You must specify either batch_size or "
+                         "batching_scheme (not both).")
+
+    if batch_size is not None:
+        assert batching_scheme is None
+        batching_scheme = BatchingScheme(batch_size=batch_size)
+
+    assert batching_scheme is not None
+
+    if runners_batch_size is None:
+        runners_batch_size = batching_scheme.batch_size
+
+    runners_batching_scheme = BatchingScheme(
+        batch_size=runners_batch_size,
+        token_level_batching=batching_scheme.token_level_batching,
+        use_leftover_buckets=True)
 
     if isinstance(val_dataset, List):
         val_datasets = val_dataset
@@ -117,9 +138,6 @@ def training_loop(tf_manager: TensorFlowManager,
 
     _log_model_variables(
         var_list=list(set().union(*[t.var_list for t in trainers])))
-
-    if runners_batch_size is None:
-        runners_batch_size = batch_size
 
     evaluators = [(e[0], e[0], e[1]) if len(e) == 2 else e
                   for e in evaluators]
@@ -166,7 +184,7 @@ def training_loop(tf_manager: TensorFlowManager,
             log_print("")
             log("Epoch {} begins".format(epoch_n), color="red")
 
-            train_batches = train_dataset.batches(batch_size)
+            train_batches = train_dataset.batches(batching_scheme)
 
             if epoch_n == 1 and train_start_offset:
                 if train_dataset.shuffled and not train_dataset.lazy:
@@ -185,7 +203,8 @@ def training_loop(tf_manager: TensorFlowManager,
                         batch, trainers, train=True, summaries=True)
                     train_results, train_outputs = run_on_dataset(
                         tf_manager, runners, batch, postprocess,
-                        write_out=False, batch_size=len(batch))
+                        write_out=False,
+                        batching_scheme=runners_batching_scheme)
                     # ensure train outputs are iterable more than once
                     train_outputs = {
                         k: list(v) for k, v in train_outputs.items()}
@@ -213,7 +232,7 @@ def training_loop(tf_manager: TensorFlowManager,
                         val_results, val_outputs = run_on_dataset(
                             tf_manager, runners, valset,
                             postprocess, write_out=False,
-                            batch_size=runners_batch_size)
+                            batching_scheme=runners_batching_scheme)
                         # ensure val outputs are iterable more than once
                         val_outputs = {k: list(v)
                                        for k, v in val_outputs.items()}
@@ -304,7 +323,7 @@ def training_loop(tf_manager: TensorFlowManager,
         for dataset in test_datasets:
             test_results, test_outputs = run_on_dataset(
                 tf_manager, runners, dataset, postprocess,
-                write_out=True, batch_size=runners_batch_size)
+                write_out=True, batching_scheme=runners_batching_scheme)
             # ensure test outputs are iterable more than once
             test_outputs = {k: list(v) for k, v in test_outputs.items()}
             eval_result = evaluation(evaluators, dataset, runners,
@@ -377,7 +396,7 @@ def run_on_dataset(tf_manager: TensorFlowManager,
                    runners: List[BaseRunner],
                    dataset: Dataset,
                    postprocess: Postprocess,
-                   batch_size: int,
+                   batching_scheme: BatchingScheme,
                    write_out: bool = False,
                    log_progress: int = 0) -> Tuple[
                        List[ExecutionResult], Dict[str, List[Any]]]:
@@ -395,7 +414,7 @@ def run_on_dataset(tf_manager: TensorFlowManager,
         postprocess: Dataset-level postprocessors
         write_out: Flag whether the outputs should be printed to a file defined
             in the dataset object.
-        batch_size: size of the minibatch
+        batching_scheme: Scheme used for batching.
         log_progress: log progress every X seconds
 
         extra_fetches: Extra tensors to evaluate for each batch.
@@ -413,13 +432,15 @@ def run_on_dataset(tf_manager: TensorFlowManager,
     last_log_time = time.process_time()
     batch_results = [[] for _ in runners]  # type: List[List[ExecutionResult]]
 
-    for i, batch in enumerate(dataset.batches(batch_size)):
+    processed_examples = 0
+    for batch in dataset.batches(batching_scheme):
         if 0 < log_progress < time.process_time() - last_log_time:
-            log("Processed {} examples.".format(i * batch_size))
+            log("Processed {} examples.".format(processed_examples))
             last_log_time = time.process_time()
 
         execution_results = tf_manager.execute(
             batch, runners, compute_losses=contains_targets)
+        processed_examples += len(batch)
 
         for script_list, ex_result in zip(batch_results, execution_results):
             script_list.append(ex_result)
