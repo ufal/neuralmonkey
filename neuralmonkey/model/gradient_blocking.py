@@ -1,23 +1,25 @@
 """Module that blocks gradient propagation to model parts."""
+from typing import Set
 import tensorflow as tf
 from typeguard import check_argument_types
 
+from neuralmonkey.model.model_part import GenericModelPart
 from neuralmonkey.model.stateful import (
-    Stateful, TemporalStateful, SpatialStateful,
-    TemporalStatefulWithOutput, SpatialStatefulWithOutput)
+    Stateful, TemporalStateful, SpatialStateful)
 
 
-# pylint: disable=too-few-public-methods
 class StatefulView(Stateful):
-
     def __init__(self, blocked_object: Stateful) -> None:
         check_argument_types()
+        self._blocked_object = blocked_object
         self._output = tf.stop_gradient(blocked_object.output)
 
     @property
     def output(self) -> tf.Tensor:
         return self._output
-# pylint: enable=too-few-public-methods
+
+    def get_dependencies(self) -> Set[GenericModelPart]:
+        return self._blocked_object.get_dependencies()
 
 
 class TemporalStatefulView(TemporalStateful):
@@ -34,6 +36,9 @@ class TemporalStatefulView(TemporalStateful):
     def temporal_mask(self) -> tf.Tensor:
         return self._blocked_object.temporal_mask
 
+    def get_dependencies(self) -> Set[GenericModelPart]:
+        return self._blocked_object.get_dependencies()
+
 
 class SpatialStatefulView(SpatialStateful):
     def __init__(self, blocked_object: SpatialStateful) -> None:
@@ -49,19 +54,5 @@ class SpatialStatefulView(SpatialStateful):
     def spatial_mask(self) -> tf.Tensor:
         return self._blocked_object.spatial_mask
 
-
-# pylint: disable=abstract-method
-class TemporalStatefulWithOutputView(TemporalStatefulWithOutput,
-                                     TemporalStatefulView, StatefulView):
-    def __init__(self, blocked_object: TemporalStatefulWithOutput) -> None:
-        check_argument_types()
-        TemporalStatefulView.__init__(self, blocked_object)
-        StatefulView.__init__(self, blocked_object)
-
-
-class SpatialStatefulWithOutputView(SpatialStatefulWithOutput,
-                                    SpatialStatefulView, StatefulView):
-    def __init__(self, blocked_object: SpatialStatefulWithOutput) -> None:
-        check_argument_types()
-        SpatialStatefulView.__init__(self, blocked_object)
-        StatefulView.__init__(self, blocked_object)
+    def get_dependencies(self) -> Set[GenericModelPart]:
+        return self._blocked_object.get_dependencies()
