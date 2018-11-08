@@ -7,7 +7,7 @@ import os
 import random
 import re
 
-from collections import deque
+from collections import deque, OrderedDict
 from itertools import islice
 from typing import (
     Any, TypeVar, Iterator, Callable, Optional, Dict, Union, List, Tuple, cast)
@@ -316,8 +316,8 @@ def load(name: str,
 
     iterators = {}  # type: Dict[str, Callable[[], DataSeries]]
 
-    prep_sl = {}  # type: Dict[str, Tuple[Callable, str]]
-    prep_dl = {}  # type: Dict[str, DatasetPreprocess]
+    prep_sl = OrderedDict()  # type: Dict[str, Tuple[Callable, str]]
+    prep_dl = OrderedDict()  # type: Dict[str, DatasetPreprocess]
 
     def _make_iterator(reader, files):
         def itergen():

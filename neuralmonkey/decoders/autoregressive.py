@@ -275,7 +275,7 @@ class AutoregressiveDecoder(ModelPart):
 
     @tensor
     def train_loss(self) -> tf.Tensor:
-        lenghts = tf.reduce_sum(self.train_mask, axis=1)
+        lengths = tf.reduce_sum(self.train_mask, axis=0)
 
         return (tf.reduce_sum(self.train_xents * lengths)
                 / tf.reduce_sum(lengths))
