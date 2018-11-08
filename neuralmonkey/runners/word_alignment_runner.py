@@ -8,7 +8,7 @@ from typeguard import check_argument_types
 
 from neuralmonkey.attention.base_attention import BaseAttention
 from neuralmonkey.decoders.decoder import Decoder
-from neuralmonkey.model.model_part import ModelPart
+from neuralmonkey.model.model_part import GenericModelPart
 from neuralmonkey.runners.base_runner import (
     BaseRunner, Executable, FeedDict, ExecutionResult, NextExecute)
 
@@ -16,7 +16,7 @@ from neuralmonkey.runners.base_runner import (
 class WordAlignmentRunnerExecutable(Executable):
 
     def __init__(self,
-                 all_coders: Set[ModelPart],
+                 all_coders: Set[GenericModelPart],
                  fetches: FeedDict) -> None:
         self._all_coders = all_coders
         self._fetches = fetches

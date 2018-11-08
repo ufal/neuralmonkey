@@ -1,5 +1,3 @@
-from typing import Set, cast
-
 import tensorflow as tf
 from typeguard import check_argument_types
 
@@ -102,13 +100,3 @@ class AttentiveEncoder(ModelPart, TemporalStatefulWithOutput):
                                      name="output_projection")
 
         return output
-
-    def get_dependencies(self) -> Set[ModelPart]:
-        deps = ModelPart.get_dependencies(self)
-
-        # feed only if needed
-        if isinstance(self.input_sequence, ModelPart):
-            feedable = cast(ModelPart, self.input_sequence)
-            deps |= feedable.get_dependencies()
-
-        return deps

@@ -8,7 +8,8 @@ import tensorflow as tf
 
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.decorators import tensor
-from neuralmonkey.model.model_part import ModelPart, FeedDict, InitializerSpecs
+from neuralmonkey.model.model_part import (
+    ModelPart, GenericModelPart, FeedDict, InitializerSpecs)
 from neuralmonkey.model.stateful import (SpatialStatefulWithOutput,
                                          TemporalStatefulWithOutput)
 from neuralmonkey.nn.projection import multilayer_projection
@@ -349,6 +350,6 @@ class CNNTemporalView(ModelPart, TemporalStatefulWithOutput):
         summed = tf.reduce_sum(mask, axis=1)
         return tf.to_float(tf.greater(summed, 0))
 
-    def get_dependencies(self) -> Set["ModelPart"]:
+    def get_dependencies(self) -> Set[GenericModelPart]:
         """Collect recusively all encoders and decoders."""
         return self._cnn.get_dependencies().union([self])

@@ -5,7 +5,7 @@ import tensorflow as tf
 from typeguard import check_argument_types
 
 from neuralmonkey.logging import log, warn
-from neuralmonkey.model.model_part import ModelPart
+from neuralmonkey.model.model_part import GenericModelPart
 from neuralmonkey.runners.base_runner import (
     BaseRunner, Executable, ExecutionResult, NextExecute, FeedDict)
 from neuralmonkey.experiment import Experiment
@@ -14,7 +14,7 @@ from neuralmonkey.experiment import Experiment
 class TensorExecutable(Executable):
 
     def __init__(self,
-                 all_coders: Set[ModelPart],
+                 all_coders: Set[GenericModelPart],
                  fetches: FeedDict,
                  batch_dims: Dict[str, int],
                  select_session: Optional[int],
@@ -79,7 +79,7 @@ class TensorExecutable(Executable):
         return batched
 
 
-class TensorRunner(BaseRunner[ModelPart]):
+class TensorRunner(BaseRunner[GenericModelPart]):
     """Runner class for printing tensors from a model.
 
     Use this runner if you want to retrieve a specific tensor from the model
@@ -90,7 +90,7 @@ class TensorRunner(BaseRunner[ModelPart]):
     # pylint: disable=too-many-arguments
     def __init__(self,
                  output_series: str,
-                 toplevel_modelpart: ModelPart,
+                 toplevel_modelpart: GenericModelPart,
                  toplevel_tensors: List[tf.Tensor],
                  tensors_by_name: List[str],
                  tensors_by_ref: List[tf.Tensor],
@@ -108,9 +108,9 @@ class TensorRunner(BaseRunner[ModelPart]):
 
         Args:
             output_series: The name of the generated output data series.
-            toplevel_modelpart: A ``ModelPart`` object that is used as the
-                top-level component of the model. This object should depend on
-                values of all the wanted tensors.
+            toplevel_modelpart: A ``GenericModelPart`` object that is used as
+                the top-level component of the model. This object should depend
+                on values of all the wanted tensors.
             toplevel_tensors: A list of tensors that should be constructed. Use
                 this when the toplevel model part does not depend on this
                 tensor. The tensors are constructed during running this
@@ -133,7 +133,8 @@ class TensorRunner(BaseRunner[ModelPart]):
                 tensor names to NumPy arrays.
         """
         check_argument_types()
-        BaseRunner[ModelPart].__init__(self, output_series, toplevel_modelpart)
+        BaseRunner[GenericModelPart].__init__(
+            self, output_series, toplevel_modelpart)
 
         total_tensors = len(tensors_by_name) + len(tensors_by_ref)
         if single_tensor and total_tensors > 1:
@@ -193,14 +194,15 @@ class RepresentationRunner(TensorRunner):
 
     def __init__(self,
                  output_series: str,
-                 encoder: ModelPart,
+                 encoder: GenericModelPart,
                  attribute: str = "output",
                  select_session: int = None) -> None:
         """Initialize the representation runner.
 
         Args:
             output_series: Name of the output series with vectors.
-            encoder: The encoder to use. This can be any ``ModelPart`` object.
+            encoder: The encoder to use. This can be any ``GenericModelPart``
+                object.
             attribute: The name of the encoder attribute that contains the
                 data.
             used_session: Id of the TensorFlow session used in case of model
@@ -210,7 +212,7 @@ class RepresentationRunner(TensorRunner):
 
         if not hasattr(encoder, attribute):
             raise TypeError("The encoder '{}' does not have the specified "
-                            "attribute '{}'".format(encoder.name, attribute))
+                            "attribute '{}'".format(encoder, attribute))
 
         tensor_to_get = getattr(encoder, attribute)
 

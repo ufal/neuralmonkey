@@ -15,6 +15,7 @@ from termcolor import colored
 from typeguard import check_argument_types
 
 from neuralmonkey.logging import log, log_print, warn, notice
+from neuralmonkey.model.parameterized import Parameterized
 from neuralmonkey.dataset import Dataset, BatchingScheme
 from neuralmonkey.tf_manager import TensorFlowManager
 from neuralmonkey.runners.base_runner import (
@@ -300,8 +301,9 @@ def training_loop(tf_manager: TensorFlowManager,
                                     *[rnr.all_coders
                                       for rnr in rnrs])
                                 for coder in all_coders:
-                                    for session in tf_manager.sessions:
-                                        coder.save(session)
+                                    if isinstance(coder, Parameterized):
+                                        for session in tf_manager.sessions:
+                                            coder.save(session)
                             else:
                                 best_score_str = "{:.4g}".format(
                                     tf_manager.best_score)

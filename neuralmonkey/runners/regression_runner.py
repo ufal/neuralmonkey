@@ -5,7 +5,7 @@ import tensorflow as tf
 from typeguard import check_argument_types
 
 from neuralmonkey.decoders.sequence_regressor import SequenceRegressor
-from neuralmonkey.model.model_part import ModelPart
+from neuralmonkey.model.model_part import GenericModelPart
 from neuralmonkey.runners.base_runner import (
     BaseRunner, Executable, ExecutionResult, NextExecute)
 
@@ -17,7 +17,7 @@ Postprocessor = Callable[[List[float]], List[float]]
 class RegressionRunExecutable(Executable):
 
     def __init__(self,
-                 all_coders: Set[ModelPart],
+                 all_coders: Set[GenericModelPart],
                  fetches: Dict[str, tf.Tensor],
                  postprocess: Optional[Postprocessor]) -> None:
         self._all_coders = all_coders

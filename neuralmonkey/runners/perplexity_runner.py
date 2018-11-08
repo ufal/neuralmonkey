@@ -7,7 +7,7 @@ from typeguard import check_argument_types
 import tensorflow as tf
 import numpy as np
 
-from neuralmonkey.model.model_part import ModelPart
+from neuralmonkey.model.model_part import GenericModelPart
 from neuralmonkey.decoders.autoregressive import AutoregressiveDecoder
 from neuralmonkey.runners.base_runner import (
     BaseRunner, Executable, ExecutionResult, NextExecute)
@@ -15,7 +15,7 @@ from neuralmonkey.runners.base_runner import (
 
 class PerplexityExecutable(Executable):
     def __init__(self,
-                 all_coders: Set[ModelPart],
+                 all_coders: Set[GenericModelPart],
                  xent_op: tf.Tensor) -> None:
         self._all_coders = all_coders
         self._xent_op = xent_op

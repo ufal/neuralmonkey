@@ -53,7 +53,7 @@ def check_dataset_and_coders(dataset: Dataset,
             missing.append((coder, serie))
 
     if missing:
-        formated = ["{} ({}, {}.{})" .format(serie, cod.name,
+        formated = ["{} ({}, {}.{})" .format(serie, str(cod),
                                              cod.__class__.__module__,
                                              cod.__class__.__name__)
                     for cod, serie in missing]

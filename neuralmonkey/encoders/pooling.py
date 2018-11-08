@@ -1,5 +1,3 @@
-from typing import Set, cast
-
 import tensorflow as tf
 from typeguard import check_argument_types
 
@@ -9,6 +7,7 @@ from neuralmonkey.decorators import tensor
 
 
 # pylint: disable=abstract-method
+# Pylint bug: https://github.com/PyCQA/pylint/issues/179
 class SequencePooling(ModelPart, Stateful):
     """An abstract pooling layer over a sequence."""
 
@@ -31,16 +30,6 @@ class SequencePooling(ModelPart, Stateful):
                 self.input_sequence.temporal_mask, -1)
             self._masked_input = (
                 self.input_sequence.temporal_states * self._input_mask)
-
-    def get_dependencies(self) -> Set[ModelPart]:
-        deps = ModelPart.get_dependencies(self)
-
-        # feed only if needed
-        if isinstance(self.input_sequence, ModelPart):
-            feedable = cast(ModelPart, self.input_sequence)
-            deps |= feedable.get_dependencies()
-
-        return deps
 # pylint: enable=abstract-method
 
 

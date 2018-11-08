@@ -9,14 +9,14 @@ import tensorflow as tf
 from neuralmonkey.decoders.classifier import Classifier
 from neuralmonkey.runners.base_runner import (
     BaseRunner, Executable, FeedDict, ExecutionResult, NextExecute)
-from neuralmonkey.model.model_part import ModelPart
+from neuralmonkey.model.model_part import GenericModelPart
 from neuralmonkey.vocabulary import Vocabulary
 
 
 class LogitsExecutable(Executable):
 
     def __init__(self,
-                 all_coders: Set[ModelPart],
+                 all_coders: Set[GenericModelPart],
                  fetches: FeedDict,
                  vocabulary: Vocabulary,
                  normalize: bool,

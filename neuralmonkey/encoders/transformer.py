@@ -15,7 +15,8 @@ from neuralmonkey.attention.base_attention import (
 from neuralmonkey.decorators import tensor
 from neuralmonkey.attention.scaled_dot_product import attention
 from neuralmonkey.logging import log
-from neuralmonkey.model.model_part import ModelPart, InitializerSpecs
+from neuralmonkey.model.model_part import (
+    ModelPart, InitializerSpecs, GenericModelPart)
 from neuralmonkey.model.stateful import (TemporalStateful,
                                          TemporalStatefulWithOutput)
 from neuralmonkey.nn.utils import dropout
@@ -320,13 +321,11 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
     def temporal_mask(self) -> tf.Tensor:
         return self.input_sequence.temporal_mask
 
-    def get_dependencies(self) -> Set[ModelPart]:
+    def get_dependencies(self) -> Set[GenericModelPart]:
         """Collect recusively all inputs."""
-        to_return = ModelPart.get_dependencies(self)
+        to_return = super().get_dependencies()
 
-        if (self.input_for_cross_attention is not None
-                and isinstance(self.input_for_cross_attention, ModelPart)):
-            to_return = to_return.union(
-                self.input_for_cross_attention.get_dependencies())
+        if self.input_for_cross_attention is not None:
+            to_return |= self.input_for_cross_attention.get_dependencies()
 
         return to_return

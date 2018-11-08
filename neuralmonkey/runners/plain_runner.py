@@ -7,7 +7,7 @@ from neuralmonkey.decoders.autoregressive import AutoregressiveDecoder
 from neuralmonkey.decoders.ctc_decoder import CTCDecoder
 from neuralmonkey.decoders.classifier import Classifier
 from neuralmonkey.decoders.sequence_labeler import SequenceLabeler
-from neuralmonkey.model.model_part import ModelPart
+from neuralmonkey.model.model_part import GenericModelPart
 from neuralmonkey.runners.base_runner import (
     BaseRunner, Executable, FeedDict, ExecutionResult, NextExecute)
 from neuralmonkey.vocabulary import Vocabulary
@@ -22,7 +22,7 @@ Postprocessor = Callable[[List[List[str]]], List[List[str]]]
 class PlainExecutable(Executable):
 
     def __init__(self,
-                 all_coders: Set[ModelPart],
+                 all_coders: Set[GenericModelPart],
                  fetches: FeedDict,
                  num_sessions: int,
                  vocabulary: Vocabulary,

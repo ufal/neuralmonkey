@@ -56,6 +56,10 @@ class Parameterized(metaclass=ABCMeta):
         """Get the name of the parameterized object and its variable scope."""
         return self._name
 
+    def __str__(self) -> str:
+        """Return the name of the object."""
+        return self.name
+
     @contextmanager
     def use_scope(self) -> Iterator[None]:
         """Return the object variable scope context manager.

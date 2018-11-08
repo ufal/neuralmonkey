@@ -4,11 +4,11 @@ import numpy as np
 import tensorflow as tf
 
 from neuralmonkey.logging import notice
-from neuralmonkey.model.model_part import ModelPart
+from neuralmonkey.model.model_part import GenericModelPart
 # pylint: disable=invalid-name
 FeedDict = Dict[tf.Tensor, Union[int, float, np.ndarray]]
-NextExecute = Tuple[Set[ModelPart], Union[Dict, List], List[FeedDict]]
-MP = TypeVar("MP", bound=ModelPart)
+NextExecute = Tuple[Set[GenericModelPart], Union[Dict, List], List[FeedDict]]
+MP = TypeVar("MP", bound=GenericModelPart)
 # pylint: enable=invalid-name
 
 
@@ -51,7 +51,7 @@ class BaseRunner(Generic[MP]):
 
         if not hasattr(decoder, "data_id"):
             notice("Top-level decoder {} does not have the 'data_id' attribute"
-                   .format(decoder.name))
+                   .format(decoder))
 
     def get_executable(self,
                        compute_losses: bool,

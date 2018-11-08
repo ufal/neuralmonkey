@@ -4,7 +4,7 @@ import scipy
 import numpy as np
 from typeguard import check_argument_types
 
-from neuralmonkey.model.model_part import ModelPart
+from neuralmonkey.model.model_part import GenericModelPart
 from neuralmonkey.decoders.beam_search_decoder import BeamSearchDecoder
 from neuralmonkey.runners.base_runner import (
     BaseRunner, Executable, ExecutionResult, NextExecute)
@@ -17,7 +17,7 @@ from neuralmonkey.vocabulary import END_TOKEN_INDEX
 class BeamSearchExecutable(Executable):
     def __init__(self,
                  rank: int,
-                 all_coders: Set[ModelPart],
+                 all_coders: Set[GenericModelPart],
                  num_sessions: int,
                  decoder: BeamSearchDecoder,
                  postprocess: Optional[Callable]) -> None:

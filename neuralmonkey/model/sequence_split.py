@@ -5,7 +5,7 @@ from typeguard import check_argument_types
 
 from neuralmonkey.decorators import tensor
 from neuralmonkey.dataset import Dataset
-from neuralmonkey.model.model_part import ModelPart, FeedDict
+from neuralmonkey.model.model_part import ModelPart, FeedDict, GenericModelPart
 from neuralmonkey.model.stateful import TemporalStateful
 
 
@@ -74,11 +74,8 @@ class SequenceSplitter(TemporalStateful, ModelPart):
     def feed_dict(self, dataset: Dataset, train: bool = True) -> FeedDict:
         return ModelPart.feed_dict(self, dataset, train)
 
-    def get_dependencies(self) -> Set[ModelPart]:
-        deps = set([self])  # type: Set[ModelPart]
-        if isinstance(self.parent, ModelPart):
-            deps = deps.union(self.parent.get_dependencies())
-        return deps
+    def get_dependencies(self) -> Set[GenericModelPart]:
+        return self.parent.get_dependencies().union([self])
 
 
 def split_by_factor(
