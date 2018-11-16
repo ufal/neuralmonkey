@@ -8,6 +8,8 @@ from neuralmonkey.model.stateful import (
 
 
 class StatefulView(Stateful):
+    """Provides a gradient-blocking view of a `Stateful` object."""
+
     def __init__(self, blocked_object: Stateful) -> None:
         check_argument_types()
         self._blocked_object = blocked_object
@@ -18,11 +20,13 @@ class StatefulView(Stateful):
         return self._output
 
     @property
-    def _singleton_dependencies(self) -> List[str]:
-        return super()._singleton_dependencies + ["_blocked_object"]
+    def singleton_dependencies(self) -> List[str]:
+        return super().singleton_dependencies + ["_blocked_object"]
 
 
 class TemporalStatefulView(TemporalStateful):
+    """Provides a gradient-blocking view of a `TemporalStateful` object."""
+
     def __init__(self, blocked_object: TemporalStateful) -> None:
         check_argument_types()
         self._blocked_object = blocked_object
@@ -37,11 +41,13 @@ class TemporalStatefulView(TemporalStateful):
         return self._blocked_object.temporal_mask
 
     @property
-    def _singleton_dependencies(self) -> List[str]:
-        return super()._singleton_dependencies + ["_blocked_object"]
+    def singleton_dependencies(self) -> List[str]:
+        return super().singleton_dependencies + ["_blocked_object"]
 
 
 class SpatialStatefulView(SpatialStateful):
+    """Provides a gradient-blocking view of a `SpatialStateful` object."""
+
     def __init__(self, blocked_object: SpatialStateful) -> None:
         check_argument_types()
         self._blocked_object = blocked_object
@@ -56,5 +62,5 @@ class SpatialStatefulView(SpatialStateful):
         return self._blocked_object.spatial_mask
 
     @property
-    def _singleton_dependencies(self) -> List[str]:
-        return super()._singleton_dependencies + ["_blocked_object"]
+    def singleton_dependencies(self) -> List[str]:
+        return super().singleton_dependencies + ["_blocked_object"]

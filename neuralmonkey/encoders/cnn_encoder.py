@@ -350,5 +350,5 @@ class CNNTemporalView(ModelPart, TemporalStatefulWithOutput):
         return tf.to_float(tf.greater(summed, 0))
 
     @property
-    def _singleton_dependencies(self) -> List[str]:
-        return super()._singleton_dependencies + ["_cnn"]
+    def singleton_dependencies(self) -> List[str]:
+        return super().singleton_dependencies + ["_cnn"]

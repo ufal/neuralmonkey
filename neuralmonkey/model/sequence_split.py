@@ -75,8 +75,8 @@ class SequenceSplitter(TemporalStateful, ModelPart):
         return ModelPart.feed_dict(self, dataset, train)
 
     @property
-    def _singleton_dependencies(self) -> List[str]:
-        return super()._singleton_dependencies + ["parent"]
+    def singleton_dependencies(self) -> List[str]:
+        return super().singleton_dependencies + ["parent"]
 
 
 def split_by_factor(

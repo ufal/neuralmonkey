@@ -13,6 +13,14 @@ InitializerSpecs = List[Tuple[str, Callable]]
 
 
 class Parameterized(metaclass=ABCMeta):
+    """Base class for parameterized model parts.
+
+    This class is an abstraction for all model parts which use TensorFlow
+    variables. Shared properties and characteristics of all these objects
+    are the capability of loading and saving the variables, re-using variables
+    from a different `Parameterized` object, and managing variable scopes,
+    including overriding the default initializer settings for the variables.
+    """
 
     def __init__(self,
                  name: str,
@@ -20,7 +28,19 @@ class Parameterized(metaclass=ABCMeta):
                  save_checkpoint: str = None,
                  load_checkpoint: str = None,
                  initializers: InitializerSpecs = None) -> None:
+        """Construct a new parameterized object.
 
+        Arguments:
+            name: The name for the model part. Will be used in the variable
+                and name scopes.
+            reuse: Optional parameterized part with which to share parameters.
+            save_checkpoint: Optional path to a checkpoint file which will
+                store the parameters of this object.
+            load_checkpoint: Optional path to a checkpoint file from which to
+                load initial variables for this object.
+            initializers: An `InitializerSpecs` instance with specification
+                of the initializers.
+        """
         self._name = name
         self._save_checkpoint = save_checkpoint
         self._load_checkpoint = load_checkpoint
