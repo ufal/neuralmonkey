@@ -4,7 +4,7 @@ import scipy
 import numpy as np
 from typeguard import check_argument_types
 
-from neuralmonkey.model.model_part import GenericModelPart
+from neuralmonkey.model.feedable import Feedable
 from neuralmonkey.decoders.beam_search_decoder import BeamSearchDecoder
 from neuralmonkey.runners.base_runner import (
     BaseRunner, Executable, ExecutionResult, NextExecute)
@@ -17,13 +17,13 @@ from neuralmonkey.vocabulary import END_TOKEN_INDEX
 class BeamSearchExecutable(Executable):
     def __init__(self,
                  rank: int,
-                 all_coders: Set[GenericModelPart],
+                 feedables: Set[Feedable],
                  num_sessions: int,
                  decoder: BeamSearchDecoder,
                  postprocess: Optional[Callable]) -> None:
         self._rank = rank
         self._num_sessions = num_sessions
-        self._all_coders = all_coders
+        self._feedables = feedables
         self._decoder = decoder
         self._postprocess = postprocess
 
@@ -36,10 +36,10 @@ class BeamSearchExecutable(Executable):
             for fd in self._next_feed:
                 fd.update({self._decoder.max_steps: 0})
 
-        self.result = None  # type: Optional[ExecutionResult]
+        self._result = None  # type: Optional[ExecutionResult]
 
     def next_to_execute(self) -> NextExecute:
-        return (self._all_coders, {"bs_outputs": self._decoder.outputs},
+        return (self._feedables, {"bs_outputs": self._decoder.outputs},
                 self._next_feed)
 
     def collect_results(self, results: List[Dict]) -> None:
@@ -98,7 +98,7 @@ class BeamSearchExecutable(Executable):
 
         # TODO: provide better summaries in case (issue #599)
         # we want to use the runner during training.
-        self.result = ExecutionResult(
+        self._result = ExecutionResult(
             outputs=decoded_tokens,
             losses=[np.mean(bs_scores) * len(bs_scores)],
             scalar_summaries=None,
@@ -154,7 +154,7 @@ class BeamSearchRunner(BaseRunner[BeamSearchDecoder]):
                        compute_losses: bool = False,
                        summaries: bool = True,
                        num_sessions: int = 1) -> BeamSearchExecutable:
-        return BeamSearchExecutable(self._rank, self.all_coders, num_sessions,
+        return BeamSearchExecutable(self._rank, self.feedables, num_sessions,
                                     self._decoder, self._postprocess)
     # pylint: enable=unused-argument
 

@@ -1,6 +1,6 @@
 """Basic functionality of all model parts."""
 from abc import ABCMeta
-from typing import Set
+from typing import MutableSet, Set, List, Tuple
 
 # pylint: disable=unused-import
 # TODO feed dict and initializer specs are imported for convenience
@@ -14,38 +14,57 @@ from neuralmonkey.model.feedable import Feedable, FeedDict
 # TODO add some public methods or think of something else
 class GenericModelPart(metaclass=ABCMeta):
 
-    def get_dependencies(self) -> Set["GenericModelPart"]:
-        """Collect recusively all encoders and decoders."""
-        to_return = set([self])
+    @property
+    def _list_dependencies(self) -> List[str]:
+        return ["attentions", "encoders"]
 
-        if hasattr(self, "attentions"):
-            to_return = to_return.union(
-                *(enc.get_dependencies()
-                  for enc in getattr(self, "attentions")
-                  if isinstance(enc, GenericModelPart)))
+    @property
+    def _singleton_dependencies(self) -> List[str]:
+        return ["encoder", "parent_decoder", "input_sequence"]
 
-        if hasattr(self, "encoders"):
-            to_return = to_return.union(
-                *(enc.get_dependencies()
-                  for enc in getattr(self, "encoders")
-                  if isinstance(enc, GenericModelPart)))
+    def __get_deps_from_list(
+            self,
+            attr: str,
+            feedables: MutableSet[Feedable],
+            parameterizeds: MutableSet[Parameterized]) -> None:
 
-        if hasattr(self, "encoder"):
-            enc = getattr(self, "encoder")
+        if hasattr(self, attr):
+            for enc in getattr(self, attr):
+                if isinstance(enc, GenericModelPart):
+                    feeds, params = enc.get_dependencies()
+                    feedables |= feeds
+                    parameterizeds |= params
+
+    def __get_deps(
+            self,
+            attr: str,
+            feedables: MutableSet[Feedable],
+            parameterizeds: MutableSet[Parameterized]) -> None:
+
+        if hasattr(self, attr):
+            enc = getattr(self, attr)
             if isinstance(enc, GenericModelPart):
-                to_return = to_return.union(enc.get_dependencies())
+                feeds, params = enc.get_dependencies()
+                feedables |= feeds
+                parameterizeds |= params
 
-        if hasattr(self, "input_sequence"):
-            inpseq = getattr(self, "input_sequence")
-            if isinstance(inpseq, GenericModelPart):
-                to_return = to_return.union(inpseq.get_dependencies())
+    def get_dependencies(self) -> Tuple[Set[Feedable], Set[Parameterized]]:
+        """Collect recusively all encoders and decoders."""
+        feedables = set()  # type: Set[Feedable]
+        parameterizeds = set()  # type: Set[Parameterized]
 
-        if hasattr(self, "parent_decoder"):
-            dec = getattr(self, "parent_decoder")
-            if isinstance(dec, GenericModelPart):
-                to_return = to_return.union(dec.get_dependencies())
+        if isinstance(self, Feedable):
+            feedables |= {self}
+        if isinstance(self, Parameterized):
+            parameterizeds |= {self}
 
-        return to_return
+        for attr in self._list_dependencies:
+            self.__get_deps_from_list(attr, feedables, parameterizeds)
+
+        for attr in self._singleton_dependencies:
+            self.__get_deps(attr, feedables, parameterizeds)
+
+        return feedables, parameterizeds
 # pylint: enable=too-few-public-methods
 
 

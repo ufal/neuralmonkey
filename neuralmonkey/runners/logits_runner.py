@@ -9,29 +9,29 @@ import tensorflow as tf
 from neuralmonkey.decoders.classifier import Classifier
 from neuralmonkey.runners.base_runner import (
     BaseRunner, Executable, FeedDict, ExecutionResult, NextExecute)
-from neuralmonkey.model.model_part import GenericModelPart
+from neuralmonkey.model.feedable import Feedable
 from neuralmonkey.vocabulary import Vocabulary
 
 
 class LogitsExecutable(Executable):
 
     def __init__(self,
-                 all_coders: Set[GenericModelPart],
+                 feedables: Set[Feedable],
                  fetches: FeedDict,
                  vocabulary: Vocabulary,
                  normalize: bool,
                  pick_index: Optional[int]) -> None:
-        self._all_coders = all_coders
+        self._feedables = feedables
         self._fetches = fetches
         self._vocabulary = vocabulary
         self._normalize = normalize
         self._pick_index = pick_index
 
-        self.result = None  # type: Optional[ExecutionResult]
+        self._result = None  # type: Optional[ExecutionResult]
 
     def next_to_execute(self) -> NextExecute:
         """Get the feedables and tensors to run."""
-        return self._all_coders, self._fetches, []
+        return self._feedables, self._fetches, []
 
     def collect_results(self, results: List[Dict]) -> None:
         if len(results) != 1:
@@ -61,7 +61,7 @@ class LogitsExecutable(Executable):
 
         str_outputs = [["\t".join(l)] for l in outputs]
 
-        self.result = ExecutionResult(
+        self._result = ExecutionResult(
             outputs=str_outputs,
             losses=[train_loss, runtime_loss],
             scalar_summaries=None,
@@ -132,7 +132,7 @@ class LogitsRunner(BaseRunner[Classifier]):
             fetches["runtime_loss"] = self._decoder.runtime_loss
 
         return LogitsExecutable(
-            self.all_coders, fetches, self._decoder.vocabulary,
+            self.feedables, fetches, self._decoder.vocabulary,
             self._normalize, self._pick_index)
     # pylint: enable: unused-argument
 

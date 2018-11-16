@@ -5,6 +5,7 @@ import tensorflow as tf
 from typeguard import check_argument_types
 
 from neuralmonkey.logging import log, warn
+from neuralmonkey.model.feedable import Feedable
 from neuralmonkey.model.model_part import GenericModelPart
 from neuralmonkey.runners.base_runner import (
     BaseRunner, Executable, ExecutionResult, NextExecute, FeedDict)
@@ -14,21 +15,21 @@ from neuralmonkey.experiment import Experiment
 class TensorExecutable(Executable):
 
     def __init__(self,
-                 all_coders: Set[GenericModelPart],
+                 feedables: Set[Feedable],
                  fetches: FeedDict,
                  batch_dims: Dict[str, int],
                  select_session: Optional[int],
                  single_tensor: bool) -> None:
-        self._all_coders = all_coders
+        self._feedables = feedables
         self._fetches = fetches
         self._batch_dims = batch_dims
         self._select_session = select_session
         self._single_tensor = single_tensor
 
-        self.result = None  # type: Optional[ExecutionResult]
+        self._result = None  # type: Optional[ExecutionResult]
 
     def next_to_execute(self) -> NextExecute:
-        return self._all_coders, self._fetches, []
+        return self._feedables, self._fetches, []
 
     def collect_results(self, results: List[Dict]) -> None:
         if len(results) > 1 and self._select_session is None:
@@ -46,7 +47,7 @@ class TensorExecutable(Executable):
         else:
             batched = self._fetch_values_from_session(results[0])
 
-        self.result = ExecutionResult(
+        self._result = ExecutionResult(
             outputs=batched,
             losses=[],
             scalar_summaries=None,
@@ -176,7 +177,7 @@ class TensorRunner(BaseRunner[GenericModelPart]):
             self._batch_ids[tensor.name] = bid
 
         return TensorExecutable(
-            self.all_coders, self._fetches, self._batch_ids,
+            self.feedables, self._fetches, self._batch_ids,
             self._select_session, self._single_tensor)
     # pylint: enable=unused-argument
 

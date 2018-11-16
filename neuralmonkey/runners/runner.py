@@ -6,7 +6,7 @@ from typeguard import check_argument_types
 
 from neuralmonkey.runners.base_runner import (
     BaseRunner, Executable, FeedDict, ExecutionResult, NextExecute)
-from neuralmonkey.model.model_part import GenericModelPart
+from neuralmonkey.model.feedable import Feedable
 from neuralmonkey.vocabulary import Vocabulary
 from neuralmonkey.decoders.autoregressive import AutoregressiveDecoder
 from neuralmonkey.decoders.classifier import Classifier
@@ -20,20 +20,20 @@ Postprocessor = Callable[[List[List[str]]], List[List[str]]]
 class GreedyRunExecutable(Executable):
 
     def __init__(self,
-                 all_coders: Set[GenericModelPart],
+                 feedables: Set[Feedable],
                  fetches: FeedDict,
                  vocabulary: Vocabulary,
                  postprocess: Optional[Postprocessor]) -> None:
-        self._all_coders = all_coders
+        self._feedables = feedables
         self._fetches = fetches
         self._vocabulary = vocabulary
         self._postprocess = postprocess
 
-        self.result = None  # type: Optional[ExecutionResult]
+        self._result = None  # type: Optional[ExecutionResult]
 
     def next_to_execute(self) -> NextExecute:
         """Get the feedables and tensors to run."""
-        return self._all_coders, self._fetches, []
+        return self._feedables, self._fetches, []
 
     def collect_results(self, results: List[Dict]) -> None:
         train_loss = 0.
@@ -57,7 +57,7 @@ class GreedyRunExecutable(Executable):
 
         image_summaries = results[0].get("image_summaries")
 
-        self.result = ExecutionResult(
+        self._result = ExecutionResult(
             outputs=decoded_tokens,
             losses=[train_loss, runtime_loss],
             scalar_summaries=None,
@@ -99,7 +99,7 @@ class GreedyRunner(BaseRunner[SupportedDecoder]):
             fetches["image_summaries"] = self.image_summaries
 
         return GreedyRunExecutable(
-            self.all_coders,
+            self.feedables,
             fetches,
             self._decoder.vocabulary,
             self._postprocess)

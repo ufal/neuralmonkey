@@ -5,7 +5,7 @@ import tensorflow as tf
 from typeguard import check_argument_types
 
 from neuralmonkey.decoders.sequence_regressor import SequenceRegressor
-from neuralmonkey.model.model_part import GenericModelPart
+from neuralmonkey.model.feedable import Feedable
 from neuralmonkey.runners.base_runner import (
     BaseRunner, Executable, ExecutionResult, NextExecute)
 
@@ -17,18 +17,18 @@ Postprocessor = Callable[[List[float]], List[float]]
 class RegressionRunExecutable(Executable):
 
     def __init__(self,
-                 all_coders: Set[GenericModelPart],
+                 feedables: Set[Feedable],
                  fetches: Dict[str, tf.Tensor],
                  postprocess: Optional[Postprocessor]) -> None:
-        self._all_coders = all_coders
+        self._feedables = feedables
         self._fetches = fetches
         self._postprocess = postprocess
 
-        self.result = None  # type: Optional[ExecutionResult]
+        self._result = None  # type: Optional[ExecutionResult]
 
     def next_to_execute(self) -> NextExecute:
         """Get the feedables and tensors to run."""
-        return self._all_coders, self._fetches, []
+        return self._feedables, self._fetches, []
 
     def collect_results(self, results: List[Dict]) -> None:
         predictions_sum = np.zeros_like(results[0]["prediction"])
@@ -45,7 +45,7 @@ class RegressionRunExecutable(Executable):
         if self._postprocess is not None:
             predictions = self._postprocess(predictions)
 
-        self.result = ExecutionResult(
+        self._result = ExecutionResult(
             outputs=predictions.tolist(),
             losses=[mse_loss],
             scalar_summaries=None,
@@ -75,7 +75,7 @@ class RegressionRunner(BaseRunner[SequenceRegressor]):
             fetches["mse"] = self._decoder.cost
 
         return RegressionRunExecutable(
-            self.all_coders, fetches, self._postprocess)
+            self.feedables, fetches, self._postprocess)
     # pylint: enable=unused-argument
 
     @property

@@ -5,7 +5,7 @@ from typeguard import check_argument_types
 
 from neuralmonkey.runners.base_runner import (
     BaseRunner, Executable, FeedDict, ExecutionResult, NextExecute)
-from neuralmonkey.model.model_part import GenericModelPart
+from neuralmonkey.model.feedable import Feedable
 from neuralmonkey.vocabulary import Vocabulary
 from neuralmonkey.decoders.ctc_decoder import CTCDecoder
 
@@ -13,18 +13,18 @@ from neuralmonkey.decoders.ctc_decoder import CTCDecoder
 class CTCDebugExecutable(Executable):
 
     def __init__(self,
-                 all_coders: Set[GenericModelPart],
+                 feedables: Set[Feedable],
                  fetches: FeedDict,
                  vocabulary: Vocabulary) -> None:
-        self._all_coders = all_coders
+        self._feedables = feedables
         self._fetches = fetches
         self._vocabulary = vocabulary
 
-        self.result = None  # type: Optional[ExecutionResult]
+        self._result = None  # type: Optional[ExecutionResult]
 
     def next_to_execute(self) -> NextExecute:
         """Get the feedables and tensors to run."""
-        return self._all_coders, self._fetches, []
+        return self._feedables, self._fetches, []
 
     def collect_results(self, results: List[Dict]) -> None:
         if len(results) != 1:
@@ -44,7 +44,7 @@ class CTCDebugExecutable(Executable):
                 decoded_instance.append(symbol)
             decoded_batch.append(decoded_instance)
 
-        self.result = ExecutionResult(
+        self._result = ExecutionResult(
             outputs=decoded_batch,
             losses=[],
             scalar_summaries=None,
@@ -69,7 +69,7 @@ class CTCDebugRunner(BaseRunner[CTCDecoder]):
         fetches = {"logits": self._decoder.logits}
 
         return CTCDebugExecutable(
-            self.all_coders,
+            self.feedables,
             fetches,
             self._decoder.vocabulary)
     # pylint: enable=unused-argument

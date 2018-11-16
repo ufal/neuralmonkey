@@ -1,9 +1,8 @@
 """Module that blocks gradient propagation to model parts."""
-from typing import Set
+from typing import List
 import tensorflow as tf
 from typeguard import check_argument_types
 
-from neuralmonkey.model.model_part import GenericModelPart
 from neuralmonkey.model.stateful import (
     Stateful, TemporalStateful, SpatialStateful)
 
@@ -18,8 +17,9 @@ class StatefulView(Stateful):
     def output(self) -> tf.Tensor:
         return self._output
 
-    def get_dependencies(self) -> Set[GenericModelPart]:
-        return self._blocked_object.get_dependencies()
+    @property
+    def _singleton_dependencies(self) -> List[str]:
+        return super()._singleton_dependencies + ["_blocked_object"]
 
 
 class TemporalStatefulView(TemporalStateful):
@@ -36,8 +36,9 @@ class TemporalStatefulView(TemporalStateful):
     def temporal_mask(self) -> tf.Tensor:
         return self._blocked_object.temporal_mask
 
-    def get_dependencies(self) -> Set[GenericModelPart]:
-        return self._blocked_object.get_dependencies()
+    @property
+    def _singleton_dependencies(self) -> List[str]:
+        return super()._singleton_dependencies + ["_blocked_object"]
 
 
 class SpatialStatefulView(SpatialStateful):
@@ -54,5 +55,6 @@ class SpatialStatefulView(SpatialStateful):
     def spatial_mask(self) -> tf.Tensor:
         return self._blocked_object.spatial_mask
 
-    def get_dependencies(self) -> Set[GenericModelPart]:
-        return self._blocked_object.get_dependencies()
+    @property
+    def _singleton_dependencies(self) -> List[str]:
+        return super()._singleton_dependencies + ["_blocked_object"]

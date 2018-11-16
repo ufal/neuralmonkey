@@ -1,7 +1,9 @@
-from typing import List
+from typing import List, Set
 
 from typeguard import check_argument_types
 
+from neuralmonkey.model.feedable import Feedable
+from neuralmonkey.model.parameterized import Parameterized
 from neuralmonkey.runners.base_runner import Executable
 from neuralmonkey.trainers.generic_trainer import GenericTrainer
 
@@ -23,7 +25,13 @@ class MultitaskTrainer:
         self.trainer_idx = 0
 
         self.var_list = list(set.union(*[set(t.var_list) for t in trainers]))
-        self.all_coders = set.union(*[t.all_coders for t in self.trainers])
+
+        self.feedables = set()  # type: Set[Feedable]
+        self.parameterizeds = set()  # type: Set[Parameterized]
+
+        for trainer in self.trainers:
+            self.feedables |= trainer.feedables
+            self.parameterizeds |= trainer.parameterizeds
 
     def get_executable(
             self, compute_losses: bool = True, summaries: bool = True,

@@ -51,7 +51,9 @@ class TestMultitaskTrainer(unittest.TestCase):
         trainer = MultitaskTrainer(
             [self.trainer1, self.trainer2, self.trainer1])
 
-        self.assertSetEqual(trainer.all_coders, {self.mpart, self.mpart_2})
+        self.assertSetEqual(trainer.feedables, {self.mpart, self.mpart_2})
+        self.assertSetEqual(trainer.parameterizeds, {self.mpart, self.mpart_2})
+
         self.assertSetEqual(
             set(trainer.var_list), {self.mpart.var, self.mpart_2.var})
 

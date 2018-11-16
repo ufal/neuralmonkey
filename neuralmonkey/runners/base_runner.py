@@ -5,9 +5,10 @@ import tensorflow as tf
 
 from neuralmonkey.logging import notice
 from neuralmonkey.model.model_part import GenericModelPart
+from neuralmonkey.model.feedable import Feedable
 # pylint: disable=invalid-name
 FeedDict = Dict[tf.Tensor, Union[int, float, np.ndarray]]
-NextExecute = Tuple[Set[GenericModelPart], Union[Dict, List], List[FeedDict]]
+NextExecute = Tuple[Set[Feedable], Union[Dict, List], List[FeedDict]]
 MP = TypeVar("MP", bound=GenericModelPart)
 # pylint: enable=invalid-name
 
@@ -22,7 +23,7 @@ class ExecutionResult(NamedTuple(
     """A data structure that represents a result of a graph execution.
 
     The goal of each runner is to populate this structure and set it as its
-    ``self.result``.
+    ``self._result``.
 
     Attributes:
         outputs: A batch of outputs of the runner.
@@ -34,6 +35,11 @@ class ExecutionResult(NamedTuple(
 
 
 class Executable:
+
+    @property
+    def result(self) -> Optional[ExecutionResult]:
+        return getattr(self, "_result")
+
     def next_to_execute(self) -> NextExecute:
         raise NotImplementedError()
 
@@ -47,7 +53,8 @@ class BaseRunner(Generic[MP]):
                  decoder: MP) -> None:
         self.output_series = output_series
         self._decoder = decoder
-        self.all_coders = decoder.get_dependencies()
+
+        self.feedables, self.parameterizeds = decoder.get_dependencies()
 
         if not hasattr(decoder, "data_id"):
             notice("Top-level decoder {} does not have the 'data_id' attribute"

@@ -1,4 +1,4 @@
-from typing import Dict, List, NamedTuple, Optional, Tuple, Union
+from typing import Dict, List, NamedTuple, Optional, Tuple, Union, Set
 import re
 
 import tensorflow as tf
@@ -6,7 +6,9 @@ from typeguard import check_argument_types
 
 from neuralmonkey.decorators import tensor
 from neuralmonkey.logging import log
-from neuralmonkey.model.model_part import ModelPart
+from neuralmonkey.model.model_part import GenericModelPart
+from neuralmonkey.model.feedable import Feedable
+from neuralmonkey.model.parameterized import Parameterized
 from neuralmonkey.runners.base_runner import (
     Executable, ExecutionResult, NextExecute)
 
@@ -21,7 +23,7 @@ BIAS_REGEX = re.compile(r"[Bb]ias")
 class Objective(NamedTuple(
         "Objective",
         [("name", str),
-         ("decoder", ModelPart),
+         ("decoder", GenericModelPart),
          ("loss", tf.Tensor),
          ("gradients", Optional[Gradients]),
          ("weight", ObjectiveWeight)])):
@@ -67,8 +69,14 @@ class GenericTrainer:
 
         self.optimizer = (
             optimizer if optimizer is not None else self.default_optimizer())
-        self.all_coders = set.union(*(obj.decoder.get_dependencies()
-                                      for obj in objectives))
+
+        self.feedables = set()  # type: Set[Feedable]
+        self.parameterizeds = set()  # type: Set[Parameterized]
+
+        for obj in objectives:
+            feeds, params = obj.decoder.get_dependencies()
+            self.feedables |= feeds
+            self.parameterizeds |= params
 
         log("Train op: {}".format(str(self.train_op)))
 
@@ -243,7 +251,7 @@ class TrainExecutable(Executable):
     def __init__(self, trainer: GenericTrainer, summaries: bool) -> None:
         self.trainer = trainer
         self.summaries = summaries
-        self.result = None  # type: Optional[ExecutionResult]
+        self._result = None  # type: Optional[ExecutionResult]
 
     def next_to_execute(self) -> NextExecute:
         fetches = {"train_op": self.trainer.train_op}
@@ -254,7 +262,7 @@ class TrainExecutable(Executable):
         fetches["losses"] = self.trainer.objective_values
         fetches["_update_ops"] = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
 
-        return self.trainer.all_coders, fetches, [{}]
+        return self.trainer.feedables, fetches, [{}]
 
     def collect_results(self, results: List[Dict]) -> None:
         assert len(results) == 1
@@ -265,7 +273,7 @@ class TrainExecutable(Executable):
         histogram_summaries = (
             result["histogram_summaries"] if self.summaries else None)
 
-        self.result = ExecutionResult(
+        self._result = ExecutionResult(
             [], losses=result["losses"],
             scalar_summaries=scalar_summaries,
             histogram_summaries=histogram_summaries,

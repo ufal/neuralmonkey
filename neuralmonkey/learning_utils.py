@@ -15,7 +15,6 @@ from termcolor import colored
 from typeguard import check_argument_types
 
 from neuralmonkey.logging import log, log_print, warn, notice
-from neuralmonkey.model.parameterized import Parameterized
 from neuralmonkey.dataset import Dataset, BatchingScheme
 from neuralmonkey.tf_manager import TensorFlowManager
 from neuralmonkey.runners.base_runner import (
@@ -297,13 +296,12 @@ def training_loop(tf_manager: TensorFlowManager,
                                 rnrs = runners + trainers  # type: ignore
                                 # TODO: refactor trainers/runners so that they
                                 # have the same API predecessor
-                                all_coders = set.union(
-                                    *[rnr.all_coders
+                                parameterizeds = set.union(
+                                    *[rnr.parameterizeds
                                       for rnr in rnrs])
-                                for coder in all_coders:
-                                    if isinstance(coder, Parameterized):
-                                        for session in tf_manager.sessions:
-                                            coder.save(session)
+                                for coder in parameterizeds:
+                                    for session in tf_manager.sessions:
+                                        coder.save(session)
                             else:
                                 best_score_str = "{:.4g}".format(
                                     tf_manager.best_score)

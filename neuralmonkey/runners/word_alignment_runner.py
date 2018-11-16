@@ -8,7 +8,7 @@ from typeguard import check_argument_types
 
 from neuralmonkey.attention.base_attention import BaseAttention
 from neuralmonkey.decoders.decoder import Decoder
-from neuralmonkey.model.model_part import GenericModelPart
+from neuralmonkey.model.feedable import Feedable
 from neuralmonkey.runners.base_runner import (
     BaseRunner, Executable, FeedDict, ExecutionResult, NextExecute)
 
@@ -16,19 +16,19 @@ from neuralmonkey.runners.base_runner import (
 class WordAlignmentRunnerExecutable(Executable):
 
     def __init__(self,
-                 all_coders: Set[GenericModelPart],
+                 feedables: Set[Feedable],
                  fetches: FeedDict) -> None:
-        self._all_coders = all_coders
+        self._feedables = feedables
         self._fetches = fetches
 
-        self.result = None  # type: Optional[ExecutionResult]
+        self._result = None  # type: Optional[ExecutionResult]
 
     def next_to_execute(self) -> NextExecute:
         """Get the feedables and tensors to run."""
-        return self._all_coders, self._fetches, []
+        return self._feedables, self._fetches, []
 
     def collect_results(self, results: List[Dict]) -> None:
-        self.result = ExecutionResult(
+        self._result = ExecutionResult(
             outputs=results[0]["alignment"],
             losses=[],
             scalar_summaries=None,
@@ -60,7 +60,7 @@ class WordAlignmentRunner(BaseRunner[BaseAttention]):
         alignment = tf.transpose(att_histories, perm=[1, 2, 0])
         fetches = {"alignment": alignment}
 
-        return WordAlignmentRunnerExecutable(self.all_coders, fetches)
+        return WordAlignmentRunnerExecutable(self.feedables, fetches)
     # pylint: enable=unused-argument
 
     @property

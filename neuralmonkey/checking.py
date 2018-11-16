@@ -24,7 +24,7 @@ def check_dataset_and_coders(dataset: Dataset,
 
     data_list = []
     for runner in runners:
-        for c in runner.all_coders:
+        for c in runner.feedables:
             if hasattr(c, "data_id"):
                 data_list.append((getattr(c, "data_id"), c))
             elif hasattr(c, "data_ids"):
