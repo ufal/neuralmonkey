@@ -14,6 +14,13 @@ from neuralmonkey.trainers.generic_trainer import (
 
 
 class DelayedUpdateTrainer(GenericTrainer):
+    """Trainer that performs the update after several batches.
+
+    This trainer enables the user to train with large batch sizes in
+    environments where enough memory is not available. This trainer uses
+    accumulators of gradients from mini-batches and applies their average after
+    a pre-defined amount of mini-batches has been processed.
+    """
 
     # pylint: disable=too-many-arguments
     def __init__(self,
@@ -25,6 +32,14 @@ class DelayedUpdateTrainer(GenericTrainer):
                  optimizer: tf.train.Optimizer = None,
                  var_scopes: List[str] = None,
                  var_collection: str = None) -> None:
+        """Create a new instance of the delayed update trainer.
+
+        Arguments:
+            batches_per_update: How many batches to process before applying
+                the gradients.
+
+        For documentation of other arguments, see `GenericTrainer.__init__`.
+        """
         check_argument_types()
         GenericTrainer.__init__(self, objectives, l1_weight, l2_weight,
                                 clip_norm, optimizer, var_scopes,
@@ -36,6 +51,7 @@ class DelayedUpdateTrainer(GenericTrainer):
     @tensor
     def existing_grads_and_vars(self) -> Tuple[
             List[tf.Tensor], List[tf.Variable]]:
+        """Return gradients that have a non-None value."""
         orig_grads = super().raw_gradients
 
         # pylint: disable=not-an-iterable
@@ -48,6 +64,11 @@ class DelayedUpdateTrainer(GenericTrainer):
 
     @tensor
     def gradient_buffers(self) -> List[tf.Variable]:
+        """Create accumulator buffers for the gradients.
+
+        A zeros-like tensor for every gradient returned by
+        `existing_grads_and_vars`.
+        """
         # pylint: disable=unpacking-non-sequence
         existing_gradients, _ = self.existing_grads_and_vars
         # pylint: enable=unpacking-non-sequence
@@ -59,21 +80,31 @@ class DelayedUpdateTrainer(GenericTrainer):
 
     @tensor
     def objective_buffers(self) -> List[tf.Variable]:
+        """Create accumulator buffers for objectives.
+
+        Zero scalar tensor for each objective.
+        """
         with tf.variable_scope("loss_buffers"):
             return [tf.Variable(0.0, trainable=False) for _ in self.objectives]
 
     # pylint: disable=no-self-use
     @tensor
     def diff_buffer(self) -> tf.Variable:
+        """Create the accumulator buffer for differentiable loss sum."""
         return tf.Variable(0.0, trainable=False)
 
     @tensor
     def cumulator_counter(self) -> tf.Variable:
-        return tf.Variable(0, trainable=False, name="self.cumulator_counter")
+        """Create the counter for determining the executable behavior."""
+        return tf.Variable(0, trainable=False, name="cumulator_counter")
     # pylint: enable=no-self-use
 
     @tensor
     def accumulate_ops(self) -> List[tf.Operation]:
+        """Create accumulating ops.
+
+        These ops add the values from the current batch to the accumulators.
+        """
         # pylint: disable=unpacking-non-sequence
         existing_gradients, _ = self.existing_grads_and_vars
         # pylint: enable=unpacking-non-sequence
@@ -99,6 +130,7 @@ class DelayedUpdateTrainer(GenericTrainer):
 
     @tensor
     def reset_ops(self) -> List[tf.Operation]:
+        """Create ops for resetting accumulators."""
         # pylint: disable=not-an-iterable
         # Pylint does not understand @tensor annotations
         reset_ops = [tf.assign(gradbuf, tf.zeros_like(gradbuf))
