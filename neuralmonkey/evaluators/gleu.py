@@ -1,8 +1,11 @@
-from typing import List, Tuple, Optional
+from typing import List, Tuple
+from typeguard import check_argument_types
+
 from neuralmonkey.evaluators.bleu import BLEUEvaluator
+from neuralmonkey.evaluators.evaluator import Evaluator
 
 
-class GLEUEvaluator:
+class GLEUEvaluator(Evaluator[List[str]]):
     """Sentence-level evaluation metric correlating with BLEU on corpus-level.
 
     From "Google's Neural Machine Translation System: Bridging the Gap
@@ -15,28 +18,36 @@ class GLEUEvaluator:
     Ngram counts are based on the bleu methods.
     """
 
-    def __init__(self, n: int = 4, deduplicate: bool = False,
-                 name: Optional[str] = None) -> None:
+    def __init__(self,
+                 n: int = 4,
+                 deduplicate: bool = False,
+                 name: str = None) -> None:
+        check_argument_types()
+        if name is None:
+            name = "GLEU-{}".format(n)
+            if deduplicate:
+                name += "-dedup"
+        super().__init__(name)
+
         self.n = n
         self.deduplicate = deduplicate
-        self.bleu = BLEUEvaluator(n=4, deduplicate=deduplicate, name="BLEU")
 
-        if name is not None:
-            self.name = name
-        else:
-            self.name = "GLEU-{}".format(n)
-            if self.deduplicate:
-                self.name += "-dedup"
+    def score_batch(self,
+                    hypotheses: List[List[str]],
+                    references: List[List[str]]) -> float:
+        if len(hypotheses) != len(references):
+            raise ValueError("Hypothesis and reference lists do not have the "
+                             "same length: {} vs {}.".format(len(hypotheses),
+                                                             len(references)))
 
-    def __call__(self,
-                 decoded: List[List[str]],
-                 references: List[List[str]]) -> float:
+        if not hypotheses:
+            raise ValueError("No hyp/ref pair to evaluate.")
+
         listed_references = [[s] for s in references]
-
         if self.deduplicate:
-            decoded = self.bleu.deduplicate_sentences(decoded)
+            hypotheses = BLEUEvaluator.deduplicate_sentences(hypotheses)
 
-        return GLEUEvaluator.gleu(decoded, listed_references, self.n)
+        return GLEUEvaluator.gleu(hypotheses, listed_references, self.n)
 
     # pylint: disable=too-many-locals
     @staticmethod

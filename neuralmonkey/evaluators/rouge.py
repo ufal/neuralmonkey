@@ -1,42 +1,47 @@
 from typing import List
 import rouge
+from typeguard import check_argument_types
+from neuralmonkey.evaluators.evaluator import Evaluator
 
 
-class RougeEvaluator:
+# pylint: disable=too-few-public-methods
+class RougeEvaluator(Evaluator[List[str]]):
     """Compute ROUGE score using third-party library."""
-
-    # pylint: disable=too-few-public-methods
 
     def __init__(
             self, rouge_type: str,
             name: str = "ROUGE") -> None:
+        check_argument_types()
+        super().__init__(name)
 
         if rouge_type.lower() not in ["1", "2", "l"]:
             raise ValueError(
                 ("Invalid type of rouge metric '{}', "
                  "must be '1', '2' or 'L'").format(rouge_type))
 
-        self.name = name
         self.rouge_type = rouge_type.lower()
         self.rouge = rouge.Rouge()
 
-    def __call__(self,
-                 decoded: List[List[str]],
-                 references: List[List[str]]) -> float:
-        decoded_str = [" ".join(l) for l in decoded]
+    def score_batch(self,
+                    hypotheses: List[List[str]],
+                    references: List[List[str]]) -> float:
+        if len(hypotheses) != len(references):
+            raise ValueError("Hypothesis and reference lists do not have the "
+                             "same length: {} vs {}.".format(len(hypotheses),
+                                                             len(references)))
+
+        if not hypotheses:
+            raise ValueError("No hyp/ref pair to evaluate.")
+
+        hypotheses_str = [" ".join(l) for l in hypotheses]
         references_str = [" ".join(l) for l in references]
 
         rouge_res = self.rouge.get_scores(
-            decoded_str, references_str, avg=True)
+            hypotheses_str, references_str, avg=True)
 
         rouge_value = rouge_res["rouge-{}".format(self.rouge_type)]["f"]
 
         return rouge_value
-
-    @staticmethod
-    def compare_scores(score1: float, score2: float) -> int:
-        # the bigger the better
-        return (score1 > score2) - (score1 < score2)
 
 
 # pylint: disable=invalid-name

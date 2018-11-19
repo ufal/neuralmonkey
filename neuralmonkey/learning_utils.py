@@ -510,7 +510,7 @@ def evaluation(evaluators, batch, runners, execution_results, result_data):
                 or hypothesis_id not in result_data):
             continue
 
-        desired_output = batch.get_series(reference_id)
+        desired_output = list(batch.get_series(reference_id))
         model_output = result_data[hypothesis_id]
         eval_result["{}/{}".format(hypothesis_id, function.name)] = function(
             model_output, desired_output)

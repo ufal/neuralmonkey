@@ -2,12 +2,13 @@ import tempfile
 import subprocess
 from typing import List
 
+from typeguard import check_argument_types
+
 from neuralmonkey.logging import log
+from neuralmonkey.evaluators.evaluator import Evaluator
 
 
-# pylint: disable=too-few-public-methods
-
-class BeerWrapper:
+class BeerWrapper(Evaluator[List[str]]):
     """Wrapper for BEER scorer.
 
     Paper: http://aclweb.org/anthology/D14-1025
@@ -25,31 +26,33 @@ class BeerWrapper:
             wrapper: Path to the BEER's executable.
             encoding: Data encoding.
         """
+        check_argument_types()
+        super().__init__(name)
         self.wrapper = wrapper
         self.encoding = encoding
-        self.name = name
 
     def serialize_to_bytes(self, sentences: List[List[str]]) -> bytes:
         joined = [" ".join(r) for r in sentences]
         string = "\n".join(joined) + "\n"
         return string.encode(self.encoding)
 
-    def __call__(self, decoded: List[List[str]],
-                 references: List[List[str]]) -> float:
+    def score_batch(self,
+                    hypotheses: List[List[str]],
+                    references: List[List[str]]) -> float:
 
         ref_bytes = self.serialize_to_bytes(references)
-        dec_bytes = self.serialize_to_bytes(decoded)
+        hyp_bytes = self.serialize_to_bytes(hypotheses)
 
         with tempfile.NamedTemporaryFile() as reffile, \
-                tempfile.NamedTemporaryFile() as decfile:
+                tempfile.NamedTemporaryFile() as hypfile:
 
             reffile.write(ref_bytes)
             reffile.flush()
 
-            decfile.write(dec_bytes)
-            decfile.flush()
+            hypfile.write(hyp_bytes)
+            hypfile.flush()
 
-            args = [self.wrapper, "-r", reffile.name, "-s", decfile.name]
+            args = [self.wrapper, "-r", reffile.name, "-s", hypfile.name]
 
             output_proc = subprocess.run(args,
                                          stderr=subprocess.PIPE,

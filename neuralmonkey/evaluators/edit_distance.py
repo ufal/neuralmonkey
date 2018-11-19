@@ -1,28 +1,32 @@
 from typing import List
 from difflib import SequenceMatcher
-import numpy as np
+
+from neuralmonkey.evaluators.evaluator import Evaluator, compare_minimize
 
 
-class EditDistanceEvaluator:
+class EditDistanceEvaluator(Evaluator[List[str]]):
 
-    def __init__(self, name: str = "Edit distance") -> None:
-        self.name = name
+    # pylint: disable=no-self-use
+    def score_instance(self,
+                       hypothesis: List[str],
+                       reference: List[str]) -> float:
+        hyp_joined = " ".join(hypothesis)
+        ref_joined = " ".join(reference)
 
-    def __call__(self, decoded: List[List[str]],
-                 references: List[List[str]]) -> float:
-        return 1 - np.mean([EditDistance.ratio(u" ".join(ref), u" ".join(dec))
-                            for dec, ref in zip(decoded, references)])
-
-    @staticmethod
-    def ratio(str1: str, str2: str) -> float:
-        matcher = SequenceMatcher(None, str1, str2)
+        matcher = SequenceMatcher(None, hyp_joined, ref_joined)
         return matcher.ratio()
+    # pylint: enable=no-self-use
+
+    def score_batch(self,
+                    hypotheses: List[List[str]],
+                    references: List[List[str]]) -> float:
+        score = super().score_batch(hypotheses, references)
+        return 1 - score
 
     @staticmethod
     def compare_scores(score1: float, score2: float) -> int:
-        # the lower the better
-        return (score1 < score2) - (score1 > score2)
+        return compare_minimize(score1, score2)
 
 
 # pylint: disable=invalid-name
-EditDistance = EditDistanceEvaluator()
+EditDistance = EditDistanceEvaluator("Edit distance")

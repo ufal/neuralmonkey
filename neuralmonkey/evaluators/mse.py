@@ -1,26 +1,48 @@
 from typing import List
 import numpy as np
 
+from neuralmonkey.evaluators.evaluator import (
+    Evaluator, compare_minimize, SequenceEvaluator)
 
-class MeanSquaredErrorEvaluator:
-    # pylint: disable=too-few-public-methods
 
-    def __init__(self, name: str = "MeanSquaredError") -> None:
-        self.name = name
+class MeanSquaredErrorEvaluator(SequenceEvaluator[float]):
+    """Mean squared error evaluator.
 
-    def __call__(self,
-                 decoded: List[List[float]],
-                 references: List[List[float]]) -> float:
-        return np.mean([(d - r) ** 2
-                        for dec, ref in zip(decoded, references)
-                        for d, r in zip(dec, ref)])
+    Assumes equal vector length across the batch (see
+    `SequenceEvaluator.score_batch`)
+    """
+
+    # pylint: disable=no-self-use
+    def score_token(self, hyp_elem: float, ref_elem: float) -> float:
+        return (hyp_elem - ref_elem) ** 2
+    # pylint: enable=no-self-use
 
     @staticmethod
     def compare_scores(score1: float, score2: float) -> int:
-        # the smaller the better
-        return (score1 < score2) - (score1 > score2)
+        return compare_minimize(score1, score2)
+
+
+class PairwiseMeanSquaredErrorEvaluator(Evaluator[List[float]]):
+    """Pairwise mean squared error evaluator.
+
+    For vectors of different dimension across the batch.
+    """
+
+    # pylint: disable=no-self-use
+    def score_instance(self,
+                       hypothesis: List[float],
+                       reference: List[float]) -> float:
+        """Compute mean square error between two vectors."""
+        return np.mean([(hyp - ref) ** 2
+                        for hyp, ref in zip(hypothesis, reference)])
+    # pylint: enable=no-self-use
+
+    @staticmethod
+    def compare_scores(score1: float, score2: float) -> int:
+        return compare_minimize(score1, score2)
 
 
 # pylint: disable=invalid-name
 MSE = MeanSquaredErrorEvaluator()
+PairwiseMSE = PairwiseMeanSquaredErrorEvaluator()
 # pylint: enable=invalid-name

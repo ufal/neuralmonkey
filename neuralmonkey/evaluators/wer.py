@@ -1,28 +1,43 @@
-from typing import Iterable, List
-
+from typing import List
 import pyter
+from neuralmonkey.evaluators.evaluator import Evaluator, compare_minimize
 
 
-# pylint: disable=too-few-public-methods
-class WEREvaluator:
+class WEREvaluator(Evaluator[List[str]]):
     """Compute WER (word error rate, used in speech recognition)."""
 
-    def __init__(self, name: str = "WER") -> None:
-        self.name = name
+    # pylint: disable=no-self-use
+    def score_instance(self,
+                       hypothesis: List[str],
+                       reference: List[str]) -> float:
+        if reference and hypothesis:
+            return pyter.edit_distance(hypothesis, reference)
+        if not reference and not hypothesis:
+            return 0.0
+        return len(reference)
+    # pylint: enable=no-self-use
 
-    def __call__(self, decoded: Iterable[List],
-                 references: Iterable[List]) -> float:
-        dist_sum = 0
-        length_sum = 0
-        for hyp, ref in zip(decoded, references):
-            length_sum += len(ref)
-            if ref and hyp:
-                dist_sum += pyter.edit_distance(hyp, ref)
-            elif not ref and not hyp:
-                dist_sum += 0
-            else:
-                dist_sum += len(ref)
-        return dist_sum / length_sum
+    def score_batch(self,
+                    hypotheses: List[List[str]],
+                    references: List[List[str]]) -> float:
+        if len(hypotheses) != len(references):
+            raise ValueError("Hypothesis and reference lists do not have the "
+                             "same length: {} vs {}.".format(len(hypotheses),
+                                                             len(references)))
+
+        if not hypotheses:
+            raise ValueError("No hyp/ref pair to evaluate.")
+
+        total_length = 0
+        total_score = 0.0
+        for hyp, ref in zip(hypotheses, references):
+            total_score += self.score_instance(hyp, ref)
+            total_length += len(ref)
+        return total_score / total_length
+
+    @staticmethod
+    def compare_scores(score1: float, score2: float) -> int:
+        return compare_minimize(score1, score2)
 
 
-WER = WEREvaluator()
+WER = WEREvaluator("WER")

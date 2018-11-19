@@ -1,25 +1,26 @@
+from typing import List
 import pyter
+from neuralmonkey.evaluators.evaluator import Evaluator, compare_minimize
 
 
 # pylint: disable=too-few-public-methods
-class TEREvaluator:
+class TEREvaluator(Evaluator[List[str]]):
     """Compute TER using the pyter library."""
 
-    def __init__(self, name: str = "TER") -> None:
-        self.name = name
+    # pylint: disable=no-self-use
+    def score_instance(self,
+                       hypothesis: List[str],
+                       reference: List[str]) -> float:
+        if reference and hypothesis:
+            return pyter.ter(hypothesis, reference)
+        if not reference and not hypothesis:
+            return 0.0
+        return 1.0
+    # pylint: enable=no-self-use
 
-    def __call__(self, decoded, references) -> float:
-        ter_sum = 0.
-        count = 0
-        for hyp, ref in zip(decoded, references):
-            count += 1
-            if ref and hyp:
-                ter_sum += pyter.ter(hyp, ref)
-            elif not ref and not hyp:
-                ter_sum += 0.
-            else:
-                ter_sum += 1.
-        return ter_sum / count
+    @staticmethod
+    def compare_scores(score1: float, score2: float) -> int:
+        return compare_minimize(score1, score2)
 
 
-TER = TEREvaluator()
+TER = TEREvaluator("TER")
