@@ -9,4 +9,5 @@ git+https://github.com/aflc/pyter@857a1552443f139a3
 python_speech_features
 pygments
 typeguard
+sacrebleu
 tensorflow>=1.10.0,<1.11
