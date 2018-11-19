@@ -147,29 +147,6 @@ class SequenceEvaluator(Evaluator[Sequence[EvalType]]):
         return float(hyp_token == ref_token)
     # pylint: enable=no-self-use
 
-    def score_instance(self,
-                       hypothesis: Sequence[EvalType],
-                       reference: Sequence[EvalType]) -> float:
-        """Score a hyp/ref pair of sequences of tokens.
-
-        The default implementation assumes sequences of the same length. It
-        computes the average token score using `score_token`
-
-        Arguments:
-            hypothesis: Sequence of prediction tokens.
-            reference: Sequence of golden tokens.
-
-        Returns:
-            A score for the hyp/ref sequence pair.
-        """
-        if len(hypothesis) != len(reference):
-            raise ValueError("Hypothesis and reference sequences should have "
-                             "equal length: {} vs {}.".format(len(hypothesis),
-                                                              len(reference)))
-
-        return np.mean([self.score_token(hyp, ref)
-                        for hyp, ref in zip(hypothesis, reference)])
-
     @check_lengths
     def score_batch(self,
                     hypotheses: List[Sequence[EvalType]],
