@@ -125,7 +125,7 @@ class Evaluator(Generic[EvalType]):
 
 
 class SequenceEvaluator(Evaluator[Sequence[EvalType]]):
-    """Base class for evaluators that work with sequences."""
+    """Base class for token-level evaluators that work with sequences."""
 
     # pylint: disable=no-self-use
     # This method is supposed to be overriden.
