@@ -1,7 +1,7 @@
 from typing import List
 import rouge
 from typeguard import check_argument_types
-from neuralmonkey.evaluators.evaluator import Evaluator
+from neuralmonkey.evaluators.evaluator import Evaluator, check_lengths
 
 
 # pylint: disable=too-few-public-methods
@@ -22,17 +22,10 @@ class RougeEvaluator(Evaluator[List[str]]):
         self.rouge_type = rouge_type.lower()
         self.rouge = rouge.Rouge()
 
+    @check_lengths
     def score_batch(self,
                     hypotheses: List[List[str]],
                     references: List[List[str]]) -> float:
-        if len(hypotheses) != len(references):
-            raise ValueError("Hypothesis and reference lists do not have the "
-                             "same length: {} vs {}.".format(len(hypotheses),
-                                                             len(references)))
-
-        if not hypotheses:
-            raise ValueError("No hyp/ref pair to evaluate.")
-
         hypotheses_str = [" ".join(l) for l in hypotheses]
         references_str = [" ".join(l) for l in references]
 

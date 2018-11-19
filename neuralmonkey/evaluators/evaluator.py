@@ -1,4 +1,5 @@
 from typing import Generic, TypeVar, List, Sequence
+from functools import wraps
 import numpy as np
 from typeguard import check_argument_types
 
@@ -13,9 +14,18 @@ def compare_maximize(score1: float, score2: float) -> int:
     return (score1 > score2) - (score1 < score2)
 
 
-def compare_minimize(score1: float, score2: float) -> int:
-    # the smaller the better
-    return (score1 < score2) - (score1 > score2)
+def check_lengths(scorer):
+    @wraps(scorer)
+    def decorate(self, hypotheses, references):
+        if len(hypotheses) != len(references):
+            raise ValueError("Hypothesis and reference lists do not have the "
+                             "same length: {} vs {}.".format(len(hypotheses),
+                                                             len(references)))
+        if not hypotheses:
+            raise ValueError("No hyp/ref pair to evaluate.")
+
+        return scorer(self, hypotheses, references)
+    return decorate
 
 
 class Evaluator(Generic[EvalType]):
@@ -61,6 +71,7 @@ class Evaluator(Generic[EvalType]):
         return 0.0
     # pylint: enable=no-self-use
 
+    @check_lengths
     def score_batch(self,
                     hypotheses: List[EvalType],
                     references: List[EvalType]) -> float:
@@ -70,21 +81,12 @@ class Evaluator(Generic[EvalType]):
         each instance in the batch and returns the average score.
 
         Arguments:
-            hypotheses: List of model predictions.
-            references: List of golden outputs.
+            `hypotheses`: List of model predictions.
+            `references`: List of golden outputs.
 
         Returns:
             A float.
         """
-        # TODO make a decorator for these checks.
-        if len(hypotheses) != len(references):
-            raise ValueError("Hypothesis and reference lists do not have the "
-                             "same length: {} vs {}.".format(len(hypotheses),
-                                                             len(references)))
-
-        if not hypotheses:
-            raise ValueError("No hyp/ref pair to evaluate.")
-
         return np.mean([self.score_instance(hyp, ref)
                         for hyp, ref in zip(hypotheses, references)])
 
@@ -97,8 +99,8 @@ class Evaluator(Generic[EvalType]):
         the score.
 
         Arguments:
-            hypotheses: List of model predictions.
-            references: List of golden outputs.
+            `hypotheses`: List of model predictions.
+            `references`: List of golden outputs.
 
         Returns:
             A float.
@@ -168,6 +170,7 @@ class SequenceEvaluator(Evaluator[Sequence[EvalType]]):
         return np.mean([self.score_token(hyp, ref)
                         for hyp, ref in zip(hypothesis, reference)])
 
+    @check_lengths
     def score_batch(self,
                     hypotheses: List[Sequence[EvalType]],
                     references: List[Sequence[EvalType]]) -> float:
@@ -178,20 +181,12 @@ class SequenceEvaluator(Evaluator[Sequence[EvalType]]):
         averaged (in contrast to averaging each sequence first)).
 
         Arguments:
-            hypotheses: List of model predictions.
-            references: List of golden outputs.
+            `hypotheses`: List of model predictions.
+            `references`: List of golden outputs.
 
         Returns:
             A float.
         """
-        if len(hypotheses) != len(references):
-            raise ValueError("Hypothesis and reference lists do not have the "
-                             "same length: {} vs {}.".format(len(hypotheses),
-                                                             len(references)))
-
-        if not hypotheses:
-            raise ValueError("No hyp/ref pair to evaluate.")
-
         token_scores = [self.score_token(h, r)
                         for hyp, ref in zip(hypotheses, references)
                         for h, r in zip(hyp, ref)]

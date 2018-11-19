@@ -2,7 +2,7 @@ from typing import List, Tuple
 from typeguard import check_argument_types
 
 from neuralmonkey.evaluators.bleu import BLEUEvaluator
-from neuralmonkey.evaluators.evaluator import Evaluator
+from neuralmonkey.evaluators.evaluator import Evaluator, check_lengths
 
 
 class GLEUEvaluator(Evaluator[List[str]]):
@@ -32,17 +32,10 @@ class GLEUEvaluator(Evaluator[List[str]]):
         self.n = n
         self.deduplicate = deduplicate
 
+    @check_lengths
     def score_batch(self,
                     hypotheses: List[List[str]],
                     references: List[List[str]]) -> float:
-        if len(hypotheses) != len(references):
-            raise ValueError("Hypothesis and reference lists do not have the "
-                             "same length: {} vs {}.".format(len(hypotheses),
-                                                             len(references)))
-
-        if not hypotheses:
-            raise ValueError("No hyp/ref pair to evaluate.")
-
         listed_references = [[s] for s in references]
         if self.deduplicate:
             hypotheses = BLEUEvaluator.deduplicate_sentences(hypotheses)

@@ -1,8 +1,7 @@
 from typing import List
 import numpy as np
 
-from neuralmonkey.evaluators.evaluator import (
-    Evaluator, compare_minimize, SequenceEvaluator)
+from neuralmonkey.evaluators.evaluator import Evaluator, SequenceEvaluator
 
 
 class MeanSquaredErrorEvaluator(SequenceEvaluator[float]):
@@ -19,7 +18,7 @@ class MeanSquaredErrorEvaluator(SequenceEvaluator[float]):
 
     @staticmethod
     def compare_scores(score1: float, score2: float) -> int:
-        return compare_minimize(score1, score2)
+        return super().compare_scores(score2, score1)
 
 
 class PairwiseMeanSquaredErrorEvaluator(Evaluator[List[float]]):
@@ -39,7 +38,7 @@ class PairwiseMeanSquaredErrorEvaluator(Evaluator[List[float]]):
 
     @staticmethod
     def compare_scores(score1: float, score2: float) -> int:
-        return compare_minimize(score1, score2)
+        return super().compare_scores(score2, score1)
 
 
 # pylint: disable=invalid-name

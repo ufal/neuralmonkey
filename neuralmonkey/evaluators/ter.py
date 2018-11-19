@@ -1,6 +1,6 @@
 from typing import List
 import pyter
-from neuralmonkey.evaluators.evaluator import Evaluator, compare_minimize
+from neuralmonkey.evaluators.evaluator import Evaluator
 
 
 # pylint: disable=too-few-public-methods
@@ -20,7 +20,7 @@ class TEREvaluator(Evaluator[List[str]]):
 
     @staticmethod
     def compare_scores(score1: float, score2: float) -> int:
-        return compare_minimize(score1, score2)
+        return super().compare_scores(score2, score1)
 
 
 TER = TEREvaluator("TER")

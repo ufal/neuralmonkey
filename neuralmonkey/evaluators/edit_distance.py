@@ -1,7 +1,7 @@
 from typing import List
 from difflib import SequenceMatcher
 
-from neuralmonkey.evaluators.evaluator import Evaluator, compare_minimize
+from neuralmonkey.evaluators.evaluator import Evaluator
 
 
 class EditDistanceEvaluator(Evaluator[List[str]]):
@@ -25,7 +25,7 @@ class EditDistanceEvaluator(Evaluator[List[str]]):
 
     @staticmethod
     def compare_scores(score1: float, score2: float) -> int:
-        return compare_minimize(score1, score2)
+        return super().compare_scores(score2, score1)
 
 
 # pylint: disable=invalid-name

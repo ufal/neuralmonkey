@@ -1,6 +1,6 @@
 from typing import List
 import pyter
-from neuralmonkey.evaluators.evaluator import Evaluator, compare_minimize
+from neuralmonkey.evaluators.evaluator import Evaluator, check_lengths
 
 
 class WEREvaluator(Evaluator[List[str]]):
@@ -17,17 +17,10 @@ class WEREvaluator(Evaluator[List[str]]):
         return len(reference)
     # pylint: enable=no-self-use
 
+    @check_lengths
     def score_batch(self,
                     hypotheses: List[List[str]],
                     references: List[List[str]]) -> float:
-        if len(hypotheses) != len(references):
-            raise ValueError("Hypothesis and reference lists do not have the "
-                             "same length: {} vs {}.".format(len(hypotheses),
-                                                             len(references)))
-
-        if not hypotheses:
-            raise ValueError("No hyp/ref pair to evaluate.")
-
         total_length = 0
         total_score = 0.0
         for hyp, ref in zip(hypotheses, references):
@@ -37,7 +30,7 @@ class WEREvaluator(Evaluator[List[str]]):
 
     @staticmethod
     def compare_scores(score1: float, score2: float) -> int:
-        return compare_minimize(score1, score2)
+        return super().compare_scores(score2, score1)
 
 
 WER = WEREvaluator("WER")
