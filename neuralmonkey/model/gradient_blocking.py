@@ -20,8 +20,8 @@ class StatefulView(Stateful):
         return self._output
 
     @property
-    def singleton_dependencies(self) -> List[str]:
-        return super().singleton_dependencies + ["_blocked_object"]
+    def dependencies(self) -> List[str]:
+        return super().dependencies + ["_blocked_object"]
 
 
 class TemporalStatefulView(TemporalStateful):
@@ -41,8 +41,8 @@ class TemporalStatefulView(TemporalStateful):
         return self._blocked_object.temporal_mask
 
     @property
-    def singleton_dependencies(self) -> List[str]:
-        return super().singleton_dependencies + ["_blocked_object"]
+    def dependencies(self) -> List[str]:
+        return super().dependencies + ["_blocked_object"]
 
 
 class SpatialStatefulView(SpatialStateful):
@@ -62,5 +62,5 @@ class SpatialStatefulView(SpatialStateful):
         return self._blocked_object.spatial_mask
 
     @property
-    def singleton_dependencies(self) -> List[str]:
-        return super().singleton_dependencies + ["_blocked_object"]
+    def dependencies(self) -> List[str]:
+        return super().dependencies + ["_blocked_object"]

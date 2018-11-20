@@ -320,8 +320,8 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
         return self.input_sequence.temporal_mask
 
     @property
-    def singleton_dependencies(self) -> List[str]:
-        deps = super().singleton_dependencies
+    def dependencies(self) -> List[str]:
+        deps = super().dependencies
 
         if self.input_for_cross_attention is not None:
             return deps + ["input_for_cross_attention"]
