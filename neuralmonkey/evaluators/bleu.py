@@ -1,9 +1,12 @@
 from collections import Counter
 from typing import List, Tuple
 import numpy as np
+from typeguard import check_argument_types
+
+from neuralmonkey.evaluators.evaluator import Evaluator
 
 
-class BLEUEvaluator:
+class BLEUEvaluator(Evaluator[List[str]]):
 
     def __init__(self, n: int = 4,
                  deduplicate: bool = False,
@@ -19,19 +22,21 @@ class BLEUEvaluator:
                 reference sentences. If ``None``, it assumes the reference is
                 one sentence only.
         """
+        check_argument_types()
+
+        if name is None:
+            name = "BLEU-{}".format(n)
+            if deduplicate:
+                name += "-dedup"
+        super().__init__(name)
+
         self.n = n
         self.deduplicate = deduplicate
         self.multiple_references_separator = multiple_references_separator
 
-        if name is not None:
-            self.name = name
-        else:
-            self.name = "BLEU-{}".format(n)
-            if self.deduplicate:
-                self.name += "-dedup"
-
-    def __call__(self, decoded: List[List[str]],
-                 references: List[List[str]]) -> float:
+    def score_batch(self,
+                    hypotheses: List[List[str]],
+                    references: List[List[str]]) -> float:
 
         if self.multiple_references_separator is None:
             listed_references = [[s] for s in references]
@@ -50,9 +55,9 @@ class BLEUEvaluator:
                 listed_references.append(split_sentences)
 
         if self.deduplicate:
-            decoded = BLEUEvaluator.deduplicate_sentences(decoded)
+            hypotheses = BLEUEvaluator.deduplicate_sentences(hypotheses)
 
-        return 100 * BLEUEvaluator.bleu(decoded, listed_references, self.n)
+        return 100 * BLEUEvaluator.bleu(hypotheses, listed_references, self.n)
 
     @staticmethod
     def ngram_counts(sentence: List[str], n: int,
@@ -246,11 +251,6 @@ class BLEUEvaluator:
             deduplicated_sentences.append(dedup_snt)
 
         return deduplicated_sentences
-
-    @staticmethod
-    def compare_scores(score1: float, score2: float) -> int:
-        # the bigger the better
-        return (score1 > score2) - (score1 < score2)
 
 
 # pylint: disable=invalid-name

@@ -1,55 +1,24 @@
-from typing import Any, List
-import numpy as np
+from typing import Any
+from neuralmonkey.evaluators.evaluator import Evaluator, SequenceEvaluator
 
 
-class AccuracyEvaluator:
-    # pylint: disable=too-few-public-methods
+# pylint: disable=too-few-public-methods
+# These classes are technically just a syntactic sugar.
+class AccuracyEvaluator(SequenceEvaluator[Any]):
+    """Accuracy Evaluator.
 
-    def __init__(self,
-                 name: str = "Accuracy") -> None:
-        self.name = name
-
-    def __call__(self,
-                 decoded: List[List[Any]],
-                 references: List[List[Any]]) -> float:
-        collected_info = [d == r
-                          for dec, ref in zip(decoded, references)
-                          for d, r in zip(dec, ref)]
-        if collected_info == []:
-            mean = 0
-        else:
-            mean = np.mean(collected_info)
-        return mean
-
-    @staticmethod
-    def compare_scores(score1: float, score2: float) -> int:
-        # the bigger the better
-        return (score1 > score2) - (score1 < score2)
+    This class uses the default `SequenceEvaluator` implementation, i.e. works
+    on sequences of equal lengths (but can be used to others as well) and
+    use `==` as the token scorer.
+    """
 
 
-class AccuracySeqLevelEvaluator:
-    # pylint: disable=too-few-public-methods
+class AccuracySeqLevelEvaluator(Evaluator[Any]):
+    """Sequence-level accuracy evaluator.
 
-    def __init__(self,
-                 name: str = "AccuracySeqLevel") -> None:
-        self.name = name
-
-    def __call__(self,
-                 decoded: List[Any],
-                 references: List[Any]) -> float:
-        collected_info = [dec == ref
-                          for dec, ref in zip(decoded, references)]
-
-        if collected_info == []:
-            mean = 0
-        else:
-            mean = np.mean(collected_info)
-        return mean
-
-    @staticmethod
-    def compare_scores(score1: float, score2: float) -> int:
-        # the bigger the better
-        return (score1 > score2) - (score1 < score2)
+    This class uses the default evaluator implementation. It gives 1.0 to equal
+    sequences and 0.0 to others, averaging the scores over the batch.
+    """
 
 
 # pylint: disable=invalid-name

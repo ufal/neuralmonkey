@@ -2,12 +2,13 @@ import tempfile
 from typing import List
 import subprocess
 from neuralmonkey.logging import log
+from neuralmonkey.evaluators.evaluator import Evaluator
 
 # pylint: disable=too-few-public-methods
 # to be further refactored
 
 
-class BLEUReferenceImplWrapper:
+class BLEUReferenceImplWrapper(Evaluator[List[str]]):
     """Wrapper for TectoMT's wrapper for reference NIST and BLEU scorer."""
 
     def __init__(self, wrapper, name="BLEU", encoding="utf-8"):
@@ -21,18 +22,19 @@ class BLEUReferenceImplWrapper:
         string = "\n".join(joined) + "\n"
         return string.encode(self.encoding)
 
-    def __call__(self, decoded: List[List[str]],
-                 references: List[List[str]]) -> float:
+    def score_batch(self,
+                    hypotheses: List[List[str]],
+                    references: List[List[str]]) -> float:
 
         ref_bytes = self.serialize_to_bytes(references)
-        dec_bytes = self.serialize_to_bytes(decoded)
+        hyp_bytes = self.serialize_to_bytes(hypotheses)
 
         reffile = tempfile.NamedTemporaryFile()
         reffile.write(ref_bytes)
         reffile.flush()
 
         output_proc = subprocess.run(["perl", self.wrapper, reffile.name],
-                                     input=dec_bytes,
+                                     input=hyp_bytes,
                                      stderr=subprocess.PIPE,
                                      stdout=subprocess.PIPE)
 

@@ -1,13 +1,10 @@
-from typing import Any, List
+# pylint: disable=too-few-public-methods, no-self-use, unused-argument
+# This evaluator here is just an ugly hack to work with perplexity runner
+from neuralmonkey.evaluators.evaluator import Evaluator
 
 
-# pylint: disable=too-few-public-methods
-class AverageEvaluator:
+class AverageEvaluator(Evaluator[float]):
     """Just average the numeric output of a runner."""
 
-    def __init__(self, name: str) -> None:
-        self.name = name
-
-    def __call__(self, decoded: List[float], _: List[Any]) -> float:
-        return sum(decoded) / len(decoded) if decoded else 0.0
-# pylint: enable=too-few-public-methods
+    def score_instance(self, hypothesis: float, reference: float) -> float:
+        return hypothesis
