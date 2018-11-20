@@ -4,7 +4,9 @@ import tensorflow as tf
 from typeguard import check_argument_types
 
 from neuralmonkey.dataset import Dataset
-from neuralmonkey.model.model_part import ModelPart, FeedDict, InitializerSpecs
+from neuralmonkey.model.feedable import FeedDict
+from neuralmonkey.model.parameterized import InitializerSpecs
+from neuralmonkey.model.model_part import ModelPart
 from neuralmonkey.encoders.recurrent import RecurrentEncoder
 from neuralmonkey.encoders.facebook_conv import SentenceEncoder
 from neuralmonkey.vocabulary import Vocabulary

@@ -2,7 +2,8 @@ import tensorflow as tf
 from typeguard import check_argument_types
 
 from neuralmonkey.model.stateful import TemporalStatefulWithOutput
-from neuralmonkey.model.model_part import ModelPart, InitializerSpecs
+from neuralmonkey.model.parameterized import InitializerSpecs
+from neuralmonkey.model.model_part import ModelPart
 from neuralmonkey.nn.utils import dropout
 from neuralmonkey.decorators import tensor
 from neuralmonkey.attention.base_attention import (

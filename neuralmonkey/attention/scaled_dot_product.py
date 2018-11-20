@@ -13,7 +13,8 @@ import tensorflow as tf
 from typeguard import check_argument_types
 
 from neuralmonkey.nn.utils import dropout
-from neuralmonkey.model.model_part import InitializerSpecs, ModelPart
+from neuralmonkey.model.model_part import ModelPart
+from neuralmonkey.model.parameterized import InitializerSpecs
 from neuralmonkey.attention.base_attention import (
     BaseAttention, Attendable, get_attention_states, get_attention_mask)
 from neuralmonkey.attention.namedtuples import MultiHeadLoopState

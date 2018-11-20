@@ -41,9 +41,10 @@ from typing import Dict, Optional, Any, Tuple, Union
 
 import tensorflow as tf
 
-from neuralmonkey.model.stateful import TemporalStateful, SpatialStateful
-from neuralmonkey.model.model_part import ModelPart, InitializerSpecs
 from neuralmonkey.attention.namedtuples import AttentionLoopState
+from neuralmonkey.model.model_part import ModelPart
+from neuralmonkey.model.parameterized import InitializerSpecs
+from neuralmonkey.model.stateful import TemporalStateful, SpatialStateful
 
 # pylint: disable=invalid-name
 Attendable = Union[TemporalStateful, SpatialStateful]

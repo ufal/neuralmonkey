@@ -6,7 +6,8 @@ import tensorflow as tf
 from typeguard import check_argument_types
 
 from neuralmonkey.encoders.recurrent import RNNCellTuple
-from neuralmonkey.model.model_part import ModelPart, InitializerSpecs
+from neuralmonkey.model.parameterized import InitializerSpecs
+from neuralmonkey.model.model_part import ModelPart
 from neuralmonkey.model.sequence import Sequence
 from neuralmonkey.model.stateful import TemporalStatefulWithOutput
 from neuralmonkey.nn.noisy_gru_cell import NoisyGRUCell

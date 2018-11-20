@@ -13,7 +13,8 @@ from neuralmonkey.attention.base_attention import (
 from neuralmonkey.decorators import tensor
 from neuralmonkey.attention.scaled_dot_product import attention
 from neuralmonkey.logging import log
-from neuralmonkey.model.model_part import ModelPart, InitializerSpecs
+from neuralmonkey.model.parameterized import InitializerSpecs
+from neuralmonkey.model.model_part import ModelPart
 from neuralmonkey.model.stateful import (TemporalStateful,
                                          TemporalStatefulWithOutput)
 from neuralmonkey.nn.utils import dropout

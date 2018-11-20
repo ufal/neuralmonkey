@@ -10,7 +10,8 @@ from typeguard import check_argument_types
 
 from neuralmonkey.attention.base_attention import Attendable
 from neuralmonkey.attention.feed_forward import Attention
-from neuralmonkey.model.model_part import InitializerSpecs, ModelPart
+from neuralmonkey.model.model_part import ModelPart
+from neuralmonkey.model.parameterized import InitializerSpecs
 
 
 class CoverageAttention(Attention):

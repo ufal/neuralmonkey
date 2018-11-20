@@ -5,7 +5,8 @@ from typeguard import check_argument_types
 
 from neuralmonkey.model.stateful import (
     TemporalStatefulWithOutput, TemporalStateful)
-from neuralmonkey.model.model_part import ModelPart, InitializerSpecs
+from neuralmonkey.model.parameterized import InitializerSpecs
+from neuralmonkey.model.model_part import ModelPart
 from neuralmonkey.logging import warn
 from neuralmonkey.nn.ortho_gru_cell import OrthoGRUCell, NematusGRUCell
 from neuralmonkey.nn.utils import dropout

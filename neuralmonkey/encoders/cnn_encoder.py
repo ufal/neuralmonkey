@@ -8,7 +8,9 @@ import tensorflow as tf
 
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.decorators import tensor
-from neuralmonkey.model.model_part import ModelPart, FeedDict, InitializerSpecs
+from neuralmonkey.model.feedable import FeedDict
+from neuralmonkey.model.parameterized import InitializerSpecs
+from neuralmonkey.model.model_part import ModelPart
 from neuralmonkey.model.stateful import (SpatialStatefulWithOutput,
                                          TemporalStatefulWithOutput)
 from neuralmonkey.nn.projection import multilayer_projection

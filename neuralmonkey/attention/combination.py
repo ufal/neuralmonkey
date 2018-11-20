@@ -23,7 +23,8 @@ from neuralmonkey.attention.base_attention import (
     get_attention_states, get_attention_mask, Attendable)
 from neuralmonkey.attention.namedtuples import HierarchicalLoopState
 from neuralmonkey.checking import assert_shape
-from neuralmonkey.model.model_part import InitializerSpecs, ModelPart
+from neuralmonkey.model.model_part import ModelPart
+from neuralmonkey.model.parameterized import InitializerSpecs
 from neuralmonkey.tf_utils import get_variable
 
 

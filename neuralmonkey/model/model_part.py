@@ -2,12 +2,8 @@
 from abc import ABCMeta
 from typing import MutableSet, Set, List, Tuple
 
-# pylint: disable=unused-import
-# TODO feed dict and initializer specs are imported for convenience
-# TODO this is because the codebase import these things from this module
 from neuralmonkey.model.parameterized import Parameterized, InitializerSpecs
-from neuralmonkey.model.feedable import Feedable, FeedDict
-# pylint: enable=unused-import
+from neuralmonkey.model.feedable import Feedable
 
 
 class GenericModelPart(metaclass=ABCMeta):
