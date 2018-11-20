@@ -9,11 +9,6 @@ SeqEvalType = TypeVar("SeqEvalType", bound=Sequence)
 # pylint: enable=invalid-name
 
 
-def compare_maximize(score1: float, score2: float) -> int:
-    # the bigger the better
-    return (score1 > score2) - (score1 < score2)
-
-
 def check_lengths(scorer):
     @wraps(scorer)
     def decorate(self, hypotheses, references):
@@ -121,7 +116,7 @@ class Evaluator(Generic[EvalType]):
             An int. When `score1` is better, returns 1. When `score2` is
             better, returns -1. When the scores are equal, returns 0.
         """
-        return compare_maximize(score1, score2)
+        return (score1 > score2) - (score1 < score2)
 
 
 class SequenceEvaluator(Evaluator[Sequence[EvalType]]):
