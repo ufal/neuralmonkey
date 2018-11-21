@@ -2,7 +2,10 @@ from typing import Dict, List, NamedTuple, Optional, Tuple, Union
 import re
 
 import tensorflow as tf
+from typeguard import check_argument_types
 
+from neuralmonkey.decorators import tensor
+from neuralmonkey.logging import log
 from neuralmonkey.model.model_part import ModelPart
 from neuralmonkey.runners.base_runner import (
     Executable, ExecutionResult, NextExecute)
@@ -39,6 +42,10 @@ class Objective(NamedTuple(
 # pylint: disable=too-few-public-methods,too-many-locals,too-many-arguments
 class GenericTrainer:
 
+    @staticmethod
+    def default_optimizer():
+        return tf.train.AdamOptimizer(learning_rate=1e-4)
+
     def __init__(self,
                  objectives: List[Objective],
                  l1_weight: float = 0.0,
@@ -47,193 +54,219 @@ class GenericTrainer:
                  optimizer: tf.train.Optimizer = None,
                  var_scopes: List[str] = None,
                  var_collection: str = None) -> None:
+        check_argument_types()
 
-        if var_collection is None:
-            var_collection = tf.GraphKeys.TRAINABLE_VARIABLES
+        self.objectives = objectives
+        self.l1_weight = l1_weight
+        self.l2_weight = l2_weight
+        self.clip_norm = clip_norm
+        self.var_scopes = var_scopes
+        self.var_collection = var_collection
+        if self.var_collection is None:
+            self.var_collection = tf.GraphKeys.TRAINABLE_VARIABLES
 
-        if var_scopes is None:
-            var_lists = [tf.get_collection(var_collection)]
+        self.optimizer = (
+            optimizer if optimizer is not None else self.default_optimizer())
+        self.all_coders = set.union(*(obj.decoder.get_dependencies()
+                                      for obj in objectives))
+
+        log("Train op: {}".format(str(self.train_op)))
+
+    # pylint: disable=no-self-use
+    @tensor
+    def regularization_losses(self) -> Tuple[tf.Tensor, tf.Tensor]:
+        """Compute the regularization losses, e.g. L1 and L2."""
+        regularizable = [v for v in tf.trainable_variables()
+                         if not BIAS_REGEX.findall(v.name)
+                         and not v.name.startswith("vgg")
+                         and not v.name.startswith("Inception")
+                         and not v.name.startswith("resnet")]
+
+        with tf.name_scope("regularization"):
+            l1_norm = sum(tf.reduce_sum(abs(v)) for v in regularizable)
+            l2_norm = sum(tf.reduce_sum(v ** 2) for v in regularizable)
+
+        return l1_norm, l2_norm
+    # pylint: enable=no-self-use
+
+    @tensor
+    def objective_values(self) -> List[tf.Tensor]:
+        """Compute unweighted losses for fetching."""
+        # pylint: disable=unpacking-non-sequence
+        l1_norm, l2_norm = self.regularization_losses
+        # pylint: disable=unpacking-non-sequence
+
+        return [o.loss for o in self.objectives] + [l1_norm, l2_norm]
+
+    @tensor
+    def differentiable_loss_sum(self) -> tf.Tensor:
+        """Compute the differentiable loss (including regularization)."""
+        obj_weights = []  # type: List[Optional[float]]
+        for obj in self.objectives:
+            if obj.gradients is not None:
+                obj_weights.append(None)
+            elif obj.weight is None:
+                obj_weights.append(1.0)
+            else:
+                obj_weights.append(obj.weight)
+
+        obj_weights += [self.l1_weight, self.l2_weight]
+        diff_loss = sum(
+            o * w for o, w in zip(self.objective_values, obj_weights)
+            if w is not None)
+
+        return diff_loss
+
+    @tensor
+    def raw_gradients(self) -> Gradients:
+        """Compute the gradients."""
+        with tf.name_scope("gradient_collection"):
+            gradients = self.optimizer.compute_gradients(
+                self.differentiable_loss_sum, self.var_list)
+
+            def scale_grads(gradients: Gradients,
+                            weight: ObjectiveWeight) -> Gradients:
+                result = []  # type: Gradients
+                for grad, var in gradients:
+                    if weight is not None and grad is not None:
+                        result.append((weight * grad, var))
+                    else:
+                        result.append((grad, var))
+                return result
+
+            # objectives that have their gradients explictly computed
+            other_gradients = [
+                scale_grads(o.gradients, o.weight)
+                for o in self.objectives if o.gradients is not None]
+
+            def sum_grads(gradients_list: List[Gradients]) -> Gradients:
+                summed_dict = {}  # type: Dict[tf.Variable, tf.Tensor]
+                for gradients in gradients_list:
+                    for grad, var in gradients:
+                        if grad is not None:
+                            if var not in summed_dict:
+                                summed_dict[var] = grad
+                            else:
+                                summed_dict[var] += grad
+
+                return [(grad, var) for var, grad in summed_dict.items()]
+
+            if other_gradients:
+                gradients = sum_grads([gradients] + other_gradients)
+
+        return gradients
+
+    @tensor
+    def gradients(self) -> Gradients:
+        gradients = self.raw_gradients
+
+        if self.clip_norm:
+            assert self.clip_norm > 0.0
+            # pylint: disable=not-an-iterable
+            # Pylint does not understand @tensor annotations
+            gradients = [
+                (tf.clip_by_norm(grad, self.clip_norm), var)
+                for grad, var in self.raw_gradients if grad is not None]
+            # pylint: disable=not-an-iterable
+
+        return gradients
+
+    @tensor
+    def train_op(self) -> tf.Operation:
+        """Construct the training op."""
+        with tf.name_scope("trainer"):
+            step = tf.train.get_or_create_global_step()
+            return self.optimizer.apply_gradients(self.gradients, step)
+
+    @property
+    def var_list(self) -> List[tf.Variable]:
+        if self.var_scopes is None:
+            vlists = [tf.get_collection(self.var_collection)]
         else:
-            var_lists = [tf.get_collection(var_collection, scope)
-                         for scope in var_scopes]
+            vlists = [tf.get_collection(self.var_collection, scope)
+                      for scope in self.var_scopes]
 
         # Flatten the list of lists
-        self.var_list = [var for var_list in var_lists for var in var_list]
+        return [var for var_list in vlists for var in var_list]
 
-        with tf.variable_scope("trainer", reuse=tf.AUTO_REUSE):
-            step = tf.train.get_or_create_global_step()
+    @tensor
+    def summaries(self) -> Dict[str, tf.Tensor]:
 
-            if optimizer:
-                self.optimizer = optimizer
-            else:
-                self.optimizer = tf.train.AdamOptimizer(
-                    learning_rate=1e-4,
-                    beta1=0.9,
-                    beta2=0.999,
-                    epsilon=1e-08,
-                    use_locking=False)
-            # pylint: disable=protected-access
-            if isinstance(self.optimizer._lr, tf.Tensor):
-                tf.summary.scalar("learning_rate", self.optimizer._lr,
-                                  collections=["summary_train"])
-            # pylint: enable=protected-access
-
-            with tf.name_scope("regularization"):
-                regularizable = [v for v in tf.trainable_variables()
-                                 if not BIAS_REGEX.findall(v.name)
-                                 and not v.name.startswith("vgg")
-                                 and not v.name.startswith("Inception")
-                                 and not v.name.startswith("resnet")]
-                l1_value = sum(tf.reduce_sum(abs(v)) for v in regularizable)
-                l1_cost = l1_weight * l1_value if l1_weight > 0 else 0.0
-
-                l2_value = sum(tf.reduce_sum(v ** 2) for v in regularizable)
-                l2_cost = l2_weight * l2_value if l2_weight > 0 else 0.0
-
-            # unweighted losses for fetching
-            self.losses = [o.loss for o in objectives] + [l1_value, l2_value]
-            tf.summary.scalar("train_l1", l1_value,
+        # pylint: disable=protected-access
+        if isinstance(self.optimizer._lr, tf.Tensor):
+            tf.summary.scalar("learning_rate", self.optimizer._lr,
                               collections=["summary_train"])
-            tf.summary.scalar("train_l2", l2_value,
+        # pylint: enable=protected-access
+
+        # pylint: disable=unpacking-non-sequence
+        l1_norm, l2_norm = self.regularization_losses
+        # pylint: enable=unpacking-non-sequence
+        tf.summary.scalar("train_l1", l1_norm, collections=["summary_train"])
+        tf.summary.scalar("train_l2", l2_norm, collections=["summary_train"])
+
+        for obj in self.objectives:
+            tf.summary.scalar(obj.name, obj.loss,
                               collections=["summary_train"])
 
-            # log all objectives
-            for obj in objectives:
-                tf.summary.scalar(
-                    obj.name, obj.loss, collections=["summary_train"])
+        tf.summary.scalar("train_opt_cost", self.differentiable_loss_sum,
+                          collections=["summary_train"])
 
-            # if the objective does not have its own gradients,
-            # just use TF to do the derivative
-            with tf.name_scope("gradient_collection"):
-                differentiable_loss_sum = sum(
-                    (o.weight if o.weight is not None else 1) * o.loss
-                    for o in objectives
-                    if o.gradients is None) + l1_cost + l2_cost
-                implicit_gradients = self._get_gradients(
-                    differentiable_loss_sum)
+        # pylint: disable=not-an-iterable
+        # Pylint does not understand @tensor annotations
+        for grad, var in self.gradients:
+            if grad is not None:
+                summary_name = "gr_{}".format(var.name)
+                tf.summary.histogram(
+                    summary_name, grad, collections=["summary_gradients"])
+        # pylint: enable=not-an-iterable
 
-                # objectives that have their gradients explictly computed
-                other_gradients = [
-                    _scale_gradients(o.gradients, o.weight)
-                    for o in objectives if o.gradients is not None]
+        return {
+            "scalar_summaries": tf.summary.merge(
+                tf.get_collection("summary_train")),
+            "histogram_summaries": tf.summary.merge(
+                tf.get_collection("summary_gradients"))}
 
-                if other_gradients:
-                    gradients = _sum_gradients(
-                        [implicit_gradients] + other_gradients)
-                else:
-                    gradients = implicit_gradients
-
-                tf.summary.scalar("train_opt_cost",
-                                  differentiable_loss_sum,
-                                  collections=["summary_train"])
-
-            if clip_norm:
-                assert clip_norm > 0.0
-                gradients = [(tf.clip_by_norm(grad, clip_norm), var)
-                             for grad, var in gradients
-                             if grad is not None]
-
-            self.all_coders = set.union(*(obj.decoder.get_dependencies()
-                                          for obj in objectives))
-
-            self.train_op = self.optimizer.apply_gradients(
-                gradients, global_step=step)
-
-            for grad, var in gradients:
-                if grad is not None:
-                    tf.summary.histogram(
-                        "gr_{}".format(var.name),
-                        grad, collections=["summary_gradients"])
-
-            self.histogram_summaries = tf.summary.merge(
-                tf.get_collection("summary_gradients"))
-            self.scalar_summaries = tf.summary.merge(
-                tf.get_collection("summary_train"))
-
-    def _get_gradients(self, tensor: tf.Tensor) -> Gradients:
-        gradient_list = self.optimizer.compute_gradients(tensor, self.var_list)
-        return gradient_list
-
-    def get_executable(
-            self, compute_losses=True, summaries=True,
-            num_sessions=1) -> Executable:
+    def get_executable(self,
+                       compute_losses: bool = True,
+                       summaries: bool = True,
+                       num_sessions: int = 1) -> Executable:
         assert compute_losses
+        if num_sessions != 1:
+            raise ValueError(
+                "Trainer only supports execution in a single session")
 
-        return TrainExecutable(self.all_coders,
-                               num_sessions,
-                               self.train_op,
-                               self.losses,
-                               self.scalar_summaries if summaries else None,
-                               self.histogram_summaries if summaries else None)
-
-
-def _sum_gradients(gradients_list: List[Gradients]) -> Gradients:
-    summed_dict = {}  # type: Dict[tf.Variable, tf.Tensor]
-    for gradients in gradients_list:
-        for tensor, var in gradients:
-            if tensor is not None:
-                if var not in summed_dict:
-                    summed_dict[var] = tensor
-                else:
-                    summed_dict[var] += tensor
-    return [(tensor, var) for var, tensor in summed_dict.items()]
-
-
-def _scale_gradients(gradients: Gradients,
-                     weight: ObjectiveWeight) -> Gradients:
-
-    result = []  # type: Gradients
-    for tensor, var in gradients:
-        if weight is not None and tensor is not None:
-            result.append((weight * tensor, var))
-        else:
-            result.append((tensor, var))
-
-    return result
+        return TrainExecutable(self, summaries)
 
 
 class TrainExecutable(Executable):
 
-    def __init__(self, all_coders, num_sessions,
-                 train_op, losses, scalar_summaries,
-                 histogram_summaries):
-        self.all_coders = all_coders
-        self.num_sessions = num_sessions
-        self.train_op = train_op
-        self.losses = losses
-        self.scalar_summaries = scalar_summaries
-        self.histogram_summaries = histogram_summaries
-
-        self.result = None
+    def __init__(self, trainer: GenericTrainer, summaries: bool) -> None:
+        self.trainer = trainer
+        self.summaries = summaries
+        self.result = None  # type: Optional[ExecutionResult]
 
     def next_to_execute(self) -> NextExecute:
-        fetches = {"train_op": self.train_op}
-        if self.scalar_summaries is not None:
-            fetches["scalar_summaries"] = self.scalar_summaries
-            fetches["histogram_summaries"] = self.histogram_summaries
-        fetches["losses"] = self.losses
+        fetches = {"train_op": self.trainer.train_op}
+
+        if self.summaries:
+            fetches.update(self.trainer.summaries)
+
+        fetches["losses"] = self.trainer.objective_values
         fetches["_update_ops"] = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
 
-        return self.all_coders, fetches, [{} for _ in range(self.num_sessions)]
+        return self.trainer.all_coders, fetches, [{}]
 
     def collect_results(self, results: List[Dict]) -> None:
-        if self.scalar_summaries is None:
-            scalar_summaries = None
-            histogram_summaries = None
-        else:
-            # TODO collect summaries from different sessions
-            scalar_summaries = results[0]["scalar_summaries"]
-            histogram_summaries = results[0]["histogram_summaries"]
+        assert len(results) == 1
+        result = results[0]
 
-        losses_sum = [0. for _ in self.losses]
-        for session_result in results:
-            for i in range(len(self.losses)):
-                # from the end, losses are last ones
-                losses_sum[i] += session_result["losses"][i]
-        avg_losses = [s / len(results) for s in losses_sum]
+        scalar_summaries = (
+            result["scalar_summaries"] if self.summaries else None)
+        histogram_summaries = (
+            result["histogram_summaries"] if self.summaries else None)
 
         self.result = ExecutionResult(
-            [], losses=avg_losses,
+            [], losses=result["losses"],
             scalar_summaries=scalar_summaries,
             histogram_summaries=histogram_summaries,
             image_summaries=None)
