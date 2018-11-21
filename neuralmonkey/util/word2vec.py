@@ -34,7 +34,7 @@ class Word2Vec:
             embedding_vectors.append(np.zeros(emb_size))
             embedding_vectors.append(np.zeros(emb_size))
             # Add placeholder for embedding of the unknown symbol
-            embedding_vectors.append(None)
+            embedding_vectors.append(np.zeros(emb_size))
 
             for line in f_data:
                 fields = line.split()

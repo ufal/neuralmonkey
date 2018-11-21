@@ -34,7 +34,8 @@ def main() -> None:
     var_list = [
         name for name, shape in
         tf.contrib.framework.list_variables(args.orig_checkpoint)
-        if name.startswith("{}/".format(args.model_part_name))]
+        if name.startswith("{}/".format(args.model_part_name))
+        and "Adam" not in name]
 
     if not var_list:
         log("No variables for model part '{}' in checkpoint '{}'.".format(
