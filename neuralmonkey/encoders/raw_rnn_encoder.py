@@ -8,7 +8,9 @@ from typeguard import check_argument_types
 from neuralmonkey.encoders.recurrent import (
     RNNSpecTuple, _make_rnn_spec, _make_rnn_cell)
 # pylint: enable=protected-access
-from neuralmonkey.model.model_part import ModelPart, FeedDict, InitializerSpecs
+from neuralmonkey.model.feedable import FeedDict
+from neuralmonkey.model.parameterized import InitializerSpecs
+from neuralmonkey.model.model_part import ModelPart
 from neuralmonkey.model.stateful import TemporalStatefulWithOutput
 from neuralmonkey.logging import log
 from neuralmonkey.nn.utils import dropout

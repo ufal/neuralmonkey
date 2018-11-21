@@ -1,11 +1,12 @@
-from typing import Tuple, List, Union, Callable, cast, Set, NamedTuple
+from typing import Tuple, List, Union, Callable, NamedTuple
 
 import tensorflow as tf
 from typeguard import check_argument_types
 
 from neuralmonkey.model.stateful import (
     TemporalStatefulWithOutput, TemporalStateful)
-from neuralmonkey.model.model_part import ModelPart, InitializerSpecs
+from neuralmonkey.model.parameterized import InitializerSpecs
+from neuralmonkey.model.model_part import ModelPart
 from neuralmonkey.logging import warn
 from neuralmonkey.nn.ortho_gru_cell import OrthoGRUCell, NematusGRUCell
 from neuralmonkey.nn.utils import dropout
@@ -193,16 +194,6 @@ class RecurrentEncoder(ModelPart, TemporalStatefulWithOutput):
         # pylint: disable=unsubscriptable-object
         return self.rnn[1]
         # pylint: enable=unsubscriptable-object
-
-    def get_dependencies(self) -> Set[ModelPart]:
-        """Collect recusively all encoders and decoders."""
-        deps = ModelPart.get_dependencies(self)
-
-        # feed only if needed
-        if isinstance(self.input_sequence, ModelPart):
-            feedable = cast(ModelPart, self.input_sequence)
-            deps = deps.union(feedable.get_dependencies())
-        return deps
 
 
 class SentenceEncoder(RecurrentEncoder):

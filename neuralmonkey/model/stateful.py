@@ -12,13 +12,14 @@ There are also classes that inherit from both stateful and temporal or spatial
 stateful (e.g. `TemporalStatefulWithOutput`) that can be used for model parts
 that satisfy more requirements (e.g. recurrent encoder).
 """
-from abc import ABCMeta, abstractproperty
+from abc import abstractproperty
 import tensorflow as tf
+from neuralmonkey.model.model_part import GenericModelPart
 
 
 # pylint: disable=too-few-public-methods
 # pydocstyle: disable=
-class Stateful(metaclass=ABCMeta):
+class Stateful(GenericModelPart):
     @abstractproperty
     def output(self) -> tf.Tensor:
         """Return the object output.
@@ -30,7 +31,7 @@ class Stateful(metaclass=ABCMeta):
 # pylint: enable=too-few-public-methods
 
 
-class TemporalStateful(metaclass=ABCMeta):
+class TemporalStateful(GenericModelPart):
     @abstractproperty
     def temporal_states(self) -> tf.Tensor:
         """Return object states in time.
@@ -66,7 +67,7 @@ class TemporalStateful(metaclass=ABCMeta):
         return self.temporal_states.get_shape()[-1].value
 
 
-class SpatialStateful(metaclass=ABCMeta):
+class SpatialStateful(GenericModelPart):
     @property
     def spatial_states(self) -> tf.Tensor:
         """Return object states in space.

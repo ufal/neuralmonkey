@@ -296,10 +296,10 @@ def training_loop(tf_manager: TensorFlowManager,
                                 rnrs = runners + trainers  # type: ignore
                                 # TODO: refactor trainers/runners so that they
                                 # have the same API predecessor
-                                all_coders = set.union(
-                                    *[rnr.all_coders
+                                parameterizeds = set.union(
+                                    *[rnr.parameterizeds
                                       for rnr in rnrs])
-                                for coder in all_coders:
+                                for coder in parameterizeds:
                                     for session in tf_manager.sessions:
                                         coder.save(session)
                             else:

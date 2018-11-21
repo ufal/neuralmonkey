@@ -20,9 +20,10 @@ from neuralmonkey.decoders.autoregressive import (
     AutoregressiveDecoder, LoopState, DecoderFeedables)
 from neuralmonkey.encoders.transformer import (
     TransformerLayer, position_signal)
-from neuralmonkey.model.sequence import EmbeddedSequence
 from neuralmonkey.logging import log, warn
-from neuralmonkey.model.model_part import ModelPart, InitializerSpecs
+from neuralmonkey.model.sequence import EmbeddedSequence
+from neuralmonkey.model.parameterized import InitializerSpecs
+from neuralmonkey.model.model_part import ModelPart
 from neuralmonkey.nn.utils import dropout
 from neuralmonkey.vocabulary import (
     Vocabulary, PAD_TOKEN_INDEX, END_TOKEN_INDEX)

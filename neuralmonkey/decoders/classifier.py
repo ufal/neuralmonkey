@@ -5,7 +5,9 @@ from typeguard import check_argument_types
 
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.vocabulary import Vocabulary
-from neuralmonkey.model.model_part import ModelPart, FeedDict, InitializerSpecs
+from neuralmonkey.model.feedable import FeedDict
+from neuralmonkey.model.parameterized import InitializerSpecs
+from neuralmonkey.model.model_part import ModelPart
 from neuralmonkey.model.stateful import Stateful
 from neuralmonkey.nn.mlp import MultilayerPerceptron
 from neuralmonkey.decorators import tensor

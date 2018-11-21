@@ -5,7 +5,8 @@ import tensorflow as tf
 from typeguard import check_argument_types
 
 from neuralmonkey.logging import log, warn
-from neuralmonkey.model.model_part import ModelPart
+from neuralmonkey.model.feedable import Feedable
+from neuralmonkey.model.model_part import GenericModelPart
 from neuralmonkey.runners.base_runner import (
     BaseRunner, Executable, ExecutionResult, NextExecute, FeedDict)
 from neuralmonkey.experiment import Experiment
@@ -14,21 +15,21 @@ from neuralmonkey.experiment import Experiment
 class TensorExecutable(Executable):
 
     def __init__(self,
-                 all_coders: Set[ModelPart],
+                 feedables: Set[Feedable],
                  fetches: FeedDict,
                  batch_dims: Dict[str, int],
                  select_session: Optional[int],
                  single_tensor: bool) -> None:
-        self._all_coders = all_coders
+        self._feedables = feedables
         self._fetches = fetches
         self._batch_dims = batch_dims
         self._select_session = select_session
         self._single_tensor = single_tensor
 
-        self.result = None  # type: Optional[ExecutionResult]
+        self._result = None  # type: Optional[ExecutionResult]
 
     def next_to_execute(self) -> NextExecute:
-        return self._all_coders, self._fetches, []
+        return self._feedables, self._fetches, []
 
     def collect_results(self, results: List[Dict]) -> None:
         if len(results) > 1 and self._select_session is None:
@@ -46,7 +47,7 @@ class TensorExecutable(Executable):
         else:
             batched = self._fetch_values_from_session(results[0])
 
-        self.result = ExecutionResult(
+        self._result = ExecutionResult(
             outputs=batched,
             losses=[],
             scalar_summaries=None,
@@ -79,7 +80,7 @@ class TensorExecutable(Executable):
         return batched
 
 
-class TensorRunner(BaseRunner[ModelPart]):
+class TensorRunner(BaseRunner[GenericModelPart]):
     """Runner class for printing tensors from a model.
 
     Use this runner if you want to retrieve a specific tensor from the model
@@ -90,7 +91,7 @@ class TensorRunner(BaseRunner[ModelPart]):
     # pylint: disable=too-many-arguments
     def __init__(self,
                  output_series: str,
-                 toplevel_modelpart: ModelPart,
+                 toplevel_modelpart: GenericModelPart,
                  toplevel_tensors: List[tf.Tensor],
                  tensors_by_name: List[str],
                  tensors_by_ref: List[tf.Tensor],
@@ -108,9 +109,9 @@ class TensorRunner(BaseRunner[ModelPart]):
 
         Args:
             output_series: The name of the generated output data series.
-            toplevel_modelpart: A ``ModelPart`` object that is used as the
-                top-level component of the model. This object should depend on
-                values of all the wanted tensors.
+            toplevel_modelpart: A ``GenericModelPart`` object that is used as
+                the top-level component of the model. This object should depend
+                on values of all the wanted tensors.
             toplevel_tensors: A list of tensors that should be constructed. Use
                 this when the toplevel model part does not depend on this
                 tensor. The tensors are constructed during running this
@@ -133,7 +134,8 @@ class TensorRunner(BaseRunner[ModelPart]):
                 tensor names to NumPy arrays.
         """
         check_argument_types()
-        BaseRunner[ModelPart].__init__(self, output_series, toplevel_modelpart)
+        BaseRunner[GenericModelPart].__init__(
+            self, output_series, toplevel_modelpart)
 
         total_tensors = len(tensors_by_name) + len(tensors_by_ref)
         if single_tensor and total_tensors > 1:
@@ -175,7 +177,7 @@ class TensorRunner(BaseRunner[ModelPart]):
             self._batch_ids[tensor.name] = bid
 
         return TensorExecutable(
-            self.all_coders, self._fetches, self._batch_ids,
+            self.feedables, self._fetches, self._batch_ids,
             self._select_session, self._single_tensor)
     # pylint: enable=unused-argument
 
@@ -193,14 +195,15 @@ class RepresentationRunner(TensorRunner):
 
     def __init__(self,
                  output_series: str,
-                 encoder: ModelPart,
+                 encoder: GenericModelPart,
                  attribute: str = "output",
                  select_session: int = None) -> None:
         """Initialize the representation runner.
 
         Args:
             output_series: Name of the output series with vectors.
-            encoder: The encoder to use. This can be any ``ModelPart`` object.
+            encoder: The encoder to use. This can be any ``GenericModelPart``
+                object.
             attribute: The name of the encoder attribute that contains the
                 data.
             used_session: Id of the TensorFlow session used in case of model
@@ -210,7 +213,7 @@ class RepresentationRunner(TensorRunner):
 
         if not hasattr(encoder, attribute):
             raise TypeError("The encoder '{}' does not have the specified "
-                            "attribute '{}'".format(encoder.name, attribute))
+                            "attribute '{}'".format(encoder, attribute))
 
         tensor_to_get = getattr(encoder, attribute)
 

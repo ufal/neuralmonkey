@@ -1,10 +1,9 @@
-from typing import Set, cast
-
 import tensorflow as tf
 from typeguard import check_argument_types
 
 from neuralmonkey.model.stateful import TemporalStatefulWithOutput
-from neuralmonkey.model.model_part import ModelPart, InitializerSpecs
+from neuralmonkey.model.parameterized import InitializerSpecs
+from neuralmonkey.model.model_part import ModelPart
 from neuralmonkey.nn.utils import dropout
 from neuralmonkey.decorators import tensor
 from neuralmonkey.attention.base_attention import (
@@ -102,13 +101,3 @@ class AttentiveEncoder(ModelPart, TemporalStatefulWithOutput):
                                      name="output_projection")
 
         return output
-
-    def get_dependencies(self) -> Set[ModelPart]:
-        deps = ModelPart.get_dependencies(self)
-
-        # feed only if needed
-        if isinstance(self.input_sequence, ModelPart):
-            feedable = cast(ModelPart, self.input_sequence)
-            deps |= feedable.get_dependencies()
-
-        return deps

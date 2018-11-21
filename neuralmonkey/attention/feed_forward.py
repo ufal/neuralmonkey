@@ -13,9 +13,10 @@ from neuralmonkey.attention.base_attention import (
     BaseAttention, AttentionLoopState, empty_attention_loop_state,
     get_attention_states, get_attention_mask, Attendable)
 from neuralmonkey.decorators import tensor
-from neuralmonkey.nn.utils import dropout
 from neuralmonkey.logging import log
-from neuralmonkey.model.model_part import InitializerSpecs, ModelPart
+from neuralmonkey.model.model_part import ModelPart
+from neuralmonkey.model.parameterized import InitializerSpecs
+from neuralmonkey.nn.utils import dropout
 from neuralmonkey.tf_utils import get_variable
 
 

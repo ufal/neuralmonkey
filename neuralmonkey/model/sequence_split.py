@@ -1,11 +1,12 @@
 """Split temporal states such that the sequence is n-times longer."""
-from typing import Callable, Set
+from typing import Callable, List
 import tensorflow as tf
 from typeguard import check_argument_types
 
 from neuralmonkey.decorators import tensor
 from neuralmonkey.dataset import Dataset
-from neuralmonkey.model.model_part import ModelPart, FeedDict
+from neuralmonkey.model.feedable import FeedDict
+from neuralmonkey.model.model_part import ModelPart
 from neuralmonkey.model.stateful import TemporalStateful
 
 
@@ -20,7 +21,7 @@ class SequenceSplitter(TemporalStateful, ModelPart):
             factor: int,
             projection_size: int = None,
             projection_activation: Activation = None) -> None:
-        """Initialize SetenceSplitter.
+        """Initialize SentenceSplitter.
 
         Args:
             parent: TemporalStateful whose states will be split.
@@ -71,14 +72,12 @@ class SequenceSplitter(TemporalStateful, ModelPart):
         return tf.squeeze(
             split_by_factor(double_mask, self.batch_size, self.factor), axis=2)
 
-    def feed_dict(self, dataset: Dataset, train: bool) -> FeedDict:
+    def feed_dict(self, dataset: Dataset, train: bool = True) -> FeedDict:
         return ModelPart.feed_dict(self, dataset, train)
 
-    def get_dependencies(self) -> Set[ModelPart]:
-        deps = set([self])  # type: Set[ModelPart]
-        if isinstance(self.parent, ModelPart):
-            deps = deps.union(self.parent.get_dependencies())
-        return deps
+    @property
+    def dependencies(self) -> List[str]:
+        return super().dependencies + ["parent"]
 
 
 def split_by_factor(

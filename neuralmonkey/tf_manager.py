@@ -20,10 +20,12 @@ from typeguard import check_argument_types
 
 from neuralmonkey.logging import log
 from neuralmonkey.dataset import Dataset
+from neuralmonkey.model.feedable import Feedable
 # pylint: disable=unused-import
 from neuralmonkey.runners.base_runner import FeedDict
 # pylint: enable=unused-import
-from neuralmonkey.runners.base_runner import BaseRunner, ExecutionResult
+from neuralmonkey.runners.base_runner import (
+    BaseRunner, ExecutionResult, Executable)
 from neuralmonkey.trainers.generic_trainer import GenericTrainer
 from neuralmonkey.trainers.multitask_trainer import MultitaskTrainer
 
@@ -176,9 +178,9 @@ class TensorFlowManager:
 
     # pylint: disable=too-many-locals
     def _run_executables(self,
-                         batch,
-                         executables,
-                         train) -> None:
+                         batch: Dataset,
+                         executables: List[Executable],
+                         train: bool) -> None:
         all_feedables = set()  # type: Set[Any]
         all_tensors_to_execute = {}
 
@@ -288,11 +290,16 @@ class TensorFlowManager:
         # TODO warn when link does not exist
         self.restore(self.variables_files[self.best_score_index])
 
-    def initialize_model_parts(self, runners, save=False) -> None:
+    def initialize_model_parts(
+            self, runners: List[Any], save: bool = False) -> None:
         """Initialize model parts variables from their checkpoints."""
 
-        all_coders = set.union(*[rnr.all_coders for rnr in runners])
-        for coder in all_coders:
+        if any(not hasattr(r, "parameterizeds") for r in runners):
+            raise TypeError(
+                "Args to initialize_model_parts must be trainers or runners")
+
+        parameterizeds = set.union(*[rnr.parameterizeds for rnr in runners])
+        for coder in parameterizeds:
             for session in self.sessions:
                 coder.load(session)
 
@@ -300,7 +307,7 @@ class TensorFlowManager:
             self.save(self.variables_files[0])
 
 
-def _feed_dicts(dataset, coders, train=False):
+def _feed_dicts(dataset: Dataset, coders: Set[Feedable], train: bool = False):
     """Feed the coders with data from dataset.
 
     This function ensures all encoder and decoder objects feed their the data
@@ -314,5 +321,5 @@ def _feed_dicts(dataset, coders, train=False):
     return res
 
 
-def get_default_tf_manager():
+def get_default_tf_manager() -> TensorFlowManager:
     return TensorFlowManager(num_sessions=1, num_threads=4)

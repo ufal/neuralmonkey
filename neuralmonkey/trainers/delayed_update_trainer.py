@@ -184,7 +184,7 @@ class DelayedTrainExecutable(Executable):
     def __init__(self, trainer: DelayedUpdateTrainer, summaries: bool) -> None:
         self.trainer = trainer
         self.summaries = summaries
-        self.result = None  # type: Optional[ExecutionResult]
+        self._result = None  # type: Optional[ExecutionResult]
 
         self.state = 0
         self.res_hist_sums = None
@@ -197,7 +197,7 @@ class DelayedTrainExecutable(Executable):
             fetches = {"accumulators": self.trainer.accumulate_ops,
                        "counter": self.trainer.cumulator_counter,
                        "losses": self.trainer.objective_values}
-            coders = self.trainer.all_coders
+            coders = self.trainer.feedables
 
         elif self.state == 1:  # UPDATING
             fetches = {
@@ -207,7 +207,7 @@ class DelayedTrainExecutable(Executable):
             if self.summaries:
                 fetches.update(self.trainer.summaries)
 
-            coders = self.trainer.all_coders
+            coders = self.trainer.feedables
 
         else:  # RESETTING
             fetches = {"resets": self.trainer.reset_ops}
@@ -237,7 +237,7 @@ class DelayedTrainExecutable(Executable):
             return
 
         assert self.res_losses is not None
-        self.result = ExecutionResult(
+        self._result = ExecutionResult(
             [], losses=self.res_losses,
             scalar_summaries=self.res_scal_sums,
             histogram_summaries=self.res_hist_sums,

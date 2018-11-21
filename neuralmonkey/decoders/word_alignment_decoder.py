@@ -8,7 +8,9 @@ from neuralmonkey.dataset import Dataset
 from neuralmonkey.encoders.recurrent import RecurrentEncoder
 from neuralmonkey.decoders.decoder import Decoder
 from neuralmonkey.logging import warn
-from neuralmonkey.model.model_part import ModelPart, FeedDict, InitializerSpecs
+from neuralmonkey.model.feedable import FeedDict
+from neuralmonkey.model.parameterized import InitializerSpecs
+from neuralmonkey.model.model_part import ModelPart
 from neuralmonkey.model.sequence import Sequence
 from neuralmonkey.decorators import tensor
 

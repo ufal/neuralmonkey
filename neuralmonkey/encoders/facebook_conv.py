@@ -7,12 +7,13 @@ import tensorflow as tf
 import numpy as np
 from typeguard import check_argument_types
 
-from neuralmonkey.model.model_part import ModelPart, InitializerSpecs
-from neuralmonkey.logging import log
 from neuralmonkey.decorators import tensor
-from neuralmonkey.nn.projection import glu
+from neuralmonkey.logging import log
+from neuralmonkey.model.model_part import ModelPart
+from neuralmonkey.model.parameterized import InitializerSpecs
 from neuralmonkey.model.sequence import EmbeddedSequence
 from neuralmonkey.model.stateful import TemporalStatefulWithOutput
+from neuralmonkey.nn.projection import glu
 from neuralmonkey.tf_utils import get_variable
 
 

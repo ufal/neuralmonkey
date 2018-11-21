@@ -24,7 +24,7 @@ def check_dataset_and_coders(dataset: Dataset,
 
     data_list = []
     for runner in runners:
-        for c in runner.all_coders:
+        for c in runner.feedables:
             if hasattr(c, "data_id"):
                 data_list.append((getattr(c, "data_id"), c))
             elif hasattr(c, "data_ids"):
@@ -53,7 +53,7 @@ def check_dataset_and_coders(dataset: Dataset,
             missing.append((coder, serie))
 
     if missing:
-        formated = ["{} ({}, {}.{})" .format(serie, cod.name,
+        formated = ["{} ({}, {}.{})" .format(serie, str(cod),
                                              cod.__class__.__module__,
                                              cod.__class__.__name__)
                     for cod, serie in missing]

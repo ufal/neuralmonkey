@@ -7,7 +7,8 @@ from neuralmonkey.attention.base_attention import (
     BaseAttention, AttentionLoopState, empty_attention_loop_state)
 from neuralmonkey.model.stateful import Stateful
 from neuralmonkey.decorators import tensor
-from neuralmonkey.model.model_part import InitializerSpecs, ModelPart
+from neuralmonkey.model.model_part import ModelPart
+from neuralmonkey.model.parameterized import InitializerSpecs
 
 
 class StatefulContext(BaseAttention):

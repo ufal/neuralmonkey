@@ -2,9 +2,7 @@
 
 Described in Vaswani et al. (2017), arxiv.org/abs/1706.03762
 """
-# pylint: disable=unused-import
-from typing import Set, Optional, List
-# pylint: enable=unused-import
+from typing import List
 
 import math
 import tensorflow as tf
@@ -15,7 +13,8 @@ from neuralmonkey.attention.base_attention import (
 from neuralmonkey.decorators import tensor
 from neuralmonkey.attention.scaled_dot_product import attention
 from neuralmonkey.logging import log
-from neuralmonkey.model.model_part import ModelPart, InitializerSpecs
+from neuralmonkey.model.parameterized import InitializerSpecs
+from neuralmonkey.model.model_part import ModelPart
 from neuralmonkey.model.stateful import (TemporalStateful,
                                          TemporalStatefulWithOutput)
 from neuralmonkey.nn.utils import dropout
@@ -320,13 +319,10 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
     def temporal_mask(self) -> tf.Tensor:
         return self.input_sequence.temporal_mask
 
-    def get_dependencies(self) -> Set[ModelPart]:
-        """Collect recusively all inputs."""
-        to_return = ModelPart.get_dependencies(self)
+    @property
+    def dependencies(self) -> List[str]:
+        deps = super().dependencies
 
-        if (self.input_for_cross_attention is not None
-                and isinstance(self.input_for_cross_attention, ModelPart)):
-            to_return = to_return.union(
-                self.input_for_cross_attention.get_dependencies())
-
-        return to_return
+        if self.input_for_cross_attention is not None:
+            return deps + ["input_for_cross_attention"]
+        return deps
