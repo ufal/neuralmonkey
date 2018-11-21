@@ -232,7 +232,8 @@ def training_loop(tf_manager: TensorFlowManager,
                                     last_log_time):
                     train_results, train_outputs = run_on_dataset(
                         tf_manager, runners, batch, postprocess,
-                        write_out=False, batch_size=runners_batch_size)
+                        write_out=False,
+                        batching_scheme=runners_batching_scheme)
                     # ensure train outputs are iterable more than once
                     train_outputs = {
                         k: list(v) for k, v in train_outputs.items()}

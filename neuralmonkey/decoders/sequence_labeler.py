@@ -153,7 +153,7 @@ class EmbeddingsLabeler(SequenceLabeler):
         states_dim = self.states.get_shape()[-1].value
         embedding_dim = self.embedded_sequence.embedding_sizes[0]
         if states_dim != embedding_dim:
-           states = tf.layers.dense(
+            states = tf.layers.dense(
                 states, embedding_dim, name="project_for_embeddings")
 
         reshaped_states = tf.reshape(states, [-1, embedding_dim])
