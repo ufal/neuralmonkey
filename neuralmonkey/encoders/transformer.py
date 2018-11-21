@@ -79,6 +79,7 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
                  n_cross_att_heads: int = None,
                  mask_left_context: bool = False,
                  mask_right_context: bool = False,
+                 share_parameters_across_layers: bool = False,
                  reuse: ModelPart = None,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None,
@@ -137,6 +138,7 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
         self.n_cross_att_heads = n_cross_att_heads
         self.mask_left_context = mask_left_context
         self.mask_right_context = mask_right_context
+        self.share_parameters_across_layers = share_parameters_across_layers
 
         if self.depth <= 0:
             raise ValueError("Depth must be a positive integer.")
@@ -308,7 +310,11 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
         # Compute the outputs of the previous layer
         prev_layer = self.layer(level - 1)
 
-        with tf.variable_scope("layer_{}".format(level - 1)):
+        var_scope = "layer_{}".format(level - 1)
+        if self.share_parameters_across_layers:
+            var_scope = "layer"
+
+        with tf.variable_scope(var_scope, reuse=tf.AUTO_REUSE):
             with tf.variable_scope("self_attention"):
                 self_context = self.self_attention_sublayer(prev_layer)
 
