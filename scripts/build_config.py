@@ -8,6 +8,7 @@ generating a vocabulary from a dataset, without the need to run the model.
 import argparse
 import collections
 from typing import Any, Dict
+from inspect import signature
 
 import neuralmonkey
 from neuralmonkey.config.parsing import parse_file
@@ -49,10 +50,16 @@ def _patch_config_builder():
         if isinstance(value, ObjectRef):
             if value.name not in existing_objects:
                 clazz = all_dicts[value.name]["class"]
+                sig = signature(clazz.create())
+                cfg_args = all_dicts[value.name]
+
+                if "name" in sig.parameters and "name" not in cfg_args:
+                    cfg_args["name"] = value.name
+
                 args = [
                     "\n    {}={}".format(key, build_object(
                         val, all_dicts, existing_objects, depth + 1))
-                    for key, val in all_dicts[value.name].items()
+                    for key, val in cfg_args.items()
                     if key != "class"
                 ]
                 statements.append(
