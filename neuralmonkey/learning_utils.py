@@ -200,6 +200,10 @@ def training_loop(tf_manager: TensorFlowManager,
         except tf.errors.NotFoundError:
             warn("Some variables were not found in checkpoint.)")
 
+    # Ignoring type. Mypy complains about summing runner and trainer lists.
+    feedables = set.union(
+        *[ex.feedables for ex in runners + trainers])  # type: ignore
+
     if log_directory:
         log("Initializing TensorBoard summary writer.")
         tb_writer = tf.summary.FileWriter(
@@ -231,7 +235,7 @@ def training_loop(tf_manager: TensorFlowManager,
                 if _is_logging_time(log_period_batch, log_period_time,
                                     last_log_time):
                     trainer_result = tf_manager.execute(
-                        batch, trainers, train=True, summaries=True)
+                        batch, feedables, trainers, train=True, summaries=True)
                     train_results, train_outputs = run_on_dataset(
                         tf_manager, runners, batch, postprocess,
                         write_out=False,
@@ -249,8 +253,8 @@ def training_loop(tf_manager: TensorFlowManager,
                         train=True)
                     last_log_time = time.process_time()
                 else:
-                    tf_manager.execute(
-                        batch, trainers, train=True, summaries=False)
+                    tf_manager.execute(batch, feedables, trainers, train=True,
+                                       summaries=False)
 
                 if _is_logging_time(val_period_batch, val_period_time,
                                     last_val_time):
@@ -453,6 +457,8 @@ def run_on_dataset(tf_manager: TensorFlowManager,
     last_log_time = time.process_time()
     batch_results = [[] for _ in runners]  # type: List[List[ExecutionResult]]
 
+    feedables = set.union(*[runner.feedables for runner in runners])
+
     processed_examples = 0
     for batch in dataset.batches(batching_scheme):
         if 0 < log_progress < time.process_time() - last_log_time:
@@ -460,7 +466,7 @@ def run_on_dataset(tf_manager: TensorFlowManager,
             last_log_time = time.process_time()
 
         execution_results = tf_manager.execute(
-            batch, runners, compute_losses=contains_targets)
+            batch, feedables, runners, compute_losses=contains_targets)
         processed_examples += len(batch)
 
         for script_list, ex_result in zip(batch_results, execution_results):

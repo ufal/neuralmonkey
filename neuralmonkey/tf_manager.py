@@ -22,13 +22,7 @@ from neuralmonkey.logging import log
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.model.feedable import Feedable
 from neuralmonkey.runners.base_runner import (
-    FeedDict, BaseRunner, ExecutionResult, Executable)
-from neuralmonkey.trainers.generic_trainer import GenericTrainer
-from neuralmonkey.trainers.multitask_trainer import MultitaskTrainer
-
-# pylint: disable=invalid-name
-Trainer = Union[GenericTrainer, MultitaskTrainer]
-# pylint: enable=invalid-name
+    FeedDict, ExecutionResult, Executable, GraphExecutor)
 
 
 class TensorFlowManager:
@@ -206,7 +200,8 @@ class TensorFlowManager:
     # pylint: disable=too-many-locals
     def execute(self,
                 batch: Dataset,
-                runners: Sequence[Union[BaseRunner, Trainer]],
+                feedables: Set[Feedable],
+                runners: Sequence[GraphExecutor],
                 train: bool = False,
                 compute_losses: bool = True,
                 summaries: bool = True) -> List[ExecutionResult]:
@@ -229,7 +224,6 @@ class TensorFlowManager:
             A list of `ExecutionResult` tuples, one for each executable
             (runner).
         """
-        feedables = set.union(*[runner.feedables for runner in runners])
         default_feed_dict = _feed_dicts(batch, feedables, train=train)
 
         executables = [runner.get_executable(compute_losses=compute_losses,
@@ -277,8 +271,8 @@ class TensorFlowManager:
         # TODO warn when link does not exist
         self.restore(self.variables_files[self.best_score_index])
 
-    def initialize_model_parts(
-            self, runners: List[Any], save: bool = False) -> None:
+    def initialize_model_parts(self, runners: Sequence[GraphExecutor],
+                               save: bool = False) -> None:
         """Initialize model parts variables from their checkpoints."""
 
         if any(not hasattr(r, "parameterizeds") for r in runners):
