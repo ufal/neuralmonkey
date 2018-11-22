@@ -253,7 +253,7 @@ class TrainExecutable(Executable):
         fetches["losses"] = self.trainer.objective_values
         fetches["_update_ops"] = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
 
-        return self.trainer.feedables, fetches, [{}]
+        return fetches, [{}]
 
     def collect_results(self, results: List[Dict]) -> None:
         assert len(results) == 1

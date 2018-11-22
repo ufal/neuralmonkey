@@ -1,11 +1,10 @@
-from typing import Dict, List, Set, Optional
+from typing import Dict, List, Optional
 
 import numpy as np
 from typeguard import check_argument_types
 
 from neuralmonkey.runners.base_runner import (
     BaseRunner, Executable, FeedDict, ExecutionResult, NextExecute)
-from neuralmonkey.model.feedable import Feedable
 from neuralmonkey.vocabulary import Vocabulary
 from neuralmonkey.decoders.ctc_decoder import CTCDecoder
 
@@ -13,18 +12,15 @@ from neuralmonkey.decoders.ctc_decoder import CTCDecoder
 class CTCDebugExecutable(Executable):
 
     def __init__(self,
-                 feedables: Set[Feedable],
                  fetches: FeedDict,
                  vocabulary: Vocabulary) -> None:
-        self._feedables = feedables
         self._fetches = fetches
         self._vocabulary = vocabulary
 
         self._result = None  # type: Optional[ExecutionResult]
 
     def next_to_execute(self) -> NextExecute:
-        """Get the feedables and tensors to run."""
-        return self._feedables, self._fetches, []
+        return self._fetches, []
 
     def collect_results(self, results: List[Dict]) -> None:
         if len(results) != 1:
@@ -68,10 +64,7 @@ class CTCDebugRunner(BaseRunner[CTCDecoder]):
                        num_sessions: int) -> CTCDebugExecutable:
         fetches = {"logits": self._decoder.logits}
 
-        return CTCDebugExecutable(
-            self.feedables,
-            fetches,
-            self._decoder.vocabulary)
+        return CTCDebugExecutable(fetches, self._decoder.vocabulary)
     # pylint: enable=unused-argument
 
     @property

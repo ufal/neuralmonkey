@@ -1,4 +1,4 @@
-from typing import Dict, List, Set, Optional, Callable, Union
+from typing import Dict, List, Optional, Callable, Union
 
 import numpy as np
 import tensorflow as tf
@@ -6,7 +6,6 @@ from typeguard import check_argument_types
 
 from neuralmonkey.runners.base_runner import (
     BaseRunner, Executable, FeedDict, ExecutionResult, NextExecute)
-from neuralmonkey.model.feedable import Feedable
 from neuralmonkey.vocabulary import Vocabulary
 from neuralmonkey.decoders.autoregressive import AutoregressiveDecoder
 from neuralmonkey.decoders.classifier import Classifier
@@ -20,11 +19,9 @@ Postprocessor = Callable[[List[List[str]]], List[List[str]]]
 class GreedyRunExecutable(Executable):
 
     def __init__(self,
-                 feedables: Set[Feedable],
                  fetches: FeedDict,
                  vocabulary: Vocabulary,
                  postprocess: Optional[Postprocessor]) -> None:
-        self._feedables = feedables
         self._fetches = fetches
         self._vocabulary = vocabulary
         self._postprocess = postprocess
@@ -32,8 +29,7 @@ class GreedyRunExecutable(Executable):
         self._result = None  # type: Optional[ExecutionResult]
 
     def next_to_execute(self) -> NextExecute:
-        """Get the feedables and tensors to run."""
-        return self._feedables, self._fetches, []
+        return self._fetches, []
 
     def collect_results(self, results: List[Dict]) -> None:
         train_loss = 0.
@@ -99,10 +95,7 @@ class GreedyRunner(BaseRunner[SupportedDecoder]):
             fetches["image_summaries"] = self.image_summaries
 
         return GreedyRunExecutable(
-            self.feedables,
-            fetches,
-            self._decoder.vocabulary,
-            self._postprocess)
+            fetches, self._decoder.vocabulary, self._postprocess)
     # pylint: enable=unused-argument
 
     @property

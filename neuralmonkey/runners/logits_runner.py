@@ -1,6 +1,6 @@
 """A runner outputing logits or normalized distriution from a decoder."""
 
-from typing import Dict, List, Set, Optional
+from typing import Dict, List, Optional
 from typeguard import check_argument_types
 
 import numpy as np
@@ -9,19 +9,16 @@ import tensorflow as tf
 from neuralmonkey.decoders.classifier import Classifier
 from neuralmonkey.runners.base_runner import (
     BaseRunner, Executable, FeedDict, ExecutionResult, NextExecute)
-from neuralmonkey.model.feedable import Feedable
 from neuralmonkey.vocabulary import Vocabulary
 
 
 class LogitsExecutable(Executable):
 
     def __init__(self,
-                 feedables: Set[Feedable],
                  fetches: FeedDict,
                  vocabulary: Vocabulary,
                  normalize: bool,
                  pick_index: Optional[int]) -> None:
-        self._feedables = feedables
         self._fetches = fetches
         self._vocabulary = vocabulary
         self._normalize = normalize
@@ -30,8 +27,7 @@ class LogitsExecutable(Executable):
         self._result = None  # type: Optional[ExecutionResult]
 
     def next_to_execute(self) -> NextExecute:
-        """Get the feedables and tensors to run."""
-        return self._feedables, self._fetches, []
+        return self._fetches, []
 
     def collect_results(self, results: List[Dict]) -> None:
         if len(results) != 1:
@@ -131,9 +127,8 @@ class LogitsRunner(BaseRunner[Classifier]):
             fetches["train_loss"] = self._decoder.train_loss
             fetches["runtime_loss"] = self._decoder.runtime_loss
 
-        return LogitsExecutable(
-            self.feedables, fetches, self._decoder.vocabulary,
-            self._normalize, self._pick_index)
+        return LogitsExecutable(fetches, self._decoder.vocabulary,
+                                self._normalize, self._pick_index)
     # pylint: enable: unused-argument
 
     @property

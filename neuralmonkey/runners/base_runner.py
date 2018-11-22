@@ -11,7 +11,7 @@ from neuralmonkey.model.parameterized import Parameterized
 
 # pylint: disable=invalid-name
 FeedDict = Dict[tf.Tensor, Union[int, float, np.ndarray]]
-NextExecute = Tuple[Set[Feedable], Union[Dict, List], List[FeedDict]]
+NextExecute = Tuple[Union[Dict, List], List[FeedDict]]
 MP = TypeVar("MP", bound=GenericModelPart)
 # pylint: enable=invalid-name
 
@@ -45,6 +45,7 @@ class Executable:
 
     @abstractmethod
     def next_to_execute(self) -> NextExecute:
+        """Get the tensors and additional feed dicts for execution."""
         raise NotImplementedError()
 
     @abstractmethod

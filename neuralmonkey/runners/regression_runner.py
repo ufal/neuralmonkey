@@ -1,11 +1,10 @@
-from typing import Dict, List, Set, Callable, Optional
+from typing import Dict, List, Callable, Optional
 
 import numpy as np
 import tensorflow as tf
 from typeguard import check_argument_types
 
 from neuralmonkey.decoders.sequence_regressor import SequenceRegressor
-from neuralmonkey.model.feedable import Feedable
 from neuralmonkey.runners.base_runner import (
     BaseRunner, Executable, ExecutionResult, NextExecute)
 
@@ -17,18 +16,15 @@ Postprocessor = Callable[[List[float]], List[float]]
 class RegressionRunExecutable(Executable):
 
     def __init__(self,
-                 feedables: Set[Feedable],
                  fetches: Dict[str, tf.Tensor],
                  postprocess: Optional[Postprocessor]) -> None:
-        self._feedables = feedables
         self._fetches = fetches
         self._postprocess = postprocess
 
         self._result = None  # type: Optional[ExecutionResult]
 
     def next_to_execute(self) -> NextExecute:
-        """Get the feedables and tensors to run."""
-        return self._feedables, self._fetches, []
+        return self._fetches, []
 
     def collect_results(self, results: List[Dict]) -> None:
         predictions_sum = np.zeros_like(results[0]["prediction"])
@@ -74,8 +70,7 @@ class RegressionRunner(BaseRunner[SequenceRegressor]):
         if compute_losses:
             fetches["mse"] = self._decoder.cost
 
-        return RegressionRunExecutable(
-            self.feedables, fetches, self._postprocess)
+        return RegressionRunExecutable(fetches, self._postprocess)
     # pylint: enable=unused-argument
 
     @property

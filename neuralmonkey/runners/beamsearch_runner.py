@@ -1,10 +1,9 @@
-from typing import Callable, List, Dict, Optional, Set
+from typing import Callable, List, Dict, Optional
 
 import scipy
 import numpy as np
 from typeguard import check_argument_types
 
-from neuralmonkey.model.feedable import Feedable
 from neuralmonkey.decoders.beam_search_decoder import BeamSearchDecoder
 from neuralmonkey.runners.base_runner import (
     BaseRunner, Executable, ExecutionResult, NextExecute)
@@ -17,13 +16,11 @@ from neuralmonkey.vocabulary import END_TOKEN_INDEX
 class BeamSearchExecutable(Executable):
     def __init__(self,
                  rank: int,
-                 feedables: Set[Feedable],
                  num_sessions: int,
                  decoder: BeamSearchDecoder,
                  postprocess: Optional[Callable]) -> None:
         self._rank = rank
         self._num_sessions = num_sessions
-        self._feedables = feedables
         self._decoder = decoder
         self._postprocess = postprocess
 
@@ -39,8 +36,7 @@ class BeamSearchExecutable(Executable):
         self._result = None  # type: Optional[ExecutionResult]
 
     def next_to_execute(self) -> NextExecute:
-        return (self._feedables, {"bs_outputs": self._decoder.outputs},
-                self._next_feed)
+        return {"bs_outputs": self._decoder.outputs}, self._next_feed
 
     def collect_results(self, results: List[Dict]) -> None:
         # Recompute logits
@@ -154,8 +150,8 @@ class BeamSearchRunner(BaseRunner[BeamSearchDecoder]):
                        compute_losses: bool = False,
                        summaries: bool = True,
                        num_sessions: int = 1) -> BeamSearchExecutable:
-        return BeamSearchExecutable(self._rank, self.feedables, num_sessions,
-                                    self._decoder, self._postprocess)
+        return BeamSearchExecutable(
+            self._rank, num_sessions, self._decoder, self._postprocess)
     # pylint: enable=unused-argument
 
     @property

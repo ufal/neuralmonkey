@@ -1,4 +1,4 @@
-from typing import Dict, List, Set, Union, Callable, Optional
+from typing import Dict, List, Union, Callable, Optional
 
 import tensorflow as tf
 from typeguard import check_argument_types
@@ -7,7 +7,6 @@ from neuralmonkey.decoders.autoregressive import AutoregressiveDecoder
 from neuralmonkey.decoders.ctc_decoder import CTCDecoder
 from neuralmonkey.decoders.classifier import Classifier
 from neuralmonkey.decoders.sequence_labeler import SequenceLabeler
-from neuralmonkey.model.feedable import Feedable
 from neuralmonkey.runners.base_runner import (
     BaseRunner, Executable, FeedDict, ExecutionResult, NextExecute)
 from neuralmonkey.vocabulary import Vocabulary
@@ -22,12 +21,10 @@ Postprocessor = Callable[[List[List[str]]], List[List[str]]]
 class PlainExecutable(Executable):
 
     def __init__(self,
-                 feedables: Set[Feedable],
                  fetches: FeedDict,
                  num_sessions: int,
                  vocabulary: Vocabulary,
                  postprocess: Optional[Postprocessor]) -> None:
-        self._feedables = feedables
         self._fetches = fetches
         self._num_sessions = num_sessions
         self._vocabulary = vocabulary
@@ -36,8 +33,7 @@ class PlainExecutable(Executable):
         self._result = None  # type: Optional[ExecutionResult]
 
     def next_to_execute(self) -> NextExecute:
-        """Get the feedables and tensors to run."""
-        return self._feedables, self._fetches, []
+        return self._fetches, []
 
     def collect_results(self, results: List[Dict]) -> None:
         if len(results) != 1:
@@ -87,8 +83,7 @@ class PlainRunner(BaseRunner[SupportedDecoder]):
             fetches["runtime_loss"] = self._decoder.runtime_loss
 
         return PlainExecutable(
-            self.feedables, fetches, num_sessions, self._decoder.vocabulary,
-            self._postprocess)
+            fetches, num_sessions, self._decoder.vocabulary, self._postprocess)
     # pylint: enable=unused-argument
 
     @property

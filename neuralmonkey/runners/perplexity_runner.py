@@ -1,4 +1,4 @@
-from typing import Dict, List, Set
+from typing import Dict, List
 # pylint: disable=unused-import
 from typing import Optional
 # pylint: enable=unused-import
@@ -7,24 +7,19 @@ from typeguard import check_argument_types
 import tensorflow as tf
 import numpy as np
 
-from neuralmonkey.model.feedable import Feedable
 from neuralmonkey.decoders.autoregressive import AutoregressiveDecoder
 from neuralmonkey.runners.base_runner import (
     BaseRunner, Executable, ExecutionResult, NextExecute)
 
 
 class PerplexityExecutable(Executable):
-    def __init__(self,
-                 feedables: Set[Feedable],
-                 xent_op: tf.Tensor) -> None:
-        self._feedables = feedables
+    def __init__(self, xent_op: tf.Tensor) -> None:
         self._xent_op = xent_op
 
         self._result = None  # type: Optional[ExecutionResult]
 
     def next_to_execute(self) -> NextExecute:
-        """Get the feedables and tensors to run."""
-        return self._feedables, {"xents": self._xent_op}, []
+        return {"xents": self._xent_op}, []
 
     def collect_results(self, results: List[Dict]) -> None:
         perplexities = np.mean([2 ** res["xents"] for res in results], axis=0)
@@ -52,7 +47,7 @@ class PerplexityRunner(BaseRunner[AutoregressiveDecoder]):
                        compute_losses: bool,
                        summaries: bool,
                        num_sessions: int) -> PerplexityExecutable:
-        return PerplexityExecutable(self.feedables, self._decoder_xent)
+        return PerplexityExecutable(self._decoder_xent)
     # pylint: enable=unused-argument
 
     @property

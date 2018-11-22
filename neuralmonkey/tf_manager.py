@@ -182,35 +182,27 @@ class TensorFlowManager:
                          feedables: Set[Feedable],
                          executables: List[Executable],
                          train: bool) -> None:
-        all_tensors_to_execute = {}
+        all_fetches = {}
 
         # We might want to feed different values to each session
         # E.g. when executing only step at a time during ensembling
         feed_dicts = [{} for _ in range(len(self.sessions))] \
             # type: List[FeedDict]
 
-        tensor_list_lengths = []  # type: List[int]
+        for executable in (ex for ex in executables if ex.result is None):
+            fetches, add_feed_dicts = executable.next_to_execute()
+            all_fetches[executable] = fetches
 
-        for executable in executables:
-            if executable.result is None:
-                (_,
-                 tensors_to_execute,
-                 add_feed_dicts) = executable.next_to_execute()
-                all_tensors_to_execute[executable] = tensors_to_execute
-                if add_feed_dicts:
-                    for fdict, add_fd in zip(feed_dicts, add_feed_dicts):
-                        fdict.update(add_fd)
-                tensor_list_lengths.append(len(tensors_to_execute))
-            else:
-                tensor_list_lengths.append(0)
+            if add_feed_dicts:
+                for fdict, add_fd in zip(feed_dicts, add_feed_dicts):
+                    fdict.update(add_fd)
 
         feed_dict = _feed_dicts(batch, feedables, train=train)
 
         for fdict in feed_dicts:
             fdict.update(feed_dict)
 
-        session_results = [sess.run(all_tensors_to_execute,
-                                    feed_dict=fd)
+        session_results = [sess.run(all_fetches, feed_dict=fd)
                            for sess, fd in zip(self.sessions, feed_dicts)]
 
         for executable in executables:

@@ -1,4 +1,4 @@
-from typing import Dict, List, Set
+from typing import Dict, List
 # pylint: disable=unused-import
 from typing import Optional
 # pylint: enable=unused-import
@@ -8,24 +8,18 @@ from typeguard import check_argument_types
 
 from neuralmonkey.attention.base_attention import BaseAttention
 from neuralmonkey.decoders.decoder import Decoder
-from neuralmonkey.model.feedable import Feedable
 from neuralmonkey.runners.base_runner import (
     BaseRunner, Executable, FeedDict, ExecutionResult, NextExecute)
 
 
 class WordAlignmentRunnerExecutable(Executable):
 
-    def __init__(self,
-                 feedables: Set[Feedable],
-                 fetches: FeedDict) -> None:
-        self._feedables = feedables
+    def __init__(self, fetches: FeedDict) -> None:
         self._fetches = fetches
-
         self._result = None  # type: Optional[ExecutionResult]
 
     def next_to_execute(self) -> NextExecute:
-        """Get the feedables and tensors to run."""
-        return self._feedables, self._fetches, []
+        return self._fetches, []
 
     def collect_results(self, results: List[Dict]) -> None:
         self._result = ExecutionResult(
@@ -60,7 +54,7 @@ class WordAlignmentRunner(BaseRunner[BaseAttention]):
         alignment = tf.transpose(att_histories, perm=[1, 2, 0])
         fetches = {"alignment": alignment}
 
-        return WordAlignmentRunnerExecutable(self.feedables, fetches)
+        return WordAlignmentRunnerExecutable(fetches)
     # pylint: enable=unused-argument
 
     @property

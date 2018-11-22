@@ -1,9 +1,8 @@
-from typing import List, Dict, Set, Optional, Callable
+from typing import List, Dict, Optional, Callable
 import numpy as np
 from typeguard import check_argument_types
 
 from neuralmonkey.logging import log
-from neuralmonkey.model.feedable import Feedable
 from neuralmonkey.vocabulary import Vocabulary, END_TOKEN_INDEX
 from neuralmonkey.runners.base_runner import (
     BaseRunner, Executable, FeedDict, ExecutionResult, NextExecute)
@@ -17,11 +16,9 @@ Postprocessor = Callable[[List[List[str]]], List[List[str]]]
 class LabelRunExecutable(Executable):
 
     def __init__(self,
-                 feedables: Set[Feedable],
                  fetches: FeedDict,
                  vocabulary: Vocabulary,
                  postprocess: Optional[Postprocessor]) -> None:
-        self._feedables = feedables
         self._fetches = fetches
         self._vocabulary = vocabulary
         self._postprocess = postprocess
@@ -29,8 +26,7 @@ class LabelRunExecutable(Executable):
         self._result = None  # type: Optional[ExecutionResult]
 
     def next_to_execute(self) -> NextExecute:
-        """Get the feedables and tensors to run."""
-        return self._feedables, self._fetches, []
+        return self._fetches, []
 
     def collect_results(self, results: List[Dict]) -> None:
         loss = results[0].get("loss", 0.)
@@ -93,8 +89,7 @@ class LabelRunner(BaseRunner[SequenceLabeler]):
             fetches["loss"] = self._decoder.cost
 
         return LabelRunExecutable(
-            self.feedables, fetches, self._decoder.vocabulary,
-            self._postprocess)
+            fetches, self._decoder.vocabulary, self._postprocess)
     # pylint: enable: unused-argument
 
     @property
