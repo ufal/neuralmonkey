@@ -1,3 +1,4 @@
+from abc import abstractmethod
 from typing import (Any, Dict, Tuple, List, NamedTuple, Union, Set, TypeVar,
                     Generic, Optional)
 import numpy as np
@@ -6,6 +7,8 @@ import tensorflow as tf
 from neuralmonkey.logging import notice
 from neuralmonkey.model.model_part import GenericModelPart
 from neuralmonkey.model.feedable import Feedable
+from neuralmonkey.model.parameterized import Parameterized
+
 # pylint: disable=invalid-name
 FeedDict = Dict[tf.Tensor, Union[int, float, np.ndarray]]
 NextExecute = Tuple[Set[Feedable], Union[Dict, List], List[FeedDict]]
@@ -40,31 +43,53 @@ class Executable:
     def result(self) -> Optional[ExecutionResult]:
         return getattr(self, "_result")
 
+    @abstractmethod
     def next_to_execute(self) -> NextExecute:
         raise NotImplementedError()
 
+    @abstractmethod
     def collect_results(self, results: List[Dict]) -> None:
         raise NotImplementedError()
 
 
-class BaseRunner(Generic[MP]):
+class GraphExecutor(GenericModelPart):
+
     def __init__(self,
-                 output_series: str,
-                 decoder: MP) -> None:
-        self.output_series = output_series
-        self._decoder = decoder
+                 dependencies: Set[GenericModelPart]) -> None:
+        self._dependencies = dependencies
+        self._feedables, self._parameterizeds = self.get_dependencies()
 
-        self.feedables, self.parameterizeds = decoder.get_dependencies()
+    @property
+    def dependencies(self) -> List[str]:
+        return ["_dependencies"]
 
-        if not hasattr(decoder, "data_id"):
-            notice("Top-level decoder {} does not have the 'data_id' attribute"
-                   .format(decoder))
+    @property
+    def feedables(self) -> Set[Feedable]:
+        return self._feedables
 
+    @property
+    def parameterizeds(self) -> Set[Parameterized]:
+        return self._parameterizeds
+
+    @abstractmethod
     def get_executable(self,
                        compute_losses: bool,
                        summaries: bool,
                        num_sessions: int) -> Executable:
         raise NotImplementedError()
+
+
+class BaseRunner(GraphExecutor, Generic[MP]):
+    def __init__(self,
+                 output_series: str,
+                 decoder: MP) -> None:
+        GraphExecutor.__init__(self, {decoder})
+        self.output_series = output_series
+        self._decoder = decoder
+
+        if not hasattr(decoder, "data_id"):
+            notice("Top-level decoder {} does not have the 'data_id' attribute"
+                   .format(decoder))
 
     @property
     def decoder_data_id(self) -> Optional[str]:

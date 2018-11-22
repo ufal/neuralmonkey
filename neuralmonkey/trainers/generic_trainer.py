@@ -1,4 +1,4 @@
-from typing import Dict, List, NamedTuple, Optional, Tuple, Union, Set
+from typing import Dict, List, NamedTuple, Optional, Tuple, Union
 import re
 
 import tensorflow as tf
@@ -7,10 +7,8 @@ from typeguard import check_argument_types
 from neuralmonkey.decorators import tensor
 from neuralmonkey.logging import log
 from neuralmonkey.model.model_part import GenericModelPart
-from neuralmonkey.model.feedable import Feedable
-from neuralmonkey.model.parameterized import Parameterized
 from neuralmonkey.runners.base_runner import (
-    Executable, ExecutionResult, NextExecute)
+    GraphExecutor, Executable, ExecutionResult, NextExecute)
 
 # pylint: disable=invalid-name
 Gradients = List[Tuple[tf.Tensor, tf.Variable]]
@@ -42,7 +40,7 @@ class Objective(NamedTuple(
 
 
 # pylint: disable=too-few-public-methods,too-many-locals,too-many-arguments
-class GenericTrainer:
+class GenericTrainer(GraphExecutor):
 
     @staticmethod
     def default_optimizer():
@@ -57,6 +55,7 @@ class GenericTrainer:
                  var_scopes: List[str] = None,
                  var_collection: str = None) -> None:
         check_argument_types()
+        GraphExecutor.__init__(self, {obj.decoder for obj in objectives})
 
         self.objectives = objectives
         self.l1_weight = l1_weight
@@ -69,14 +68,6 @@ class GenericTrainer:
 
         self.optimizer = (
             optimizer if optimizer is not None else self.default_optimizer())
-
-        self.feedables = set()  # type: Set[Feedable]
-        self.parameterizeds = set()  # type: Set[Parameterized]
-
-        for obj in objectives:
-            feeds, params = obj.decoder.get_dependencies()
-            self.feedables |= feeds
-            self.parameterizeds |= params
 
         log("Train op: {}".format(str(self.train_op)))
 
