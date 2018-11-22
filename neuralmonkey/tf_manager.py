@@ -21,11 +21,8 @@ from typeguard import check_argument_types
 from neuralmonkey.logging import log
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.model.feedable import Feedable
-# pylint: disable=unused-import
-from neuralmonkey.runners.base_runner import FeedDict
-# pylint: enable=unused-import
 from neuralmonkey.runners.base_runner import (
-    BaseRunner, ExecutionResult, Executable)
+    FeedDict, BaseRunner, ExecutionResult, Executable)
 from neuralmonkey.trainers.generic_trainer import GenericTrainer
 from neuralmonkey.trainers.multitask_trainer import MultitaskTrainer
 
@@ -178,10 +175,8 @@ class TensorFlowManager:
 
     # pylint: disable=too-many-locals
     def _run_executables(self,
-                         batch: Dataset,
-                         feedables: Set[Feedable],
-                         executables: List[Executable],
-                         train: bool) -> None:
+                         feed_dict: FeedDict,
+                         executables: List[Executable]) -> None:
         all_fetches = {}
 
         # We might want to feed different values to each session
@@ -196,8 +191,6 @@ class TensorFlowManager:
             if add_feed_dicts:
                 for fdict, add_fd in zip(feed_dicts, add_feed_dicts):
                     fdict.update(add_fd)
-
-        feed_dict = _feed_dicts(batch, feedables, train=train)
 
         for fdict in feed_dicts:
             fdict.update(feed_dict)
@@ -236,16 +229,17 @@ class TensorFlowManager:
             A list of `ExecutionResult` tuples, one for each executable
             (runner).
         """
+        feedables = set.union(*[runner.feedables for runner in runners])
+        default_feed_dict = _feed_dicts(batch, feedables, train=train)
+
         executables = [runner.get_executable(compute_losses=compute_losses,
                                              summaries=summaries,
                                              num_sessions=len(self.sessions))
                        for runner in runners]
 
-        feedables = set.union(*[runner.feedables for runner in runners])
-
         # TODO refactor runner results to properties
         while not all(getattr(ex, "result") is not None for ex in executables):
-            self._run_executables(batch, feedables, executables, train)
+            self._run_executables(default_feed_dict, executables)
 
         return [getattr(ex, "result") for ex in executables]
 
