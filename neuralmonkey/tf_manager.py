@@ -179,9 +179,9 @@ class TensorFlowManager:
     # pylint: disable=too-many-locals
     def _run_executables(self,
                          batch: Dataset,
+                         feedables: Set[Feedable],
                          executables: List[Executable],
                          train: bool) -> None:
-        all_feedables = set()  # type: Set[Any]
         all_tensors_to_execute = {}
 
         # We might want to feed different values to each session
@@ -193,10 +193,9 @@ class TensorFlowManager:
 
         for executable in executables:
             if executable.result is None:
-                (feedables,
+                (_,
                  tensors_to_execute,
                  add_feed_dicts) = executable.next_to_execute()
-                all_feedables = all_feedables.union(feedables)
                 all_tensors_to_execute[executable] = tensors_to_execute
                 if add_feed_dicts:
                     for fdict, add_fd in zip(feed_dicts, add_feed_dicts):
@@ -205,7 +204,7 @@ class TensorFlowManager:
             else:
                 tensor_list_lengths.append(0)
 
-        feed_dict = _feed_dicts(batch, all_feedables, train=train)
+        feed_dict = _feed_dicts(batch, feedables, train=train)
 
         for fdict in feed_dicts:
             fdict.update(feed_dict)
@@ -250,9 +249,11 @@ class TensorFlowManager:
                                              num_sessions=len(self.sessions))
                        for runner in runners]
 
+        feedables = set.union(*[runner.feedables for runner in runners])
+
         # TODO refactor runner results to properties
         while not all(getattr(ex, "result") is not None for ex in executables):
-            self._run_executables(batch, executables, train)
+            self._run_executables(batch, feedables, executables, train)
 
         return [getattr(ex, "result") for ex in executables]
 
