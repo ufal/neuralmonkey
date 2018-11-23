@@ -1,10 +1,14 @@
 from typing import Dict, List, Optional
 
-import numpy as np
+# pylint: disable=unused-import
+# Type annotation used in comment
 import tensorflow as tf
+# pylint: enable=unused-import
+
+import numpy as np
 from typeguard import check_argument_types
 
-from neuralmonkey.logging import log, warn
+from neuralmonkey.logging import warn
 from neuralmonkey.model.model_part import GenericModelPart
 from neuralmonkey.runners.base_runner import (
     BaseRunner, Executable, ExecutionResult, NextExecute, FeedDict)
@@ -88,12 +92,11 @@ class TensorRunner(BaseRunner[GenericModelPart]):
     # pylint: disable=too-many-arguments
     def __init__(self,
                  output_series: str,
-                 toplevel_modelpart: GenericModelPart,
-                 toplevel_tensors: List[tf.Tensor],
+                 modelparts: List[GenericModelPart],
+                 tensors: List[str],
+                 batch_dims: List[int],
                  tensors_by_name: List[str],
-                 tensors_by_ref: List[tf.Tensor],
                  batch_dims_by_name: List[int],
-                 batch_dims_by_ref: List[int],
                  select_session: int = None,
                  single_tensor: bool = False) -> None:
         """Construct a new ``TensorRunner`` object.
@@ -106,21 +109,16 @@ class TensorRunner(BaseRunner[GenericModelPart]):
 
         Args:
             output_series: The name of the generated output data series.
-            toplevel_modelpart: A ``GenericModelPart`` object that is used as
-                the top-level component of the model. This object should depend
-                on values of all the wanted tensors.
-            toplevel_tensors: A list of tensors that should be constructed. Use
-                this when the toplevel model part does not depend on this
-                tensor. The tensors are constructed during running this
-                constructor method which prints them out.
+            modelparts: A list of ``GenericModelPart`` objects that hold the
+                tensors that will be retrieved.
+            tensors: A list of names of tensors that should be retrieved.
+            batch_dims_by_ref: A list of integers that correspond to the
+                batch dimension in each wanted tensor.
             tensors_by_name: A list of tensor names to fetch. If a tensor
                 is not in the graph, a warning is generated and the tensor is
                 ignored.
-            tensors_by_ref: A list of tensor objects to fetch.
             batch_dims_by_name: A list of integers that correspond to the
                 batch dimension in each wanted tensor specified by name.
-            batch_dims_by_ref: A list of integers that correspond to the
-                batch dimension in each wanted tensor specified by reference.
             select_session: An optional integer specifying the session to use
                 in case of ensembling. When not used, tensors from all sessions
                 are stored. In case of a single session, this option has no
@@ -131,27 +129,40 @@ class TensorRunner(BaseRunner[GenericModelPart]):
                 tensor names to NumPy arrays.
         """
         check_argument_types()
-        BaseRunner[GenericModelPart].__init__(
-            self, output_series, toplevel_modelpart)
 
-        total_tensors = len(tensors_by_name) + len(tensors_by_ref)
+        if not modelparts:
+            raise ValueError("At least one model part is expected")
+
+        BaseRunner[GenericModelPart].__init__(
+            self, output_series, modelparts[0])
+
+        if len(modelparts) != len(tensors):
+            raise ValueError("TensorRunner: 'modelparts' and 'tensors' lists "
+                             "must have the same length")
+
+        total_tensors = len(tensors_by_name) + len(tensors)
         if single_tensor and total_tensors > 1:
             raise ValueError("single_tensor is True, but {} tensors were given"
                              .format(total_tensors))
 
         self._names = tensors_by_name
-        self._tensors = tensors_by_ref
+        self._modelparts = modelparts
+        self._tensors = tensors
         self._batch_dims_name = batch_dims_by_name
-        self._batch_dims_ref = batch_dims_by_ref
+        self._batch_dims = batch_dims
         self._select_session = select_session
         self._single_tensor = single_tensor
 
-        log("Blessing toplevel tensors for tensor runner:")
-        for tensor in toplevel_tensors:
-            log("Toplevel tensor: {}".format(tensor))
-
         self._fetches = {}  # type: Dict[str, tf.Tensor]
         self._batch_ids = {}  # type: Dict[str, int]
+
+    # pylint: enable=too-many-arguments
+
+    # pylint: disable=unused-argument
+    def get_executable(self,
+                       compute_losses: bool,
+                       summaries: bool,
+                       num_sessions: int) -> TensorExecutable:
 
         for name, bid in zip(self._names, self._batch_dims_name):
             try:
@@ -161,15 +172,15 @@ class TensorRunner(BaseRunner[GenericModelPart]):
             except KeyError:
                 warn(("The tensor of name '{}' is not present in the "
                       "graph.").format(name))
-    # pylint: enable=too-many-arguments
 
-    # pylint: disable=unused-argument
-    def get_executable(self,
-                       compute_losses: bool,
-                       summaries: bool,
-                       num_sessions: int) -> TensorExecutable:
+        for mpart, tname, bid in zip(self._modelparts, self._tensors,
+                                     self._batch_dims):
+            if not hasattr(mpart, tname):
+                raise ValueError("Model part {} does not have a tensor called "
+                                 "{}.".format(mpart, tname))
 
-        for tensor, bid in zip(self._tensors, self._batch_dims_ref):
+            tensor = getattr(mpart, tname)
+
             self._fetches[tensor.name] = tensor
             self._batch_ids[tensor.name] = bid
 
@@ -211,16 +222,13 @@ class RepresentationRunner(TensorRunner):
             raise TypeError("The encoder '{}' does not have the specified "
                             "attribute '{}'".format(encoder, attribute))
 
-        tensor_to_get = getattr(encoder, attribute)
-
         TensorRunner.__init__(
             self,
             output_series,
-            toplevel_modelpart=encoder,
-            toplevel_tensors=[],
+            modelparts=[encoder],
+            tensors=[attribute],
+            batch_dims=[0],
             tensors_by_name=[],
-            tensors_by_ref=[tensor_to_get],
             batch_dims_by_name=[],
-            batch_dims_by_ref=[0],
             select_session=select_session,
             single_tensor=True)
