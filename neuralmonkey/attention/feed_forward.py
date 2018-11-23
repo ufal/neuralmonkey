@@ -42,10 +42,6 @@ class Attention(BaseAttention):
 
         self._variable_scope.set_initializer(
             tf.random_normal_initializer(stddev=0.001))
-
-        # TODO blessing
-        log("Hidden features: {}".format(self.hidden_features))
-        log("Attention mask: {}".format(self.attention_mask))
     # pylint: enable=too-many-arguments
 
     @tensor
@@ -170,6 +166,10 @@ class Attention(BaseAttention):
         return context, next_loop_state
 
     def initial_loop_state(self) -> AttentionLoopState:
+        # TODO blessing
+        log("Pre-computing attention tensors")
+        log("Hidden features: {}".format(self.hidden_features))
+
         return empty_attention_loop_state(
             self.batch_size,
             tf.shape(self.attention_states)[1],

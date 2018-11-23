@@ -20,7 +20,7 @@ from neuralmonkey.decoders.autoregressive import (
     AutoregressiveDecoder, LoopState, DecoderFeedables)
 from neuralmonkey.encoders.transformer import (
     TransformerLayer, position_signal)
-from neuralmonkey.logging import log, warn
+from neuralmonkey.logging import warn
 from neuralmonkey.model.sequence import EmbeddedSequence
 from neuralmonkey.model.parameterized import InitializerSpecs
 from neuralmonkey.model.model_part import ModelPart
@@ -214,10 +214,6 @@ class TransformerDecoder(AutoregressiveDecoder):
 
         self._variable_scope.set_initializer(tf.variance_scaling_initializer(
             mode="fan_avg", distribution="uniform"))
-
-        log("Decoder cost op: {}".format(self.cost))
-        self._variable_scope.reuse_variables()
-        log("Runtime logits: {}".format(self.runtime_logits))
     # pylint: enable=too-many-arguments,too-many-locals,too-many-branches
 
     @property

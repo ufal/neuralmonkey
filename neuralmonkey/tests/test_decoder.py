@@ -54,15 +54,6 @@ class TestDecoder(unittest.TestCase):
         with self.assertRaises(ValueError):
             Decoder(**dparams)
 
-    def test_tie_embeddings(self):
-        dparams = copy.deepcopy(DECODER_PARAMS)
-
-        dparams["tie_embeddings"] = True
-        dparams["rnn_size"] = 20
-        dparams["embedding_size"] = 10
-        with self.assertRaises(ValueError):
-            Decoder(**dparams)
-
     def test_cell_type(self):
         dparams = copy.deepcopy(DECODER_PARAMS)
 

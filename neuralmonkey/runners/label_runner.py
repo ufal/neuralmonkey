@@ -2,7 +2,6 @@ from typing import List, Dict, Optional, Callable
 import numpy as np
 from typeguard import check_argument_types
 
-from neuralmonkey.logging import log
 from neuralmonkey.vocabulary import Vocabulary, END_TOKEN_INDEX
 from neuralmonkey.runners.base_runner import (
     BaseRunner, Executable, FeedDict, ExecutionResult, NextExecute)
@@ -70,9 +69,6 @@ class LabelRunner(BaseRunner[SequenceLabeler]):
         BaseRunner[SequenceLabeler].__init__(self, output_series, decoder)
 
         self._postprocess = postprocess
-
-        # Make sure the lazy decoder creates its output tensor
-        log("Decoder output tensor: {}".format(decoder.decoded))
 
     # pylint: disable=unused-argument
     # Don't know why it works in Attention.attention and not here.

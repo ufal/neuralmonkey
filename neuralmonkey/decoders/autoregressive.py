@@ -150,19 +150,22 @@ class AutoregressiveDecoder(ModelPart):
         self.encoder_masks = []  # type: List[tf.Tensor]
 
         # Check the values of the parameters (max_output_len, ...)
-        if max_output_len <= 0:
-            raise ValueError("Maximum sequence length must be "
-                             "a positive integer.")
+        if self.max_output_len <= 0:
+            raise ValueError(
+                "Maximum sequence length must be a positive integer.")
 
-        if dropout_keep_prob < 0.0 or dropout_keep_prob > 1.0:
-            raise ValueError("Dropout keep probability must be"
-                             "a real number in the interval [0,1].")
+        if self.embedding_size is not None and self.embedding_size <= 0:
+            raise ValueError("Embedding size must be a positive integer.")
+
+        if self.dropout_keep_prob < 0.0 or self.dropout_keep_prob > 1.0:
+            raise ValueError("Dropout keep probability must be a real number "
+                             "in the interval [0,1].")
 
         if self.embedding_size is None and self.embeddings_source is None:
-            raise ValueError("You must specify either embedding size or the "
-                             "embedded sequence from which to reuse the "
-                             "embeddings (e.g. set either 'embedding_size' or "
-                             " 'embeddings_source' parameter)")
+            raise ValueError(
+                "You must specify either embedding size or the embedded "
+                "sequence from which to reuse the embeddings (e.g. set either "
+                "'embedding_size' or 'embeddings_source' parameter)")
 
         if self.embeddings_source is not None:
             if self.embedding_size is not None:

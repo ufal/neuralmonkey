@@ -69,6 +69,7 @@ class GenericTrainer(GraphExecutor):
         self.optimizer = (
             optimizer if optimizer is not None else self.default_optimizer())
 
+        log("Building model")
         log("Train op: {}".format(str(self.train_op)))
 
     # pylint: disable=no-self-use
