@@ -89,6 +89,8 @@ class Parameterized(metaclass=ABCMeta):
         """
         # If we are already reusing, reuse regardless of self._reuse.
         reuse = self._variable_scope.reuse or self._reuse
+        if not reuse:
+            reuse = tf.AUTO_REUSE
 
         with tf.variable_scope(self._variable_scope, reuse=reuse):
             # tf.variable_scope always creates a NEW name scope for ops, but

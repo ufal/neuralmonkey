@@ -22,7 +22,7 @@ from neuralmonkey.logging import log
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.model.feedable import Feedable
 from neuralmonkey.runners.base_runner import (
-    FeedDict, ExecutionResult, Executable, GraphExecutor)
+    FeedDict, ExecutionResult, GraphExecutor)
 
 
 class TensorFlowManager:
@@ -170,7 +170,7 @@ class TensorFlowManager:
     # pylint: disable=too-many-locals
     def _run_executables(self,
                          feed_dict: FeedDict,
-                         executables: List[Executable]) -> None:
+                         executables: List[GraphExecutor.Executable]) -> None:
         all_fetches = {}
 
         # We might want to feed different values to each session

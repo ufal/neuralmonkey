@@ -105,6 +105,19 @@ class Experiment:
 
         return self._model
 
+    def _bless_graph_executors(self) -> None:
+        if hasattr(self.model, "trainer"):
+            if isinstance(self.model.trainer, List):
+                trainers = self.model.trainer
+            else:
+                trainers = [self.model.trainer]
+
+            for trainer in trainers:
+                log("Trainer fetches: {}".format(trainer.fetches))
+
+        for runner in self.model.runners:
+            log("Runner fetches: {}".format(runner.fetches))
+
     def build_model(self) -> None:
         if self._model_built:
             raise RuntimeError("build_model() called twice")
@@ -117,11 +130,13 @@ class Experiment:
 
             # Enable the created model parts to find this experiment.
             type(self)._current_experiment = self  # type: ignore
-            self.config.build_model(warn_unused=self.train_mode)
-            type(self)._current_experiment = None
 
+            self.config.build_model(warn_unused=self.train_mode)
             self._model = self.config.model
             self._model_built = True
+            self._bless_graph_executors()
+
+            type(self)._current_experiment = None
 
             if self.model.runners_batch_size is None:
                 self.model.runners_batch_size = self.model.batch_size

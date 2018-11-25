@@ -7,8 +7,7 @@ from typeguard import check_argument_types
 from neuralmonkey.decorators import tensor
 from neuralmonkey.logging import log
 from neuralmonkey.model.model_part import GenericModelPart
-from neuralmonkey.runners.base_runner import (
-    GraphExecutor, Executable, ExecutionResult, NextExecute)
+from neuralmonkey.runners.base_runner import GraphExecutor, NextExecute
 
 # pylint: disable=invalid-name
 Gradients = List[Tuple[tf.Tensor, tf.Variable]]
@@ -41,6 +40,39 @@ class Objective(NamedTuple(
 
 # pylint: disable=too-few-public-methods,too-many-locals,too-many-arguments
 class GenericTrainer(GraphExecutor):
+
+    class Executable(GraphExecutor.Executable["GenericTrainer"]):
+
+        def __init__(self, executor: "GenericTrainer", compute_losses: bool,
+                     summaries: bool, num_sessions: int) -> None:
+            assert compute_losses
+            if num_sessions != 1:
+                raise ValueError(
+                    "Trainer only supports execution in a single session")
+
+            super().__init__(executor, compute_losses, summaries, num_sessions)
+
+        def next_to_execute(self) -> NextExecute:
+            fetches = self.executor.fetches
+
+            if self.summaries:
+                fetches.update(self.executor.summaries)
+
+            return fetches, [{}]
+
+        def collect_results(self, results: List[Dict]) -> None:
+            assert len(results) == 1
+            result = results[0]
+
+            scalar_summaries = (
+                result["scalar_summaries"] if self.summaries else None)
+            histogram_summaries = (
+                result["histogram_summaries"] if self.summaries else None)
+
+            self.set_result([], losses=result["losses"],
+                            scalar_summaries=scalar_summaries,
+                            histogram_summaries=histogram_summaries,
+                            image_summaries=None)
 
     @staticmethod
     def default_optimizer():
@@ -226,47 +258,8 @@ class GenericTrainer(GraphExecutor):
             "histogram_summaries": tf.summary.merge(
                 tf.get_collection("summary_gradients"))}
 
-    def get_executable(self,
-                       compute_losses: bool = True,
-                       summaries: bool = True,
-                       num_sessions: int = 1) -> Executable:
-        assert compute_losses
-        if num_sessions != 1:
-            raise ValueError(
-                "Trainer only supports execution in a single session")
-
-        return TrainExecutable(self, summaries)
-
-
-class TrainExecutable(Executable):
-
-    def __init__(self, trainer: GenericTrainer, summaries: bool) -> None:
-        self.trainer = trainer
-        self.summaries = summaries
-        self._result = None  # type: Optional[ExecutionResult]
-
-    def next_to_execute(self) -> NextExecute:
-        fetches = {"train_op": self.trainer.train_op}
-
-        if self.summaries:
-            fetches.update(self.trainer.summaries)
-
-        fetches["losses"] = self.trainer.objective_values
-        fetches["_update_ops"] = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
-
-        return fetches, [{}]
-
-    def collect_results(self, results: List[Dict]) -> None:
-        assert len(results) == 1
-        result = results[0]
-
-        scalar_summaries = (
-            result["scalar_summaries"] if self.summaries else None)
-        histogram_summaries = (
-            result["histogram_summaries"] if self.summaries else None)
-
-        self._result = ExecutionResult(
-            [], losses=result["losses"],
-            scalar_summaries=scalar_summaries,
-            histogram_summaries=histogram_summaries,
-            image_summaries=None)
+    @property
+    def fetches(self) -> Dict[str, tf.Tensor]:
+        return {"train_op": self.train_op,
+                "losses": self.objective_values,
+                "_update_ops": tf.get_collection(tf.GraphKeys.UPDATE_OPS)}

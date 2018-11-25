@@ -169,6 +169,7 @@ class Attention(BaseAttention):
         # TODO blessing
         log("Pre-computing attention tensors")
         log("Hidden features: {}".format(self.hidden_features))
+        log("Hidden mask: {}".format(self.attention_mask))
 
         return empty_attention_loop_state(
             self.batch_size,

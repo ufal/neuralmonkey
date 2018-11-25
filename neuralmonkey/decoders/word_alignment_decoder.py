@@ -1,4 +1,4 @@
-from typing import cast
+from typing import cast, Tuple
 
 import numpy as np
 import tensorflow as tf
@@ -40,19 +40,6 @@ class WordAlignmentDecoder(ModelPart):
 
         self.enc_input = cast(Sequence, self.encoder.input_sequence)
 
-        # TODO this is here to call the lazy properties which create
-        # the list of attention distribbutions
-        # pylint: disable=pointless-statement
-        self.decoder.runtime_logits
-        self.decoder.train_logits
-        # pylint: enable=pointless-statement
-
-        _, self.train_loss = self._make_decoder(runtime_mode=False)
-        self.decoded, self.runtime_loss = self._make_decoder(runtime_mode=True)
-
-        tf.summary.scalar("alignment_train_xent", self.train_loss,
-                          collections=["summary_train"])
-
     @tensor
     def ref_alignment(self) -> tf.Tensor:
         # TODO dynamic shape?
@@ -66,6 +53,29 @@ class WordAlignmentDecoder(ModelPart):
     def alignment_target(self) -> tf.Tensor:
         # shape will be [max_output_len, batch_size, max_input_len]
         return tf.transpose(self.ref_alignment, perm=[1, 0, 2])
+
+    @tensor
+    def train_loss(self) -> tf.Tensor:
+        loss = self._make_decoder(runtime_mode=False)
+        tf.summary.scalar(
+            "alignment_train_xent", loss, collections=["summary_train"])
+
+        return loss
+
+    # pylint: disable=unsubscriptable-object
+    # Bug in pylint
+    @tensor
+    def decoded(self) -> tf.Tensor:
+        return self.runtime_outputs[0]
+
+    @tensor
+    def runtime_loss(self) -> tf.Tensor:
+        return self.runtime_outputs[1]
+    # pylint: enable=unsubscriptable-object
+
+    @tensor
+    def runtime_outputs(self) -> Tuple[tf.Tensor, tf.Tensor]:
+        return self._make_decoder(runtime_mode=True)
 
     def _make_decoder(self, runtime_mode=False):
         attn_obj = self.decoder.get_attention_object(self.encoder,

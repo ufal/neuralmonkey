@@ -1,36 +1,25 @@
 from typing import Dict, List
-# pylint: disable=unused-import
-from typing import Optional
-# pylint: enable=unused-import
 
 import tensorflow as tf
 from typeguard import check_argument_types
 
 from neuralmonkey.attention.base_attention import BaseAttention
 from neuralmonkey.decoders.decoder import Decoder
-from neuralmonkey.runners.base_runner import (
-    BaseRunner, Executable, FeedDict, ExecutionResult, NextExecute)
-
-
-class WordAlignmentRunnerExecutable(Executable):
-
-    def __init__(self, fetches: FeedDict) -> None:
-        self._fetches = fetches
-        self._result = None  # type: Optional[ExecutionResult]
-
-    def next_to_execute(self) -> NextExecute:
-        return self._fetches, []
-
-    def collect_results(self, results: List[Dict]) -> None:
-        self._result = ExecutionResult(
-            outputs=results[0]["alignment"],
-            losses=[],
-            scalar_summaries=None,
-            histogram_summaries=None,
-            image_summaries=None)
+from neuralmonkey.decorators import tensor
+from neuralmonkey.runners.base_runner import BaseRunner
 
 
 class WordAlignmentRunner(BaseRunner[BaseAttention]):
+
+    # pylint: disable=too-few-public-methods
+    # Pylint issue here: https://github.com/PyCQA/pylint/issues/2607
+    class Executable(BaseRunner.Executable["WordAlignmentRunner"]):
+
+        def collect_results(self, results: List[Dict]) -> None:
+            self.set_result(outputs=results[0]["alignment"], losses=[],
+                            scalar_summaries=None, histogram_summaries=None,
+                            image_summaries=None)
+    # pylint: enable=too-few-public-methods
 
     def __init__(self,
                  output_series: str,
@@ -41,21 +30,16 @@ class WordAlignmentRunner(BaseRunner[BaseAttention]):
 
         self._key = "{}_run".format(decoder.name)
 
-    # pylint: disable=unused-argument
-    def get_executable(self,
-                       compute_losses: bool = False,
-                       summaries: bool = True,
-                       num_sessions: int = 1) -> WordAlignmentRunnerExecutable:
-        if self._key not in self._decoder.histories:
+    @tensor
+    def fetches(self) -> Dict[str, tf.Tensor]:
+        if self._key not in self.decoder.histories:
             raise KeyError("Attention has no recorded histories under "
                            "key '{}'".format(self._key))
 
-        att_histories = self._decoder.histories[self._key]
+        att_histories = self.decoder.histories[self._key]
         alignment = tf.transpose(att_histories, perm=[1, 2, 0])
-        fetches = {"alignment": alignment}
 
-        return WordAlignmentRunnerExecutable(fetches)
-    # pylint: enable=unused-argument
+        return {"alignment": alignment}
 
     @property
     def loss_names(self) -> List[str]:

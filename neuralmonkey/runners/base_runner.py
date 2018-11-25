@@ -1,4 +1,4 @@
-from abc import abstractmethod
+from abc import abstractmethod, abstractproperty
 from typing import (Any, Dict, Tuple, List, NamedTuple, Union, Set, TypeVar,
                     Generic, Optional)
 import numpy as np
@@ -13,6 +13,8 @@ from neuralmonkey.model.parameterized import Parameterized
 FeedDict = Dict[tf.Tensor, Union[int, float, np.ndarray]]
 NextExecute = Tuple[Union[Dict, List], List[FeedDict]]
 MP = TypeVar("MP", bound=GenericModelPart)
+Executor = TypeVar("Executor", bound="GraphExecutor")
+Runner = TypeVar("Runner", bound="BaseRunner")
 # pylint: enable=invalid-name
 
 
@@ -37,28 +39,62 @@ class ExecutionResult(NamedTuple(
     """
 
 
-class Executable:
-
-    @property
-    def result(self) -> Optional[ExecutionResult]:
-        return getattr(self, "_result")
-
-    @abstractmethod
-    def next_to_execute(self) -> NextExecute:
-        """Get the tensors and additional feed dicts for execution."""
-        raise NotImplementedError()
-
-    @abstractmethod
-    def collect_results(self, results: List[Dict]) -> None:
-        raise NotImplementedError()
-
-
 class GraphExecutor(GenericModelPart):
+
+    class Executable(Generic[Executor]):
+
+        def __init__(self,
+                     executor: Executor,
+                     compute_losses: bool,
+                     summaries: bool,
+                     num_sessions: int) -> None:
+            self._executor = executor
+            self.compute_losses = compute_losses
+            self.summaries = summaries
+            self.num_sessions = num_sessions
+
+            self._result = None  # type: Optional[ExecutionResult]
+
+        def set_result(self, outputs: List[Any], losses: List[float],
+                       scalar_summaries: tf.Summary,
+                       histogram_summaries: tf.Summary,
+                       image_summaries: tf.Summary) -> None:
+            self._result = ExecutionResult(
+                outputs, losses, scalar_summaries, histogram_summaries,
+                image_summaries)
+
+        @property
+        def result(self) -> Optional[ExecutionResult]:
+            return self._result
+
+        @property
+        def executor(self) -> Executor:
+            return self._executor
+
+        def next_to_execute(self) -> NextExecute:
+            """Get the tensors and additional feed dicts for execution."""
+            return self.executor.fetches, [{}]
+
+        @abstractmethod
+        def collect_results(self, results: List[Dict]) -> None:
+            return None
 
     def __init__(self,
                  dependencies: Set[GenericModelPart]) -> None:
         self._dependencies = dependencies
         self._feedables, self._parameterizeds = self.get_dependencies()
+
+    def get_executable(self,
+                       compute_losses: bool,
+                       summaries: bool,
+                       num_sessions: int) -> "GraphExecutor.Executable":
+        # Since the executable is always subclassed, we can instantiate it
+        return self.Executable(  # type: ignore
+            self, compute_losses, summaries, num_sessions)
+
+    @abstractproperty
+    def fetches(self) -> Dict[str, tf.Tensor]:
+        raise NotImplementedError()
 
     @property
     def dependencies(self) -> List[str]:
@@ -72,21 +108,29 @@ class GraphExecutor(GenericModelPart):
     def parameterizeds(self) -> Set[Parameterized]:
         return self._parameterizeds
 
-    @abstractmethod
-    def get_executable(self,
-                       compute_losses: bool,
-                       summaries: bool,
-                       num_sessions: int) -> Executable:
-        raise NotImplementedError()
-
 
 class BaseRunner(GraphExecutor, Generic[MP]):
+
+    # pylint: disable=too-few-public-methods
+    # Pylint issue here: https://github.com/PyCQA/pylint/issues/2607
+    class Executable(GraphExecutor.Executable[Runner]):
+
+        def next_to_execute(self) -> NextExecute:
+            fetches = self.executor.fetches
+
+            if not self.compute_losses:
+                for loss in self.executor.loss_names:
+                    fetches[loss] = tf.zeros([])
+
+            return fetches, [{}]
+    # pylint: enable=too-few-public-methods
+
     def __init__(self,
                  output_series: str,
                  decoder: MP) -> None:
         GraphExecutor.__init__(self, {decoder})
         self.output_series = output_series
-        self._decoder = decoder
+        self.decoder = decoder
 
         if not hasattr(decoder, "data_id"):
             notice("Top-level decoder {} does not have the 'data_id' attribute"
@@ -94,7 +138,7 @@ class BaseRunner(GraphExecutor, Generic[MP]):
 
     @property
     def decoder_data_id(self) -> Optional[str]:
-        return getattr(self._decoder, "data_id", None)
+        return getattr(self.decoder, "data_id", None)
 
     @property
     def loss_names(self) -> List[str]:

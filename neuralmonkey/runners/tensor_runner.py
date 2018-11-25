@@ -1,84 +1,14 @@
-from typing import Dict, List, Optional
-
-# pylint: disable=unused-import
-# Type annotation used in comment
-import tensorflow as tf
-# pylint: enable=unused-import
+from typing import Dict, List
 
 import numpy as np
+import tensorflow as tf
 from typeguard import check_argument_types
 
+from neuralmonkey.decorators import tensor
 from neuralmonkey.logging import warn
 from neuralmonkey.model.model_part import GenericModelPart
-from neuralmonkey.runners.base_runner import (
-    BaseRunner, Executable, ExecutionResult, NextExecute, FeedDict)
+from neuralmonkey.runners.base_runner import BaseRunner
 from neuralmonkey.experiment import Experiment
-
-
-class TensorExecutable(Executable):
-
-    def __init__(self,
-                 fetches: FeedDict,
-                 batch_dims: Dict[str, int],
-                 select_session: Optional[int],
-                 single_tensor: bool) -> None:
-        self._fetches = fetches
-        self._batch_dims = batch_dims
-        self._select_session = select_session
-        self._single_tensor = single_tensor
-
-        self._result = None  # type: Optional[ExecutionResult]
-
-    def next_to_execute(self) -> NextExecute:
-        return self._fetches, []
-
-    def collect_results(self, results: List[Dict]) -> None:
-        if len(results) > 1 and self._select_session is None:
-            sessions = []
-            for res_dict in results:
-                sessions.append(self._fetch_values_from_session(res_dict))
-
-                # one call returns a list of dicts. we need to add another list
-                # dimension in between, so it'll become a 2D list of dicts
-                # with dimensions (batch, session, tensor_name)
-                # the ``sessions`` structure is of 'shape'
-                # (session, batch, tensor_name) so it should be sufficient to
-                # transpose it:
-                batched = list(zip(*sessions))
-        else:
-            batched = self._fetch_values_from_session(results[0])
-
-        self._result = ExecutionResult(
-            outputs=batched,
-            losses=[],
-            scalar_summaries=None,
-            histogram_summaries=None,
-            image_summaries=None)
-
-    def _fetch_values_from_session(self, sess_results: Dict) -> List:
-
-        transposed = {}
-        for name, val in sess_results.items():
-            batch_dim = self._batch_dims[name]
-
-            perm = [batch_dim]
-            for dim in range(len(val.shape)):
-                if dim != batch_dim:
-                    perm.append(dim)
-
-            transposed_val = np.transpose(val, perm)
-            transposed[name] = transposed_val
-
-        # now we have dict of tensors in batch. we need
-        # to have a batch of dicts with the batch dim removed
-        batched = [dict(zip(transposed, col))
-                   for col in zip(*transposed.values())]
-
-        if self._single_tensor:
-            # extract the only item from each dict
-            batched = [next(iter(d.values())) for d in batched]
-
-        return batched
 
 
 class TensorRunner(BaseRunner[GenericModelPart]):
@@ -88,6 +18,55 @@ class TensorRunner(BaseRunner[GenericModelPart]):
     using a given dataset. The runner generates an output data series which
     will contain the tensors in a dictionary of numpy arrays.
     """
+
+    # pylint: disable=too-few-public-methods
+    # Pylint issue here: https://github.com/PyCQA/pylint/issues/2607
+    class Executable(BaseRunner.Executable["TensorRunner"]):
+
+        def collect_results(self, results: List[Dict]) -> None:
+            if len(results) > 1 and self.executor.select_session is None:
+                sessions = []
+                for res_dict in results:
+                    sessions.append(self._fetch_values_from_session(res_dict))
+
+                    # one call returns a list of dicts. we need to add another
+                    # list dimension in between, so it'll become a 2D list of
+                    # dicts with dimensions (batch, session, tensor_name) the
+                    # ``sessions`` structure is of 'shape' (session, batch,
+                    # tensor_name) so it should be sufficient to transpose it:
+                    batched = list(zip(*sessions))
+            else:
+                batched = self._fetch_values_from_session(results[0])
+
+            self.set_result(outputs=batched, losses=[],
+                            scalar_summaries=None, histogram_summaries=None,
+                            image_summaries=None)
+
+        def _fetch_values_from_session(self, sess_results: Dict) -> List:
+
+            transposed = {}
+            for name, val in sess_results.items():
+                batch_dim = self.executor.batch_ids[name]
+
+                perm = [batch_dim]
+                for dim in range(len(val.shape)):
+                    if dim != batch_dim:
+                        perm.append(dim)
+
+                transposed_val = np.transpose(val, perm)
+                transposed[name] = transposed_val
+
+            # now we have dict of tensors in batch. we need
+            # to have a batch of dicts with the batch dim removed
+            batched = [dict(zip(transposed, col))
+                       for col in zip(*transposed.values())]
+
+            if self.executor.single_tensor:
+                # extract the only item from each dict
+                batched = [next(iter(d.values())) for d in batched]
+
+            return batched
+    # pylint: enable=too-few-public-methods
 
     # pylint: disable=too-many-arguments
     def __init__(self,
@@ -149,44 +128,38 @@ class TensorRunner(BaseRunner[GenericModelPart]):
         self._modelparts = modelparts
         self._tensors = tensors
         self._batch_dims_name = batch_dims_by_name
-        self._batch_dims = batch_dims
-        self._select_session = select_session
-        self._single_tensor = single_tensor
+        self.batch_dims = batch_dims
+        self.select_session = select_session
+        self.single_tensor = single_tensor
 
-        self._fetches = {}  # type: Dict[str, tf.Tensor]
-        self._batch_ids = {}  # type: Dict[str, int]
-
+        self.batch_ids = {}  # type: Dict[str, int]
     # pylint: enable=too-many-arguments
 
-    # pylint: disable=unused-argument
-    def get_executable(self,
-                       compute_losses: bool,
-                       summaries: bool,
-                       num_sessions: int) -> TensorExecutable:
+    @tensor
+    def fetches(self) -> Dict[str, tf.Tensor]:
 
+        fetches = {}  # type: Dict[str, tf.Tensor]
         for name, bid in zip(self._names, self._batch_dims_name):
             try:
-                self._fetches[name] = (
+                fetches[name] = (
                     Experiment.get_current().graph.get_tensor_by_name(name))
-                self._batch_ids[name] = bid
+                self.batch_ids[name] = bid
             except KeyError:
                 warn(("The tensor of name '{}' is not present in the "
                       "graph.").format(name))
 
         for mpart, tname, bid in zip(self._modelparts, self._tensors,
-                                     self._batch_dims):
+                                     self.batch_dims):
             if not hasattr(mpart, tname):
                 raise ValueError("Model part {} does not have a tensor called "
                                  "{}.".format(mpart, tname))
 
-            tensor = getattr(mpart, tname)
+            tensorval = getattr(mpart, tname)
 
-            self._fetches[tensor.name] = tensor
-            self._batch_ids[tensor.name] = bid
+            fetches[tensorval.name] = tensorval
+            self.batch_ids[tensorval.name] = bid
 
-        return TensorExecutable(self._fetches, self._batch_ids,
-                                self._select_session, self._single_tensor)
-    # pylint: enable=unused-argument
+        return fetches
 
     @property
     def loss_names(self) -> List[str]:
