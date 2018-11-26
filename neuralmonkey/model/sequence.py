@@ -127,15 +127,21 @@ class EmbeddedFactorSequence(Sequence):
                 raise ValueError(
                     "When reusing embeedings, embeddings sizes must be equal.")
 
-        with self.use_scope():
-            self.mask = tf.placeholder(tf.float32, [None, None], "mask")
-            self.input_factors = [
-                tf.placeholder(tf.int32, [None, None], "factor_{}".format(did))
-                for did in self.data_ids]
-
         self._variable_scope.set_initializer(
             tf.random_normal_initializer(stddev=0.001))
     # pylint: enable=too-many-arguments
+
+    # pylint: disable=no-self-use
+    @tensor
+    def mask(self) -> tf.Tensor:
+        return tf.placeholder(tf.float32, [None, None], "mask")
+
+    @tensor
+    def input_factors(self) -> List[tf.Tensor]:
+        return [
+            tf.placeholder(tf.int32, [None, None], "factor_{}".format(did))
+            for did in self.data_ids]
+    # pylint: enable=no-self-use
 
     # TODO this should be placed into the abstract embedding class
     def tb_embedding_visualization(self, logdir: str,
@@ -301,12 +307,12 @@ class EmbeddedSequence(EmbeddedFactorSequence):
             initializers=initializers)
     # pylint: enable=too-many-arguments
 
+    # pylint: disable=unsubscriptable-object
     @property
     def inputs(self) -> tf.Tensor:
         """Return a 2D placeholder for the sequence inputs."""
         return self.input_factors[0]
 
-    # pylint: disable=unsubscriptable-object
     @property
     def embedding_matrix(self) -> tf.Tensor:
         """Return the embedding matrix for the sequence."""

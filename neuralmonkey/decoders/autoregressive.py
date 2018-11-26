@@ -15,7 +15,7 @@ from neuralmonkey.decorators import tensor
 from neuralmonkey.model.feedable import FeedDict
 from neuralmonkey.model.parameterized import InitializerSpecs
 from neuralmonkey.model.model_part import ModelPart
-from neuralmonkey.logging import log, warn
+from neuralmonkey.logging import warn
 from neuralmonkey.model.sequence import EmbeddedSequence
 from neuralmonkey.nn.utils import dropout
 from neuralmonkey.tf_utils import get_variable, get_state_shape_invariants
@@ -134,55 +134,62 @@ class AutoregressiveDecoder(ModelPart):
         ModelPart.__init__(self, name, reuse, save_checkpoint, load_checkpoint,
                            initializers)
 
-        log("Initializing decoder, name: '{}'".format(name))
-
         self.vocabulary = vocabulary
         self.data_id = data_id
         self.max_output_len = max_output_len
         self.dropout_keep_prob = dropout_keep_prob
-        self.embedding_size = embedding_size
+        self._embedding_size = embedding_size
         self.embeddings_source = embeddings_source
         self.label_smoothing = label_smoothing
         self.tie_embeddings = tie_embeddings
         self.supress_unk = supress_unk
 
-        self.encoder_states = []  # type: List[tf.Tensor]
-        self.encoder_masks = []  # type: List[tf.Tensor]
+        self.encoder_states = lambda: []  # type: Callable[[], List[tf.Tensor]]
+        self.encoder_masks = lambda: []  # type: Callable[[], List[tf.Tensor]]
 
         # Check the values of the parameters (max_output_len, ...)
         if self.max_output_len <= 0:
             raise ValueError(
                 "Maximum sequence length must be a positive integer.")
 
-        if self.embedding_size is not None and self.embedding_size <= 0:
+        if self._embedding_size is not None and self._embedding_size <= 0:
             raise ValueError("Embedding size must be a positive integer.")
 
         if self.dropout_keep_prob < 0.0 or self.dropout_keep_prob > 1.0:
             raise ValueError("Dropout keep probability must be a real number "
                              "in the interval [0,1].")
+    # pylint: enable=too-many-arguments,too-many-locals
 
-        if self.embedding_size is None and self.embeddings_source is None:
-            raise ValueError(
-                "You must specify either embedding size or the embedded "
-                "sequence from which to reuse the embeddings (e.g. set either "
-                "'embedding_size' or 'embeddings_source' parameter)")
+    @property
+    def embedding_size(self) -> int:
+        if self.embeddings_source is None:
+            if self._embedding_size is None:
+                raise ValueError(
+                    "You must specify either embedding size or the embedded "
+                    "sequence from which to reuse the embeddings (e.g. set "
+                    "'embedding_size' or 'embeddings_source' parameter)")
+            return self._embedding_size
 
         if self.embeddings_source is not None:
-            if self.embedding_size is not None:
-                warn("Overriding the embedding_size parameter with the"
-                     " size of the reused embeddings from the encoder.")
+            if self._embedding_size is not None:
+                warn("Overriding the embedding_size parameter with the "
+                     "size of the reused embeddings from the encoder.")
 
-            self.embedding_size = (
-                self.embeddings_source.embedding_matrix.get_shape()[1].value)
+        return self.embeddings_source.embedding_matrix.get_shape()[1].value
 
-        with self.use_scope():
-            self.go_symbols = tf.placeholder(tf.int32, [None], "go_symbols")
+    # pylint: disable=no-self-use
+    @tensor
+    def go_symbols(self) -> tf.Tensor:
+        return tf.placeholder(tf.int32, [None], "go_symbols")
 
-            self.train_inputs = tf.placeholder(
-                tf.int32, [None, None], "train_inputs")
-            self.train_mask = tf.placeholder(
-                tf.float32, [None, None], "train_mask")
-    # pylint: enable=too-many-arguments,too-many-locals
+    @tensor
+    def train_inputs(self) -> tf.Tensor:
+        return tf.placeholder(tf.int32, [None, None], "train_inputs")
+
+    @tensor
+    def train_mask(self) -> tf.Tensor:
+        return tf.placeholder(tf.float32, [None, None], "train_mask")
+    # pylint: enable=no-self-use
 
     @tensor
     def decoding_w(self) -> tf.Variable:

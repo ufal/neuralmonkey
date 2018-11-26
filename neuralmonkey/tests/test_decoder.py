@@ -48,7 +48,8 @@ class TestDecoder(unittest.TestCase):
 
         dparams["embedding_size"] = None
         with self.assertRaises(ValueError):
-            Decoder(**dparams)
+            dec = Decoder(**dparams)
+            print(dec.embedding_size)
 
         dparams["embedding_size"] = -10
         with self.assertRaises(ValueError):
