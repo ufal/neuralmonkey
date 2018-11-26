@@ -6,6 +6,7 @@ from typing import Any, Callable, List, Optional
 from neuralmonkey.logging import log
 from neuralmonkey.config.builder import build_config
 from neuralmonkey.config.parsing import parse_file, write_file
+from neuralmonkey.config.disambiguate import disambiguate_configuration
 
 
 class Configuration:
@@ -97,6 +98,7 @@ class Configuration:
             exit(1)
         log("Model built.")
         self.model = self.make_namespace(model)
+        disambiguate_configuration(self.model)
 
     def _check_loaded_conf(self) -> None:
         """Check whether there are unexpected or missing fields."""

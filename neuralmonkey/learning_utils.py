@@ -7,8 +7,6 @@ from typing import (Any, Callable, Dict, List, Tuple, Optional, Union,
 # pylint: enable=unused-import
 
 import time
-import re
-from datetime import timedelta
 import numpy as np
 import tensorflow as tf
 from termcolor import colored
@@ -33,29 +31,29 @@ Trainer = Union[GenericTrainer, MultitaskTrainer, DelayedUpdateTrainer]
 # pylint: enable=invalid-name
 
 
-# pylint: disable=too-many-arguments, too-many-locals, too-many-branches
-# pylint: disable=too-many-statements, too-many-nested-blocks
+# pylint: disable=too-many-arguments,too-many-locals,too-many-nested-blocks
+# pylint: disable=too-many-branches,too-many-statements
 def training_loop(tf_manager: TensorFlowManager,
                   epochs: int,
-                  trainer: Union[Trainer, List[Trainer]],
+                  trainers: List[Trainer],
+                  batching_scheme: BatchingScheme,
+                  runners_batching_scheme: BatchingScheme,
                   log_directory: str,
                   evaluators: EvalConfiguration,
+                  main_metric: str,
                   runners: List[BaseRunner],
-                  final_variables: str,
                   train_dataset: Dataset,
-                  val_dataset: Union[Dataset, List[Dataset]],
-                  test_datasets: List[Dataset] = None,
-                  logging_period: Union[str, int] = 20,
-                  validation_period: Union[str, int] = 500,
-                  val_preview_input_series: List[str] = None,
-                  val_preview_output_series: List[str] = None,
-                  val_preview_num_examples: int = 15,
-                  train_start_offset: int = 0,
-                  batch_size: int = None,
-                  batching_scheme: BatchingScheme = None,
-                  runners_batch_size: int = None,
-                  initial_variables: Union[str, List[str]] = None,
-                  postprocess: Postprocess = None) -> None:
+                  val_datasets: List[Dataset],
+                  test_datasets: Optional[List[Dataset]],
+                  log_timer: Callable[[int, float], bool],
+                  val_timer: Callable[[int, float], bool],
+                  val_preview_input_series: Optional[List[str]],
+                  val_preview_output_series: Optional[List[str]],
+                  val_preview_num_examples: int,
+                  postprocess: Optional[Postprocess],
+                  train_start_offset: int,
+                  initial_variables: Optional[Union[str, List[str]]],
+                  final_variables: str) -> None:
     """Execute the training loop for given graph and data.
 
     Args:
@@ -104,90 +102,14 @@ def training_loop(tf_manager: TensorFlowManager,
     """
     check_argument_types()
 
-    if (batch_size is None) == (batching_scheme is None):
-        raise ValueError("You must specify either batch_size or "
-                         "batching_scheme (not both).")
-
-    if batch_size is not None:
-        assert batching_scheme is None
-        batching_scheme = BatchingScheme(batch_size=batch_size)
-
-    assert batching_scheme is not None
-
-    if runners_batch_size is None:
-        runners_batch_size = batching_scheme.batch_size
-
-    runners_batching_scheme = BatchingScheme(
-        batch_size=runners_batch_size,
-        token_level_batching=batching_scheme.token_level_batching,
-        use_leftover_buckets=True)
-
-    if isinstance(val_dataset, List):
-        val_datasets = val_dataset
-    else:
-        val_datasets = [val_dataset]
-
-    log_period_batch, log_period_time = _resolve_period(logging_period)
-    val_period_batch, val_period_time = _resolve_period(validation_period)
-
     _check_series_collisions(runners, postprocess)
-
-    if isinstance(trainer, List):
-        trainers = trainer
-    else:
-        trainers = [trainer]
 
     _log_model_variables(
         var_list=list(set().union(*[t.var_list for t in trainers])))
 
-    evaluators = [(e[0], e[0], e[1]) if len(e) == 2 else e
-                  for e in evaluators]
-
-    if evaluators:
-        main_metric = "{}/{}".format(evaluators[-1][0],
-                                     evaluators[-1][-1].name)
-    else:
-        main_metric = "{}/{}".format(runners[-1].decoder_data_id,
-                                     runners[-1].loss_names[0])
-
-        if not tf_manager.minimize_metric:
-            raise ValueError("minimize_metric must be set to True in "
-                             "TensorFlowManager when using loss as "
-                             "the main metric")
-
-    if log_period_batch is not None and isinstance(
-            trainer, DelayedUpdateTrainer):
-        if log_period_batch % trainer.batches_per_update != 0:
-            raise ValueError("When using delayed update trainer, the logging "
-                             "period must be divisible by batches_per_update.")
-
-    if val_period_batch is not None and isinstance(
-            trainer, DelayedUpdateTrainer):
-        if val_period_batch % trainer.batches_per_update != 0:
-            raise ValueError("When using delayed update trainer, validation "
-                             "period must be divisible by batches_per_update.")
-
     step = 0
     seen_instances = 0
     last_seen_instances = 0
-
-    def _is_logging_time(period_batch: Optional[int],
-                         period_time: Optional[float],
-                         last_time: float) -> bool:
-        if step == 0:
-            return False
-
-        if period_batch is not None:
-            return step % period_batch == 0
-
-        assert period_time is not None
-
-        # deal with delayed trainer
-        if isinstance(trainer, DelayedUpdateTrainer):
-            if step % trainer.batches_per_update != 0:
-                return False
-
-        return last_time + period_time < time.process_time()
 
     if initial_variables is None:
         # Assume we don't look at coder checkpoints when global
@@ -232,8 +154,7 @@ def training_loop(tf_manager: TensorFlowManager,
                 step += 1
                 seen_instances += len(batch)
 
-                if _is_logging_time(log_period_batch, log_period_time,
-                                    last_log_time):
+                if log_timer(step, last_log_time):
                     trainer_result = tf_manager.execute(
                         batch, feedables, trainers, train=True, summaries=True)
                     train_results, train_outputs = run_on_dataset(
@@ -256,8 +177,7 @@ def training_loop(tf_manager: TensorFlowManager,
                     tf_manager.execute(batch, feedables, trainers, train=True,
                                        summaries=False)
 
-                if _is_logging_time(val_period_batch, val_period_time,
-                                    last_val_time):
+                if val_timer(step, last_val_time):
                     log_print("")
                     val_duration_start = time.process_time()
                     val_examples = 0
@@ -369,32 +289,6 @@ def training_loop(tf_manager: TensorFlowManager,
 
     if interrupt is not None:
         raise interrupt  # pylint: disable=raising-bad-type
-
-
-def _resolve_period(
-        period: Union[str, int]) -> Tuple[Optional[int], Optional[float]]:
-    if isinstance(period, int):
-        return period, None
-
-    regex = re.compile(
-        r"((?P<days>\d+?)d)?((?P<hours>\d+?)h)?((?P<minutes>\d+?)m)?"
-        r"((?P<seconds>\d+?)s)?")
-    parts = regex.match(period)
-
-    if not parts:
-        raise ValueError(
-            "Validation or logging period have incorrect format. "
-            "It should be in format: 3h; 5m; 14s")
-
-    time_params = {}
-    for (name, param) in parts.groupdict().items():
-        if param:
-            time_params[name] = int(param)
-
-    delta_seconds = timedelta(**time_params).total_seconds()
-    if delta_seconds <= 0:
-        raise ValueError("Validation or logging period must be bigger than 0")
-    return None, delta_seconds
 
 
 def _check_series_collisions(runners: List[BaseRunner],

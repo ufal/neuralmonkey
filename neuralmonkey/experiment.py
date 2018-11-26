@@ -1,6 +1,7 @@
 """Provides a high-level API for training and using a model."""
+# pylint: disable=too-many-lines
 
-from argparse import Namespace  # pylint: disable=unused-import
+from argparse import Namespace
 import os
 import random
 import shutil
@@ -15,15 +16,14 @@ from typeguard import check_argument_types
 
 from neuralmonkey.checking import (check_dataset_and_coders,
                                    CheckingException)
+from neuralmonkey.dataset import BatchingScheme, Dataset
 from neuralmonkey.logging import Logging, log, debug, warn
 from neuralmonkey.config.configuration import Configuration
 from neuralmonkey.learning_utils import (training_loop, evaluation,
                                          run_on_dataset,
                                          print_final_evaluation)
-from neuralmonkey.dataset import Dataset, BatchingScheme
 from neuralmonkey.model.sequence import EmbeddedFactorSequence
 from neuralmonkey.runners.base_runner import ExecutionResult
-from neuralmonkey.tf_manager import get_default_tf_manager
 
 
 _TRAIN_ARGS = [
@@ -106,6 +106,7 @@ class Experiment:
         return self._model
 
     def _bless_graph_executors(self) -> None:
+        log("Building TF Graph")
         if hasattr(self.model, "trainer"):
             if isinstance(self.model.trainer, List):
                 trainers = self.model.trainer
@@ -113,10 +114,11 @@ class Experiment:
                 trainers = [self.model.trainer]
 
             for trainer in trainers:
-                log("Trainer fetches: {}".format(trainer.fetches))
+                debug("Trainer fetches: {}".format(trainer.fetches))
 
         for runner in self.model.runners:
-            log("Runner fetches: {}".format(runner.fetches))
+            debug("Runner fetches: {}".format(runner.fetches))
+        log("TF Graph built")
 
     def build_model(self) -> None:
         if self._model_built:
@@ -134,15 +136,10 @@ class Experiment:
             self.config.build_model(warn_unused=self.train_mode)
             self._model = self.config.model
             self._model_built = True
+
             self._bless_graph_executors()
 
             type(self)._current_experiment = None
-
-            if self.model.runners_batch_size is None:
-                self.model.runners_batch_size = self.model.batch_size
-
-            if self.model.tf_manager is None:
-                self.model.tf_manager = get_default_tf_manager()
 
             if self.train_mode:
                 check_dataset_and_coders(self.model.train_dataset,
@@ -184,23 +181,23 @@ class Experiment:
             training_loop(
                 tf_manager=self.model.tf_manager,
                 epochs=self.model.epochs,
-                trainer=self.model.trainer,
-                batch_size=self.model.batch_size,
+                trainers=self.model.trainers,
                 batching_scheme=self.model.batching_scheme,
+                runners_batching_scheme=self.model.runners_batching_scheme,
                 log_directory=self.model.output,
                 evaluators=self.model.evaluation,
+                main_metric=self.model.main_metric,
                 runners=self.model.runners,
                 train_dataset=self.model.train_dataset,
-                val_dataset=self.model.val_dataset,
+                val_datasets=self.model.val_datasets,
                 test_datasets=self.model.test_datasets,
-                logging_period=self.model.logging_period,
-                validation_period=self.model.validation_period,
+                log_timer=self.model.log_timer,
+                val_timer=self.model.val_timer,
                 val_preview_input_series=self.model.val_preview_input_series,
                 val_preview_output_series=self.model.val_preview_output_series,
                 val_preview_num_examples=self.model.val_preview_num_examples,
                 postprocess=self.model.postprocess,
                 train_start_offset=self.model.train_start_offset,
-                runners_batch_size=self.model.runners_batch_size,
                 initial_variables=self.model.initial_variables,
                 final_variables=self.get_path("variables.data.final"))
 
@@ -257,10 +254,13 @@ class Experiment:
         if not self._vars_loaded:
             self.load_variables()
 
+        toklevel = self.model.runners_batching_scheme.token_level_batching
+        assert self.model.runners_batching_scheme.batch_bucket_span is None
+
         batching_scheme = BatchingScheme(
             batch_size=batch_size or self.model.runners_batch_size,
             batch_bucket_span=None,
-            token_level_batching=False,
+            token_level_batching=toklevel,
             bucketing_ignore_series=[])
 
         with self.graph.as_default():
