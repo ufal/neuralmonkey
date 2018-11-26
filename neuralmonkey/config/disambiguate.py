@@ -14,15 +14,13 @@ from neuralmonkey.tf_manager import get_default_tf_manager
 from neuralmonkey.trainers.delayed_update_trainer import DelayedUpdateTrainer
 
 
-# pylint: disable=too-many-branches
-def disambiguate_configuration(cfg: Namespace) -> None:
+def disambiguate_configuration(cfg: Namespace, train_mode: bool) -> None:
+
+    if train_mode:
+        _disambiguate_train_cfg(cfg)
+
     if cfg.tf_manager is None:
         cfg.tf_manager = get_default_tf_manager()
-
-    if not isinstance(cfg.val_dataset, List):
-        cfg.val_datasets = [cfg.val_dataset]
-    else:
-        cfg.val_datasets = cfg.val_dataset
 
     if (cfg.batch_size is None) == (cfg.batching_scheme is None):
         raise ValueError("You must specify either batch_size or "
@@ -43,11 +41,6 @@ def disambiguate_configuration(cfg: Namespace) -> None:
         token_level_batching=cfg.batching_scheme.token_level_batching,
         use_leftover_buckets=True)
 
-    if not isinstance(cfg.trainer, List):
-        cfg.trainers = [cfg.trainer]
-    else:
-        cfg.trainers = cfg.trainer
-
     cfg.evaluation = [(e[0], e[0], e[1]) if len(e) == 2 else e
                       for e in cfg.evaluation]
 
@@ -62,6 +55,19 @@ def disambiguate_configuration(cfg: Namespace) -> None:
             raise ValueError("minimize_metric must be set to True in "
                              "TensorFlowManager when using loss as "
                              "the main metric")
+
+
+def _disambiguate_train_cfg(cfg: Namespace) -> None:
+
+    if not isinstance(cfg.val_dataset, List):
+        cfg.val_datasets = [cfg.val_dataset]
+    else:
+        cfg.val_datasets = cfg.val_dataset
+
+    if not isinstance(cfg.trainer, List):
+        cfg.trainers = [cfg.trainer]
+    else:
+        cfg.trainers = cfg.trainer
 
     # deal with delayed trainer and logging periods
     # the correct way if there are more trainers is perhaps to do a

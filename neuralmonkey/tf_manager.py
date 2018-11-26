@@ -25,6 +25,7 @@ from neuralmonkey.runners.base_runner import (
     FeedDict, ExecutionResult, GraphExecutor)
 
 
+# pylint: disable=too-many-instance-attributes
 class TensorFlowManager:
     """Inteface between computational graph, data and TF sessions.
 
@@ -38,7 +39,6 @@ class TensorFlowManager:
                  num_threads: int,
                  save_n_best: int = 1,
                  minimize_metric: bool = False,
-                 variable_files: Optional[List[str]] = None,
                  gpu_allow_growth: bool = True,
                  per_process_gpu_memory_fraction: float = 1.0,
                  enable_tf_debug: bool = False) -> None:
@@ -54,19 +54,18 @@ class TensorFlowManager:
             save_n_best: How many best models to keep
             minimize_metric: Whether the best model is the one with the lowest
                 or the highest score
-            variable_files: List of variable files.
             gpu_allow_growth: TF to allocate incrementally, not all at once.
             per_process_gpu_memory_fraction: Limit TF memory use.
         """
         check_argument_types()
 
-        session_cfg = tf.ConfigProto()
-        session_cfg.inter_op_parallelism_threads = num_threads
-        session_cfg.intra_op_parallelism_threads = num_threads
-        session_cfg.allow_soft_placement = True  # needed for multiple GPUs
+        self.session_cfg = tf.ConfigProto()
+        self.session_cfg.inter_op_parallelism_threads = num_threads
+        self.session_cfg.intra_op_parallelism_threads = num_threads
+        self.session_cfg.allow_soft_placement = True  # needed for more GPUs
         # pylint: disable=no-member
-        session_cfg.gpu_options.allow_growth = gpu_allow_growth
-        session_cfg.gpu_options.per_process_gpu_memory_fraction = \
+        self.session_cfg.gpu_options.allow_growth = gpu_allow_growth
+        self.session_cfg.gpu_options.per_process_gpu_memory_fraction = \
             per_process_gpu_memory_fraction
         # pylint: enable=no-member
 
@@ -74,27 +73,16 @@ class TensorFlowManager:
             raise Exception("save_n_best parameter must be greater than zero")
         self.saver_max_to_keep = save_n_best
         self.minimize_metric = minimize_metric
+        self.num_sessions = num_sessions
 
-        self.sessions = [tf.Session(config=session_cfg)
-                         for _ in range(num_sessions)]
+        self.sessions = [tf.Session(config=self.session_cfg)
+                         for _ in range(self.num_sessions)]
 
         if enable_tf_debug:
             self.sessions = [tf_debug.LocalCLIDebugWrapperSession(sess)
                              for sess in self.sessions]
 
-        init_op = tf.global_variables_initializer()
-        for sess in self.sessions:
-            sess.run(init_op)
-        self.saver = tf.train.Saver(max_to_keep=None,
-                                    var_list=[g for g in tf.global_variables()
-                                              if "reward_" not in g.name])
-
-        if variable_files:
-            if len(variable_files) != num_sessions:
-                raise Exception(("The number of provided variable files ({}) "
-                                 "is different than a number sessions ({})")
-                                .format(len(variable_files), num_sessions))
-            self.restore(variable_files)
+        self.saver = None
 
         self.best_score_index = 0
         self.best_score_epoch = 0
@@ -238,6 +226,9 @@ class TensorFlowManager:
         return [getattr(ex, "result") for ex in executables]
 
     def save(self, variable_files: Union[str, List[str]]) -> None:
+        if self.saver is None:
+            raise RuntimeError("Saver uninitialized")
+
         if isinstance(variable_files, str) and len(self.sessions) == 1:
             self.saver.save(self.sessions[0], variable_files)
             return
@@ -255,6 +246,9 @@ class TensorFlowManager:
             self.saver.save(sess, file_name)
 
     def restore(self, variable_files: Union[str, List[str]]) -> None:
+        if self.saver is None:
+            raise RuntimeError("Saver uninitialized")
+
         if isinstance(variable_files, str):
             variable_files = [variable_files]
         if len(variable_files) != len(self.sessions):
@@ -270,6 +264,17 @@ class TensorFlowManager:
     def restore_best_vars(self) -> None:
         # TODO warn when link does not exist
         self.restore(self.variables_files[self.best_score_index])
+
+    def initialize_sessions(self) -> None:
+        log("Initializing variables")
+        init_op = tf.global_variables_initializer()
+        for sess in self.sessions:
+            sess.run(init_op)
+
+        log("Initializing tf.train.Saver")
+        self.saver = tf.train.Saver(max_to_keep=None,
+                                    var_list=[g for g in tf.global_variables()
+                                              if "reward_" not in g.name])
 
     def initialize_model_parts(self, runners: Sequence[GraphExecutor],
                                save: bool = False) -> None:
