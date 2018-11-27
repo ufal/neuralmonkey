@@ -1,40 +1,16 @@
-from typing import Dict, List, NamedTuple, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Sequence
 import re
 
 import tensorflow as tf
 from typeguard import check_argument_types
 
 from neuralmonkey.decorators import tensor
-from neuralmonkey.model.model_part import GenericModelPart
+from neuralmonkey.logging import warn
 from neuralmonkey.runners.base_runner import GraphExecutor, NextExecute
-
-# pylint: disable=invalid-name
-Gradients = List[Tuple[tf.Tensor, tf.Variable]]
-ObjectiveWeight = Union[tf.Tensor, float, None]
-# pylint: enable=invalid-name
+from neuralmonkey.trainers.objective import (
+    Objective, Gradients, ObjectiveWeight)
 
 BIAS_REGEX = re.compile(r"[Bb]ias")
-
-
-class Objective(NamedTuple(
-        "Objective",
-        [("name", str),
-         ("decoder", GenericModelPart),
-         ("loss", tf.Tensor),
-         ("gradients", Optional[Gradients]),
-         ("weight", ObjectiveWeight)])):
-    """The training objective.
-
-    Attributes:
-        name: The name for the objective. Used in TensorBoard.
-        decoder: The decoder which generates the value to optimize.
-        loss: The loss tensor fetched by the trainer.
-        gradients: Manually specified gradients. Useful for reinforcement
-            learning.
-        weight: The weight of this objective. The loss will be multiplied by
-            this so the gradients can be controled in case of multiple
-            objectives.
-    """
 
 
 # pylint: disable=too-few-public-methods,too-many-locals,too-many-arguments
@@ -78,7 +54,7 @@ class GenericTrainer(GraphExecutor):
         return tf.train.AdamOptimizer(learning_rate=1e-4)
 
     def __init__(self,
-                 objectives: List[Objective],
+                 objectives: Sequence[Objective],
                  l1_weight: float = 0.0,
                  l2_weight: float = 0.0,
                  clip_norm: float = None,
@@ -110,6 +86,10 @@ class GenericTrainer(GraphExecutor):
                          and not v.name.startswith("Inception")
                          and not v.name.startswith("resnet")]
 
+        if not regularizable:
+            warn("It seems that there are no trainable variables in the model")
+            return tf.zeros([]), tf.zeros([])
+
         with tf.name_scope("regularization"):
             l1_norm = sum(tf.reduce_sum(abs(v)) for v in regularizable)
             l2_norm = sum(tf.reduce_sum(v ** 2) for v in regularizable)
@@ -120,11 +100,15 @@ class GenericTrainer(GraphExecutor):
     @tensor
     def objective_values(self) -> List[tf.Tensor]:
         """Compute unweighted losses for fetching."""
+        # Note here we need to call the losses first, in case the model is
+        # being built. We need to compute the regularizers after that.
+        losses = [o.loss for o in self.objectives]
+
         # pylint: disable=unpacking-non-sequence
         l1_norm, l2_norm = self.regularization_losses
         # pylint: disable=unpacking-non-sequence
 
-        return [o.loss for o in self.objectives] + [l1_norm, l2_norm]
+        return losses + [l1_norm, l2_norm]
 
     @tensor
     def differentiable_loss_sum(self) -> tf.Tensor:
