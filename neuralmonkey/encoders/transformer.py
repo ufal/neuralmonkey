@@ -113,7 +113,6 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
                            initializers)
 
         self.input_sequence = input_sequence
-        self.model_dimension = self.input_sequence.dimension
         self.ff_hidden_size = ff_hidden_size
         self.depth = depth
         self.n_heads = n_heads
@@ -150,17 +149,23 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
                 "Either both input_for_cross_attention and n_cross_att_heads "
                 "must be provided or none of them.")
 
-        if input_for_cross_attention is not None:
+        self._variable_scope.set_initializer(tf.variance_scaling_initializer(
+            mode="fan_avg", distribution="uniform"))
+    # pylint: enable=too-many-arguments,too-many-locals
+
+    @property
+    def model_dimension(self) -> int:
+        dim = self.input_sequence.dimension
+
+        if self.input_for_cross_attention is not None:
             cross_att_dim = get_attention_states(
-                input_for_cross_attention).get_shape()[-1].value
-            if cross_att_dim != self.model_dimension:
+                self.input_for_cross_attention).get_shape()[-1].value
+            if cross_att_dim != dim:
                 raise ValueError(
                     "The input for cross-attention must be of the same "
                     "dimension as the model, was {}.".format(cross_att_dim))
 
-        self._variable_scope.set_initializer(tf.variance_scaling_initializer(
-            mode="fan_avg", distribution="uniform"))
-    # pylint: enable=too-many-arguments,too-many-locals
+        return dim
 
     @tensor
     def output(self) -> tf.Tensor:
