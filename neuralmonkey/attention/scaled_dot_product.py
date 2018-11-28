@@ -12,12 +12,13 @@ from typing import Tuple, Callable, Union
 import tensorflow as tf
 from typeguard import check_argument_types
 
-from neuralmonkey.nn.utils import dropout
-from neuralmonkey.model.model_part import ModelPart
-from neuralmonkey.model.parameterized import InitializerSpecs
 from neuralmonkey.attention.base_attention import (
     BaseAttention, Attendable, get_attention_states, get_attention_mask)
 from neuralmonkey.attention.namedtuples import MultiHeadLoopState
+from neuralmonkey.decorators import tensor
+from neuralmonkey.model.model_part import ModelPart
+from neuralmonkey.model.parameterized import InitializerSpecs
+from neuralmonkey.nn.utils import dropout
 
 
 def split_for_heads(x: tf.Tensor, n_heads: int, head_dim: int) -> tf.Tensor:
@@ -263,22 +264,34 @@ class MultiHeadAttention(BaseAttention):
         self.n_heads = n_heads
         self.dropout_keep_prob = dropout_keep_prob
 
+        self.keys_encoder = keys_encoder
+
+        if values_encoder is not None:
+            self.values_encoder = values_encoder
+        else:
+            self.values_encoder = self.keys_encoder
+
         if self.n_heads <= 0:
             raise ValueError("Number of heads must be greater than zero.")
 
         if self.dropout_keep_prob <= 0.0 or self.dropout_keep_prob > 1.0:
             raise ValueError("Dropout keep prob must be inside (0,1].")
 
-        if values_encoder is None:
-            values_encoder = keys_encoder
-
-        self.attention_keys = get_attention_states(keys_encoder)
-        self.attention_mask = get_attention_mask(keys_encoder)
-        self.attention_values = get_attention_states(values_encoder)
-
         self._variable_scope.set_initializer(tf.variance_scaling_initializer(
             mode="fan_avg", distribution="uniform"))
     # pylint: enable=too-many-arguments
+
+    @tensor
+    def attention_keys(self) -> tf.Tensor:
+        return get_attention_states(self.keys_encoder)
+
+    @tensor
+    def attention_mask(self) -> tf.Tensor:
+        return get_attention_mask(self.keys_encoder)
+
+    @tensor
+    def attention_values(self) -> tf.Tensor:
+        return get_attention_states(self.values_encoder)
 
     def attention(self,
                   query: tf.Tensor,
@@ -346,9 +359,11 @@ class MultiHeadAttention(BaseAttention):
             head_weights = last_loop_state.head_weights[i]
             self.histories["{}_head{}".format(key, i)] = head_weights
 
+    # pylint: disable=no-member
     @property
     def context_vector_size(self) -> int:
         return self.attention_values.get_shape()[-1].value
+    # pylint: enable=no-member
 
     def visualize_attention(self, key: str, max_outputs: int = 16) -> None:
         for i in range(self.n_heads):

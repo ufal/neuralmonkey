@@ -191,9 +191,9 @@ class RepresentationRunner(TensorRunner):
         """
         check_argument_types()
 
-        if not hasattr(encoder, attribute):
-            raise TypeError("The encoder '{}' does not have the specified "
-                            "attribute '{}'".format(encoder, attribute))
+        if attribute not in dir(encoder):
+            warn("The encoder '{}' seems not to have the specified "
+                 "attribute '{}'".format(encoder, attribute))
 
         TensorRunner.__init__(
             self,

@@ -157,7 +157,7 @@ class BeamSearchDecoder(ModelPart):
         # Create a placeholder for maximum number of steps that is necessary
         # during ensembling, when the decoder is called repetitively with the
         # max_steps attribute set to one.
-        self.max_steps = tf.placeholder_with_default(max_steps, [])
+        self.max_steps = tf.placeholder_with_default(self.max_steps_int, [])
 
         # This is an ugly hack for handling the whole graph when expanding to
         # the beam. We need to access all the inner states of the network in

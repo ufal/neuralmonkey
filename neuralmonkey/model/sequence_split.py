@@ -42,13 +42,6 @@ class SequenceSplitter(TemporalStateful, ModelPart):
         self.projection_size = projection_size
         self.activation = projection_activation
 
-        state_dim = parent.dimension
-        if state_dim % factor != 0 and projection_size is None:
-            raise ValueError((
-                "Dimension of the parent temporal stateful ({}) must be "
-                "dividable by the given factor ({}).").format(
-                    state_dim, factor))
-
         if projection_size is not None and projection_size % factor != 0:
             raise ValueError((
                 "Dimension of projection ({}) must be "
@@ -84,5 +77,11 @@ def split_by_factor(
         tensor_3d: tf.Tensor, batch_size: tf.Tensor, factor: int) -> tf.Tensor:
     max_time = tf.shape(tensor_3d)[1]
     state_dim = tensor_3d.get_shape()[2].value
+
+    if state_dim % factor != 0:
+        raise ValueError((
+            "Dimension of the tensor ({}) must be dividable by the given "
+            "factor ({}).").format(state_dim, factor))
+
     return tf.reshape(
         tensor_3d, [batch_size, max_time * factor, state_dim // factor])

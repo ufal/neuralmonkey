@@ -4,13 +4,13 @@ import tensorflow as tf
 from typeguard import check_argument_types
 
 from neuralmonkey.dataset import Dataset
-from neuralmonkey.vocabulary import Vocabulary
+from neuralmonkey.decorators import tensor
 from neuralmonkey.model.feedable import FeedDict
 from neuralmonkey.model.parameterized import InitializerSpecs
 from neuralmonkey.model.model_part import ModelPart
 from neuralmonkey.model.stateful import Stateful
 from neuralmonkey.nn.mlp import MultilayerPerceptron
-from neuralmonkey.decorators import tensor
+from neuralmonkey.vocabulary import Vocabulary
 
 
 class Classifier(ModelPart):
@@ -60,26 +60,21 @@ class Classifier(ModelPart):
         self.activation_fn = activation_fn
         self.dropout_keep_prob = dropout_keep_prob
         self.max_output_len = 1
-
-        with self.use_scope():
-            self.gt_inputs = [tf.placeholder(tf.int32, [None], "targets")]
-
-            mlp_input = tf.concat([enc.output for enc in self.encoders], 1)
-            self._mlp = MultilayerPerceptron(
-                mlp_input, self.layers,
-                self.dropout_keep_prob, len(self.vocabulary),
-                activation_fn=self.activation_fn, train_mode=self.train_mode)
-
-        tf.summary.scalar(
-            "train_optimization_cost",
-            self.cost, collections=["summary_train"])
     # pylint: enable=too-many-arguments
 
+    # pylint: disable=no-self-use
     @tensor
-    def loss_with_gt_ins(self) -> tf.Tensor:
-        return tf.reduce_mean(
-            tf.nn.sparse_softmax_cross_entropy_with_logits(
-                logits=self._mlp.logits, labels=self.gt_inputs[0]))
+    def gt_inputs(self) -> tf.Tensor:
+        return tf.placeholder(tf.int32, [None], "targets")
+    # pylint: enable=no-self-use
+
+    @tensor
+    def _mlp(self) -> MultilayerPerceptron:
+        mlp_input = tf.concat([enc.output for enc in self.encoders], 1)
+        return MultilayerPerceptron(
+            mlp_input, self.layers, self.dropout_keep_prob,
+            len(self.vocabulary), activation_fn=self.activation_fn,
+            train_mode=self.train_mode)
 
     @property
     def loss_with_decoded_ins(self) -> tf.Tensor:
@@ -87,7 +82,19 @@ class Classifier(ModelPart):
 
     @property
     def cost(self) -> tf.Tensor:
+        tf.summary.scalar(
+            "train_optimization_cost",
+            self.loss_with_gt_ins, collections=["summary_train"])
+
         return self.loss_with_gt_ins
+
+    # pylint: disable=no-member
+    # this is for the _mlp attribute (pylint property bug)
+    @tensor
+    def loss_with_gt_ins(self) -> tf.Tensor:
+        return tf.reduce_mean(
+            tf.nn.sparse_softmax_cross_entropy_with_logits(
+                logits=self._mlp.logits, labels=self.gt_inputs))
 
     @tensor
     def decoded_seq(self) -> tf.Tensor:
@@ -100,6 +107,7 @@ class Classifier(ModelPart):
     @tensor
     def runtime_logprobs(self) -> tf.Tensor:
         return tf.expand_dims(tf.nn.log_softmax(self._mlp.logits), 0)
+    # pylint: enable=no-member
 
     @property
     def train_loss(self):
@@ -120,6 +128,6 @@ class Classifier(ModelPart):
         if sentences is not None:
             label_tensors, _ = self.vocabulary.sentences_to_tensor(
                 list(sentences), self.max_output_len)
-            fd[self.gt_inputs[0]] = label_tensors[0]
+            fd[self.gt_inputs] = label_tensors[0]
 
         return fd

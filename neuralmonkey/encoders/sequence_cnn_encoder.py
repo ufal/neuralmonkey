@@ -60,11 +60,15 @@ class SequenceCNNEncoder(ModelPart, Stateful):
         self.dropout_keep_prob = dropout_keep_prob
         self.filters = filters
 
-        with self.use_scope():
-            self.inputs = tf.placeholder(
-                tf.int32, [None, None], "encoder_input")
-            self.input_mask = tf.placeholder(
-                tf.float32, [None, None], "encoder_padding")
+    # pylint: disable=no-self-use
+    @tensor
+    def inputs(self) -> tf.Tensor:
+        return tf.placeholder(tf.int32, [None, None], "encoder_input")
+
+    @tensor
+    def input_mask(self) -> tf.Tensor:
+        return tf.placeholder(tf.float32, [None, None], "encoder_padding")
+    # pylint: enable=no-self-use
 
     @tensor
     def embedded_inputs(self) -> tf.Tensor:

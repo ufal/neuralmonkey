@@ -35,10 +35,12 @@ class WordAlignmentDecoder(ModelPart):
         self.decoder = decoder
         self.data_id = data_id
 
+    @property
+    def enc_input(self) -> Sequence:
         if not isinstance(self.encoder.input_sequence, Sequence):
             raise TypeError("Expected Sequence type in encoder.input_sequence")
 
-        self.enc_input = cast(Sequence, self.encoder.input_sequence)
+        return cast(Sequence, self.encoder.input_sequence)
 
     @tensor
     def ref_alignment(self) -> tf.Tensor:

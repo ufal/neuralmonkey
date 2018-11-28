@@ -3,6 +3,7 @@ from typing import List
 import tensorflow as tf
 from typeguard import check_argument_types
 
+from neuralmonkey.decorators import tensor
 from neuralmonkey.model.stateful import (
     Stateful, TemporalStateful, SpatialStateful)
 
@@ -13,11 +14,10 @@ class StatefulView(Stateful):
     def __init__(self, blocked_object: Stateful) -> None:
         check_argument_types()
         self._blocked_object = blocked_object
-        self._output = tf.stop_gradient(blocked_object.output)
 
-    @property
+    @tensor
     def output(self) -> tf.Tensor:
-        return self._output
+        return tf.stop_gradient(self._blocked_object.output)
 
     @property
     def dependencies(self) -> List[str]:
@@ -30,11 +30,10 @@ class TemporalStatefulView(TemporalStateful):
     def __init__(self, blocked_object: TemporalStateful) -> None:
         check_argument_types()
         self._blocked_object = blocked_object
-        self._states = tf.stop_gradient(blocked_object.temporal_states)
 
-    @property
+    @tensor
     def temporal_states(self) -> tf.Tensor:
-        return self._states
+        return tf.stop_gradient(self._blocked_object.temporal_states)
 
     @property
     def temporal_mask(self) -> tf.Tensor:
@@ -51,11 +50,10 @@ class SpatialStatefulView(SpatialStateful):
     def __init__(self, blocked_object: SpatialStateful) -> None:
         check_argument_types()
         self._blocked_object = blocked_object
-        self._states = tf.stop_gradient(blocked_object.spatial_states)
 
-    @property
+    @tensor
     def spatial_states(self) -> tf.Tensor:
-        return self._states
+        return tf.stop_gradient(self._blocked_object.spatial_states)
 
     @property
     def spatial_mask(self) -> tf.Tensor:

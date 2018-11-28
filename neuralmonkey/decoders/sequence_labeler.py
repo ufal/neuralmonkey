@@ -4,14 +4,14 @@ import tensorflow as tf
 from typeguard import check_argument_types
 
 from neuralmonkey.dataset import Dataset
+from neuralmonkey.decorators import tensor
+from neuralmonkey.encoders.recurrent import RecurrentEncoder
+from neuralmonkey.encoders.facebook_conv import SentenceEncoder
 from neuralmonkey.model.feedable import FeedDict
 from neuralmonkey.model.parameterized import InitializerSpecs
 from neuralmonkey.model.model_part import ModelPart
-from neuralmonkey.encoders.recurrent import RecurrentEncoder
-from neuralmonkey.encoders.facebook_conv import SentenceEncoder
-from neuralmonkey.vocabulary import Vocabulary
-from neuralmonkey.decorators import tensor
 from neuralmonkey.tf_utils import get_variable
+from neuralmonkey.vocabulary import Vocabulary
 
 
 class SequenceLabeler(ModelPart):
@@ -36,15 +36,21 @@ class SequenceLabeler(ModelPart):
         self.vocabulary = vocabulary
         self.data_id = data_id
         self.dropout_keep_prob = dropout_keep_prob
-
-        self.rnn_size = int(self.encoder.temporal_states.get_shape()[-1])
-
-        with self.use_scope():
-            self.train_targets = tf.placeholder(
-                tf.int32, [None, None], "labeler_targets")
-            self.train_weights = tf.placeholder(
-                tf.float32, [None, None], "labeler_padding_weights")
     # pylint: enable=too-many-arguments
+
+    # pylint: disable=no-self-use
+    @tensor
+    def train_targets(self) -> tf.Tensor:
+        return tf.placeholder(tf.int32, [None, None], "targets")
+
+    @tensor
+    def train_weights(self) -> tf.Tensor:
+        return tf.placeholder(tf.float32, [None, None], "padding")
+    # pylint: enable=no-self-use
+
+    @property
+    def rnn_size(self) -> int:
+        return int(self.encoder.temporal_states.get_shape()[-1])
 
     @tensor
     def decoding_w(self) -> tf.Variable:

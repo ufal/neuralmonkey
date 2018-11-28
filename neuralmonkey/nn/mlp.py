@@ -1,5 +1,7 @@
 from typing import List, Callable
 import tensorflow as tf
+
+from neuralmonkey.decorators import tensor
 from neuralmonkey.nn.projection import multilayer_projection
 
 
@@ -25,12 +27,12 @@ class MultilayerPerceptron:
             self.logits = tf.layers.dense(
                 last_layer, output_size, name="classification_layer")
 
-    @property
+    @tensor
     def softmax(self):
         with tf.variable_scope("classification_layer"):
             return tf.nn.softmax(self.logits, name="decision_softmax")
 
-    @property
+    @tensor
     def classification(self):
         with tf.variable_scope("classification_layer"):
             return tf.argmax(self.logits, 1)

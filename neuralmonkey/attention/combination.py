@@ -24,6 +24,7 @@ from neuralmonkey.attention.base_attention import (
 from neuralmonkey.attention.namedtuples import HierarchicalLoopState
 from neuralmonkey.checking import assert_shape
 from neuralmonkey.decorators import tensor
+from neuralmonkey.logging import debug
 from neuralmonkey.model.model_part import ModelPart
 from neuralmonkey.model.parameterized import InitializerSpecs
 from neuralmonkey.tf_utils import get_variable
@@ -138,53 +139,63 @@ class FlatMultiAttention(MultiAttention):
             load_checkpoint=load_checkpoint,
             initializers=initializers)
         self._encoders = encoders
+    # pylint: enable=too-many-arguments
 
-        # pylint: disable=protected-access
-        self._encoders_tensors = [
-            get_attention_states(e) for e in self._encoders]
-        self._encoders_masks = [get_attention_mask(e) for e in self._encoders]
-        # pylint: enable=protected-access
+    @tensor
+    def _encoders_tensors(self) -> List[tf.Tensor]:
+        tensors = [get_attention_states(e) for e in self._encoders]
+        for e_t in tensors:
+            assert_shape(e_t, [-1, -1, -1])
+        return tensors
 
-        for e_m in self._encoders_masks:
+    @tensor
+    def _encoders_masks(self) -> List[tf.Tensor]:
+        masks = [get_attention_mask(e) for e in self._encoders]
+        for e_m in masks:
             assert_shape(e_m, [-1, -1])
 
-        for e_t in self._encoders_tensors:
-            assert_shape(e_t, [-1, -1, -1])
+        if self._use_sentinels:
+            masks.append(tf.ones([tf.shape(masks[0])[0], 1]))
+        return masks
 
-        with self.use_scope():
-            self.encoder_projections_for_logits = \
-                self.get_encoder_projections("logits_projections")
+    @tensor
+    def encoder_projections_for_logits(self) -> List[tf.Tensor]:
+        return self.get_encoder_projections("logits_projections")
 
-            self.encoder_attn_biases = [
-                get_variable(name="attn_bias_{}".format(i),
-                             shape=[],
+    @tensor
+    def encoder_attn_biases(self) -> List[tf.Variable]:
+        return [get_variable(name="attn_bias_{}".format(i), shape=[],
                              initializer=tf.zeros_initializer())
                 for i in range(len(self._encoders_tensors))]
 
-            if self._share_projections:
-                self.encoder_projections_for_ctx = \
-                    self.encoder_projections_for_logits
-            else:
-                self.encoder_projections_for_ctx = \
-                    self.get_encoder_projections("context_projections")
+    @tensor
+    def encoder_projections_for_ctx(self) -> List[tf.Tensor]:
+        if self._share_projections:
+            return self.encoder_projections_for_logits
+        return self.get_encoder_projections("context_projections")
 
-            if self._use_sentinels:
-                self._encoders_masks.append(
-                    tf.ones([tf.shape(self._encoders_masks[0])[0], 1]))
-
-            self.masks_concat = tf.concat(self._encoders_masks, 1)
-    # pylint: enable=too-many-arguments
+    @tensor
+    def masks_concat(self) -> tf.Tensor:
+        return tf.concat(self._encoders_masks, 1)
 
     def initial_loop_state(self) -> AttentionLoopState:
 
+        # pylint: disable=not-an-iterable
+        # TODO blessing
+        for val in self.encoder_projections_for_logits:
+            debug(val)
+        debug(self.masks_concat)
+
         length = sum(tf.shape(s)[1] for s in self._encoders_tensors)
+        # pylint: enable=not-an-iterable
+
         if self._use_sentinels:
             length += 1
 
         return empty_attention_loop_state(self.batch_size, length,
                                           self.context_vector_size)
 
-    def get_encoder_projections(self, scope):
+    def get_encoder_projections(self, scope) -> List[tf.Tensor]:
         encoder_projections = []
         with tf.variable_scope(scope):
             for i, encoder_tensor in enumerate(self._encoders_tensors):
@@ -216,9 +227,11 @@ class FlatMultiAttention(MultiAttention):
                 encoder_projections.append(projection)
             return encoder_projections
 
+    # pylint: disable=unsubscriptable-object
     @property
     def context_vector_size(self) -> int:
         return self.encoder_projections_for_ctx[0].get_shape()[2].value
+    # pylint: enable=unsubscriptable-object
 
     # pylint: disable=too-many-locals
     def attention(self,
@@ -280,6 +293,7 @@ class FlatMultiAttention(MultiAttention):
             return contexts, next_loop_state
     # pylint: enable=too-many-locals
 
+    # pylint: disable=not-an-iterable,unsubscriptable-object
     def _tile_encoders_for_beamsearch(self, projected_sentinel):
         sentinel_batch_size = tf.shape(projected_sentinel)[0]
         encoders_batch_size = tf.shape(
@@ -293,6 +307,7 @@ class FlatMultiAttention(MultiAttention):
 
         return [tf.tile(proj, [beam_size, 1, 1])
                 for proj in self.encoder_projections_for_ctx]
+    # pylint: enable=not-an-iterable,unsubscriptable-object
 
     def _renorm_softmax(self, logits):
         """Renormalized softmax wrt. attention mask."""

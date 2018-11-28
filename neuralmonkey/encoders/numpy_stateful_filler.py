@@ -49,11 +49,14 @@ class StatefulFiller(ModelPart, Stateful):
             raise ValueError("Input vector dimension must be positive.")
         if self.output_shape is not None and self.output_shape <= 0:
             raise ValueError("Output vector dimension must be positive.")
-
-        with self.use_scope():
-            self.vector = tf.placeholder(
-                tf.float32, [None, self.dimension], "input_vector")
     # pylint: enable=too-many-arguments
+
+    # pylint: disable=no-self-use
+    @tensor
+    def vector(self) -> tf.Tensor:
+        return tf.placeholder(
+            tf.float32, [None, self.dimension], "input_vector")
+    # pylint: enable=no-self-use
 
     @tensor
     def output(self) -> tf.Tensor:
