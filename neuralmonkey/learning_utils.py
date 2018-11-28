@@ -12,7 +12,7 @@ import tensorflow as tf
 from termcolor import colored
 from typeguard import check_argument_types
 
-from neuralmonkey.logging import log, log_print, warn, notice
+from neuralmonkey.logging import log, log_print, warn
 from neuralmonkey.dataset import Dataset, BatchingScheme
 from neuralmonkey.tf_manager import TensorFlowManager
 from neuralmonkey.runners.base_runner import (
@@ -20,6 +20,7 @@ from neuralmonkey.runners.base_runner import (
 from neuralmonkey.trainers.generic_trainer import GenericTrainer
 from neuralmonkey.trainers.multitask_trainer import MultitaskTrainer
 from neuralmonkey.trainers.delayed_update_trainer import DelayedUpdateTrainer
+from neuralmonkey.training_profiler import TrainingProfiler
 
 # pylint: disable=invalid-name
 Evaluation = Dict[str, float]
@@ -133,14 +134,12 @@ def training_loop(tf_manager: TensorFlowManager,
         log("TensorBoard writer initialized.")
 
     log("Starting training")
-    last_log_time = time.process_time()
-    last_val_time = time.process_time()
+    profiler = TrainingProfiler()
+    profiler.training_start()
+
     interrupt = None
     try:
         for epoch_n in range(1, epochs + 1):
-            log_print("")
-            log("Epoch {} begins".format(epoch_n), color="red")
-
             train_batches = train_dataset.batches(batching_scheme)
 
             if epoch_n == 1 and train_start_offset:
@@ -150,11 +149,15 @@ def training_loop(tf_manager: TensorFlowManager,
                 else:
                     _skip_lines(train_start_offset, train_batches)
 
+            log_print("")
+            log("Epoch {} begins".format(epoch_n), color="red")
+            profiler.epoch_start()
+
             for batch_n, batch in enumerate(train_batches):
                 step += 1
                 seen_instances += len(batch)
 
-                if log_timer(step, last_log_time):
+                if log_timer(step, profiler.last_log_time):
                     trainer_result = tf_manager.execute(
                         batch, feedables, trainers, train=True, summaries=True)
                     train_results, train_outputs = run_on_dataset(
@@ -172,14 +175,18 @@ def training_loop(tf_manager: TensorFlowManager,
                         tb_writer, main_metric, train_evaluation,
                         seen_instances, epoch_n, epochs, trainer_result,
                         train=True)
-                    last_log_time = time.process_time()
+
+                    profiler.log_done()
+
                 else:
                     tf_manager.execute(batch, feedables, trainers, train=True,
                                        summaries=False)
 
-                if val_timer(step, last_val_time):
+                if val_timer(step, profiler.last_val_time):
+
                     log_print("")
-                    val_duration_start = time.process_time()
+                    profiler.validation_start()
+
                     val_examples = 0
                     for val_id, valset in enumerate(val_datasets):
                         val_examples += len(valset)
@@ -243,24 +250,12 @@ def training_loop(tf_manager: TensorFlowManager,
                             seen_instances, epoch_n, epochs, val_results,
                             train=False, dataset_name=v_name)
 
-                    # how long was the training between validations
-                    training_duration = val_duration_start - last_val_time
-                    val_duration = time.process_time() - val_duration_start
-
-                    # the training should take at least twice the time of val.
-                    steptime = (training_duration
-                                / (seen_instances - last_seen_instances))
-                    valtime = val_duration / val_examples
+                    profiler.validation_done()
+                    profiler.log_after_validation(
+                        val_examples, seen_instances - last_seen_instances)
                     last_seen_instances = seen_instances
-                    log("Validation time: {:.2f}s, inter-validation: {:.2f}s, "
-                        "per-instance (train): {:.2f}s, per-instance (val): "
-                        "{:.2f}s".format(val_duration, training_duration,
-                                         steptime, valtime), color="blue")
-                    if training_duration < 2 * val_duration:
-                        notice("Validation period setting is inefficient.")
 
                     log_print("")
-                    last_val_time = time.process_time()
 
     except KeyboardInterrupt as ex:
         interrupt = ex
