@@ -58,16 +58,15 @@ class CostObjective(Objective[GenericModelPart]):
                  weight: ObjectiveWeight = None) -> None:
         check_argument_types()
 
-        if not hasattr(decoder, "cost"):
-            raise TypeError("The decoder does not have a `cost` attribute")
-
         name = "{} - cost".format(str(decoder))
         Objective[GenericModelPart].__init__(self, name, decoder)
         self._weight = weight
 
     @tensor
     def loss(self) -> tf.Tensor:
-        assert hasattr(self.decoder, "cost")
+        if not hasattr(self.decoder, "cost"):
+            raise TypeError("The decoder does not have the 'cost' attribute")
+
         return getattr(self.decoder, "cost")
 
     @tensor
