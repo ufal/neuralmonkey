@@ -1,9 +1,11 @@
-from typing import List
+from typing import List, Dict, Tuple
 
 import numpy as np
 import tensorflow as tf
 from typeguard import check_argument_types
 
+from neuralmonkey.dataset import Dataset
+from neuralmonkey.decorators import tensor
 # pylint: disable=protected-access
 from neuralmonkey.encoders.recurrent import (
     RNNSpecTuple, _make_rnn_spec, _make_rnn_cell)
@@ -12,9 +14,7 @@ from neuralmonkey.model.feedable import FeedDict
 from neuralmonkey.model.parameterized import InitializerSpecs
 from neuralmonkey.model.model_part import ModelPart
 from neuralmonkey.model.stateful import TemporalStatefulWithOutput
-from neuralmonkey.logging import log
 from neuralmonkey.nn.utils import dropout
-from neuralmonkey.dataset import Dataset
 
 
 # pylint: disable=too-many-instance-attributes
@@ -55,70 +55,89 @@ class RawRNNEncoder(ModelPart, TemporalStatefulWithOutput):
         self.input_size = input_size
         self.dropout_keep_prob = dropout_keep_prob
 
-        log("Initializing RNN encoder, name: '{}'"
-            .format(self.name))
+    @property
+    def input_types(self) -> Dict[str, tf.DType]:
+        return {self.data_id: tf.float32}
 
-        with self.use_scope():
-            self.inputs = tf.placeholder(
-                tf.float32, [None, None, self.input_size], "encoder_input")
-            self._input_lengths = tf.placeholder(
-                tf.int32, [None], "encoder_padding_lengths")
+    @property
+    def input_shapes(self) -> Dict[str, tf.TensorShape]:
+        return {self.data_id: tf.TensorShape([None, None, self.input_size])}
 
-            self.states_mask = tf.sequence_mask(
-                self._input_lengths, dtype=tf.float32)
+    @tensor
+    def inputs(self) -> tf.Tensor:
+        return self.dataset[self.data_id]
 
-            states = self.inputs
-            states_reversed = False
+    # pylint: disable=no-self-use
+    @tensor
+    def _input_lengths(self) -> tf.Tensor:
+        return tf.placeholder(tf.int32, [None], "encoder_padding_lengths")
+    # pylint: enable=no-self-use
 
-            def reverse_states():
-                nonlocal states, states_reversed
-                states = tf.reverse_sequence(
-                    states, self._input_lengths, batch_axis=0, seq_axis=1)
-                states_reversed = not states_reversed
+    @tensor
+    def states_mask(self) -> tf.Tensor:
+        return tf.sequence_mask(self._input_lengths, dtype=tf.float32)
 
-            for i, layer in enumerate(self._rnn_layers):
-                with tf.variable_scope("rnn_{}_{}".format(i, layer.direction)):
-                    if layer.direction == "bidirectional":
-                        fw_cell = _make_rnn_cell(layer)
-                        bw_cell = _make_rnn_cell(layer)
-                        outputs_tup, encoded_tup = (
-                            tf.nn.bidirectional_dynamic_rnn(
-                                fw_cell, bw_cell, states, self._input_lengths,
-                                dtype=tf.float32))
+    @tensor
+    def rnn(self) -> Tuple[tf.Tensor, tf.Tensor]:
+        states = self.inputs
+        states_reversed = False
 
-                        if states_reversed:
-                            # treat forward as backward and vice versa
-                            outputs_tup = tuple(reversed(outputs_tup))
-                            encoded_tup = tuple(reversed(encoded_tup))
-                            states_reversed = False
+        def reverse_states():
+            nonlocal states, states_reversed
+            states = tf.reverse_sequence(
+                states, self._input_lengths, batch_axis=0, seq_axis=1)
+            states_reversed = not states_reversed
 
-                        states = tf.concat(outputs_tup, 2)
-                        encoded = tf.concat(encoded_tup, 1)
-                    elif layer.direction in ["forward", "backward"]:
-                        should_be_reversed = (layer.direction == "backward")
-                        if states_reversed != should_be_reversed:
-                            reverse_states()
+        for i, layer in enumerate(self._rnn_layers):
+            with tf.variable_scope("rnn_{}_{}".format(i, layer.direction)):
+                if layer.direction == "bidirectional":
+                    fw_cell = _make_rnn_cell(layer)
+                    bw_cell = _make_rnn_cell(layer)
+                    outputs_tup, encoded_tup = (
+                        tf.nn.bidirectional_dynamic_rnn(
+                            fw_cell, bw_cell, states, self._input_lengths,
+                            dtype=tf.float32))
 
-                        cell = _make_rnn_cell(layer)
-                        states, encoded = tf.nn.dynamic_rnn(
-                            cell, states,
-                            sequence_length=self._input_lengths,
-                            dtype=tf.float32)
-                    else:
-                        raise ValueError(
-                            "Unknown RNN direction {}".format(layer.direction))
+                    if states_reversed:
+                        # treat forward as backward and vice versa
+                        outputs_tup = tuple(reversed(outputs_tup))
+                        encoded_tup = tuple(reversed(encoded_tup))
+                        states_reversed = False
 
-                if i < len(self._rnn_layers) - 1:
-                    states = dropout(states, self.dropout_keep_prob,
-                                     self.train_mode)
+                    states = tf.concat(outputs_tup, 2)
+                    encoded = tf.concat(encoded_tup, 1)
+                elif layer.direction in ["forward", "backward"]:
+                    should_be_reversed = (layer.direction == "backward")
+                    if states_reversed != should_be_reversed:
+                        reverse_states()
 
-            if states_reversed:
-                reverse_states()
+                    cell = _make_rnn_cell(layer)
+                    states, encoded = tf.nn.dynamic_rnn(
+                        cell, states,
+                        sequence_length=self._input_lengths,
+                        dtype=tf.float32)
+                else:
+                    raise ValueError(
+                        "Unknown RNN direction {}".format(layer.direction))
 
-            self.hidden_states = states
-            self.encoded = encoded
+            if i < len(self._rnn_layers) - 1:
+                states = dropout(states, self.dropout_keep_prob,
+                                 self.train_mode)
 
-        log("RNN encoder initialized")
+        if states_reversed:
+            reverse_states()
+
+        return states, encoded
+
+    # pylint: disable=unsubscriptable-object
+    @tensor
+    def hidden_states(self) -> tf.Tensor:
+        return self.rnn[0]
+
+    @tensor
+    def encoded(self) -> tf.Tensor:
+        return self.rnn[1]
+    # pylint: enable=unsubscriptable-object
 
     @property
     def output(self) -> tf.Tensor:

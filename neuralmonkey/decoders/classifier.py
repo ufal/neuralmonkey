@@ -1,4 +1,4 @@
-from typing import Callable, List
+from typing import Callable, Dict, List
 
 import tensorflow as tf
 from typeguard import check_argument_types
@@ -62,11 +62,17 @@ class Classifier(ModelPart):
         self.max_output_len = 1
     # pylint: enable=too-many-arguments
 
-    # pylint: disable=no-self-use
+    @property
+    def input_types(self) -> Dict[str, tf.DType]:
+        return {self.data_id: tf.int32}
+
+    @property
+    def input_shapes(self) -> Dict[str, tf.TensorShape]:
+        return {self.data_id: tf.TensorShape([None])}
+
     @tensor
     def gt_inputs(self) -> tf.Tensor:
-        return tf.placeholder(tf.int32, [None], "targets")
-    # pylint: enable=no-self-use
+        return self.dataset[self.data_id]
 
     @tensor
     def _mlp(self) -> MultilayerPerceptron:

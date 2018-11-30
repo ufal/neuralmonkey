@@ -1,8 +1,9 @@
 from abc import ABCMeta
-from typing import Any, Dict
+# pylint: disable=unused-import
+from typing import Any, Dict, List, Optional
+# pylint: enable=unused-import
 
 import tensorflow as tf
-
 from neuralmonkey.dataset import Dataset
 
 # pylint: disable=invalid-name
@@ -10,8 +11,6 @@ FeedDict = Dict[tf.Tensor, Any]
 # pylint: enable=invalid-name
 
 
-# pylint: disable=too-few-public-methods
-# TODO add some public methods
 class Feedable(metaclass=ABCMeta):
     """Base class for feedable model parts.
 
@@ -30,6 +29,7 @@ class Feedable(metaclass=ABCMeta):
     def __init__(self) -> None:
         self.train_mode = tf.placeholder(tf.bool, [], "train_mode")
         self.batch_size = tf.placeholder(tf.int32, [], "batch_size")
+        self._dataset = None  # type: Optional[Dict[str, tf.Tensor]]
 
     def feed_dict(self, dataset: Dataset, train: bool = True) -> FeedDict:
         """Return a feed dictionary for the given feedable object.
@@ -45,3 +45,25 @@ class Feedable(metaclass=ABCMeta):
         fd[self.train_mode] = train
         fd[self.batch_size] = len(dataset)
         return fd
+
+    @property
+    def input_types(self) -> Dict[str, tf.DType]:
+        return {}
+
+    @property
+    def input_shapes(self) -> Dict[str, List[int]]:
+        return {}
+
+    @property
+    def dataset(self) -> Dict[str, tf.Tensor]:
+        if self._dataset is None:
+            raise RuntimeError("Getting dataset before registering it.")
+        return self._dataset
+
+    def register_input(self) -> None:
+        assert self.input_types.keys() == self.input_shapes.keys()
+        self._dataset = {}
+
+        for s_id, dtype in self.input_types.items():
+            shape = self.input_shapes[s_id]
+            self.dataset[s_id] = tf.placeholder(dtype, shape, s_id)

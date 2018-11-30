@@ -21,7 +21,10 @@ are functions that prepare and return values that are supplied to the
 """
 # pylint: disable=too-many-lines
 # Maybe move the definitions of the named tuple structures to a separate file?
-from typing import NamedTuple, List, Callable, Any
+from typing import Any, Callable, List, NamedTuple
+# pylint: disable=unused-import
+from typing import Optional
+# pylint: enable=unused-import
 
 import tensorflow as tf
 from typeguard import check_argument_types
@@ -159,11 +162,14 @@ class BeamSearchDecoder(ModelPart):
         # max_steps attribute set to one.
         self.max_steps = tf.placeholder_with_default(self.max_steps_int, [])
 
+        self._initial_loop_state = None  # type: Optional[BeamSearchLoopState]
+
+    @tensor
+    def outputs(self) -> tf.Tensor:
         # This is an ugly hack for handling the whole graph when expanding to
         # the beam. We need to access all the inner states of the network in
         # the graph, replace them with beam-size-times copied originals, create
         # the beam search graph, and then replace the inner states back.
-        self._building = False
 
         enc_states = self.parent_decoder.encoder_states
         enc_masks = self.parent_decoder.encoder_masks
@@ -175,12 +181,20 @@ class BeamSearchDecoder(ModelPart):
 
         # Create the beam search symbolic graph.
         with self.use_scope():
-            self.initial_loop_state = self.get_initial_loop_state()
-            self.outputs = self.decoding_loop()
+            self._initial_loop_state = self.get_initial_loop_state()
+            outputs = self.decoding_loop()
 
         # Reassign the original encoder states and mask back
         setattr(self.parent_decoder, "encoder_states", enc_states)
         setattr(self.parent_decoder, "encoder_masks", enc_masks)
+
+        return outputs
+
+    @property
+    def initial_loop_state(self) -> BeamSearchLoopState:
+        if self._initial_loop_state is None:
+            raise RuntimeError("Initial loop state was not initialized")
+        return self._initial_loop_state
 
     @property
     def vocabulary(self) -> Vocabulary:

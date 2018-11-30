@@ -1,4 +1,5 @@
-from typing import cast, Tuple
+# TODO untested module
+from typing import cast, Dict, Tuple
 
 import numpy as np
 import tensorflow as tf
@@ -42,14 +43,18 @@ class WordAlignmentDecoder(ModelPart):
 
         return cast(Sequence, self.encoder.input_sequence)
 
+    @property
+    def input_types(self) -> Dict[str, tf.DType]:
+        return {self.data_id: tf.float32}
+
+    @property
+    def input_shapes(self) -> Dict[str, tf.TensorShape]:
+        return {self.data_id: tf.TensorShape(
+            [None, self.decoder.max_output_len, self.enc_input.max_length])}
+
     @tensor
     def ref_alignment(self) -> tf.Tensor:
-        # TODO dynamic shape?
-        return tf.placeholder(
-            dtype=tf.float32,
-            shape=[None, self.decoder.max_output_len,
-                   self.enc_input.max_length],
-            name="ref_alignment")
+        return self.dataset[self.data_id]
 
     @tensor
     def alignment_target(self) -> tf.Tensor:

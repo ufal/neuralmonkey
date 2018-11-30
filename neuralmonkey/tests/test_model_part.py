@@ -27,12 +27,14 @@ class Test(unittest.TestCase):
             vocabulary=vocabulary,
             data_id="id",
             embedding_size=10)
+        seq1.register_input()
 
         seq2 = EmbeddedSequence(
             name="seq2",
             vocabulary=vocabulary,
             embedding_size=10,
             data_id="id")
+        seq2.register_input()
 
         seq3 = EmbeddedSequence(
             name="seq3",
@@ -40,6 +42,7 @@ class Test(unittest.TestCase):
             data_id="id",
             embedding_size=10,
             reuse=seq1)
+        seq3.register_input()
 
         # blessing
         self.assertIsNotNone(seq1.embedding_matrix)
@@ -71,6 +74,8 @@ class Test(unittest.TestCase):
             embedding_size=10, rnn_size=20, max_input_len=30,
             save_checkpoint=checkpoint_file.name,
             load_checkpoint=checkpoint_file.name)
+
+        encoder.input_sequence.register_input()
 
         # NOTE: This assert needs to be here otherwise the model has
         # no parameters since the sentence encoder is initialized lazily

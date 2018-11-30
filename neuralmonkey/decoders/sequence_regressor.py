@@ -1,4 +1,4 @@
-from typing import Callable, List
+from typing import Callable, Dict, List
 
 import tensorflow as tf
 from typeguard import check_argument_types
@@ -46,11 +46,17 @@ class SequenceRegressor(ModelPart):
         self._dropout_keep_prob = dropout_keep_prob
     # pylint: enable=too-many-arguments
 
-    # pylint: disable=no-self-use
+    @property
+    def input_types(self) -> Dict[str, tf.DType]:
+        return {self.data_id: tf.float32}
+
+    @property
+    def input_shapes(self) -> Dict[str, tf.TensorShape]:
+        return {self.data_id: tf.TensorShape([None])}
+
     @tensor
     def train_inputs(self) -> tf.Tensor:
-        return tf.placeholder(tf.float32, [None], "targets")
-    # pylint: enable=no-self-use
+        return self.dataset[self.data_id]
 
     @tensor
     def _mlp_input(self):

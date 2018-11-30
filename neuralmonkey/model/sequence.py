@@ -1,20 +1,20 @@
 """Module which impements the sequence class and a few of its subclasses."""
 
 import os
-from typing import List
+from typing import List, Dict
 
 import tensorflow as tf
 from tensorflow.contrib.tensorboard.plugins import projector
 from typeguard import check_argument_types
 
+from neuralmonkey.dataset import Dataset
+from neuralmonkey.decorators import tensor
 from neuralmonkey.model.feedable import FeedDict
 from neuralmonkey.model.model_part import ModelPart
 from neuralmonkey.model.parameterized import InitializerSpecs
 from neuralmonkey.model.stateful import TemporalStateful
-from neuralmonkey.vocabulary import Vocabulary
-from neuralmonkey.decorators import tensor
-from neuralmonkey.dataset import Dataset
 from neuralmonkey.tf_utils import get_variable
+from neuralmonkey.vocabulary import Vocabulary, PAD_TOKEN_INDEX
 
 
 # pylint: disable=abstract-method
@@ -131,17 +131,17 @@ class EmbeddedFactorSequence(Sequence):
             tf.random_normal_initializer(stddev=0.001))
     # pylint: enable=too-many-arguments
 
-    # pylint: disable=no-self-use
-    @tensor
-    def mask(self) -> tf.Tensor:
-        return tf.placeholder(tf.float32, [None, None], "mask")
+    @property
+    def input_types(self) -> Dict[str, tf.DType]:
+        return {d_id: tf.int32 for d_id in self.data_ids}
+
+    @property
+    def input_shapes(self) -> Dict[str, tf.TensorShape]:
+        return {d_id: tf.TensorShape([None, None]) for d_id in self.data_ids}
 
     @tensor
     def input_factors(self) -> List[tf.Tensor]:
-        return [
-            tf.placeholder(tf.int32, [None, None], "factor_{}".format(did))
-            for did in self.data_ids]
-    # pylint: enable=no-self-use
+        return [self.dataset[s_id] for s_id in self.data_ids]
 
     # TODO this should be placed into the abstract embedding class
     def tb_embedding_visualization(self, logdir: str,
@@ -206,14 +206,17 @@ class EmbeddedFactorSequence(Sequence):
 
             # We explicitly set paddings to zero-value vectors
             # TODO: remove unnecessary masking in the subesquent modules
-            emb_factor = emb_factor * tf.expand_dims(self.mask, -1)
+            emb_factor = emb_factor * tf.expand_dims(self.temporal_mask, -1)
             embedded_factors.append(emb_factor)
 
         return tf.concat(embedded_factors, 2)
 
+    # pylint: disable=unsubscriptable-object
     @tensor
     def temporal_mask(self) -> tf.Tensor:
-        return self.mask
+        return tf.to_float(tf.not_equal(
+            self.input_factors[0], PAD_TOKEN_INDEX))
+    # pylint: enable=unsubscriptable-object
 
     def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
         """Feed the placholders with the data.
@@ -249,7 +252,7 @@ class EmbeddedFactorSequence(Sequence):
             raise ValueError("The lenghts of factors do not match")
 
         assert last_paddings is not None
-        fd[self.mask] = list(zip(*last_paddings))
+        # fd[self.mask] = list(zip(*last_paddings))
 
         return fd
 

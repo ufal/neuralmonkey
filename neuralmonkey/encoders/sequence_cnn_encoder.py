@@ -1,6 +1,6 @@
 """Encoder for sentence classification with 1D convolutions and max-pooling."""
 
-from typing import Tuple, List
+from typing import Dict, List, Tuple
 
 from typeguard import check_argument_types
 import tensorflow as tf
@@ -12,7 +12,7 @@ from neuralmonkey.model.parameterized import InitializerSpecs
 from neuralmonkey.model.model_part import ModelPart
 from neuralmonkey.model.stateful import Stateful
 from neuralmonkey.nn.utils import dropout
-from neuralmonkey.vocabulary import Vocabulary
+from neuralmonkey.vocabulary import Vocabulary, PAD_TOKEN_INDEX
 from neuralmonkey.tf_utils import get_variable
 
 
@@ -60,15 +60,21 @@ class SequenceCNNEncoder(ModelPart, Stateful):
         self.dropout_keep_prob = dropout_keep_prob
         self.filters = filters
 
-    # pylint: disable=no-self-use
+    @property
+    def input_types(self) -> Dict[str, tf.DType]:
+        return {self.data_id: tf.int32}
+
+    @property
+    def input_shapes(self) -> Dict[str, tf.TensorShape]:
+        return {self.data_id: tf.TensorShape([None, None])}
+
     @tensor
     def inputs(self) -> tf.Tensor:
-        return tf.placeholder(tf.int32, [None, None], "encoder_input")
+        return self.dataset[self.data_id]
 
     @tensor
     def input_mask(self) -> tf.Tensor:
-        return tf.placeholder(tf.float32, [None, None], "encoder_padding")
-    # pylint: enable=no-self-use
+        return tf.to_float(tf.not_equal(self.inputs, PAD_TOKEN_INDEX))
 
     @tensor
     def embedded_inputs(self) -> tf.Tensor:
@@ -124,13 +130,12 @@ class SequenceCNNEncoder(ModelPart, Stateful):
         fd = ModelPart.feed_dict(self, dataset, train)
 
         sentences = dataset.get_series(self.data_id)
-        vectors, paddings = self.vocabulary.sentences_to_tensor(
+        vectors, _ = self.vocabulary.sentences_to_tensor(
             list(sentences), self.max_input_len, pad_to_max_len=False,
             train_mode=train)
 
         # as sentences_to_tensor returns lists of shape (time, batch),
         # we need to transpose
         fd[self.inputs] = list(zip(*vectors))
-        fd[self.input_mask] = list(zip(*paddings))
 
         return fd

@@ -1,9 +1,8 @@
 """Pre-trained ImageNet networks."""
 
-from typing import Callable, NamedTuple, Tuple, Optional, Any
 import sys
+from typing import Any, Callable, Dict, NamedTuple, Optional, Tuple
 
-from typeguard import check_argument_types
 import numpy as np
 import tensorflow as tf
 import tensorflow.contrib.slim as tf_slim
@@ -12,6 +11,7 @@ import tensorflow.contrib.slim as tf_slim
 # see https://github.com/tensorflow/tensorflow/issues/6064
 import tensorflow.contrib.slim.nets
 # pylint: enable=unused-import
+from typeguard import check_argument_types
 
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.decorators import tensor
@@ -158,6 +158,19 @@ class ImageNet(ModelPart, SpatialStatefulWithOutput):
         self.net_specification = SUPPORTED_NETWORKS[self.network_type]()
         self.height, self.width = self.net_specification.image_size
 
+    @property
+    def input_types(self) -> Dict[str, tf.DType]:
+        return {self.data_id: tf.float32}
+
+    @property
+    def input_shapes(self) -> Dict[str, tf.TensorShape]:
+        return {
+            self.data_id: tf.TensorShape([None, self.height, self.width, 3])}
+
+    @tensor
+    def input_image(self) -> tf.Tensor:
+        return self.dataset[self.data_id]
+
     @tensor
     def end_points(self) -> Any:
         with tf_slim.arg_scope(self.net_specification.scope()):
@@ -186,11 +199,6 @@ class ImageNet(ModelPart, SpatialStatefulWithOutput):
                     self.network_type, self.encoded_layer))
 
         return end_points
-
-    @tensor
-    def input_image(self) -> tf.Tensor:
-        return tf.placeholder(
-            tf.float32, [None, self.height, self.width, 3])
 
     @tensor
     def spatial_states(self) -> Optional[tf.Tensor]:

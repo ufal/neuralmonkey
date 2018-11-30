@@ -5,7 +5,7 @@ Either for the recurrent decoder, or for the transformer decoder.
 The autoregressive decoder uses the while loop to get the outputs.
 Descendants should only specify the initial state and the while loop body.
 """
-from typing import NamedTuple, Callable, Tuple, Optional, Any, List
+from typing import NamedTuple, Callable, Tuple, Optional, Any, List, Dict
 
 import numpy as np
 import tensorflow as tf
@@ -19,7 +19,9 @@ from neuralmonkey.logging import warn
 from neuralmonkey.model.sequence import EmbeddedSequence
 from neuralmonkey.nn.utils import dropout
 from neuralmonkey.tf_utils import get_variable, get_state_shape_invariants
-from neuralmonkey.vocabulary import Vocabulary, START_TOKEN, UNK_TOKEN_INDEX
+from neuralmonkey.vocabulary import (
+    Vocabulary, START_TOKEN, UNK_TOKEN_INDEX, START_TOKEN_INDEX,
+    PAD_TOKEN_INDEX)
 
 
 class LoopState(NamedTuple(
@@ -177,19 +179,25 @@ class AutoregressiveDecoder(ModelPart):
 
         return self.embeddings_source.embedding_matrix.get_shape()[1].value
 
-    # pylint: disable=no-self-use
     @tensor
     def go_symbols(self) -> tf.Tensor:
-        return tf.placeholder(tf.int32, [None], "go_symbols")
+        return tf.fill([self.batch_size], START_TOKEN_INDEX)
+
+    @property
+    def input_types(self) -> Dict[str, tf.DType]:
+        return {self.data_id: tf.int32}
+
+    @property
+    def input_shapes(self) -> Dict[str, tf.TensorShape]:
+        return {self.data_id: tf.TensorShape([None, None])}
 
     @tensor
     def train_inputs(self) -> tf.Tensor:
-        return tf.placeholder(tf.int32, [None, None], "train_inputs")
+        return self.dataset[self.data_id]
 
     @tensor
     def train_mask(self) -> tf.Tensor:
-        return tf.placeholder(tf.float32, [None, None], "train_mask")
-    # pylint: enable=no-self-use
+        return tf.to_float(tf.not_equal(self.train_inputs, PAD_TOKEN_INDEX))
 
     @tensor
     def decoding_w(self) -> tf.Variable:
@@ -479,12 +487,11 @@ class AutoregressiveDecoder(ModelPart):
         if sentences is not None:
             sentences_list = list(sentences)
             # train_mode=False, since we don't want to <unk>ize target words!
-            inputs, weights = self.vocabulary.sentences_to_tensor(
+            inputs, _ = self.vocabulary.sentences_to_tensor(
                 sentences_list, self.max_output_len, train_mode=False,
                 add_start_symbol=False, add_end_symbol=True,
                 pad_to_max_len=False)
 
             fd[self.train_inputs] = inputs
-            fd[self.train_mask] = weights
 
         return fd

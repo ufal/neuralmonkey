@@ -1,7 +1,8 @@
-from typing import List
-from typeguard import check_argument_types
+# TODO untested module
+from typing import Dict, List
 
 import tensorflow as tf
+from typeguard import check_argument_types
 
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.decorators import tensor
@@ -51,12 +52,17 @@ class StatefulFiller(ModelPart, Stateful):
             raise ValueError("Output vector dimension must be positive.")
     # pylint: enable=too-many-arguments
 
-    # pylint: disable=no-self-use
+    @property
+    def input_types(self) -> Dict[str, tf.DType]:
+        return {self.data_id: tf.float32}
+
+    @property
+    def input_shapes(self) -> Dict[str, tf.TensorShape]:
+        return {self.data_id: tf.TensorShape([None, self.dimension])}
+
     @tensor
     def vector(self) -> tf.Tensor:
-        return tf.placeholder(
-            tf.float32, [None, self.dimension], "input_vector")
-    # pylint: enable=no-self-use
+        return self.dataset[self.data_id]
 
     @tensor
     def output(self) -> tf.Tensor:
@@ -112,12 +118,20 @@ class SpatialFiller(ModelPart, SpatialStatefulWithOutput):
 
         if len(self.input_shape) != 3:
             raise ValueError("The input shape should have 3 dimensions.")
-
-        features_shape = [None] + self.input_shape  # type: ignore
-        with self.use_scope():
-            self.spatial_input = tf.placeholder(
-                tf.float32, shape=features_shape, name="spatial_states")
     # pylint: enable=too-many-arguments
+
+    @property
+    def input_types(self) -> Dict[str, tf.DType]:
+        return {self.data_id: tf.float32}
+
+    @property
+    def input_shapes(self) -> Dict[str, tf.TensorShape]:
+        shape = [None] + self.input_shape  # type: ignore
+        return {self.data_id: tf.TensorShape(shape)}
+
+    @tensor
+    def spatial_input(self) -> tf.Tensor:
+        return self.dataset[self.data_id]
 
     @tensor
     def output(self) -> tf.Tensor:
@@ -138,7 +152,10 @@ class SpatialFiller(ModelPart, SpatialStatefulWithOutput):
                 projected, filters=self.projection_dim,
                 kernel_size=1, activation=None)
 
+        # pylint: disable=comparison-with-callable
         assert projected == self.spatial_input
+        # pylint: enable=comparison-with-callable
+
         return self.spatial_input
 
     @tensor

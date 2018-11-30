@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Dict, Union
 
 import tensorflow as tf
 from typeguard import check_argument_types
@@ -11,7 +11,7 @@ from neuralmonkey.model.feedable import FeedDict
 from neuralmonkey.model.parameterized import InitializerSpecs
 from neuralmonkey.model.model_part import ModelPart
 from neuralmonkey.tf_utils import get_variable
-from neuralmonkey.vocabulary import Vocabulary
+from neuralmonkey.vocabulary import Vocabulary, PAD_TOKEN_INDEX
 
 
 class SequenceLabeler(ModelPart):
@@ -38,15 +38,21 @@ class SequenceLabeler(ModelPart):
         self.dropout_keep_prob = dropout_keep_prob
     # pylint: enable=too-many-arguments
 
-    # pylint: disable=no-self-use
-    @tensor
-    def train_targets(self) -> tf.Tensor:
-        return tf.placeholder(tf.int32, [None, None], "targets")
+    @property
+    def input_types(self) -> Dict[str, tf.DType]:
+        return {self.data_id: tf.int32}
+
+    @property
+    def input_shapes(self) -> Dict[str, tf.TensorShape]:
+        return {self.data_id: tf.TensorShape([None, None])}
 
     @tensor
-    def train_weights(self) -> tf.Tensor:
-        return tf.placeholder(tf.float32, [None, None], "padding")
-    # pylint: enable=no-self-use
+    def train_targets(self) -> tf.Tensor:
+        return self.dataset[self.data_id]
+
+    @tensor
+    def train_mask(self) -> tf.Tensor:
+        return tf.to_float(tf.not_equal(self.train_targets, PAD_TOKEN_INDEX))
 
     @property
     def rnn_size(self) -> int:
@@ -116,7 +122,7 @@ class SequenceLabeler(ModelPart):
 
         # loss is now of shape [batch, time]. Need to mask it now by
         # element-wise multiplication with weights placeholder
-        weighted_loss = loss * self.train_weights
+        weighted_loss = loss * self.train_mask
         return tf.reduce_sum(weighted_loss)
 
     @property
@@ -132,10 +138,8 @@ class SequenceLabeler(ModelPart):
 
         sentences = dataset.maybe_get_series(self.data_id)
         if sentences is not None:
-            vectors, paddings = self.vocabulary.sentences_to_tensor(
+            vectors, _ = self.vocabulary.sentences_to_tensor(
                 list(sentences), pad_to_max_len=False, train_mode=train)
 
             fd[self.train_targets] = vectors.T
-            fd[self.train_weights] = paddings.T
-
         return fd

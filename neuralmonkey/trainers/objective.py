@@ -64,7 +64,7 @@ class CostObjective(Objective[GenericModelPart]):
 
     @tensor
     def loss(self) -> tf.Tensor:
-        if not hasattr(self.decoder, "cost"):
+        if "cost" not in dir(self.decoder):
             raise TypeError("The decoder does not have the 'cost' attribute")
 
         return getattr(self.decoder, "cost")
