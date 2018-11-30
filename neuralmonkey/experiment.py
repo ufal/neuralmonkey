@@ -239,29 +239,34 @@ class Experiment:
         with self.graph.as_default():
             self.model.tf_manager.init_saving(self.get_path("variables.data"))
 
-            training_loop(
-                tf_manager=self.model.tf_manager,
-                epochs=self.model.epochs,
-                trainers=self.model.trainers,
-                batching_scheme=self.model.batching_scheme,
-                runners_batching_scheme=self.model.runners_batching_scheme,
-                log_directory=self.model.output,
-                evaluators=self.model.evaluation,
-                main_metric=self.model.main_metric,
-                runners=self.model.runners,
-                train_dataset=self.model.train_dataset,
-                val_datasets=self.model.val_datasets,
-                test_datasets=self.model.test_datasets,
-                log_timer=self.model.log_timer,
-                val_timer=self.model.val_timer,
-                val_preview_input_series=self.model.val_preview_input_series,
-                val_preview_output_series=self.model.val_preview_output_series,
-                val_preview_num_examples=self.model.val_preview_num_examples,
-                postprocess=self.model.postprocess,
-                train_start_offset=self.model.train_start_offset,
-                initial_variables=self.model.initial_variables,
-                final_variables=self.get_path("variables.data.final"))
+            training_loop(cfg=self.model)
 
+            final_variables = self.get_path("variables.data.final")
+            log("Saving final variables in {}".format(final_variables))
+            self.model.tf_manager.save(final_variables)
+
+            if self.model.test_datasets:
+                self.model.tf_manager.restore_best_vars()
+
+                for dataset in self.model.test_datasets:
+                    test_results, test_outputs = run_on_dataset(
+                        self.model.tf_manager,
+                        self.model.runners,
+                        dataset,
+                        self.model.postprocess,
+                        write_out=True,
+                        batching_scheme=self.model.runners_batching_scheme)
+
+                    # ensure test outputs are iterable more than once
+                    test_outputs = {
+                        k: list(v) for k, v in test_outputs.items()}
+                    eval_result = evaluation(
+                        self.model.evaluation, dataset,
+                        self.model.runners, test_results, test_outputs)
+
+                    print_final_evaluation(dataset.name, eval_result)
+
+            log("Finished.")
             self._vars_loaded = True
 
     def load_variables(self, variable_files: List[str] = None) -> None:
