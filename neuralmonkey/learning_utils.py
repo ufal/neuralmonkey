@@ -17,6 +17,7 @@ from neuralmonkey.dataset import Dataset, BatchingScheme
 from neuralmonkey.tf_manager import TensorFlowManager
 from neuralmonkey.runners.base_runner import (
     BaseRunner, ExecutionResult, reduce_execution_results, GraphExecutor)
+from neuralmonkey.runners.dataset_runner import DatasetRunner
 from neuralmonkey.trainers.generic_trainer import GenericTrainer
 from neuralmonkey.trainers.multitask_trainer import MultitaskTrainer
 from neuralmonkey.trainers.delayed_update_trainer import DelayedUpdateTrainer
@@ -86,15 +87,15 @@ def training_loop(cfg: Namespace) -> None:
                     trainer_result = cfg.tf_manager.execute(
                         batch, feedables, cfg.trainers, train=True,
                         summaries=True)
-                    train_results, train_outputs = run_on_dataset(
-                        cfg.tf_manager, cfg.runners, batch, cfg.postprocess,
-                        write_out=False,
+                    train_results, train_outputs, f_batch = run_on_dataset(
+                        cfg.tf_manager, cfg.runners, cfg.dataset_runner, batch,
+                        cfg.postprocess, write_out=False,
                         batching_scheme=cfg.runners_batching_scheme)
                     # ensure train outputs are iterable more than once
                     train_outputs = {
                         k: list(v) for k, v in train_outputs.items()}
                     train_evaluation = evaluation(
-                        cfg.evaluation, batch, cfg.runners, train_results,
+                        cfg.evaluation, f_batch, cfg.runners, train_results,
                         train_outputs)
 
                     _log_continuous_evaluation(
@@ -118,22 +119,23 @@ def training_loop(cfg: Namespace) -> None:
                     for val_id, valset in enumerate(cfg.val_datasets):
                         val_examples += len(valset)
 
-                        val_results, val_outputs = run_on_dataset(
-                            cfg.tf_manager, cfg.runners, valset,
-                            cfg.postprocess, write_out=False,
+                        val_results, val_outputs, f_valset = run_on_dataset(
+                            cfg.tf_manager, cfg.runners, cfg.dataset_runner,
+                            valset, cfg.postprocess, write_out=False,
                             batching_scheme=cfg.runners_batching_scheme)
                         # ensure val outputs are iterable more than once
                         val_outputs = {k: list(v)
                                        for k, v in val_outputs.items()}
                         val_evaluation = evaluation(
-                            cfg.evaluation, valset, cfg.runners, val_results,
+                            cfg.evaluation, f_valset, cfg.runners, val_results,
                             val_outputs)
 
                         valheader = ("Validation (epoch {}, batch number {}):"
                                      .format(epoch_n, batch_n))
                         log(valheader, color="blue")
                         _print_examples(
-                            valset, val_outputs, cfg.val_preview_input_series,
+                            f_valset, val_outputs,
+                            cfg.val_preview_input_series,
                             cfg.val_preview_output_series,
                             cfg.val_preview_num_examples)
                         log_print("")
@@ -171,7 +173,7 @@ def training_loop(cfg: Namespace) -> None:
                                         cfg.tf_manager.best_score_batch),
                                 color="blue")
 
-                        v_name = valset.name if len(
+                        v_name = "val_{}".format(val_id) if len(
                             cfg.val_datasets) > 1 else None
                         _log_continuous_evaluation(
                             tb_writer, cfg.main_metric, val_evaluation,
@@ -191,6 +193,22 @@ def training_loop(cfg: Namespace) -> None:
     log("Training finished. Maximum {} on validation data: {:.4g}, epoch {}"
         .format(cfg.main_metric, cfg.tf_manager.best_score,
                 cfg.tf_manager.best_score_epoch))
+
+    if cfg.test_datasets:
+        cfg.tf_manager.restore_best_vars()
+
+        for test_id, dataset in enumerate(cfg.test_datasets):
+            test_results, test_outputs, f_testset = run_on_dataset(
+                cfg.tf_manager, cfg.runners, cfg.dataset_runner, dataset,
+                cfg.postprocess, write_out=True,
+                batching_scheme=cfg.runners_batching_scheme)
+            # ensure test outputs are iterable more than once
+            test_outputs = {k: list(v) for k, v in test_outputs.items()}
+            eval_result = evaluation(cfg.evaluation, f_testset, cfg.runners,
+                                     test_results, test_outputs)
+            print_final_evaluation(eval_result, "test_{}".format(test_id))
+
+    log("Finished.")
 
     if interrupt is not None:
         raise interrupt  # pylint: disable=raising-bad-type
@@ -276,12 +294,15 @@ def _check_series_collisions(runners: List[BaseRunner],
 
 def run_on_dataset(tf_manager: TensorFlowManager,
                    runners: List[BaseRunner],
+                   dataset_runner: DatasetRunner,
                    dataset: Dataset,
                    postprocess: Postprocess,
                    batching_scheme: BatchingScheme,
                    write_out: bool = False,
                    log_progress: int = 0) -> Tuple[
-                       List[ExecutionResult], Dict[str, List[Any]]]:
+                       List[ExecutionResult],
+                       Dict[str, List],
+                       Dict[str, List]]:
     """Apply the model on a dataset and optionally write outputs to files.
 
     This function processes the dataset in batches and optionally prints out
@@ -290,6 +311,7 @@ def run_on_dataset(tf_manager: TensorFlowManager,
     Args:
         tf_manager: TensorFlow manager with initialized sessions.
         runners: A function that runs the code
+        dataset_runner: A runner object that fetches the data inputs
         dataset: The dataset on which the model will be executed.
         evaluators: List of evaluators that are used for the model
             evaluation if the target data are provided.
@@ -307,14 +329,16 @@ def run_on_dataset(tf_manager: TensorFlowManager,
 
     """
     # If the dataset contains the target series, compute also losses.
-    contains_targets = all(dataset.has_series(runner.decoder_data_id)
+    contains_targets = all(runner.decoder_data_id in dataset
                            for runner in runners
                            if runner.decoder_data_id is not None)
 
     last_log_time = time.process_time()
     batch_results = [[] for _ in runners]  # type: List[List[ExecutionResult]]
+    batch_results.append([])  # For dataset runner
 
     feedables = set.union(*[runner.feedables for runner in runners])
+    feedables |= dataset_runner.feedables
 
     processed_examples = 0
     for batch in dataset.batches(batching_scheme):
@@ -322,15 +346,34 @@ def run_on_dataset(tf_manager: TensorFlowManager,
             log("Processed {} examples.".format(processed_examples))
             last_log_time = time.process_time()
 
+        executors = []  # type: List[GraphExecutor]
+        executors.extend(runners)
+        executors.append(dataset_runner)
+
         execution_results = tf_manager.execute(
-            batch, feedables, runners, compute_losses=contains_targets)
+            batch, feedables, executors, compute_losses=contains_targets)
+
         processed_examples += len(batch)
 
         for script_list, ex_result in zip(batch_results, execution_results):
             script_list.append(ex_result)
 
     # Transpose runner interim results.
-    all_results = [reduce_execution_results(res) for res in batch_results]
+    all_results = [reduce_execution_results(res) for res in batch_results[:-1]]
+
+    # TODO uncomment this when dataset runner starts outputting the dataset
+    # input_transposed = reduce_execution_results(batch_results[-1]).outputs
+    # fetched_input = {
+    #     k: [dic[k] for dic in input_transposed] for k in input_transposed[0]}
+
+    fetched_input = {s: list(dataset.get_series(s)) for s in dataset.series}
+    fetched_input_lengths = {s: len(fetched_input[s]) for s in dataset.series}
+
+    if len(set(fetched_input_lengths.values())) != 1:
+        warn("Fetched input dataset series are not of the same length: {}"
+             .format(str(fetched_input_lengths)))
+
+    dataset_len = fetched_input_lengths[dataset.series[0]]
 
     # Convert execution results to dictionary.
     result_data = {runner.output_series: result.outputs
@@ -339,7 +382,7 @@ def run_on_dataset(tf_manager: TensorFlowManager,
     # Run dataset-level postprocessing.
     if postprocess is not None:
         for series_name, postprocessor in postprocess:
-            postprocessed = postprocessor(dataset, result_data)
+            postprocessed = postprocessor(fetched_input, result_data)
             if not hasattr(postprocessed, "__len__"):
                 postprocessed = list(postprocessed)
 
@@ -347,10 +390,10 @@ def run_on_dataset(tf_manager: TensorFlowManager,
 
     # Check output series lengths.
     for series_id, data in result_data.items():
-        if len(data) != len(dataset):
-            warn("Output '{}' for dataset '{}' has length {}, but "
-                 "len(dataset) == {}".format(series_id, dataset.name,
-                                             len(data), len(dataset)))
+        if len(data) != dataset_len:
+            warn("Output '{}' for dataset '{}' has length {}, but input "
+                 "dataset size is {}".format(series_id, dataset.name,
+                                             len(data), dataset_len))
 
     if write_out and dataset.outputs is not None:
         for series_id, data in result_data.items():
@@ -364,7 +407,7 @@ def run_on_dataset(tf_manager: TensorFlowManager,
         log("Dataset does not have any outputs, nothing to write out.",
             color="red")
 
-    return all_results, result_data
+    return all_results, result_data, fetched_input
 
 
 def evaluation(evaluators, batch, runners, execution_results, result_data):
@@ -390,11 +433,10 @@ def evaluation(evaluators, batch, runners, execution_results, result_data):
 
     # evaluation metrics
     for hypothesis_id, reference_id, function in evaluators:
-        if (not batch.has_series(reference_id)
-                or hypothesis_id not in result_data):
+        if reference_id not in batch or hypothesis_id not in result_data:
             continue
 
-        desired_output = list(batch.get_series(reference_id))
+        desired_output = batch[reference_id]
         model_output = result_data[hypothesis_id]
         eval_result["{}/{}".format(hypothesis_id, function.name)] = function(
             model_output, desired_output)
@@ -454,10 +496,12 @@ def _format_evaluation_line(evaluation_res: Evaluation,
     return eval_string
 
 
-def print_final_evaluation(name: str, eval_result: Evaluation) -> None:
+def print_final_evaluation(eval_result: Evaluation, name: str = None) -> None:
     """Print final evaluation from a test dataset."""
     line_len = 22
-    log("Evaluating model on '{}'".format(name))
+
+    if name is not None:
+        log("Model evaluated on '{}'".format(name))
 
     for eval_name, value in eval_result.items():
         space = "".join([" " for _ in range(line_len - len(eval_name))])
@@ -481,7 +525,7 @@ def _data_item_to_str(item: Any) -> str:
     return str(item)
 
 
-def _print_examples(dataset: Dataset,
+def _print_examples(dataset: Dict[str, List[Any]],
                     outputs: Dict[str, List[Any]],
                     val_preview_input_series: Optional[List[str]] = None,
                     val_preview_output_series: Optional[List[str]] = None,
@@ -506,8 +550,8 @@ def _print_examples(dataset: Dataset,
     """
     log_print(colored("Examples:", attrs=["bold"]))
 
-    source_series_names = [s for s in dataset.series if s not in outputs]
-    target_series_names = [s for s in dataset.series if s in outputs]
+    source_series_names = [s for s in dataset if s not in outputs]
+    target_series_names = [s for s in dataset if s in outputs]
     output_series_names = list(outputs.keys())
 
     assert outputs
@@ -524,13 +568,13 @@ def _print_examples(dataset: Dataset,
 
     # for further indexing we need to make sure, all relevant
     # dataset series are lists
-    target_series = {series_id: list(dataset.get_series(series_id))
+    target_series = {series_id: list(dataset[series_id])
                      for series_id in target_series_names}
-    source_series = {series_id: list(dataset.get_series(series_id))
+    source_series = {series_id: list(dataset[series_id])
                      for series_id in source_series_names}
 
-    if not dataset.lazy:
-        num_examples = min(len(dataset), num_examples)
+    dataset_length = len(next(iter(dataset.values())))
+    num_examples = min(dataset_length, num_examples)
 
     for i in range(num_examples):
         log_print(colored("  [{}]".format(i + 1), color="magenta",

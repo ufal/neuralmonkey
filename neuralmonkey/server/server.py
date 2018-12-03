@@ -35,7 +35,7 @@ def run(data):  # pragma: no cover
     dataset = Dataset(
         "request", data, {}, preprocessors=APP.config["preprocess"])
 
-    _, response_data = exp.run_model(dataset, write_out=False)
+    _, response_data, _ = exp.run_model(dataset, write_out=False)
 
     return response_data
 

@@ -47,7 +47,7 @@ def check_dataset_and_coders(dataset: Dataset,
     missing = []
 
     for (serie, coder) in data_list:
-        if not dataset.has_series(serie):
+        if serie not in dataset:
             log("dataset {} does not have serie {}".format(
                 dataset.name, serie))
             missing.append((coder, serie))

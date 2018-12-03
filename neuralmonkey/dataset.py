@@ -467,11 +467,7 @@ class Dataset:
         assert self.length is not None
         return self.length
 
-    @property
-    def series(self) -> List[str]:
-        return list(sorted(self.iterators.keys()))
-
-    def has_series(self, name: str) -> bool:
+    def __contains__(self, name: str) -> bool:
         """Check if the dataset contains a series of a given name.
 
         Arguments:
@@ -481,6 +477,10 @@ class Dataset:
             True if the dataset contains the series, False otherwise.
         """
         return name in self.iterators
+
+    @property
+    def series(self) -> List[str]:
+        return list(sorted(self.iterators.keys()))
 
     def get_series(self, name: str) -> Iterator:
         """Get the data series with a given name.
