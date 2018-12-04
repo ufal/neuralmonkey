@@ -39,5 +39,4 @@ class PerplexityRunner(BaseRunner[AutoregressiveDecoder]):
 
     @property
     def loss_names(self) -> List[str]:
-        # TODO(tf-data) Shouldn't be "xents" here?
-        return ["xent"]
+        return ["xents"]
