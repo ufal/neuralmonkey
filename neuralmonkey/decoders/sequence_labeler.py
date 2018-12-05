@@ -95,7 +95,7 @@ class SequenceLabeler(ModelPart):
 
         multiplication = tf.nn.conv2d(
             encoder_states, weights_4d, [1, 1, 1, 1], "SAME")
-        multiplication_3d = tf.squeeze(multiplication, squeeze_dims=[2])
+        multiplication_3d = tf.squeeze(multiplication, axis=[2])
 
         biases_3d = tf.expand_dims(tf.expand_dims(self.decoding_b, 0), 0)
 
@@ -106,7 +106,7 @@ class SequenceLabeler(ModelPart):
 
         dmultiplication = tf.nn.conv2d(
             embedded_inputs, dweights_4d, [1, 1, 1, 1], "SAME")
-        dmultiplication_3d = tf.squeeze(dmultiplication, squeeze_dims=[2])
+        dmultiplication_3d = tf.squeeze(dmultiplication, axis=[2])
 
         logits = multiplication_3d + dmultiplication_3d + biases_3d
         return logits

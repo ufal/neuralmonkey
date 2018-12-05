@@ -10,4 +10,4 @@ pygments
 rouge==0.2.1
 typeguard
 sacrebleu
-tensorflow-gpu>=1.10.0,<1.11
+tensorflow-gpu>=1.12.0,<1.13
