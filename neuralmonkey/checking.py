@@ -4,62 +4,12 @@ This module serves as a library of API checks used as assertions during
 constructing the computational graph.
 """
 
-
-from typing import List, Optional, Iterable
-
+from typing import List, Optional
 import tensorflow as tf
-
-from neuralmonkey.logging import log, debug
-from neuralmonkey.dataset import Dataset
-from neuralmonkey.runners.base_runner import BaseRunner
 
 
 class CheckingException(Exception):
     pass
-
-
-def check_dataset_and_coders(dataset: Dataset,
-                             runners: Iterable[BaseRunner]) -> None:
-    # pylint: disable=protected-access
-
-    data_list = []
-    for runner in runners:
-        for c in runner.feedables:
-            if hasattr(c, "data_id"):
-                data_list.append((getattr(c, "data_id"), c))
-            elif hasattr(c, "data_ids"):
-                data_list.extend([(d, c) for d in getattr(c, "data_ids")])
-            elif hasattr(c, "input_sequence"):
-                inpseq = getattr(c, "input_sequence")
-                if hasattr(inpseq, "data_id"):
-                    data_list.append((getattr(inpseq, "data_id"), c))
-                elif hasattr(inpseq, "data_ids"):
-                    data_list.extend(
-                        [(d, c) for d in getattr(inpseq, "data_ids")])
-                else:
-                    log("Input sequence: {} does not have a data attribute"
-                        .format(str(inpseq)))
-            else:
-                log(("Coder: {} has neither an input sequence attribute nor a "
-                     "a data attribute.").format(c))
-
-    debug("Found series: {}".format(str(data_list)), "checking")
-    missing = []
-
-    for (serie, coder) in data_list:
-        if serie not in dataset:
-            log("dataset {} does not have serie {}".format(
-                dataset.name, serie))
-            missing.append((coder, serie))
-
-    if missing:
-        formated = ["{} ({}, {}.{})" .format(serie, str(cod),
-                                             cod.__class__.__module__,
-                                             cod.__class__.__name__)
-                    for cod, serie in missing]
-
-        raise CheckingException("Dataset '{}' is mising series {}:"
-                                .format(dataset.name, ", ".join(formated)))
 
 
 def assert_shape(tensor: tf.Tensor,

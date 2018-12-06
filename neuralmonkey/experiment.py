@@ -12,10 +12,8 @@ from typing import Set  # pylint: disable=unused-import
 import numpy as np
 import tensorflow as tf
 from tensorflow.contrib.tensorboard.plugins import projector
-from typeguard import check_argument_types
 
-from neuralmonkey.checking import (check_dataset_and_coders,
-                                   CheckingException)
+from neuralmonkey.checking import CheckingException
 from neuralmonkey.dataset import BatchingScheme, Dataset
 from neuralmonkey.logging import Logging, log, debug, warn
 from neuralmonkey.config.configuration import Configuration
@@ -23,7 +21,6 @@ from neuralmonkey.config.normalize import normalize_configuration
 from neuralmonkey.learning_utils import (training_loop, evaluation,
                                          run_on_dataset,
                                          print_final_evaluation)
-from neuralmonkey.model.sequence import EmbeddedFactorSequence
 from neuralmonkey.runners.base_runner import ExecutionResult
 from neuralmonkey.runners.dataset_runner import DatasetRunner
 
@@ -211,20 +208,8 @@ class Experiment:
 
             type(self)._current_experiment = None
 
-            if self.train_mode:
-                check_dataset_and_coders(self.model.train_dataset,
-                                         self.model.runners)
-                if isinstance(self.model.val_dataset, Dataset):
-                    check_dataset_and_coders(self.model.val_dataset,
-                                             self.model.runners)
-                else:
-                    for val_dataset in self.model.val_dataset:
-                        check_dataset_and_coders(val_dataset,
-                                                 self.model.runners)
-
-            if self.train_mode and self.model.visualize_embeddings:
-                visualize_embeddings(self.model.visualize_embeddings,
-                                     self.model.output)
+            if self.train_mode and self.model.visualize_embeddings is not None:
+                self.visualize_embeddings()
 
         self._check_unused_initializers()
 
@@ -263,17 +248,34 @@ class Experiment:
             log("Saving final variables in {}".format(final_variables))
             self.model.tf_manager.save(final_variables)
 
+            if self.model.test_datasets:
+                if self.model.tf_manager.best_score_index is not None:
+                    self.model.tf_manager.restore_best_vars()
+
+                runner_batch = self.model.runners_batching_scheme.batch_size
+
+                for test_id, dataset in enumerate(self.model.test_datasets):
+                    self.evaluate(dataset, write_out=True,
+                                  batch_size=runner_batch,
+                                  name="test_{}".format(test_id))
+
             log("Finished.")
             self._vars_loaded = True
 
     def load_variables(self, variable_files: List[str] = None) -> None:
-        """Load variables from files.
+        """Load variables of the built model from file(s).
+
+        When variable files are not provided, Neural Monkey will try to infer
+        the name of a default checkpoint file using the following key:
+        1. Look for the averaged checkpoints named `variables.data.avg` or
+           `variables.data.avg-0`.
+        2. Look for file `variables.data.best` file which usually contains the
+           best scoring checkpoint from the run.
+        3. Look for the final checkpoint saved in `variables.data.final`.
 
         Arguments:
-            variable_files: A list of checkpoint file prefixes. A TF checkpoint
-                is usually three files with a common prefix. This list should
-                have the same number of files as there are sessions in the
-                `tf_manager` object.
+            variable_files: A list of variable files to load. The length of
+                this list should match the number of sessions.
         """
         if not self._model_built:
             self.build_model()
@@ -283,12 +285,16 @@ class Experiment:
                 variable_files = [self.get_path("variables.data.avg-0")]
             elif os.path.exists(self.get_path("variables.data.avg.index")):
                 variable_files = [self.get_path("variables.data.avg")]
-            else:
+            elif os.path.exists(self.get_path("variables.data.best")):
                 best_var_file = self.get_path("variables.data.best")
                 with open(best_var_file, "r") as f_best:
                     var_path = f_best.read().rstrip()
                 variable_files = [os.path.join(self.config.args.output,
                                                var_path)]
+            elif os.path.exists(self.get_path("variables.data.final.index")):
+                variable_files = [self.get_path("variables.data.final")]
+            else:
+                raise RuntimeError("Cannot infer default variables file")
 
             log("Default variable file '{}' will be used for loading "
                 "variables.".format(variable_files[0]))
@@ -335,7 +341,6 @@ class Experiment:
             bucketing_ignore_series=[])
 
         with self.graph.as_default():
-            # TODO: check_dataset_and_coders(dataset, self.model.runners)
             return run_on_dataset(
                 self.model.tf_manager,
                 self.model.runners,
@@ -418,6 +423,27 @@ class Experiment:
             raise CheckingException(
                 "Initializers were specified for the following non-existent "
                 "variables: " + ", ".join(unused_initializers))
+
+    def visualize_embeddings(self) -> None:
+        """Visualize embeddings of sequences in `main.visualize_embeddings`."""
+        tb_projector = projector.ProjectorConfig()
+
+        for sequence in self.model.visualize_embeddings:
+            for i, (vocabulary, emb_matrix) in enumerate(
+                    zip(sequence.vocabularies, sequence.embedding_matrices)):
+
+                # TODO when vocabularies will have name parameter, change it
+                path = self.get_path("seq.{}-{}.tsv".format(sequence.name, i))
+                vocabulary.save_wordlist(path)
+
+                embedding = tb_projector.embeddings.add()
+                # pylint: disable=unsubscriptable-object
+                embedding.tensor_name = emb_matrix.name
+                embedding.metadata_path = path
+                # pylint: enable=unsubscriptable-object
+
+        summary_writer = tf.summary.FileWriter(self.model.output)
+        projector.visualize_embeddings(summary_writer, tb_projector)
 
     @classmethod
     def get_current(cls) -> "Experiment":
@@ -522,16 +548,3 @@ def save_git_info(git_commit_file: str, git_diff_file: str,
             )
     else:
         warn("No git executable found. Not storing git commit and diffs")
-
-
-def visualize_embeddings(sequences: List[EmbeddedFactorSequence],
-                         output_dir: str) -> None:
-    check_argument_types()
-
-    tb_projector = projector.ProjectorConfig()
-
-    for sequence in sequences:
-        sequence.tb_embedding_visualization(output_dir, tb_projector)
-
-    summary_writer = tf.summary.FileWriter(output_dir)
-    projector.visualize_embeddings(summary_writer, tb_projector)

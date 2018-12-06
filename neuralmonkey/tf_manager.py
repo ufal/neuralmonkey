@@ -84,7 +84,7 @@ class TensorFlowManager:
 
         self.saver = None
 
-        self.best_score_index = 0
+        self.best_score_index = None  # type: Optional[int]
         self.best_score_epoch = 0
         self.best_score_batch = 0
 
@@ -129,7 +129,6 @@ class TensorFlowManager:
                                     for i in range(self.saver_max_to_keep)]
 
         self._best_vars_file = "{}.best".format(vars_prefix)
-        self._update_best_vars(var_index=0)
 
     def validation_hook(self, score: float, epoch: int, batch: int) -> None:
         if self._is_better(score, self.best_score):
@@ -262,7 +261,7 @@ class TensorFlowManager:
             log("Variables loaded from {}".format(file_name))
 
     def restore_best_vars(self) -> None:
-        # TODO warn when link does not exist
+        assert self.best_score_index is not None
         self.restore(self.variables_files[self.best_score_index])
 
     def initialize_sessions(self) -> None:
@@ -277,10 +276,8 @@ class TensorFlowManager:
                                     var_list=[g for g in tf.global_variables()
                                               if "reward_" not in g.name])
 
-    def initialize_model_parts(self, runners: Sequence[GraphExecutor],
-                               save: bool = False) -> None:
+    def initialize_model_parts(self, runners: Sequence[GraphExecutor]) -> None:
         """Initialize model parts variables from their checkpoints."""
-
         if any(not hasattr(r, "parameterizeds") for r in runners):
             raise TypeError(
                 "Args to initialize_model_parts must be trainers or runners")
@@ -289,9 +286,6 @@ class TensorFlowManager:
         for coder in parameterizeds:
             for session in self.sessions:
                 coder.load(session)
-
-        if save:
-            self.save(self.variables_files[0])
 
 
 def _feed_dicts(dataset: Dataset, coders: Set[Feedable], train: bool = False):
