@@ -19,11 +19,8 @@ class PerplexityRunner(BaseRunner[AutoregressiveDecoder]):
             perplexities = np.mean(
                 [2 ** res["xents"] for res in results], axis=0)
             xent = float(np.mean([res["xents"] for res in results]))
-            self.set_result(outputs=perplexities.tolist(),
-                            losses=[xent],
-                            scalar_summaries=None,
-                            histogram_summaries=None,
-                            image_summaries=None)
+            self.set_runner_result(outputs=perplexities.tolist(),
+                                   losses=[xent])
     # pylint: enable=too-few-public-methods
 
     def __init__(self,

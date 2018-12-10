@@ -38,9 +38,7 @@ class TensorRunner(BaseRunner[GenericModelPart]):
             else:
                 batched = self._fetch_values_from_session(results[0])
 
-            self.set_result(outputs=batched, losses=[],
-                            scalar_summaries=None, histogram_summaries=None,
-                            image_summaries=None)
+            self.set_runner_result(outputs=batched, losses=[])
 
         def _fetch_values_from_session(self, sess_results: Dict) -> List:
 

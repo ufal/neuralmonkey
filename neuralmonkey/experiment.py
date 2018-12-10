@@ -379,8 +379,7 @@ class Experiment:
                       for e in self.model.evaluation]
         with self.graph.as_default():
             eval_result = evaluation(
-                evaluators, f_dataset, self.model.runners,
-                execution_results, output_data)
+                evaluators, f_dataset, execution_results, output_data)
         if eval_result:
             print_final_evaluation(eval_result, name)
 

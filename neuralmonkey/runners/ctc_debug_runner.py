@@ -36,9 +36,7 @@ class CTCDebugRunner(BaseRunner[CTCDecoder]):
                     decoded_instance.append(symbol)
                 decoded_batch.append(decoded_instance)
 
-            self.set_result(outputs=decoded_batch, losses=[],
-                            scalar_summaries=None, histogram_summaries=None,
-                            image_summaries=None)
+            self.set_runner_result(outputs=decoded_batch, losses=[])
     # pylint: enable=too-few-public-methods
 
     def __init__(self,

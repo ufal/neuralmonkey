@@ -1,4 +1,6 @@
-from typing import Dict, List, Tuple
+# pylint: disable=unused-import
+from typing import Dict, List, Tuple, Optional
+# pylint: enable=unused-import
 
 import tensorflow as tf
 from typeguard import check_argument_types
@@ -24,15 +26,16 @@ class DelayedUpdateTrainer(GenericTrainer):
             super().__init__(executor, compute_losses, summaries, num_sessions)
 
             self.state = 0
-            self.res_hist_sums = None
-            self.res_scal_sums = None
-            self.res_losses = None
+            self.res_sums = []  # type: List[tf.Summary]
+            self.res_losses = None  # type: Optional[List[float]]
+            self.res_batch = None  # type: Optional[int]
 
         def next_to_execute(self) -> NextExecute:
 
             if self.state == 0:  # ACCUMULATING
                 fetches = {"accumulators": self.executor.accumulate_ops,
                            "counter": self.executor.cumulator_counter,
+                           "batch_size": self.executor.batch_size,
                            "losses": self.executor.objective_values}
 
             elif self.state == 1:  # UPDATING
@@ -54,6 +57,7 @@ class DelayedUpdateTrainer(GenericTrainer):
 
             if self.state == 0:  # ACCUMULATING
                 self.res_losses = result["losses"]
+                self.res_batch = result["batch_size"]
 
                 # Are we updating?
                 counter = result["counter"]
@@ -63,17 +67,19 @@ class DelayedUpdateTrainer(GenericTrainer):
                     return
             elif self.state == 1:
                 if self.summaries:
-                    self.res_scal_sums = result["scalar_summaries"]
-                    self.res_hist_sums = result["histogram_summaries"]
-
+                    self.res_sums = [result["scalar_summaries"],
+                                     result["histogram_summaries"]]
                 self.state = 2
                 return
 
             assert self.res_losses is not None
-            self.set_result([], losses=self.res_losses,
-                            scalar_summaries=self.res_scal_sums,
-                            histogram_summaries=self.res_hist_sums,
-                            image_summaries=None)
+            assert self.res_batch is not None
+
+            objective_names = [obj.name for obj in self.executor.objectives]
+            objective_names += ["L1", "L2"]
+            losses = dict(zip(objective_names, self.res_losses))
+
+            self.set_result({}, losses, self.res_batch, self.res_sums)
 
     # pylint: disable=too-many-arguments
     def __init__(self,
@@ -129,7 +135,7 @@ class DelayedUpdateTrainer(GenericTrainer):
 
     @tensor
     def cumulator_counter(self) -> tf.Variable:
-        return tf.Variable(0, trainable=False, name="self.cumulator_counter")
+        return tf.Variable(0, trainable=False, name="cumulator_counter")
     # pylint: enable=no-self-use
 
     @tensor

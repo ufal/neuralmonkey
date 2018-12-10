@@ -40,11 +40,8 @@ class PlainRunner(BaseRunner[SupportedDecoder]):
             if self.executor.postprocess is not None:
                 decoded_tokens = self.executor.postprocess(decoded_tokens)
 
-            self.set_result(outputs=decoded_tokens,
-                            losses=[train_loss, runtime_loss],
-                            scalar_summaries=None,
-                            histogram_summaries=None,
-                            image_summaries=None)
+            self.set_runner_result(outputs=decoded_tokens,
+                                   losses=[train_loss, runtime_loss])
     # pylint: enable=too-few-public-methods
 
     def __init__(self,

@@ -16,7 +16,7 @@ from neuralmonkey.logging import log, log_print, warn
 from neuralmonkey.dataset import Dataset, BatchingScheme
 from neuralmonkey.tf_manager import TensorFlowManager
 from neuralmonkey.runners.base_runner import (
-    BaseRunner, ExecutionResult, reduce_execution_results, GraphExecutor)
+    BaseRunner, ExecutionResult, GraphExecutor, OutputSeries)
 from neuralmonkey.runners.dataset_runner import DatasetRunner
 from neuralmonkey.trainers.generic_trainer import GenericTrainer
 from neuralmonkey.trainers.multitask_trainer import MultitaskTrainer
@@ -92,9 +92,9 @@ def training_loop(cfg: Namespace) -> None:
                     # ensure train outputs are iterable more than once
                     train_outputs = {
                         k: list(v) for k, v in train_outputs.items()}
+
                     train_evaluation = evaluation(
-                        cfg.evaluation, f_batch, cfg.runners, train_results,
-                        train_outputs)
+                        cfg.evaluation, f_batch, train_results, train_outputs)
 
                     _log_continuous_evaluation(
                         tb_writer, cfg.main_metric, train_evaluation,
@@ -125,8 +125,7 @@ def training_loop(cfg: Namespace) -> None:
                         val_outputs = {k: list(v)
                                        for k, v in val_outputs.items()}
                         val_evaluation = evaluation(
-                            cfg.evaluation, f_valset, cfg.runners, val_results,
-                            val_outputs)
+                            cfg.evaluation, f_valset, val_results, val_outputs)
 
                         valheader = ("Validation (epoch {}, batch number {}):"
                                      .format(epoch_n, batch_n))
@@ -341,10 +340,10 @@ def run_on_dataset(tf_manager: TensorFlowManager,
             script_list.append(ex_result)
 
     # Transpose runner interim results.
-    all_results = [reduce_execution_results(res) for res in batch_results[:-1]]
+    all_results = [join_execution_results(res) for res in batch_results[:-1]]
 
     # TODO uncomment this when dataset runner starts outputting the dataset
-    # input_transposed = reduce_execution_results(batch_results[-1]).outputs
+    # input_transposed = join_execution_results(batch_results[-1]).outputs
     # fetched_input = {
     #     k: [dic[k] for dic in input_transposed] for k in input_transposed[0]}
 
@@ -358,8 +357,12 @@ def run_on_dataset(tf_manager: TensorFlowManager,
     dataset_len = fetched_input_lengths[dataset.series[0]]
 
     # Convert execution results to dictionary.
-    result_data = {runner.output_series: result.outputs
-                   for runner, result in zip(runners, all_results)}
+    result_data = {}  # type: Dict[str, Union[List, np.ndarray]]
+    for s_id, data in (
+            pair for res in all_results for pair in res.outputs.items()):
+        if s_id in result_data:
+            raise ValueError("Overwriting output series forbidden.")
+        result_data[s_id] = data
 
     # Run dataset-level postprocessing.
     if postprocess is not None:
@@ -392,13 +395,50 @@ def run_on_dataset(tf_manager: TensorFlowManager,
     return all_results, result_data, fetched_input
 
 
-def evaluation(evaluators, batch, runners, execution_results, result_data):
+def join_execution_results(
+        execution_results: List[ExecutionResult]) -> ExecutionResult:
+    """Aggregate batch of execution results from a single runner."""
+
+    losses_sum = {loss: 0. for loss in execution_results[0].losses}
+
+    def join(output_series: List[OutputSeries]) -> OutputSeries:
+        """Join a list of batches of results into a flat list of outputs."""
+        joined = []  # type: List[Any]
+
+        for item in output_series:
+            joined.extend(item)
+
+        # If the list is a list of np.arrays, concatenate the list along first
+        # dimension (batch). Otherwise, return the list.
+        if joined and isinstance(joined[0], np.ndarray):
+            return np.array(joined)
+
+        return joined
+
+    outputs = {}  # type: Dict[str, Any]
+    for key in execution_results[0].outputs.keys():
+        outputs[key] = join([res.outputs[key] for res in execution_results])
+
+    for result in execution_results:
+        for l_id, loss in result.losses.items():
+            losses_sum[l_id] += loss * result.size
+
+    total_size = sum(res.size for res in execution_results)
+    losses = {l_id: loss / total_size for l_id, loss in losses_sum.items()}
+
+    all_summaries = [
+        summ for res in execution_results if res.summaries is not None
+        for summ in res.summaries]
+
+    return ExecutionResult(outputs, losses, total_size, all_summaries)
+
+
+def evaluation(evaluators, batch, execution_results, result_data):
     """Evaluate the model outputs.
 
     Args:
         evaluators: List of tuples of series and evaluation functions.
         batch: Batch of data against which the evaluation is done.
-        runners: List of runners (contains series ids and loss names).
         execution_results: Execution results that include the loss values.
         result_data: Dictionary from series names to list of outputs.
 
@@ -409,9 +449,12 @@ def evaluation(evaluators, batch, runners, execution_results, result_data):
     eval_result = {}
 
     # losses
-    for runner, result in zip(runners, execution_results):
-        for name, value in zip(runner.loss_names, result.losses):
-            eval_result["{}/{}".format(runner.output_series, name)] = value
+    for result in execution_results:
+        if any(l in eval_result for l in result.losses):
+            # TODO(tf-data) this will go away with further exec_res refactor
+            raise ValueError("Duplicate loss result keys found.")
+
+        eval_result.update(result.losses)
 
     # evaluation metrics
     for hypothesis_id, reference_id, function in evaluators:
@@ -450,11 +493,8 @@ def _log_continuous_evaluation(tb_writer: tf.summary.FileWriter,
 
     if tb_writer:
         for result in execution_results:
-            for summaries in [result.scalar_summaries,
-                              result.histogram_summaries,
-                              result.image_summaries]:
-                if summaries is not None:
-                    tb_writer.add_summary(summaries, seen_instances)
+            for summaries in result.summaries:
+                tb_writer.add_summary(summaries, seen_instances)
 
         external_str = \
             tf.Summary(value=[tf.Summary.Value(tag=prefix + "_" + name,

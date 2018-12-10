@@ -1,5 +1,5 @@
 from abc import abstractmethod, abstractproperty
-from typing import (Any, Dict, Tuple, List, NamedTuple, Union, Set, TypeVar,
+from typing import (Dict, Tuple, List, NamedTuple, Union, Set, TypeVar,
                     Generic, Optional)
 import numpy as np
 import tensorflow as tf
@@ -14,27 +14,28 @@ NextExecute = Tuple[Union[Dict, List], List[FeedDict]]
 MP = TypeVar("MP", bound=GenericModelPart)
 Executor = TypeVar("Executor", bound="GraphExecutor")
 Runner = TypeVar("Runner", bound="BaseRunner")
+OutputSeries = Union[List, np.ndarray]
 # pylint: enable=invalid-name
 
 
 class ExecutionResult(NamedTuple(
         "ExecutionResult",
-        [("outputs", List[Any]),
-         ("losses", List[float]),
-         ("scalar_summaries", tf.Summary),
-         ("histogram_summaries", tf.Summary),
-         ("image_summaries", tf.Summary)])):
+        [("outputs", Dict[str, OutputSeries]),
+         ("losses", Dict[str, float]),
+         ("size", int),
+         ("summaries", List[tf.Summary])])):
     """A data structure that represents the result of a graph execution.
 
-    The goal of each runner is to populate this structure and set it as its
-    ``self._result``.
+    The goal of each graph executor is to populate this structure using its
+    ``set_result`` function.
 
     Attributes:
-        outputs: A batch of outputs of the runner.
+        outputs: A dictionary mapping an output series to the batch of
+            outputs of the graph executor.
         losses: A (possibly empty) list of loss values computed during the run.
-        scalar_summaries: A TensorFlow summary object with scalar values.
-        histogram_summaries: A TensorFlow summary object with histograms.
-        image_summaries: A TensorFlow summary object with images.
+        size: The length of the output batch.
+        summaries: A list of TensorFlow summary objects fetched by the graph
+            executor
     """
 
 
@@ -87,13 +88,12 @@ class GraphExecutor(GenericModelPart):
 
             self._result = None  # type: Optional[ExecutionResult]
 
-        def set_result(self, outputs: List[Any], losses: List[float],
-                       scalar_summaries: tf.Summary,
-                       histogram_summaries: tf.Summary,
-                       image_summaries: tf.Summary) -> None:
-            self._result = ExecutionResult(
-                outputs, losses, scalar_summaries, histogram_summaries,
-                image_summaries)
+        def set_result(self,
+                       outputs: Dict[str, OutputSeries],
+                       losses: Dict[str, float],
+                       size: int,
+                       summaries: List[tf.Summary]) -> None:
+            self._result = ExecutionResult(outputs, losses, size, summaries)
 
         @property
         def result(self) -> Optional[ExecutionResult]:
@@ -161,6 +161,21 @@ class BaseRunner(GraphExecutor, Generic[MP]):
                     fetches[loss] = tf.zeros([])
 
             return fetches, []
+
+        def set_runner_result(self, outputs: OutputSeries,
+                              losses: List[float], size: int = None,
+                              summaries: List[tf.Summary] = None) -> None:
+            if summaries is None:
+                summaries = []
+
+            if size is None:
+                size = len(outputs)
+
+            loss_names = ["{}/{}".format(self.executor.output_series, loss)
+                          for loss in self.executor.loss_names]
+
+            self.set_result({self.executor.output_series: outputs},
+                            dict(zip(loss_names, losses)), size, summaries)
     # pylint: enable=too-few-public-methods
 
     def __init__(self,
@@ -178,22 +193,3 @@ class BaseRunner(GraphExecutor, Generic[MP]):
     @property
     def loss_names(self) -> List[str]:
         raise NotImplementedError()
-
-
-def reduce_execution_results(
-        execution_results: List[ExecutionResult]) -> ExecutionResult:
-    """Aggregate execution results into one."""
-    outputs = []  # type: List[Any]
-    losses_sum = [0. for _ in execution_results[0].losses]
-    for result in execution_results:
-        outputs.extend(result.outputs)
-        for i, loss in enumerate(result.losses):
-            losses_sum[i] += loss
-        # TODO aggregate TensorBoard summaries
-    if outputs and isinstance(outputs[0], np.ndarray):
-        outputs = np.array(outputs)
-    losses = [l / max(len(outputs), 1) for l in losses_sum]
-    return ExecutionResult(outputs, losses,
-                           execution_results[0].scalar_summaries,
-                           execution_results[0].histogram_summaries,
-                           execution_results[0].image_summaries)

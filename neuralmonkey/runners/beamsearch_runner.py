@@ -101,11 +101,9 @@ class BeamSearchRunner(BaseRunner[BeamSearchDecoder]):
 
             # TODO: provide better summaries in case (issue #599)
             # we want to use the runner during training.
-            self.set_result(outputs=decoded_tokens,
-                            losses=[np.mean(bs_scores) * len(bs_scores)],
-                            scalar_summaries=None,
-                            histogram_summaries=None,
-                            image_summaries=None)
+            self.set_runner_result(
+                outputs=decoded_tokens,
+                losses=[np.mean(bs_scores) * len(bs_scores)])
 
         def _is_finished(self, results):
             finished = [

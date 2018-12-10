@@ -60,7 +60,8 @@ class TestMultitaskTrainer(unittest.TestCase):
 
         log("Blessing trainer fetches: {}".format(trainer.fetches))
 
-        self.assertSetEqual(trainer.feedables, {self.mpart, self.mpart_2})
+        self.assertSetEqual(trainer.feedables, {self.mpart, self.mpart_2,
+                                                self.trainer1, self.trainer2})
         self.assertSetEqual(trainer.parameterizeds, {self.mpart, self.mpart_2})
 
         self.assertSetEqual(

@@ -52,11 +52,8 @@ class LogitsRunner(BaseRunner[Classifier]):
 
             str_outputs = [["\t".join(l)] for l in outputs]
 
-            self.set_result(outputs=str_outputs,
-                            losses=[train_loss, runtime_loss],
-                            scalar_summaries=None,
-                            histogram_summaries=None,
-                            image_summaries=None)
+            self.set_runner_result(outputs=str_outputs,
+                                   losses=[train_loss, runtime_loss])
 
     def __init__(self,
                  output_series: str,
