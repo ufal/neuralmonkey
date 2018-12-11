@@ -17,6 +17,13 @@ from neuralmonkey.model.sequence import EmbeddedSequence
 class Test(unittest.TestCase):
     """Test capabilities of model part."""
 
+    @classmethod
+    def setUpClass(cls):
+        tf.reset_default_graph()
+        cls.dataset = {
+            "id": tf.constant([["hello", "world"], ["test", "this"]]),
+            "data_id": tf.constant([["A", "B", "C"], ["D", "E", "F"]])}
+
     def test_reuse(self):
         vocabulary = Vocabulary(["a", "b"])
 
@@ -25,14 +32,14 @@ class Test(unittest.TestCase):
             vocabulary=vocabulary,
             data_id="id",
             embedding_size=10)
-        seq1.register_input()
+        seq1.register_input(self.dataset)
 
         seq2 = EmbeddedSequence(
             name="seq2",
             vocabulary=vocabulary,
             embedding_size=10,
             data_id="id")
-        seq2.register_input()
+        seq2.register_input(self.dataset)
 
         seq3 = EmbeddedSequence(
             name="seq3",
@@ -40,7 +47,7 @@ class Test(unittest.TestCase):
             data_id="id",
             embedding_size=10,
             reuse=seq1)
-        seq3.register_input()
+        seq3.register_input(self.dataset)
 
         # blessing
         self.assertIsNotNone(seq1.embedding_matrix)
@@ -71,7 +78,7 @@ class Test(unittest.TestCase):
             save_checkpoint=checkpoint_file.name,
             load_checkpoint=checkpoint_file.name)
 
-        encoder.input_sequence.register_input()
+        encoder.input_sequence.register_input(self.dataset)
 
         # NOTE: This assert needs to be here otherwise the model has
         # no parameters since the sentence encoder is initialized lazily

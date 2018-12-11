@@ -155,10 +155,23 @@ class Experiment:
             feedables |= set.union(
                 *[ex.feedables for ex in self.model.trainers])
 
-        for feedable in feedables:
-            feedable.register_input()
+        # collect input shapes and types
+        input_types = {}  # type: Dict[str, tf.DType]
+        input_shapes = {}  # type: Dict[str, tf.TensorShape]
 
-        self.model.dataset_runner.register_input()
+        for feedable in feedables:
+            input_types.update(feedable.input_types)
+            input_shapes.update(feedable.input_shapes)
+
+        dataset = {}  # type: Dict[str, tf.Tensor]
+        for s_id, dtype in input_types.items():
+            shape = input_shapes[s_id]
+            dataset[s_id] = tf.placeholder(dtype, shape, s_id)
+
+        for feedable in feedables:
+            feedable.register_input(dataset)
+
+        self.model.dataset_runner.register_input(dataset)
 
     def build_model(self) -> None:
         """Build the configuration and the computational graph.

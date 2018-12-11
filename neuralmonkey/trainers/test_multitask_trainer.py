@@ -42,6 +42,10 @@ class TestMultitaskTrainer(unittest.TestCase):
     def setUpClass(cls):
         tf.reset_default_graph()
 
+        cls.dataset = {
+            "id": tf.constant([["hello", "world"], ["test", "this"]]),
+            "data_id": tf.constant([["A", "B", "C"], ["D", "E", "F"]])}
+
     def setUp(self):
         self.mpart = TestMP("dummy_model_part")
         self.mpart_2 = TestMP("dummy_model_part_2")
@@ -53,15 +57,18 @@ class TestMultitaskTrainer(unittest.TestCase):
         self.trainer2 = GenericTrainer([objective_2], clip_norm=1.0)
 
     def test_mt_trainer(self):
-        # TODO multitask trainer is likely broken by changes in tf-data branch
+        # TODO(tf-data) multitask trainer is likely broken by the changes
 
         trainer = MultitaskTrainer(
             [self.trainer1, self.trainer2, self.trainer1])
 
+        feedables = {self.mpart, self.mpart_2, self.trainer1, self.trainer2}
+        for feedable in feedables:
+            feedable.register_input(self.dataset)
+
         log("Blessing trainer fetches: {}".format(trainer.fetches))
 
-        self.assertSetEqual(trainer.feedables, {self.mpart, self.mpart_2,
-                                                self.trainer1, self.trainer2})
+        self.assertSetEqual(trainer.feedables, feedables)
         self.assertSetEqual(trainer.parameterizeds, {self.mpart, self.mpart_2})
 
         self.assertSetEqual(
