@@ -19,7 +19,7 @@ from neuralmonkey.checking import (check_dataset_and_coders,
 from neuralmonkey.dataset import BatchingScheme, Dataset
 from neuralmonkey.logging import Logging, log, debug, warn
 from neuralmonkey.config.configuration import Configuration
-from neuralmonkey.config.disambiguate import disambiguate_configuration
+from neuralmonkey.config.normalize import normalize_configuration
 from neuralmonkey.learning_utils import (training_loop, evaluation,
                                          run_on_dataset,
                                          print_final_evaluation)
@@ -135,7 +135,7 @@ class Experiment:
             type(self)._current_experiment = self  # type: ignore
 
             self.config.build_model(warn_unused=self.train_mode)
-            disambiguate_configuration(self.config.model, self.train_mode)
+            normalize_configuration(self.config.model, self.train_mode)
 
             self._model = self.config.model
             self._model_built = True

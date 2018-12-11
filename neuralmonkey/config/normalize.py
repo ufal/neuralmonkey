@@ -1,4 +1,10 @@
-"""Module for disambiguating and enhancing configuration."""
+"""Module for configuration normalization.
+
+The `[main]` configuration section contains arguments that can be filled with
+different types of values, e.g. `trainer` can be either a single trainer
+object or a list of them. This module provides functions for unifying the
+configuration interface.
+"""
 
 from argparse import Namespace
 from datetime import timedelta
@@ -14,10 +20,16 @@ from neuralmonkey.tf_manager import get_default_tf_manager
 from neuralmonkey.trainers.delayed_update_trainer import DelayedUpdateTrainer
 
 
-def disambiguate_configuration(cfg: Namespace, train_mode: bool) -> None:
+def normalize_configuration(cfg: Namespace, train_mode: bool) -> None:
+    """Given a configuration namespace, normalize the values it contains.
 
+    Arguments:
+        cfg: The namespace object returned by `Configuration.make_namespace`
+        train_mode: Boolean flag controlling normalization of parameters only
+            used during training.
+    """
     if train_mode:
-        _disambiguate_train_cfg(cfg)
+        _normalize_train_cfg(cfg)
 
     if cfg.tf_manager is None:
         cfg.tf_manager = get_default_tf_manager()
@@ -57,8 +69,14 @@ def disambiguate_configuration(cfg: Namespace, train_mode: bool) -> None:
                              "the main metric")
 
 
-def _disambiguate_train_cfg(cfg: Namespace) -> None:
+def _normalize_train_cfg(cfg: Namespace) -> None:
+    """Given a configuration namespace, normalize the values it contains.
 
+    This function is only executed when training mode has been invoked.
+
+    Arguments:
+        cfg: The namespace object returned by `Configuration.make_namespace`
+    """
     if not isinstance(cfg.val_dataset, List):
         cfg.val_datasets = [cfg.val_dataset]
     else:
@@ -98,7 +116,27 @@ def _disambiguate_train_cfg(cfg: Namespace) -> None:
 
 def _resolve_period(period: Union[str, int],
                     denominator: int) -> Callable[[int, float], bool]:
+    """Convert logging period into a function for logging time checks.
 
+    Logging and validation periods can both be provided either as a number of
+    batches after which to log/validate, or as a time interval between the
+    logs/validation runs.
+
+    This function unifies both representations into a function that decides
+    whether to log/validate based on a given training step and time since the
+    last log/validation.
+
+    Arguments:
+        period: Either a string representing time, or a number representing
+            number of batches.
+        denominator: Only allow logging when the given step (number of batches
+            since the start of the training) is divisible by this value.
+            This is used e.g. when `DelayedUpdateTrainer` is used.
+
+    Returns:
+        A function of the current training step and time since the last logging
+        period that returns a boolean value.
+    """
     def get_batch_logger(period: int) -> Callable[[int, float], bool]:
         def is_time(step: int, _: float) -> bool:
             return step != 0 and step % period == 0
