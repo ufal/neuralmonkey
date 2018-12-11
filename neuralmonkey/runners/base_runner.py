@@ -73,7 +73,7 @@ class GraphExecutor(GenericModelPart):
 
         def next_to_execute(self) -> NextExecute:
             """Get the tensors and additional feed dicts for execution."""
-            return self.executor.fetches, [{}]
+            return self.executor.fetches, []
 
         @abstractmethod
         def collect_results(self, results: List[Dict]) -> None:
@@ -122,7 +122,7 @@ class BaseRunner(GraphExecutor, Generic[MP]):
                 for loss in self.executor.loss_names:
                     fetches[loss] = tf.zeros([])
 
-            return fetches, [{}]
+            return fetches, []
     # pylint: enable=too-few-public-methods
 
     def __init__(self,

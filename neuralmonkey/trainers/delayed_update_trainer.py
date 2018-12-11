@@ -46,7 +46,7 @@ class DelayedUpdateTrainer(GenericTrainer):
             else:  # RESETTING
                 fetches = {"resets": self.executor.reset_ops}
 
-            return fetches, [{}]
+            return fetches, []
 
         def collect_results(self, results: List[Dict]) -> None:
             assert len(results) == 1

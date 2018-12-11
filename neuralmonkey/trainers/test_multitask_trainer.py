@@ -64,7 +64,7 @@ class TestMultitaskTrainer(unittest.TestCase):
         # mparts = trainer.feedables
         fetches, feeds = executable.next_to_execute()
         # self.assertSetEqual(mparts, {self.mpart})
-        self.assertFalse(feeds[0])
+        self.assertFalse(feeds)
 
         self.assertTrue(trainer.trainer_idx == 1)
         self.assertTrue(fetches["losses"][0] == self.mpart.loss)
@@ -72,7 +72,7 @@ class TestMultitaskTrainer(unittest.TestCase):
         executable = trainer.get_executable()
         fetches, feeds = executable.next_to_execute()
         # self.assertSetEqual(mparts, {self.mpart_2})
-        self.assertFalse(feeds[0])
+        self.assertFalse(feeds)
 
         self.assertTrue(trainer.trainer_idx == 2)
         self.assertTrue(fetches["losses"][0] == self.mpart_2.loss)
@@ -80,7 +80,7 @@ class TestMultitaskTrainer(unittest.TestCase):
         executable = trainer.get_executable()
         fetches, feeds = executable.next_to_execute()
         # self.assertSetEqual(mparts, {self.mpart})
-        self.assertFalse(feeds[0])
+        self.assertFalse(feeds)
 
         self.assertTrue(trainer.trainer_idx == 0)
         self.assertTrue(fetches["losses"][0] == self.mpart.loss)

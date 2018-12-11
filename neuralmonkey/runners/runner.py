@@ -30,7 +30,7 @@ class GreedyRunner(BaseRunner[SupportedDecoder]):
                 fetches["train_xent"] = tf.zeros([])
                 fetches["runtime_xent"] = tf.zeros([])
 
-            return fetches, [{}]
+            return fetches, []
 
         def collect_results(self, results: List[Dict]) -> None:
             train_loss = 0.
