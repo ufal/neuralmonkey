@@ -1,6 +1,5 @@
-from typing import cast, Iterable, List
+from typing import Dict
 
-import numpy as np
 import tensorflow as tf
 from typeguard import check_argument_types
 
@@ -11,7 +10,8 @@ from neuralmonkey.model.parameterized import InitializerSpecs
 from neuralmonkey.model.model_part import ModelPart
 from neuralmonkey.model.stateful import TemporalStateful
 from neuralmonkey.tf_utils import get_variable
-from neuralmonkey.vocabulary import Vocabulary, END_TOKEN
+from neuralmonkey.vocabulary import (Vocabulary, pad_batch, END_TOKEN_INDEX,
+                                     PAD_TOKEN_INDEX)
 
 
 class CTCDecoder(ModelPart):
@@ -48,11 +48,29 @@ class CTCDecoder(ModelPart):
         self.beam_width = beam_width
     # pylint: enable=too-many-arguments
 
-    # pylint: disable=no-self-use
+    @property
+    def input_types(self) -> Dict[str, tf.DType]:
+        return {self.data_id: tf.string}
+
+    @property
+    def input_shapes(self) -> Dict[str, tf.TensorShape]:
+        return {self.data_id: tf.TensorShape([None, None])}
+
     @tensor
-    def train_targets(self) -> tf.Tensor:
-        return tf.sparse_placeholder(tf.int32, name="targets")
-    # pylint: disable=no-self-use
+    def target_tokens(self) -> tf.Tensor:
+        return self.dataset[self.data_id]
+
+    @tensor
+    def train_targets(self) -> tf.SparseTensor:
+        params = self.vocabulary.strings_to_indices(self.target_tokens)
+
+        indices = tf.where(tf.not_equal(params, PAD_TOKEN_INDEX))
+        values = tf.gather_nd(params, indices)
+
+        return tf.cast(
+            tf.SparseTensor(
+                indices, values, tf.shape(params, out_type=tf.int64)),
+            tf.int32)
 
     @tensor
     def decoded(self) -> tf.Tensor:
@@ -68,7 +86,7 @@ class CTCDecoder(ModelPart):
 
         return tf.sparse_tensor_to_dense(
             tf.sparse_transpose(decoded[0]),
-            default_value=self.vocabulary.get_word_index(END_TOKEN))
+            default_value=END_TOKEN_INDEX)
 
     @property
     def train_loss(self) -> tf.Tensor:
@@ -114,7 +132,7 @@ class CTCDecoder(ModelPart):
 
         multiplication = tf.nn.conv2d(
             encoder_states, weights_4d, [1, 1, 1, 1], "SAME")
-        multiplication_3d = tf.squeeze(multiplication, squeeze_dims=[2])
+        multiplication_3d = tf.squeeze(multiplication, axis=2)
 
         biases_3d = tf.expand_dims(tf.expand_dims(biases, 0), 0)
 
@@ -124,29 +142,13 @@ class CTCDecoder(ModelPart):
     def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
         fd = ModelPart.feed_dict(self, dataset, train)
 
-        sentences = cast(Iterable[List[str]],
-                         dataset.maybe_get_series(self.data_id))
+        sentences = dataset.maybe_get_series(self.data_id)
 
         if sentences is None and train:
-            raise ValueError("When training, you must feed "
-                             "reference sentences")
+            raise ValueError("You must feed reference sentences when training")
 
         if sentences is not None:
-            vectors, paddings = self.vocabulary.sentences_to_tensor(
-                list(sentences), train_mode=train, max_len=self.max_length)
-
-            # sentences_to_tensor returns time-major tensors, targets need to
-            # be batch-major
-            vectors = vectors.T
-            paddings = paddings.T
-
-            # Need to convert the data to a sparse representation
-            bool_mask = (paddings > 0.5)
-            indices = np.stack(np.where(bool_mask), axis=1)
-            values = vectors[bool_mask]
-
-            fd[self.train_targets] = tf.SparseTensorValue(
-                indices=indices, values=values,
-                dense_shape=vectors.shape)
+            fd[self.target_tokens] = pad_batch(list(sentences),
+                                               self.max_length)
 
         return fd

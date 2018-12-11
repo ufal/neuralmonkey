@@ -88,8 +88,8 @@ class LogitsRunner(BaseRunner[Classifier]):
         self.normalize = normalize
         if pick_value is not None:
             if pick_value in self.decoder.vocabulary:
-                vocab_map = self.decoder.vocabulary.word_to_index
-                self.pick_index = vocab_map[pick_value]
+                self.pick_index = self.decoder.vocabulary.index_to_word.index(
+                    pick_value)
             else:
                 raise ValueError(
                     "Value '{}' is not in vocabulary of decoder '{}'".format(

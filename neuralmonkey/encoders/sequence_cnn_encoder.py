@@ -12,7 +12,7 @@ from neuralmonkey.model.parameterized import InitializerSpecs
 from neuralmonkey.model.model_part import ModelPart
 from neuralmonkey.model.stateful import Stateful
 from neuralmonkey.nn.utils import dropout
-from neuralmonkey.vocabulary import Vocabulary, PAD_TOKEN_INDEX
+from neuralmonkey.vocabulary import Vocabulary, pad_batch, sentence_mask
 from neuralmonkey.tf_utils import get_variable
 
 
@@ -62,7 +62,7 @@ class SequenceCNNEncoder(ModelPart, Stateful):
 
     @property
     def input_types(self) -> Dict[str, tf.DType]:
-        return {self.data_id: tf.int32}
+        return {self.data_id: tf.string}
 
     @property
     def input_shapes(self) -> Dict[str, tf.TensorShape]:
@@ -70,11 +70,15 @@ class SequenceCNNEncoder(ModelPart, Stateful):
 
     @tensor
     def inputs(self) -> tf.Tensor:
+        return self.vocabulary.strings_to_indices(self.input_tokens)
+
+    @tensor
+    def input_tokens(self) -> tf.Tensor:
         return self.dataset[self.data_id]
 
     @tensor
     def input_mask(self) -> tf.Tensor:
-        return tf.to_float(tf.not_equal(self.inputs, PAD_TOKEN_INDEX))
+        return sentence_mask(self.inputs)
 
     @tensor
     def embedded_inputs(self) -> tf.Tensor:
@@ -128,14 +132,6 @@ class SequenceCNNEncoder(ModelPart, Stateful):
             train: Boolean flag telling whether it is training time
         """
         fd = ModelPart.feed_dict(self, dataset, train)
-
         sentences = dataset.get_series(self.data_id)
-        vectors, _ = self.vocabulary.sentences_to_tensor(
-            list(sentences), self.max_input_len, pad_to_max_len=False,
-            train_mode=train)
-
-        # as sentences_to_tensor returns lists of shape (time, batch),
-        # we need to transpose
-        fd[self.inputs] = list(zip(*vectors))
-
+        fd[self.input_tokens] = pad_batch(list(sentences), self.max_input_len)
         return fd

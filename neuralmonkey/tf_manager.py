@@ -268,8 +268,9 @@ class TensorFlowManager:
     def initialize_sessions(self) -> None:
         log("Initializing variables")
         init_op = tf.global_variables_initializer()
+        init_tables = tf.tables_initializer()
         for sess in self.sessions:
-            sess.run(init_op)
+            sess.run([init_op, init_tables])
 
         log("Initializing tf.train.Saver")
         self.saver = tf.train.Saver(max_to_keep=None,

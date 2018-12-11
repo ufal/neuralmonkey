@@ -421,7 +421,7 @@ class TransformerDecoder(AutoregressiveDecoder):
 
         histories["decoded_symbols"] = tf.zeros(
             shape=[0, self.batch_size],
-            dtype=tf.int32,
+            dtype=tf.int64,
             name="decoded_symbols")
 
         histories["input_mask"] = tf.zeros(
@@ -483,10 +483,9 @@ class TransformerDecoder(AutoregressiveDecoder):
                 if sample:
                     next_symbols = tf.squeeze(
                         tf.multinomial(logits, num_samples=1), axis=1)
-                    next_symbols = tf.to_int32(next_symbols)
                 else:
-                    next_symbols = tf.to_int32(tf.argmax(logits, axis=1))
-                    int_unfinished_mask = tf.to_int32(
+                    next_symbols = tf.argmax(logits, axis=1)
+                    int_unfinished_mask = tf.to_int64(
                         tf.logical_not(loop_state.feedables.finished))
 
                     # Note this works only when PAD_TOKEN_INDEX is 0. Otherwise

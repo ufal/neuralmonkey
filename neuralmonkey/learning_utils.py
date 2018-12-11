@@ -208,8 +208,6 @@ def training_loop(cfg: Namespace) -> None:
                                      test_results, test_outputs)
             print_final_evaluation(eval_result, "test_{}".format(test_id))
 
-    log("Finished.")
-
     if interrupt is not None:
         raise interrupt  # pylint: disable=raising-bad-type
 

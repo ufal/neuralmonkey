@@ -8,8 +8,7 @@ from typing import Callable, List
 import numpy as np
 from typeguard import check_argument_types
 
-from neuralmonkey.vocabulary import (
-    Vocabulary, is_special_token, SPECIAL_TOKENS)
+from neuralmonkey.vocabulary import Vocabulary, SPECIAL_TOKENS
 
 
 class Word2Vec:
@@ -21,7 +20,7 @@ class Word2Vec:
         # Create the vocabulary object, load the words and vectors from the
         # file
 
-        self.vocab = Vocabulary()
+        words = []  # List[str]
         embedding_vectors = []  # type: List[np.ndarray]
 
         with open(path, encoding=encoding) as f_data:
@@ -46,11 +45,13 @@ class Word2Vec:
 
                 # Embedding of unknown token should be at index 3 to match the
                 # vocabulary implementation
-                if is_special_token(word):
+                if word in SPECIAL_TOKENS:
                     embedding_vectors[SPECIAL_TOKENS.index(word)] = vector
                 else:
-                    self.vocab.add_word(word)
+                    words.append(word)
                     embedding_vectors.append(vector)
+
+        self.vocab = Vocabulary(words)
 
         assert embedding_vectors[3] is not None
         assert emb_size is not None

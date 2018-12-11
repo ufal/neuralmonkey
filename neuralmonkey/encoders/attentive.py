@@ -67,7 +67,7 @@ class AttentiveEncoder(ModelPart, TemporalStatefulWithOutput):
         energies = tf.layers.dense(hidden, units=self.num_heads,
                                    use_bias=False, name="S2")
         # shape: [batch_size, max_time, num_heads]
-        weights = tf.nn.softmax(energies, dim=1)
+        weights = tf.nn.softmax(energies, axis=1)
         if mask is not None:
             weights *= tf.expand_dims(mask, -1)
             weights /= tf.reduce_sum(weights, axis=1, keepdims=True) + 1e-8

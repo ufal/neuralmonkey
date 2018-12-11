@@ -18,9 +18,7 @@ class Test(unittest.TestCase):
     """Test capabilities of model part."""
 
     def test_reuse(self):
-        vocabulary = Vocabulary()
-        vocabulary.add_word("a")
-        vocabulary.add_word("b")
+        vocabulary = Vocabulary(["a", "b"])
 
         seq1 = EmbeddedSequence(
             name="seq1",
@@ -62,15 +60,13 @@ class Test(unittest.TestCase):
 
     def test_save_and_load(self):
         """Try to save and load encoder."""
-        vocabulary = Vocabulary()
-        vocabulary.add_word("a")
-        vocabulary.add_word("b")
+        vocabulary = Vocabulary(["a", "b"])
 
         checkpoint_file = tempfile.NamedTemporaryFile(delete=False)
         checkpoint_file.close()
 
         encoder = SentenceEncoder(
-            name="enc", vocabulary=Vocabulary(), data_id="data_id",
+            name="enc", vocabulary=vocabulary, data_id="data_id",
             embedding_size=10, rnn_size=20, max_input_len=30,
             save_checkpoint=checkpoint_file.name,
             load_checkpoint=checkpoint_file.name)

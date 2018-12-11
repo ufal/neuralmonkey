@@ -5,37 +5,31 @@ from neuralmonkey.vocabulary import Vocabulary
 from neuralmonkey.processors.wordpiece import (
     WordpiecePreprocessor, WordpiecePostprocessor)
 
-CORPUS = [
-    "the colorless ideas slept furiously",
-    "pooh slept all night",
-    "working class hero is something to be",
-    "I am the working class walrus",
-    "walrus for president"
-]
-
-TOKENIZED_CORPUS = [[a + "_" for a in s.split()] for s in CORPUS]
-
-# Create list of characters required to process the CORPUS with wordpieces
-CORPUS_CHARS = [x for c in set("".join(CORPUS)) for x in [c, c + "_"]]
-ESCAPE_CHARS = "\\_u0987654321;"
-C_CARON = "\\269;"
-A_ACUTE = "225"
-
 
 class TestWordpieces(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        vocabulary = Vocabulary()
+        corpus = [
+            "the colorless ideas slept furiously",
+            "pooh slept all night",
+            "working class hero is something to be",
+            "I am the working class walrus",
+            "walrus for president"
+        ]
 
-        for c in CORPUS_CHARS + list(ESCAPE_CHARS):
-            vocabulary.add_word(c)
+        tokenized_corpus = [[a + "_" for a in s.split()] for s in corpus]
+        vocab_from_corpus = {w for sent in tokenized_corpus for w in sent}
 
-        for sent in TOKENIZED_CORPUS:
-            vocabulary.add_tokenized_text(sent)
+        # Create list of characters required to process the CORPUS with
+        # wordpieces
+        corpus_chars = {x for c in set("".join(corpus)) for x in [c, c + "_"]}
+        escape_chars = "\\_u0987654321;"
+        c_caron = "\\269;"
+        a_acute = "225"
 
-        vocabulary.add_word(C_CARON)
-        vocabulary.add_word(A_ACUTE)
+        words = corpus_chars | set(escape_chars) | vocab_from_corpus
+        vocabulary = Vocabulary(list(words) + [c_caron, a_acute])
 
         cls.preprocessor = WordpiecePreprocessor(vocabulary)
         cls.postprocessor = WordpiecePostprocessor

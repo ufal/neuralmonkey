@@ -367,13 +367,13 @@ class Decoder(AutoregressiveDecoder):
             self.step_scope.reuse_variables()
 
             if sample:
-                next_symbols = tf.to_int32(
-                    tf.squeeze(tf.multinomial(logits, num_samples=1), axis=1))
+                next_symbols = tf.squeeze(tf.multinomial(
+                    logits, num_samples=1), axis=1)
             elif train_mode:
                 next_symbols = loop_state.constants.train_inputs[step]
             else:
-                next_symbols = tf.to_int32(tf.argmax(logits, axis=1))
-                int_unfinished_mask = tf.to_int32(
+                next_symbols = tf.argmax(logits, axis=1)
+                int_unfinished_mask = tf.to_int64(
                     tf.logical_not(loop_state.feedables.finished))
 
                 # Note this works only when PAD_TOKEN_INDEX is 0. Otherwise
