@@ -101,12 +101,42 @@ class Experiment:
 
     @property
     def model(self) -> Namespace:
+        """Get configuration namespace of the experiment.
+
+        The `Experiment` stores the configuration recipe in `self.config`.
+        When the configuration is built (meaning the classes referenced from
+        the config file are instantiated), it is saved in the `model` property
+        of the experiment.
+
+        Returns:
+            The built namespace config object.
+
+        Raises:
+            `RuntimeError` when the configuration model has not been built.
+        """
         if self._model is None:
             raise RuntimeError("Experiment argument model not initialized")
 
         return self._model
 
     def _bless_graph_executors(self) -> None:
+        """Pre-compute the tensors referenced by the graph executors.
+
+        Due to the lazy nature of the computational graph related components,
+        nothing is actually added to the graph until it is "blessed" (
+        referenced, and therefore, executed).
+
+        "Blessing" is usually implemented in the form of a log or a debug call
+        with the blessed tensor as parameter. Referencing a `Tensor` causes the
+        whole computational graph that is needed to evaluate the tensor to be
+        built.
+
+        This function "blesses" all tensors that could be potentially used
+        using the `fetches` property of the provided runner objects.
+
+        If the experiment runs in the training mode, this function also
+        blesses the tensors fetched by the trainer(s).
+        """
         log("Building TF Graph")
         if hasattr(self.model, "trainer"):
             if isinstance(self.model.trainer, List):
@@ -115,13 +145,31 @@ class Experiment:
                 trainers = [self.model.trainer]
 
             for trainer in trainers:
-                debug("Trainer fetches: {}".format(trainer.fetches))
+                debug("Trainer fetches: {}".format(trainer.fetches), "bless")
 
         for runner in self.model.runners:
-            debug("Runner fetches: {}".format(runner.fetches))
+            debug("Runner fetches: {}".format(runner.fetches), "bless")
         log("TF Graph built")
 
     def build_model(self) -> None:
+        """Build the configuration and the computational graph.
+
+        This function is invoked by all of the main entrypoints of the
+        `Experiment` class (`train`, `evaluate`, `run`). It manages the
+        building of the TensorFlow graph.
+
+        The bulding procedure is executed as follows:
+        1. Random seeds are set.
+        2. Configuration is built (instantiated) and normalized.
+        3. TODO(tf-data) tf.data.Dataset instance is created and registered
+            in the model parts. (This is not implemented yet!)
+        4. Graph executors are "blessed". This causes the rest of the TF Graph
+            to be built.
+        5. Sessions are initialized using the TF Manager object.
+
+        Raises:
+            `RuntimeError` when the model is already built.
+        """
         if self._model_built:
             raise RuntimeError("build_model() called twice")
 
@@ -163,6 +211,15 @@ class Experiment:
         self._check_unused_initializers()
 
     def train(self) -> None:
+        """Train model specified by this experiment.
+
+        This function is one of the main functions (entrypoints) called on
+        the experiment. It builds the model (if needed) and runs the training
+        procedure.
+
+        Raises:
+            `RuntimeError` when the experiment is not intended for training.
+        """
         if not self.train_mode:
             raise RuntimeError("train() was called, but the experiment was "
                                "created with train_mode=False")
@@ -208,6 +265,14 @@ class Experiment:
             self._vars_loaded = True
 
     def load_variables(self, variable_files: List[str] = None) -> None:
+        """Load variables from files.
+
+        Arguments:
+            variable_files: A list of checkpoint file prefixes. A TF checkpoint
+                is usually three files with a common prefix. This list should
+                have the same number of files as there are sessions in the
+                `tf_manager` object.
+        """
         if not self._model_built:
             self.build_model()
 
