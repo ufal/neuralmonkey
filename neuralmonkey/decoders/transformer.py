@@ -20,7 +20,7 @@ from neuralmonkey.decoders.autoregressive import (
     AutoregressiveDecoder, LoopState, DecoderFeedables)
 from neuralmonkey.encoders.transformer import (
     TransformerLayer, position_signal)
-from neuralmonkey.logging import log, warn
+from neuralmonkey.logging import warn
 from neuralmonkey.model.sequence import EmbeddedSequence
 from neuralmonkey.model.parameterized import InitializerSpecs
 from neuralmonkey.model.model_part import ModelPart
@@ -161,33 +161,10 @@ class TransformerDecoder(AutoregressiveDecoder):
         self.attention_combination_strategy = attention_combination_strategy
         self.n_heads_hier = n_heads_hier
 
-        self.encoder_states = [get_attention_states(e) for e in self.encoders]
-        self.encoder_masks = [get_attention_mask(e) for e in self.encoders]
-
-        if self.encoder_states:
-            self.dimension = (
-                self.encoder_states[0].get_shape()[2].value)  # type: int
-
-            for i, enc_states in enumerate(self.encoder_states):
-                enc_dim = enc_states.get_shape()[2].value
-                if enc_dim != self.dimension:
-                    raise ValueError(
-                        "Dimension of the {}-th encoder ({}) differs from the "
-                        "dimension of the first one ({})."
-                        .format(i, enc_dim, self.dimension))
-
-        elif not self.embedding_size:
-            raise ValueError("'embedding_size' must be specified when "
-                             "no encoders are provided")
-        else:
-            self.dimension = self.embedding_size
-
-        if not self.dimension:
-            raise ValueError("Decoder could not infer model dimension")
-
-        if self.embedding_size != self.dimension:
-            raise ValueError("Model dimension and input embedding size"
-                             "do not match")
+        self.encoder_states = lambda: [get_attention_states(e)
+                                       for e in self.encoders]
+        self.encoder_masks = lambda: [get_attention_mask(e)
+                                      for e in self.encoders]
 
         if self.attention_combination_strategy not in STRATEGIES:
             raise ValueError(
@@ -214,11 +191,34 @@ class TransformerDecoder(AutoregressiveDecoder):
 
         self._variable_scope.set_initializer(tf.variance_scaling_initializer(
             mode="fan_avg", distribution="uniform"))
-
-        log("Decoder cost op: {}".format(self.cost))
-        self._variable_scope.reuse_variables()
-        log("Runtime logits: {}".format(self.runtime_logits))
     # pylint: enable=too-many-arguments,too-many-locals,too-many-branches
+
+    @property
+    def dimension(self) -> int:
+        enc_states = self.encoder_states()
+
+        if enc_states:
+            first_dim = enc_states[0].get_shape()[2].value  # type: int
+
+            for i, states in enumerate(enc_states):
+                enc_dim = states.get_shape()[2].value
+                if enc_dim != first_dim:
+                    raise ValueError(
+                        "Dimension of the {}-th encoder ({}) differs from the "
+                        "dimension of the first one ({})."
+                        .format(i, enc_dim, first_dim))
+
+            if self.embedding_size is not None:
+                if self.embedding_size != first_dim:
+                    raise ValueError("Model dimension and input embedding "
+                                     "size do not match")
+            return first_dim
+
+        if self.embedding_size is None:
+            raise ValueError("'embedding_size' must be specified when "
+                             "no encoders are provided")
+
+        return self.embedding_size
 
     @property
     def output_dimension(self) -> int:
@@ -246,9 +246,11 @@ class TransformerDecoder(AutoregressiveDecoder):
         # (just as a target)
 
         # shape (batch, 1 + (time - 1))
+        # pylint: disable=unsubscriptable-object
         input_tokens = tf.concat(
             [tf.expand_dims(self.go_symbols, 1),
              tf.transpose(self.train_inputs[:-1])], 1)
+        # pylint: enable=unsubscriptable-object
 
         input_embeddings = self.embed_inputs(input_tokens)
 
@@ -285,8 +287,10 @@ class TransformerDecoder(AutoregressiveDecoder):
 
     def encoder_attention_sublayer(self, queries: tf.Tensor) -> tf.Tensor:
         """Create the encoder-decoder attention sublayer."""
-        assert self.encoder_states is not None
-        assert self.encoder_masks is not None
+        enc_states = self.encoder_states()
+        enc_masks = self.encoder_masks()
+        assert enc_states is not None
+        assert enc_masks is not None
 
         # Attention dropout callbacks are created in a loop so we need to
         # use a factory function to prevent late binding.
@@ -301,27 +305,26 @@ class TransformerDecoder(AutoregressiveDecoder):
                             for prob in self.attention_dropout_keep_prob]
 
         if self.attention_combination_strategy == "serial":
-            return serial(queries, self.encoder_states, self.encoder_masks,
-                          self.n_heads_enc, attn_dropout_cbs, dropout_cb)
+            return serial(queries, enc_states, enc_masks, self.n_heads_enc,
+                          attn_dropout_cbs, dropout_cb)
 
         if self.attention_combination_strategy == "parallel":
-            return parallel(queries, self.encoder_states, self.encoder_masks,
-                            self.n_heads_enc, attn_dropout_cbs, dropout_cb)
+            return parallel(queries, enc_states, enc_masks, self.n_heads_enc,
+                            attn_dropout_cbs, dropout_cb)
 
         if self.attention_combination_strategy == "flat":
             assert len(set(self.n_heads_enc)) == 1
             assert len(set(self.attention_dropout_keep_prob)) == 1
 
-            return flat(queries, self.encoder_states, self.encoder_masks,
-                        self.n_heads_enc[0], attn_dropout_cbs[0], dropout_cb)
+            return flat(queries, enc_states, enc_masks, self.n_heads_enc[0],
+                        attn_dropout_cbs[0], dropout_cb)
 
         if self.attention_combination_strategy == "hierarchical":
             assert self.n_heads_hier is not None
 
             return hierarchical(
-                queries, self.encoder_states, self.encoder_masks,
-                self.n_heads_enc, self.n_heads_hier, attn_dropout_cbs,
-                dropout_cb)
+                queries, enc_states, enc_masks, self.n_heads_enc,
+                self.n_heads_hier, attn_dropout_cbs, dropout_cb)
 
         raise NotImplementedError(
             "Unknown attention combination strategy: {}"

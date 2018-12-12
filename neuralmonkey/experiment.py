@@ -1,6 +1,7 @@
 """Provides a high-level API for training and using a model."""
+# pylint: disable=too-many-lines
 
-from argparse import Namespace  # pylint: disable=unused-import
+from argparse import Namespace
 import os
 import random
 import shutil
@@ -15,15 +16,15 @@ from typeguard import check_argument_types
 
 from neuralmonkey.checking import (check_dataset_and_coders,
                                    CheckingException)
+from neuralmonkey.dataset import BatchingScheme, Dataset
 from neuralmonkey.logging import Logging, log, debug, warn
 from neuralmonkey.config.configuration import Configuration
+from neuralmonkey.config.normalize import normalize_configuration
 from neuralmonkey.learning_utils import (training_loop, evaluation,
                                          run_on_dataset,
                                          print_final_evaluation)
-from neuralmonkey.dataset import Dataset, BatchingScheme
 from neuralmonkey.model.sequence import EmbeddedFactorSequence
 from neuralmonkey.runners.base_runner import ExecutionResult
-from neuralmonkey.tf_manager import get_default_tf_manager
 
 
 _TRAIN_ARGS = [
@@ -100,12 +101,75 @@ class Experiment:
 
     @property
     def model(self) -> Namespace:
+        """Get configuration namespace of the experiment.
+
+        The `Experiment` stores the configuration recipe in `self.config`.
+        When the configuration is built (meaning the classes referenced from
+        the config file are instantiated), it is saved in the `model` property
+        of the experiment.
+
+        Returns:
+            The built namespace config object.
+
+        Raises:
+            `RuntimeError` when the configuration model has not been built.
+        """
         if self._model is None:
             raise RuntimeError("Experiment argument model not initialized")
 
         return self._model
 
+    def _bless_graph_executors(self) -> None:
+        """Pre-compute the tensors referenced by the graph executors.
+
+        Due to the lazy nature of the computational graph related components,
+        nothing is actually added to the graph until it is "blessed" (
+        referenced, and therefore, executed).
+
+        "Blessing" is usually implemented in the form of a log or a debug call
+        with the blessed tensor as parameter. Referencing a `Tensor` causes the
+        whole computational graph that is needed to evaluate the tensor to be
+        built.
+
+        This function "blesses" all tensors that could be potentially used
+        using the `fetches` property of the provided runner objects.
+
+        If the experiment runs in the training mode, this function also
+        blesses the tensors fetched by the trainer(s).
+        """
+        log("Building TF Graph")
+        if hasattr(self.model, "trainer"):
+            if isinstance(self.model.trainer, List):
+                trainers = self.model.trainer
+            else:
+                trainers = [self.model.trainer]
+
+            for trainer in trainers:
+                debug("Trainer fetches: {}".format(trainer.fetches), "bless")
+
+        for runner in self.model.runners:
+            debug("Runner fetches: {}".format(runner.fetches), "bless")
+        log("TF Graph built")
+
     def build_model(self) -> None:
+        """Build the configuration and the computational graph.
+
+        This function is invoked by all of the main entrypoints of the
+        `Experiment` class (`train`, `evaluate`, `run`). It manages the
+        building of the TensorFlow graph.
+
+        The bulding procedure is executed as follows:
+        1. Random seeds are set.
+        2. Configuration is built (instantiated) and normalized.
+        3. TODO(tf-data) tf.data.Dataset instance is created and registered
+            in the model parts. (This is not implemented yet!)
+        4. Graph executors are "blessed". This causes the rest of the TF Graph
+            to be built.
+        5. Sessions are initialized using the TF Manager object.
+
+        Raises:
+            `RuntimeError` when the model is already built.
+        """
         if self._model_built:
             raise RuntimeError("build_model() called twice")
 
@@ -117,17 +181,17 @@ class Experiment:
 
             # Enable the created model parts to find this experiment.
             type(self)._current_experiment = self  # type: ignore
+
             self.config.build_model(warn_unused=self.train_mode)
-            type(self)._current_experiment = None
+            normalize_configuration(self.config.model, self.train_mode)
 
             self._model = self.config.model
             self._model_built = True
 
-            if self.model.runners_batch_size is None:
-                self.model.runners_batch_size = self.model.batch_size
+            self._bless_graph_executors()
+            self.model.tf_manager.initialize_sessions()
 
-            if self.model.tf_manager is None:
-                self.model.tf_manager = get_default_tf_manager()
+            type(self)._current_experiment = None
 
             if self.train_mode:
                 check_dataset_and_coders(self.model.train_dataset,
@@ -147,6 +211,15 @@ class Experiment:
         self._check_unused_initializers()
 
     def train(self) -> None:
+        """Train model specified by this experiment.
+
+        This function is one of the main functions (entrypoints) called on
+        the experiment. It builds the model (if needed) and runs the training
+        procedure.
+
+        Raises:
+            `RuntimeError` when the experiment is not intended for training.
+        """
         if not self.train_mode:
             raise RuntimeError("train() was called, but the experiment was "
                                "created with train_mode=False")
@@ -169,29 +242,37 @@ class Experiment:
             training_loop(
                 tf_manager=self.model.tf_manager,
                 epochs=self.model.epochs,
-                trainer=self.model.trainer,
-                batch_size=self.model.batch_size,
+                trainers=self.model.trainers,
                 batching_scheme=self.model.batching_scheme,
+                runners_batching_scheme=self.model.runners_batching_scheme,
                 log_directory=self.model.output,
                 evaluators=self.model.evaluation,
+                main_metric=self.model.main_metric,
                 runners=self.model.runners,
                 train_dataset=self.model.train_dataset,
-                val_dataset=self.model.val_dataset,
+                val_datasets=self.model.val_datasets,
                 test_datasets=self.model.test_datasets,
-                logging_period=self.model.logging_period,
-                validation_period=self.model.validation_period,
+                log_timer=self.model.log_timer,
+                val_timer=self.model.val_timer,
                 val_preview_input_series=self.model.val_preview_input_series,
                 val_preview_output_series=self.model.val_preview_output_series,
                 val_preview_num_examples=self.model.val_preview_num_examples,
                 postprocess=self.model.postprocess,
                 train_start_offset=self.model.train_start_offset,
-                runners_batch_size=self.model.runners_batch_size,
                 initial_variables=self.model.initial_variables,
                 final_variables=self.get_path("variables.data.final"))
 
             self._vars_loaded = True
 
     def load_variables(self, variable_files: List[str] = None) -> None:
+        """Load variables from files.
+
+        Arguments:
+            variable_files: A list of checkpoint file prefixes. A TF checkpoint
+                is usually three files with a common prefix. This list should
+                have the same number of files as there are sessions in the
+                `tf_manager` object.
+        """
         if not self._model_built:
             self.build_model()
 
@@ -242,10 +323,13 @@ class Experiment:
         if not self._vars_loaded:
             self.load_variables()
 
+        toklevel = self.model.runners_batching_scheme.token_level_batching
+        assert self.model.runners_batching_scheme.batch_bucket_span is None
+
         batching_scheme = BatchingScheme(
             batch_size=batch_size or self.model.runners_batch_size,
             batch_bucket_span=None,
-            token_level_batching=False,
+            token_level_batching=toklevel,
             bucketing_ignore_series=[])
 
         with self.graph.as_default():

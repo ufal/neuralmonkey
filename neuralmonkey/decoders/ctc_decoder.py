@@ -6,7 +6,6 @@ from typeguard import check_argument_types
 
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.decorators import tensor
-from neuralmonkey.logging import log
 from neuralmonkey.model.feedable import FeedDict
 from neuralmonkey.model.parameterized import InitializerSpecs
 from neuralmonkey.model.model_part import ModelPart
@@ -47,7 +46,6 @@ class CTCDecoder(ModelPart):
         self.merge_repeated_targets = merge_repeated_targets
         self.merge_repeated_outputs = merge_repeated_outputs
         self.beam_width = beam_width
-        log("CTC output tensor {}.".format(self.decoded))
     # pylint: enable=too-many-arguments
 
     # pylint: disable=no-self-use

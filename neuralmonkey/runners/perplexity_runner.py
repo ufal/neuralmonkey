@@ -1,43 +1,31 @@
-from typing import Dict, List, Set
-# pylint: disable=unused-import
-from typing import Optional
-# pylint: enable=unused-import
+from typing import Dict, List
 
 from typeguard import check_argument_types
 import tensorflow as tf
 import numpy as np
 
-from neuralmonkey.model.feedable import Feedable
 from neuralmonkey.decoders.autoregressive import AutoregressiveDecoder
-from neuralmonkey.runners.base_runner import (
-    BaseRunner, Executable, ExecutionResult, NextExecute)
-
-
-class PerplexityExecutable(Executable):
-    def __init__(self,
-                 feedables: Set[Feedable],
-                 xent_op: tf.Tensor) -> None:
-        self._feedables = feedables
-        self._xent_op = xent_op
-
-        self._result = None  # type: Optional[ExecutionResult]
-
-    def next_to_execute(self) -> NextExecute:
-        """Get the feedables and tensors to run."""
-        return self._feedables, {"xents": self._xent_op}, []
-
-    def collect_results(self, results: List[Dict]) -> None:
-        perplexities = np.mean([2 ** res["xents"] for res in results], axis=0)
-        xent = float(np.mean([res["xents"] for res in results]))
-        self._result = ExecutionResult(
-            outputs=perplexities.tolist(),
-            losses=[xent],
-            scalar_summaries=None,
-            histogram_summaries=None,
-            image_summaries=None)
+from neuralmonkey.decorators import tensor
+from neuralmonkey.runners.base_runner import BaseRunner
 
 
 class PerplexityRunner(BaseRunner[AutoregressiveDecoder]):
+
+    # pylint: disable=too-few-public-methods
+    # Pylint issue here: https://github.com/PyCQA/pylint/issues/2607
+    class Executable(BaseRunner.Executable["PerplexityRunner"]):
+
+        def collect_results(self, results: List[Dict]) -> None:
+            perplexities = np.mean(
+                [2 ** res["xents"] for res in results], axis=0)
+            xent = float(np.mean([res["xents"] for res in results]))
+            self.set_result(outputs=perplexities.tolist(),
+                            losses=[xent],
+                            scalar_summaries=None,
+                            histogram_summaries=None,
+                            image_summaries=None)
+    # pylint: enable=too-few-public-methods
+
     def __init__(self,
                  output_series: str,
                  decoder: AutoregressiveDecoder) -> None:
@@ -45,16 +33,11 @@ class PerplexityRunner(BaseRunner[AutoregressiveDecoder]):
         BaseRunner[AutoregressiveDecoder].__init__(
             self, output_series, decoder)
 
-        self._decoder_xent = self._decoder.train_xents
-
-    # pylint: disable=unused-argument
-    def get_executable(self,
-                       compute_losses: bool,
-                       summaries: bool,
-                       num_sessions: int) -> PerplexityExecutable:
-        return PerplexityExecutable(self.feedables, self._decoder_xent)
-    # pylint: enable=unused-argument
+    @tensor
+    def fetches(self) -> Dict[str, tf.Tensor]:
+        return {"xents": self.decoder.train_xents}
 
     @property
     def loss_names(self) -> List[str]:
+        # TODO(tf-data) Shouldn't be "xents" here?
         return ["xent"]

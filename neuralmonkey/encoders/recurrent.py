@@ -114,7 +114,9 @@ def rnn_layer(rnn_input: tf.Tensor,
                  "must match when applying residual connection. Reshaping "
                  "the rnn output using linear projection.".format(
                      outputs.get_shape(), rnn_input.get_shape()))
+            # pylint: disable=redefined-variable-type
             outputs = tf.layers.dense(outputs, rnn_input.shape.as_list()[-1])
+            # pylint: enable=redefined-variable-type
         outputs += rnn_input
 
     return outputs, final_state

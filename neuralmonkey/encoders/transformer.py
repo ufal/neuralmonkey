@@ -12,7 +12,6 @@ from neuralmonkey.attention.base_attention import (
     Attendable, get_attention_states, get_attention_mask)
 from neuralmonkey.decorators import tensor
 from neuralmonkey.attention.scaled_dot_product import attention
-from neuralmonkey.logging import log
 from neuralmonkey.model.parameterized import InitializerSpecs
 from neuralmonkey.model.model_part import ModelPart
 from neuralmonkey.model.stateful import (TemporalStateful,
@@ -161,8 +160,6 @@ class TransformerEncoder(ModelPart, TemporalStatefulWithOutput):
 
         self._variable_scope.set_initializer(tf.variance_scaling_initializer(
             mode="fan_avg", distribution="uniform"))
-
-        log("Output op: {}".format(self.output))
     # pylint: enable=too-many-arguments,too-many-locals
 
     @tensor

@@ -154,54 +154,24 @@ class Decoder(AutoregressiveDecoder):
             initializers=initializers)
 
         self.encoders = encoders
-        self.output_projection_spec = output_projection
+        self._output_projection_spec = output_projection
         self._conditional_gru = conditional_gru
         self._attention_on_input = attention_on_input
         self._rnn_cell_str = rnn_cell
+        self._rnn_size = rnn_size
+        self._encoder_projection = encoder_projection
 
         self.attentions = []  # type: List[BaseAttention]
         if attentions is not None:
             self.attentions = attentions
 
-        if rnn_size is not None:
-            self.rnn_size = rnn_size
-
-        if encoder_projection is not None:
-            self.encoder_projection = encoder_projection
-        elif not self.encoders:
-            log("No direct encoder input. Using empty initial state")
-            self.encoder_projection = empty_initial_state
-        elif rnn_size is None:
-            log("No rnn_size or encoder_projection: Using concatenation of"
-                " encoded states")
-            self.encoder_projection = concat_encoder_projection
-            self.rnn_size = sum(e.output.get_shape()[1].value
-                                for e in encoders)
-        else:
-            log("Using linear projection of encoders as the initial state")
-            self.encoder_projection = linear_encoder_projection(
-                self.dropout_keep_prob)
-
-        assert self.rnn_size is not None
+        if not rnn_size and not encoder_projection and not encoders:
+            raise ValueError(
+                "No RNN size, no encoders and no encoder_projection specified")
 
         if self._rnn_cell_str not in RNN_CELL_TYPES:
             raise ValueError("RNN cell must be a either 'GRU', 'LSTM', or "
                              "'NematusGRU'. Not {}".format(self._rnn_cell_str))
-
-        if self.output_projection_spec is None:
-            log("No output projection specified - using tanh projection")
-            self.output_projection = nonlinear_output(
-                self.rnn_size, tf.tanh)[0]
-            self.output_projection_size = self.rnn_size
-        elif isinstance(self.output_projection_spec, tuple):
-            self.output_projection_spec = cast(
-                Tuple[OutputProjection, int], self.output_projection_spec)
-            (self.output_projection,
-             self.output_projection_size) = self.output_projection_spec
-        else:
-            self.output_projection = cast(
-                OutputProjection, self.output_projection_spec)
-            self.output_projection_size = self.rnn_size
 
         if self._attention_on_input:
             self.input_projection = self.input_plus_attention
@@ -214,11 +184,57 @@ class Decoder(AutoregressiveDecoder):
 
         self._variable_scope.set_initializer(
             tf.random_normal_initializer(stddev=0.001))
-
-        # TODO when it is possible, remove the printing of the cost var
-        log("Decoder initalized. Cost var: {}".format(str(self.cost)))
-        log("Runtime logits tensor: {}".format(str(self.runtime_logits)))
     # pylint: enable=too-many-arguments,too-many-branches,too-many-statements
+
+    @property
+    def encoder_projection(self) -> EncoderProjection:
+        if self._encoder_projection is not None:
+            return self._encoder_projection
+
+        if not self.encoders:
+            log("No direct encoder input. Using empty initial state")
+            return empty_initial_state
+
+        if self._rnn_size is None:
+            log("No rnn_size or encoder_projection: Using concatenation of "
+                "encoded states")
+            return concat_encoder_projection
+
+        log("Using linear projection of encoders as the initial state")
+        return linear_encoder_projection(self.dropout_keep_prob)
+
+    @property
+    def rnn_size(self) -> int:
+        if self._rnn_size is not None:
+            return self._rnn_size
+
+        if self._encoder_projection is None:
+            assert self.encoders
+            return sum(e.output.get_shape()[1].value for e in self.encoders)
+
+        raise ValueError("Cannot infer RNN size.")
+
+    @tensor
+    def output_projection_spec(self) -> Tuple[OutputProjection, int]:
+        if self._output_projection_spec is None:
+            log("No output projection specified - using tanh projection")
+            return (nonlinear_output(self.rnn_size, tf.tanh)[0], self.rnn_size)
+
+        if isinstance(self._output_projection_spec, tuple):
+            return self._output_projection_spec
+
+        return cast(OutputProjection,
+                    self._output_projection_spec), self.rnn_size
+
+    # pylint: disable=unsubscriptable-object
+    @property
+    def output_projection(self) -> OutputProjection:
+        return self.output_projection_spec[0]
+
+    @property
+    def output_dimension(self) -> int:
+        return self.output_projection_spec[1]
+    # pylint: enable=unsubscriptable-object
 
     @tensor
     def initial_state(self) -> tf.Tensor:
@@ -228,12 +244,14 @@ class Decoder(AutoregressiveDecoder):
         the initial state of the decoder.
         """
         with tf.variable_scope("initial_state"):
+            # pylint: disable=not-callable
             initial_state = dropout(
                 self.encoder_projection(self.train_mode,
                                         self.rnn_size,
                                         self.encoders),
                 self.dropout_keep_prob,
                 self.train_mode)
+            # pylint: enable=not-callable
 
             init_state_shape = initial_state.get_shape()
 
@@ -245,10 +263,6 @@ class Decoder(AutoregressiveDecoder):
                 initial_state = tf.reshape(tiles, [-1, self.rnn_size])
 
         return initial_state
-
-    @property
-    def output_dimension(self) -> int:
-        return self.output_projection_size
 
     def _get_rnn_cell(self) -> tf.contrib.rnn.RNNCell:
         return RNN_CELL_TYPES[self._rnn_cell_str](self.rnn_size)
@@ -342,9 +356,11 @@ class Decoder(AutoregressiveDecoder):
                         self.embedding_matrix,
                         loop_state.feedables.input_symbol)
 
+                    # pylint: disable=not-callable
                     output = self.output_projection(
                         cell_output, embedded_input, list(contexts),
                         self.train_mode)
+                    # pylint: enable=not-callable
 
                 logits = self.get_logits(output) / temperature
 

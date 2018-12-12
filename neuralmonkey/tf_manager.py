@@ -21,19 +21,11 @@ from typeguard import check_argument_types
 from neuralmonkey.logging import log
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.model.feedable import Feedable
-# pylint: disable=unused-import
-from neuralmonkey.runners.base_runner import FeedDict
-# pylint: enable=unused-import
 from neuralmonkey.runners.base_runner import (
-    BaseRunner, ExecutionResult, Executable)
-from neuralmonkey.trainers.generic_trainer import GenericTrainer
-from neuralmonkey.trainers.multitask_trainer import MultitaskTrainer
-
-# pylint: disable=invalid-name
-Trainer = Union[GenericTrainer, MultitaskTrainer]
-# pylint: enable=invalid-name
+    FeedDict, ExecutionResult, GraphExecutor)
 
 
+# pylint: disable=too-many-instance-attributes
 class TensorFlowManager:
     """Inteface between computational graph, data and TF sessions.
 
@@ -47,7 +39,6 @@ class TensorFlowManager:
                  num_threads: int,
                  save_n_best: int = 1,
                  minimize_metric: bool = False,
-                 variable_files: Optional[List[str]] = None,
                  gpu_allow_growth: bool = True,
                  per_process_gpu_memory_fraction: float = 1.0,
                  enable_tf_debug: bool = False) -> None:
@@ -63,19 +54,18 @@ class TensorFlowManager:
             save_n_best: How many best models to keep
             minimize_metric: Whether the best model is the one with the lowest
                 or the highest score
-            variable_files: List of variable files.
             gpu_allow_growth: TF to allocate incrementally, not all at once.
             per_process_gpu_memory_fraction: Limit TF memory use.
         """
         check_argument_types()
 
-        session_cfg = tf.ConfigProto()
-        session_cfg.inter_op_parallelism_threads = num_threads
-        session_cfg.intra_op_parallelism_threads = num_threads
-        session_cfg.allow_soft_placement = True  # needed for multiple GPUs
+        self.session_cfg = tf.ConfigProto()
+        self.session_cfg.inter_op_parallelism_threads = num_threads
+        self.session_cfg.intra_op_parallelism_threads = num_threads
+        self.session_cfg.allow_soft_placement = True  # needed for more GPUs
         # pylint: disable=no-member
-        session_cfg.gpu_options.allow_growth = gpu_allow_growth
-        session_cfg.gpu_options.per_process_gpu_memory_fraction = \
+        self.session_cfg.gpu_options.allow_growth = gpu_allow_growth
+        self.session_cfg.gpu_options.per_process_gpu_memory_fraction = \
             per_process_gpu_memory_fraction
         # pylint: enable=no-member
 
@@ -83,27 +73,16 @@ class TensorFlowManager:
             raise Exception("save_n_best parameter must be greater than zero")
         self.saver_max_to_keep = save_n_best
         self.minimize_metric = minimize_metric
+        self.num_sessions = num_sessions
 
-        self.sessions = [tf.Session(config=session_cfg)
-                         for _ in range(num_sessions)]
+        self.sessions = [tf.Session(config=self.session_cfg)
+                         for _ in range(self.num_sessions)]
 
         if enable_tf_debug:
             self.sessions = [tf_debug.LocalCLIDebugWrapperSession(sess)
                              for sess in self.sessions]
 
-        init_op = tf.global_variables_initializer()
-        for sess in self.sessions:
-            sess.run(init_op)
-        self.saver = tf.train.Saver(max_to_keep=None,
-                                    var_list=[g for g in tf.global_variables()
-                                              if "reward_" not in g.name])
-
-        if variable_files:
-            if len(variable_files) != num_sessions:
-                raise Exception(("The number of provided variable files ({}) "
-                                 "is different than a number sessions ({})")
-                                .format(len(variable_files), num_sessions))
-            self.restore(variable_files)
+        self.saver = None
 
         self.best_score_index = 0
         self.best_score_epoch = 0
@@ -178,40 +157,27 @@ class TensorFlowManager:
 
     # pylint: disable=too-many-locals
     def _run_executables(self,
-                         batch: Dataset,
-                         executables: List[Executable],
-                         train: bool) -> None:
-        all_feedables = set()  # type: Set[Any]
-        all_tensors_to_execute = {}
+                         feed_dict: FeedDict,
+                         executables: List[GraphExecutor.Executable]) -> None:
+        all_fetches = {}
 
         # We might want to feed different values to each session
         # E.g. when executing only step at a time during ensembling
         feed_dicts = [{} for _ in range(len(self.sessions))] \
             # type: List[FeedDict]
 
-        tensor_list_lengths = []  # type: List[int]
+        for executable in (ex for ex in executables if ex.result is None):
+            fetches, add_feed_dicts = executable.next_to_execute()
+            all_fetches[executable] = fetches
 
-        for executable in executables:
-            if executable.result is None:
-                (feedables,
-                 tensors_to_execute,
-                 add_feed_dicts) = executable.next_to_execute()
-                all_feedables = all_feedables.union(feedables)
-                all_tensors_to_execute[executable] = tensors_to_execute
-                if add_feed_dicts:
-                    for fdict, add_fd in zip(feed_dicts, add_feed_dicts):
-                        fdict.update(add_fd)
-                tensor_list_lengths.append(len(tensors_to_execute))
-            else:
-                tensor_list_lengths.append(0)
-
-        feed_dict = _feed_dicts(batch, all_feedables, train=train)
+            if add_feed_dicts:
+                for fdict, add_fd in zip(feed_dicts, add_feed_dicts):
+                    fdict.update(add_fd)
 
         for fdict in feed_dicts:
             fdict.update(feed_dict)
 
-        session_results = [sess.run(all_tensors_to_execute,
-                                    feed_dict=fd)
+        session_results = [sess.run(all_fetches, feed_dict=fd)
                            for sess, fd in zip(self.sessions, feed_dicts)]
 
         for executable in executables:
@@ -222,7 +188,8 @@ class TensorFlowManager:
     # pylint: disable=too-many-locals
     def execute(self,
                 batch: Dataset,
-                runners: Sequence[Union[BaseRunner, Trainer]],
+                feedables: Set[Feedable],
+                runners: Sequence[GraphExecutor],
                 train: bool = False,
                 compute_losses: bool = True,
                 summaries: bool = True) -> List[ExecutionResult]:
@@ -245,6 +212,8 @@ class TensorFlowManager:
             A list of `ExecutionResult` tuples, one for each executable
             (runner).
         """
+        default_feed_dict = _feed_dicts(batch, feedables, train=train)
+
         executables = [runner.get_executable(compute_losses=compute_losses,
                                              summaries=summaries,
                                              num_sessions=len(self.sessions))
@@ -252,11 +221,14 @@ class TensorFlowManager:
 
         # TODO refactor runner results to properties
         while not all(getattr(ex, "result") is not None for ex in executables):
-            self._run_executables(batch, executables, train)
+            self._run_executables(default_feed_dict, executables)
 
         return [getattr(ex, "result") for ex in executables]
 
     def save(self, variable_files: Union[str, List[str]]) -> None:
+        if self.saver is None:
+            raise RuntimeError("Saver uninitialized")
+
         if isinstance(variable_files, str) and len(self.sessions) == 1:
             self.saver.save(self.sessions[0], variable_files)
             return
@@ -274,6 +246,9 @@ class TensorFlowManager:
             self.saver.save(sess, file_name)
 
     def restore(self, variable_files: Union[str, List[str]]) -> None:
+        if self.saver is None:
+            raise RuntimeError("Saver uninitialized")
+
         if isinstance(variable_files, str):
             variable_files = [variable_files]
         if len(variable_files) != len(self.sessions):
@@ -290,8 +265,19 @@ class TensorFlowManager:
         # TODO warn when link does not exist
         self.restore(self.variables_files[self.best_score_index])
 
-    def initialize_model_parts(
-            self, runners: List[Any], save: bool = False) -> None:
+    def initialize_sessions(self) -> None:
+        log("Initializing variables")
+        init_op = tf.global_variables_initializer()
+        for sess in self.sessions:
+            sess.run(init_op)
+
+        log("Initializing tf.train.Saver")
+        self.saver = tf.train.Saver(max_to_keep=None,
+                                    var_list=[g for g in tf.global_variables()
+                                              if "reward_" not in g.name])
+
+    def initialize_model_parts(self, runners: Sequence[GraphExecutor],
+                               save: bool = False) -> None:
         """Initialize model parts variables from their checkpoints."""
 
         if any(not hasattr(r, "parameterizeds") for r in runners):

@@ -23,6 +23,7 @@ from neuralmonkey.attention.base_attention import (
     get_attention_states, get_attention_mask, Attendable)
 from neuralmonkey.attention.namedtuples import HierarchicalLoopState
 from neuralmonkey.checking import assert_shape
+from neuralmonkey.decorators import tensor
 from neuralmonkey.model.model_part import ModelPart
 from neuralmonkey.model.parameterized import InitializerSpecs
 from neuralmonkey.tf_utils import get_variable
@@ -49,11 +50,6 @@ class MultiAttention(BaseAttention):
         self._use_sentinels = use_sentinels
 
         self.att_scope_name = "attention_{}".format(name)
-
-        with self.use_scope():
-            self.attn_v = get_variable(
-                "attn_v", [1, 1, self.attention_state_size],
-                initializer=tf.random_normal_initializer(stddev=0.001))
     # pylint: enable=unused-argument,too-many-arguments
 
     def attention(self,
@@ -63,6 +59,12 @@ class MultiAttention(BaseAttention):
                   loop_state: Any) -> Tuple[tf.Tensor, Any]:
         """Get context vector for given decoder state."""
         raise NotImplementedError("Abstract method")
+
+    @tensor
+    def attn_v(self) -> tf.Tensor:
+        return get_variable(
+            "attn_v", [1, 1, self.attention_state_size],
+            initializer=tf.random_normal_initializer(stddev=0.001))
 
     @property
     def attn_size(self):

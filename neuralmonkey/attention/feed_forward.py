@@ -13,7 +13,7 @@ from neuralmonkey.attention.base_attention import (
     BaseAttention, AttentionLoopState, empty_attention_loop_state,
     get_attention_states, get_attention_mask, Attendable)
 from neuralmonkey.decorators import tensor
-from neuralmonkey.logging import log
+from neuralmonkey.logging import debug
 from neuralmonkey.model.model_part import ModelPart
 from neuralmonkey.model.parameterized import InitializerSpecs
 from neuralmonkey.nn.utils import dropout
@@ -42,10 +42,6 @@ class Attention(BaseAttention):
 
         self._variable_scope.set_initializer(
             tf.random_normal_initializer(stddev=0.001))
-
-        # TODO blessing
-        log("Hidden features: {}".format(self.hidden_features))
-        log("Attention mask: {}".format(self.attention_mask))
     # pylint: enable=too-many-arguments
 
     @tensor
@@ -170,6 +166,19 @@ class Attention(BaseAttention):
         return context, next_loop_state
 
     def initial_loop_state(self) -> AttentionLoopState:
+
+        # Here we need to make sure that the hidden_features and attention_mask
+        # are pre-computed. If this is used in combination with a decoder which
+        # has train and runtime while loops, these tensors need to be created
+        # outside of any of those loops in order to be available to both.
+
+        # Note that we are not breaking lazy loading here because this method
+        # is called from a lazy tensor.
+
+        debug("Pre-computing attention tensors", "bless")
+        debug("Hidden features: {}".format(self.hidden_features), "bless")
+        debug("Hidden mask: {}".format(self.attention_mask), "bless")
+
         return empty_attention_loop_state(
             self.batch_size,
             tf.shape(self.attention_states)[1],

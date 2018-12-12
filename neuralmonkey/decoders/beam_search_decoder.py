@@ -163,13 +163,15 @@ class BeamSearchDecoder(ModelPart):
         # the beam. We need to access all the inner states of the network in
         # the graph, replace them with beam-size-times copied originals, create
         # the beam search graph, and then replace the inner states back.
+        self._building = False
+
         enc_states = self.parent_decoder.encoder_states
         enc_masks = self.parent_decoder.encoder_masks
 
         setattr(self.parent_decoder, "encoder_states",
-                [self.expand_to_beam(states) for states in enc_states])
+                lambda: [self.expand_to_beam(sts) for sts in enc_states()])
         setattr(self.parent_decoder, "encoder_masks",
-                [self.expand_to_beam(mask) for mask in enc_masks])
+                lambda: [self.expand_to_beam(mask) for mask in enc_masks()])
 
         # Create the beam search symbolic graph.
         with self.use_scope():

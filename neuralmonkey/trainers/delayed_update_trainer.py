@@ -1,19 +1,79 @@
 from typing import Dict, List, Tuple
-# pylint: disable=unused-import
-from typing import Optional
-# pylint: enable=unused-import
 
 import tensorflow as tf
 from typeguard import check_argument_types
 
 from neuralmonkey.decorators import tensor
-from neuralmonkey.runners.base_runner import (
-    Executable, ExecutionResult, NextExecute)
-from neuralmonkey.trainers.generic_trainer import (
-    GenericTrainer, Objective, Gradients)
+from neuralmonkey.runners.base_runner import GraphExecutor, NextExecute
+from neuralmonkey.trainers.generic_trainer import (GenericTrainer, Objective,
+                                                   Gradients)
 
 
 class DelayedUpdateTrainer(GenericTrainer):
+
+    class Executable(GraphExecutor.Executable["DelayedUpdateTrainer"]):
+
+        def __init__(self, executor: "DelayedUpdateTrainer",
+                     compute_losses: bool, summaries: bool,
+                     num_sessions: int) -> None:
+            assert compute_losses
+            if num_sessions != 1:
+                raise ValueError(
+                    "Trainer only supports execution in a single session")
+
+            super().__init__(executor, compute_losses, summaries, num_sessions)
+
+            self.state = 0
+            self.res_hist_sums = None
+            self.res_scal_sums = None
+            self.res_losses = None
+
+        def next_to_execute(self) -> NextExecute:
+
+            if self.state == 0:  # ACCUMULATING
+                fetches = {"accumulators": self.executor.accumulate_ops,
+                           "counter": self.executor.cumulator_counter,
+                           "losses": self.executor.objective_values}
+
+            elif self.state == 1:  # UPDATING
+                fetches = {
+                    "train_op": self.executor.train_op,
+                    "_update_ops": tf.get_collection(tf.GraphKeys.UPDATE_OPS)}
+
+                if self.summaries:
+                    fetches.update(self.executor.summaries)
+
+            else:  # RESETTING
+                fetches = {"resets": self.executor.reset_ops}
+
+            return fetches, []
+
+        def collect_results(self, results: List[Dict]) -> None:
+            assert len(results) == 1
+            result = results[0]
+
+            if self.state == 0:  # ACCUMULATING
+                self.res_losses = result["losses"]
+
+                # Are we updating?
+                counter = result["counter"]
+
+                if counter == self.executor.batches_per_update:
+                    self.state = 1
+                    return
+            elif self.state == 1:
+                if self.summaries:
+                    self.res_scal_sums = result["scalar_summaries"]
+                    self.res_hist_sums = result["histogram_summaries"]
+
+                self.state = 2
+                return
+
+            assert self.res_losses is not None
+            self.set_result([], losses=self.res_losses,
+                            scalar_summaries=self.res_scal_sums,
+                            histogram_summaries=self.res_hist_sums,
+                            image_summaries=None)
 
     # pylint: disable=too-many-arguments
     def __init__(self,
@@ -166,79 +226,3 @@ class DelayedUpdateTrainer(GenericTrainer):
                 tf.get_collection("summary_train")),
             "histogram_summaries": tf.summary.merge(
                 tf.get_collection("summary_gradients"))}
-
-    def get_executable(self,
-                       compute_losses: bool = True,
-                       summaries: bool = True,
-                       num_sessions: int = 1) -> Executable:
-        assert compute_losses
-        if num_sessions != 1:
-            raise ValueError(
-                "Trainer only supports execution in a single session")
-
-        return DelayedTrainExecutable(self, summaries)
-
-
-class DelayedTrainExecutable(Executable):
-
-    def __init__(self, trainer: DelayedUpdateTrainer, summaries: bool) -> None:
-        self.trainer = trainer
-        self.summaries = summaries
-        self._result = None  # type: Optional[ExecutionResult]
-
-        self.state = 0
-        self.res_hist_sums = None
-        self.res_scal_sums = None
-        self.res_losses = None
-
-    def next_to_execute(self) -> NextExecute:
-
-        if self.state == 0:  # ACCUMULATING
-            fetches = {"accumulators": self.trainer.accumulate_ops,
-                       "counter": self.trainer.cumulator_counter,
-                       "losses": self.trainer.objective_values}
-            coders = self.trainer.feedables
-
-        elif self.state == 1:  # UPDATING
-            fetches = {
-                "train_op": self.trainer.train_op,
-                "_update_ops": tf.get_collection(tf.GraphKeys.UPDATE_OPS)}
-
-            if self.summaries:
-                fetches.update(self.trainer.summaries)
-
-            coders = self.trainer.feedables
-
-        else:  # RESETTING
-            fetches = {"resets": self.trainer.reset_ops}
-            coders = set()
-
-        return coders, fetches, [{}]
-
-    def collect_results(self, results: List[Dict]) -> None:
-        assert len(results) == 1
-        result = results[0]
-
-        if self.state == 0:  # ACCUMULATING
-            self.res_losses = result["losses"]
-
-            # Are we updating?
-            counter = result["counter"]
-
-            if counter == self.trainer.batches_per_update:
-                self.state = 1
-                return
-        elif self.state == 1:
-            if self.summaries:
-                self.res_scal_sums = result["scalar_summaries"]
-                self.res_hist_sums = result["histogram_summaries"]
-
-            self.state = 2
-            return
-
-        assert self.res_losses is not None
-        self._result = ExecutionResult(
-            [], losses=self.res_losses,
-            scalar_summaries=self.res_scal_sums,
-            histogram_summaries=self.res_hist_sums,
-            image_summaries=None)
