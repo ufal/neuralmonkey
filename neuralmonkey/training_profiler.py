@@ -7,6 +7,17 @@ from neuralmonkey.logging import log, notice
 
 
 class TrainingProfiler:
+    """Training profiler class.
+
+    This class is used for measuring inter-validation and validation times
+    during training. It stores the training profile in the `inter_val_times`
+    and `validation_times` lists. These can be accessed by the toolkit to
+    provide the user with insight about the training and validation time ratio.
+
+    Additionally, this class provides getters for last logging and validation
+    times, which can be used for deciding whether to log training progress
+    or validate the model.
+    """
 
     def __init__(self) -> None:
         self._start_time = None  # type: Optional[float]

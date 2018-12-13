@@ -180,11 +180,14 @@ class FlatMultiAttention(MultiAttention):
 
     def initial_loop_state(self) -> AttentionLoopState:
 
+        # Similarly to the feed_forward attention, we need to build the encoder
+        # projections and masks before the while loop is entered so they are
+        # not created as a part of the loop
+
         # pylint: disable=not-an-iterable
-        # TODO blessing
         for val in self.encoder_projections_for_logits:
-            debug(val)
-        debug(self.masks_concat)
+            debug(val, "bless")
+        debug(self.masks_concat, "bless")
 
         length = sum(tf.shape(s)[1] for s in self._encoders_tensors)
         # pylint: enable=not-an-iterable
@@ -195,7 +198,7 @@ class FlatMultiAttention(MultiAttention):
         return empty_attention_loop_state(self.batch_size, length,
                                           self.context_vector_size)
 
-    def get_encoder_projections(self, scope) -> List[tf.Tensor]:
+    def get_encoder_projections(self, scope: str) -> List[tf.Tensor]:
         encoder_projections = []
         with tf.variable_scope(scope):
             for i, encoder_tensor in enumerate(self._encoders_tensors):
