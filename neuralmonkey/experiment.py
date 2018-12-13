@@ -14,7 +14,7 @@ import tensorflow as tf
 from tensorflow.contrib.tensorboard.plugins import projector
 
 from neuralmonkey.checking import CheckingException
-from neuralmonkey.dataset import BatchingScheme, Dataset
+from neuralmonkey.dataset import Dataset
 from neuralmonkey.logging import Logging, log, debug, warn
 from neuralmonkey.config.configuration import Configuration
 from neuralmonkey.config.normalize import normalize_configuration
@@ -265,11 +265,8 @@ class Experiment:
                 if self.model.tf_manager.best_score_index is not None:
                     self.model.tf_manager.restore_best_vars()
 
-                runner_batch = self.model.runners_batching_scheme.batch_size
-
                 for test_id, dataset in enumerate(self.model.test_datasets):
                     self.evaluate(dataset, write_out=True,
-                                  batch_size=runner_batch,
                                   name="test_{}".format(test_id))
 
             log("Finished.")
@@ -324,7 +321,6 @@ class Experiment:
     def run_model(self,
                   dataset: Dataset,
                   write_out: bool = False,
-                  batch_size: int = None,
                   log_progress: int = 0) -> Tuple[
                       List[ExecutionResult], Dict[str, List], Dict[str, List]]:
         """Run the model on a given dataset.
@@ -333,7 +329,6 @@ class Experiment:
             dataset: The dataset on which the model will be executed.
             write_out: Flag whether the outputs should be printed to a file
                 defined in the dataset object.
-            batch_size: size of the minibatch
             log_progress: log progress every X seconds
 
         Returns:
@@ -344,15 +339,6 @@ class Experiment:
         if not self._vars_loaded:
             self.load_variables()
 
-        toklevel = self.model.runners_batching_scheme.token_level_batching
-        assert self.model.runners_batching_scheme.batch_bucket_span is None
-
-        batching_scheme = BatchingScheme(
-            batch_size=batch_size or self.model.runners_batch_size,
-            batch_bucket_span=None,
-            token_level_batching=toklevel,
-            bucketing_ignore_series=[])
-
         with self.graph.as_default():
             return run_on_dataset(
                 self.model.tf_manager,
@@ -361,13 +347,11 @@ class Experiment:
                 dataset,
                 self.model.postprocess,
                 write_out=write_out,
-                log_progress=log_progress,
-                batching_scheme=batching_scheme)
+                log_progress=log_progress)
 
     def evaluate(self,
                  dataset: Dataset,
                  write_out: bool = False,
-                 batch_size: int = None,
                  log_progress: int = 0,
                  name: str = None) -> Dict[str, Any]:
         """Run the model on a given dataset and evaluate the outputs.
@@ -376,7 +360,6 @@ class Experiment:
             dataset: The dataset on which the model will be executed.
             write_out: Flag whether the outputs should be printed to a file
                 defined in the dataset object.
-            batch_size: size of the minibatch
             log_progress: log progress every X seconds
             name: The name of the evaluated dataset
 
@@ -386,7 +369,7 @@ class Experiment:
             run.
         """
         execution_results, output_data, f_dataset = self.run_model(
-            dataset, write_out, batch_size, log_progress)
+            dataset, write_out, log_progress)
 
         evaluators = [(e[0], e[0], e[1]) if len(e) == 2 else e
                       for e in self.model.evaluation]
@@ -468,11 +451,9 @@ def create_config(train_mode: bool = True) -> Configuration:
     config.add_argument("tf_manager", required=False, default=None)
     config.add_argument("batch_size", required=False, default=None,
                         cond=lambda x: x is None or x > 0)
-    config.add_argument("batching_scheme", required=False, default=None)
     config.add_argument("output")
     config.add_argument("postprocess", required=False, default=None)
     config.add_argument("runners")
-    config.add_argument("runners_batch_size", required=False, default=None)
 
     if train_mode:
         config.add_argument("epochs", cond=lambda x: x >= 0)

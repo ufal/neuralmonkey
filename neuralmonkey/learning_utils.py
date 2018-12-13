@@ -13,7 +13,7 @@ import tensorflow as tf
 from termcolor import colored
 
 from neuralmonkey.logging import log, log_print, warn
-from neuralmonkey.dataset import Dataset, BatchingScheme
+from neuralmonkey.dataset import Dataset
 from neuralmonkey.tf_manager import TensorFlowManager
 from neuralmonkey.runners.base_runner import (
     BaseRunner, ExecutionResult, GraphExecutor, OutputSeries)
@@ -64,7 +64,7 @@ def training_loop(cfg: Namespace) -> None:
 
     try:
         for epoch_n in range(1, cfg.epochs + 1):
-            train_batches = cfg.train_dataset.batches(cfg.batching_scheme)
+            train_batches = cfg.train_dataset.batches()
 
             if epoch_n == 1 and cfg.train_start_offset:
                 if cfg.train_dataset.shuffled and not cfg.train_dataset.lazy:
@@ -87,8 +87,7 @@ def training_loop(cfg: Namespace) -> None:
                         summaries=True)
                     train_results, train_outputs, f_batch = run_on_dataset(
                         cfg.tf_manager, cfg.runners, cfg.dataset_runner, batch,
-                        cfg.postprocess, write_out=False,
-                        batching_scheme=cfg.runners_batching_scheme)
+                        cfg.postprocess, write_out=False)
                     # ensure train outputs are iterable more than once
                     train_outputs = {
                         k: list(v) for k, v in train_outputs.items()}
@@ -119,8 +118,7 @@ def training_loop(cfg: Namespace) -> None:
 
                         val_results, val_outputs, f_valset = run_on_dataset(
                             cfg.tf_manager, cfg.runners, cfg.dataset_runner,
-                            valset, cfg.postprocess, write_out=False,
-                            batching_scheme=cfg.runners_batching_scheme)
+                            valset, cfg.postprocess, write_out=False)
                         # ensure val outputs are iterable more than once
                         val_outputs = {k: list(v)
                                        for k, v in val_outputs.items()}
@@ -278,7 +276,6 @@ def run_on_dataset(tf_manager: TensorFlowManager,
                    dataset_runner: DatasetRunner,
                    dataset: Dataset,
                    postprocess: Postprocess,
-                   batching_scheme: BatchingScheme,
                    write_out: bool = False,
                    log_progress: int = 0) -> Tuple[
                        List[ExecutionResult],
@@ -299,7 +296,6 @@ def run_on_dataset(tf_manager: TensorFlowManager,
         postprocess: Dataset-level postprocessors
         write_out: Flag whether the outputs should be printed to a file defined
             in the dataset object.
-        batching_scheme: Scheme used for batching.
         log_progress: log progress every X seconds
 
         extra_fetches: Extra tensors to evaluate for each batch.
@@ -322,7 +318,7 @@ def run_on_dataset(tf_manager: TensorFlowManager,
     feedables |= dataset_runner.feedables
 
     processed_examples = 0
-    for batch in dataset.batches(batching_scheme):
+    for batch in dataset.batches():
         if 0 < log_progress < time.process_time() - last_log_time:
             log("Processed {} examples.".format(processed_examples))
             last_log_time = time.process_time()

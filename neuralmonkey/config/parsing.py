@@ -150,12 +150,13 @@ def _parse_class_name(string: str, vars_dict: VarsDict) -> ClassSymbol:
 
 
 def _parse_value(string: str, vars_dict: VarsDict) -> Any:
-    """Parse the value recursively according to the Nerualmonkey grammar.
+    """Parse the value recursively according to the Nerual Monkey grammar.
 
     Arguments:
         string: the string to be parsed
         vars_dict: a dictionary of variables for substitution
     """
+    string = string.strip()
 
     if string in CONSTANTS:
         return CONSTANTS[string]

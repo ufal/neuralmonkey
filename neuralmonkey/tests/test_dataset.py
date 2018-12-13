@@ -5,33 +5,23 @@ import os
 import tempfile
 import unittest
 
-from neuralmonkey.dataset import Dataset, from_files, load, BatchingScheme
+from neuralmonkey.dataset import Dataset, load, BatchingScheme
 from neuralmonkey.readers.plain_text_reader import UtfPlainTextReader
 
-DEFAULT_BATCHING_SCHEME = BatchingScheme(
-    batch_size=3,
-    batch_bucket_span=None,
-    token_level_batching=False,
-    bucketing_ignore_series=[])
+DEFAULT_BATCHING_SCHEME = BatchingScheme(batch_size=3)
 
 
 class TestDataset(unittest.TestCase):
 
-    def test_nonexistent_file(self):
+    def test_nonexistent_file(self) -> None:
         with self.assertRaises(FileNotFoundError):
             load(name="name",
                  series=["source"],
                  data=[(["some_nonexistent_file"], UtfPlainTextReader)],
+                 batching=DEFAULT_BATCHING_SCHEME,
                  buffer_size=5)
 
-    def test_nonexistent_file_deprec(self):
-        with self.assertRaises(FileNotFoundError):
-            from_files(
-                name="name",
-                s_source=(["some_nonexistent_file"], UtfPlainTextReader),
-                lazy=True)
-
-    def test_lazy_dataset(self):
+    def test_lazy_dataset(self) -> None:
         i = 0  # iteration counter
 
         def reader(files: List[str]) -> Iterable[List[str]]:
@@ -43,30 +33,10 @@ class TestDataset(unittest.TestCase):
         dataset = load(
             name="data",
             series=["source", "source_prep"],
-            data=[([], reader), (lambda x: x, "source")],
+            data=[(["tests/data/train.tc.en"], reader),
+                  (lambda x: x, "source")],
+            batching=DEFAULT_BATCHING_SCHEME,
             buffer_size=5)
-
-        series = dataset.get_series("source_prep")
-
-        # Check that the reader is being iterated lazily
-        for j, _ in enumerate(series):
-            self.assertEqual(i, j)
-        self.assertEqual(i, 9)
-
-    def test_lazy_dataset_deprec(self):
-        i = 0  # iteration counter
-
-        def reader(files: List[str]) -> Iterable[List[str]]:
-            del files
-            nonlocal i
-            for i in range(10):  # pylint: disable=unused-variable
-                yield ["foo"]
-
-        dataset = from_files(
-            name="data",
-            s_source=([], reader),
-            preprocessors=[("source", "source_prep", lambda x: x)],
-            lazy=True)
 
         series = dataset.get_series("source_prep")
 
@@ -87,23 +57,8 @@ class TestDataset(unittest.TestCase):
                 name="dataset",
                 series=["data"],
                 data=[[os.path.join(tmp_dir, "abc?"),
-                       os.path.join(tmp_dir, "xyz*")]])
-
-            series_iterator = dataset.get_series("data")
-            self.assertEqual(list(series_iterator), [["a"], ["b"], ["d"]])
-
-    def test_glob_deprec(self):
-        filenames = sorted(["abc1", "abc2", "abcxx", "xyz"])
-        contents = ["a", "b", "c", "d"]
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            for fname, text in zip(filenames, contents):
-                with open(os.path.join(tmp_dir, fname), "w") as file:
-                    print(text, file=file)
-
-            dataset = from_files(
-                name="dataset",
-                s_data=[os.path.join(tmp_dir, "abc?"),
-                        os.path.join(tmp_dir, "xyz*")])
+                       os.path.join(tmp_dir, "xyz*")]],
+                batching=DEFAULT_BATCHING_SCHEME)
 
             series_iterator = dataset.get_series("data")
             self.assertEqual(list(series_iterator), [["a"], ["b"], ["d"]])
@@ -115,12 +70,13 @@ class TestDataset(unittest.TestCase):
         }
 
         dataset = Dataset(
-            "dataset", iterators=iterators, shuffled=False)
+            "dataset", iterators=iterators, batching=DEFAULT_BATCHING_SCHEME,
+            shuffled=False)
 
         batches = []
         for epoch in range(2):
             epoch = []
-            for batch in dataset.batches(DEFAULT_BATCHING_SCHEME):
+            for batch in dataset.batches():
                 epoch.append({s: list(batch.get_series(s)) for s in iterators})
 
             batches.append(epoch)
@@ -138,12 +94,13 @@ class TestDataset(unittest.TestCase):
         }
 
         dataset = Dataset(
-            "dataset", iterators=iterators, shuffled=False, buffer_size=(3, 5))
+            "dataset", iterators=iterators, batching=DEFAULT_BATCHING_SCHEME,
+            shuffled=False, buffer_size=(3, 5))
 
         batches = []
         for epoch in range(2):
             epoch = []
-            for batch in dataset.batches(DEFAULT_BATCHING_SCHEME):
+            for batch in dataset.batches():
                 epoch.append({s: list(batch.get_series(s)) for s in iterators})
 
             batches.append(epoch)
@@ -160,12 +117,13 @@ class TestDataset(unittest.TestCase):
             "b": lambda: range(5, 10)
         }
 
-        dataset = Dataset("dataset", iterators=iterators, shuffled=True)
+        dataset = Dataset("dataset", iterators=iterators,
+                          batching=DEFAULT_BATCHING_SCHEME, shuffled=True)
 
         batches = []
         for epoch in range(2):
             epoch = []
-            for batch in dataset.batches(DEFAULT_BATCHING_SCHEME):
+            for batch in dataset.batches():
                 epoch.append({s: list(batch.get_series(s)) for s in iterators})
 
             batches.append(epoch)
@@ -187,12 +145,13 @@ class TestDataset(unittest.TestCase):
         }
 
         dataset = Dataset(
-            "dataset", iterators=iterators, shuffled=True, buffer_size=(3, 5))
+            "dataset", iterators=iterators, batching=DEFAULT_BATCHING_SCHEME,
+            shuffled=True, buffer_size=(3, 5))
 
         batches = []
         for epoch in range(2):
             epoch = []
-            for batch in dataset.batches(DEFAULT_BATCHING_SCHEME):
+            for batch in dataset.batches():
                 epoch.append({s: list(batch.get_series(s)) for s in iterators})
 
             batches.append(epoch)
@@ -215,15 +174,17 @@ class TestDataset(unittest.TestCase):
                                   for l in range(1, 50))
         }
 
-        dataset = Dataset("dataset", iterators=iterators, shuffled=False)
-
         # we use batch size 7 and bucket span 10
-        scheme = BatchingScheme(7, 10, False, None, True)
+        scheme = BatchingScheme(bucket_boundaries=[9, 19, 29, 39, 49],
+                                bucket_batch_sizes=[7, 7, 7, 7, 7, 7])
+
+        dataset = Dataset("dataset", iterators=iterators,
+                          batching=scheme, shuffled=False)
 
         # we process the dataset in two epochs and save what did the batches
         # look like
         batches = []
-        for batch in dataset.batches(scheme):
+        for batch in dataset.batches():
             batches.append(list(batch.get_series("sentences")))
 
         ref_batches = [
@@ -248,15 +209,17 @@ class TestDataset(unittest.TestCase):
                                   for l in range(1, 50))
         }
 
-        dataset = Dataset("dataset", iterators=iterators, shuffled=False)
-
         # we use batch size 7 and bucket span 10
-        scheme = BatchingScheme(7, 10, False, None, False)
+        scheme = BatchingScheme(bucket_boundaries=[9, 19, 29, 39, 49],
+                                bucket_batch_sizes=[7, 7, 7, 7, 7, 7],
+                                drop_remainder=True)
+        dataset = Dataset("dataset", iterators=iterators, batching=scheme,
+                          shuffled=False)
 
         # we process the dataset in two epochs and save what did the batches
         # look like
         batches = []
-        for batch in dataset.batches(scheme):
+        for batch in dataset.batches():
             batches.append(list(batch.get_series("sentences")))
 
         ref_batches = [
@@ -275,15 +238,16 @@ class TestDataset(unittest.TestCase):
                                   for l in range(6)] * 3
         }
 
-        dataset = Dataset("dataset", iterators=iterators, shuffled=True)
-
         # we use batch size 6 and bucket span 2
-        scheme = BatchingScheme(6, 2, False, None)
+        scheme = BatchingScheme(bucket_boundaries=[1, 3, 5],
+                                bucket_batch_sizes=[6, 6, 6, 6])
+        dataset = Dataset("dataset", iterators=iterators, batching=scheme,
+                          shuffled=True)
 
         # we process the dataset in two epochs and save what did the batches
         # look like
         batches = []
-        for batch in dataset.batches(scheme):
+        for batch in dataset.batches():
             batches.append(list(batch.get_series("sentences")))
 
         # this setup should divide the data to 3 batches

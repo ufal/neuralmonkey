@@ -15,7 +15,6 @@ def load_runtime_config(config_path: str) -> argparse.Namespace:
     """Load a runtime configuration file."""
     cfg = Configuration()
     cfg.add_argument("test_datasets")
-    cfg.add_argument("batch_size", cond=lambda x: x > 0)
     cfg.add_argument("variables", cond=lambda x: isinstance(x, list))
 
     cfg.load_file(config_path)
@@ -68,13 +67,9 @@ def main() -> None:
             dataset = dataset.subset(start, length)
 
         if exp.config.args.evaluation is None:
-            exp.run_model(dataset,
-                          write_out=True,
-                          batch_size=datasets_model.batch_size)
+            exp.run_model(dataset, write_out=True)
         else:
-            eval_result = exp.evaluate(dataset,
-                                       write_out=True,
-                                       batch_size=datasets_model.batch_size)
+            eval_result = exp.evaluate(dataset, write_out=True)
             results.append(eval_result)
 
     if args.json:

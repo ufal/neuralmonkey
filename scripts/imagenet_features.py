@@ -15,7 +15,7 @@ import sys
 import numpy as np
 import tensorflow as tf
 
-from neuralmonkey.dataset import Dataset
+from neuralmonkey.dataset import Dataset, BatchingScheme
 from neuralmonkey.encoders.imagenet_encoder import ImageNet
 from neuralmonkey.logging import log
 from neuralmonkey.readers.image_reader import single_image_for_imagenet
@@ -91,7 +91,8 @@ def main():
     image_paths = []
 
     def process_images():
-        dataset = Dataset("dataset", {"images": np.array(images)}, {})
+        dataset = Dataset("dataset", {"images": np.array(images)},
+                          BatchingScheme(batch_size=1), {})
         feed_dict = imagenet.feed_dict(dataset)
 
         fetch = imagenet.encoded if args.vector else imagenet.spatial_states

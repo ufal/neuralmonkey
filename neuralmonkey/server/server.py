@@ -12,7 +12,7 @@ from flask import Flask, request, Response, render_template
 import numpy as np
 
 from neuralmonkey.config.configuration import Configuration
-from neuralmonkey.dataset import Dataset
+from neuralmonkey.dataset import Dataset, BatchingScheme
 from neuralmonkey.experiment import Experiment
 
 
@@ -33,7 +33,8 @@ def get_file(filename):  # pragma: no cover
 def run(data):  # pragma: no cover
     exp = APP.config["experiment"]
     dataset = Dataset(
-        "request", data, {}, preprocessors=APP.config["preprocess"])
+        "request", data, BatchingScheme(batch_size=1), {},
+        preprocessors=APP.config["preprocess"])
 
     _, response_data, _ = exp.run_model(dataset, write_out=False)
 
