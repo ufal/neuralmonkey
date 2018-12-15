@@ -1,13 +1,19 @@
 from typing import Callable, Iterable, List
 import os
-from typeguard import check_argument_types
+
 import numpy as np
+from typeguard import check_argument_types
 from PIL import Image, ImageFile
+
+from neuralmonkey.logging import warn
+
+
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 
 def image_reader(pad_w: int,
                  pad_h: int,
+                 channels: int = 3,
                  prefix: str = "",
                  rescale_w: bool = False,
                  rescale_h: bool = False,
@@ -17,7 +23,8 @@ def image_reader(pad_w: int,
 
     Args:
         pad_w: Width to which the images will be padded/cropped/resized.
-        pad_h: Height to with the images will be padded/corpped/resized.
+        pad_h: Height to with the images will be padded/cropped/resized.
+        channels: Number of channels in each image (default 3 for RGB)
         prefix: Prefix of the paths that are listed in a image files.
         rescale_w: If true, image is rescaled to have given width. It is
             cropped/padded otherwise.
@@ -57,6 +64,8 @@ def image_reader(pad_w: int,
                     try:
                         image = Image.open(path).convert(mode)
                     except IOError:
+                        warn("Skipping image from file '{}' no. '{}'.".format(
+                            path, i + 1))
                         image = Image.new(mode, (pad_w, pad_h))
 
                     image = _rescale_or_crop(image, pad_w, pad_h,
@@ -65,15 +74,21 @@ def image_reader(pad_w: int,
                     image_np = np.array(image)
 
                     if len(image_np.shape) == 2:
-                        channels = 1
+                        img_channels = 1
                         image_np = np.expand_dims(image_np, 2)
                     elif len(image_np.shape) == 3:
-                        channels = image_np.shape[2]
+                        img_channels = image_np.shape[2]
                     else:
                         raise ValueError(
                             ("Image should have either 2 (black and white) "
                              "or three dimensions (color channels), has {} "
                              "dimension.").format(len(image_np.shape)))
+
+                    if channels != img_channels:
+                        raise ValueError(
+                            "Image does not have the pre-declared number of "
+                            "channels {}, but {}.".format(
+                                channels, img_channels))
 
                     yield _pad(image_np, pad_w, pad_h, channels)
 

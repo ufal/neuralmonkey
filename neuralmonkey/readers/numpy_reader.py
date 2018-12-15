@@ -15,12 +15,14 @@ def single_tensor(files: List[str]) -> np.ndarray:
 
 
 def from_file_list(prefix: str,
+                   shape: List[int],
                    suffix: str = "",
                    default_tensor_name: str = "arr_0") -> Callable:
     """Load a list of numpy arrays from a list of .npz numpy files.
 
     Args:
         prefix: A common prefix for the files in the list.
+        shape: The shape of the numpy arrays stored in the referenced files.
         suffix: An optional suffix that will be appended to each path
         default_tensor_name: Key of the tensors to load from the npz files.
 
@@ -35,10 +37,11 @@ def from_file_list(prefix: str,
                 for line in f_list:
                     path = os.path.join(prefix, line.rstrip()) + suffix
                     with np.load(path) as npz:
-                        yield npz[default_tensor_name]
-
+                        arr = npz[default_tensor_name]
+                        arr_shape = list(arr.shape)
+                        if arr_shape != shape:
+                            raise ValueError(
+                                "Shapes do not match: expected {}, found {}"
+                                .format(shape, arr_shape))
+                        yield arr
     return load
-
-
-# pylint: disable=invalid-name
-numpy_file_list_reader = from_file_list(prefix="")
