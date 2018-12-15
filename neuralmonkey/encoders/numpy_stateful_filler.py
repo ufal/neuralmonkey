@@ -164,5 +164,5 @@ class SpatialFiller(ModelPart, SpatialStatefulWithOutput):
 
     def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
         fd = ModelPart.feed_dict(self, dataset, train)
-        fd[self.spatial_input] = dataset.get_series(self.data_id)
+        fd[self.spatial_input] = list(dataset.get_series(self.data_id))
         return fd
