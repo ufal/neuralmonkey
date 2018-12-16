@@ -6,7 +6,7 @@ reward of the train-time decoder output as a baseline in the update step.
 For more details see: https://arxiv.org/pdf/1612.00563.pdf
 """
 
-from typing import Callable, Iterable, Tuple
+from typing import Callable, Iterable, Tuple, Optional
 from itertools import takewhile
 from collections import Counter
 
@@ -14,14 +14,82 @@ import numpy as np
 import tensorflow as tf
 from typeguard import check_argument_types
 
-from neuralmonkey.trainers.generic_trainer import Objective
 from neuralmonkey.decoders.decoder import Decoder
+from neuralmonkey.decorators import tensor
+from neuralmonkey.trainers.generic_trainer import Objective
 from neuralmonkey.vocabulary import END_TOKEN_INDEX
 
 
 # pylint: disable=invalid-name
 RewardFunction = Callable[[np.ndarray, np.ndarray], np.ndarray]
 # pylint: enable=invalid-name
+
+
+class SelfCriticalObjective(Objective[Decoder]):
+
+    def __init__(self, decoder: Decoder, reward_function: RewardFunction,
+                 weight: float = None) -> None:
+        """Self-critical objective.
+
+        Args:
+            decoder: A recurrent decoder.
+            reward_function: A reward function computing score in Python.
+            weight: Mixing weight for a trainer.
+
+        Returns:
+            Objective object to be used in generic trainer.
+        """
+        check_argument_types()
+        name = "{}_self_critical".format(decoder.name)
+        Objective[Decoder].__init__(self, name, decoder)
+
+        self.reward_function = reward_function
+        self._weight = weight
+
+    @tensor
+    def weight(self) -> Optional[tf.Tensor]:
+        if self._weight is None:
+            return None
+        return tf.constant(self._weight)
+
+    @tensor
+    def loss(self) -> tf.Tensor:
+
+        # decoded, shape (time, batch)
+        train_decoded = tf.argmax(self.decoder.train_logits, axis=2)
+        runtime_decoded = tf.argmax(self.decoder.runtime_logits, axis=2)
+        reference = self.decoder.train_inputs
+
+        # rewards, shape (batch)
+        train_reward = tf.py_func(
+            self.reward_function, [reference, train_decoded], tf.float32)
+        runtime_reward = tf.py_func(
+            self.reward_function, [reference, runtime_decoded], tf.float32)
+
+        tf.summary.scalar(
+            "train_{}/{}".format(self.decoder.data_id,
+                                 self.reward_function.__name__),
+            tf.reduce_mean(runtime_reward),
+            collections=["summary_train"])
+
+        # REINFORCE score: shape (time, batch, vocab)
+        score_by_word = reinforce_score(
+            runtime_reward, train_reward, runtime_decoded,
+            self.decoder.runtime_logits)
+
+        float_mask = tf.to_float(self.decoder.runtime_mask)
+        masked_score_by_word = score_by_word * float_mask
+
+        # sum the matrix (dot product of rows, sum over time, and over batch)
+        # pylint: disable=invalid-unary-operand-type
+        loss = -tf.reduce_sum(masked_score_by_word) / tf.reduce_sum(float_mask)
+        # pylint: enable=invalid-unary-operand-type
+
+        tf.summary.scalar(
+            "train_{}/self_critical_cost".format(self.decoder.data_id),
+            loss, collections=["summary_train"])
+
+        return loss
 
 
 def reinforce_score(reward: tf.Tensor,
@@ -51,62 +119,6 @@ def reinforce_score(reward: tf.Tensor,
     # REINFORCE gradient, shape (time, batch, vocab)
     score = tf.stop_gradient(reward_diff) * decoded_neg_likelihood
     return score
-
-
-def self_critical_objective(decoder: Decoder,
-                            reward_function: RewardFunction,
-                            weight: float = None) -> Objective:
-    """Self-critical objective.
-
-    Args:
-        decoder: A recurrent decoder.
-        reward_function: A reward function computing score in Python.
-        weight: Mixing weight for a trainer.
-
-    Returns:
-        Objective object to be used in generic trainer.
-    """
-    check_argument_types()
-
-    # decoded, shape (time, batch)
-    train_decoded = tf.argmax(decoder.train_logits, axis=2)
-    runtime_decoded = tf.argmax(decoder.runtime_logits, axis=2)
-    reference = decoder.train_inputs
-
-    # rewards, shape (batch)
-    train_reward = tf.py_func(
-        reward_function, [reference, train_decoded], tf.float32)
-    runtime_reward = tf.py_func(
-        reward_function, [reference, runtime_decoded], tf.float32)
-
-    tf.summary.scalar(
-        "train_{}/{}".format(decoder.data_id, reward_function.__name__),
-        tf.reduce_mean(runtime_reward),
-        collections=["summary_train"])
-
-    # REINFORCE score: shape (time, batch, vocab)
-    score_by_word = reinforce_score(
-        runtime_reward, train_reward, runtime_decoded, decoder.runtime_logits)
-
-    float_mask = tf.to_float(decoder.runtime_mask)
-    masked_score_by_word = score_by_word * float_mask
-
-    # sum the matrix up (dot product of rows, sum over time, and over batch)
-    # pylint: disable=invalid-unary-operand-type
-    loss = -tf.reduce_sum(masked_score_by_word) / tf.reduce_sum(float_mask)
-    # pylint: enable=invalid-unary-operand-type
-
-    tf.summary.scalar(
-        "train_{}/self_critical_cost".format(decoder.data_id),
-        loss,
-        collections=["summary_train"])
-
-    return Objective(
-        name="{}_self_critical".format(decoder.name),
-        decoder=decoder,
-        loss=loss,
-        gradients=None,
-        weight=weight)
 
 
 def sentence_bleu(references: np.ndarray,

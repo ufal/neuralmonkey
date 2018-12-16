@@ -1,6 +1,6 @@
 """CNN for image processing."""
 
-from typing import cast, Callable, List, Tuple, Union
+from typing import cast, Callable, Dict, List, Tuple, Union
 from typeguard import check_argument_types
 
 import numpy as np
@@ -83,20 +83,24 @@ class CNNEncoder(ModelPart, SpatialStatefulWithOutput):
         self.batch_normalize = batch_normalize
     # pylint: enable=too-many-arguments, too-many-locals
 
+    @property
+    def input_types(self) -> Dict[str, tf.DType]:
+        return {self.data_id: tf.float32}
+
+    @property
+    def input_shapes(self) -> Dict[str, tf.TensorShape]:
+        return {self.data_id: tf.TensorShape(
+            [None, self.image_height, self.image_width, self.pixel_dim])}
+
     @tensor
     def image_input(self) -> tf.Tensor:
-        return tf.placeholder(
-            tf.float32,
-            shape=(None, self.image_height, self.image_width,
-                   self.pixel_dim),
-            name="input_images")
+        return self.dataset[self.data_id]
 
     @tensor
     def image_mask(self) -> tf.Tensor:
-        return tf.placeholder(
-            tf.float32,
-            shape=(None, self.image_height, self.image_width, 1),
-            name="input_mask")
+        # the image mask is one everywhere where the image is non-zero, i.e.
+        # zero pixels are masked out
+        return tf.sign(tf.reduce_sum(self.image_input, axis=3, keepdims=True))
 
     def batch_norm_callback(self, layer_output: tf.Tensor) -> tf.Tensor:
         if self.batch_normalize:
@@ -198,13 +202,7 @@ class CNNEncoder(ModelPart, SpatialStatefulWithOutput):
         # if it is from the pickled file, it is a list, not a numpy tensor,
         # so convert it as as a prevention
         images = np.array(list(dataset.get_series(self.data_id)))
-
         fd[self.image_input] = images / 255.0
-
-        # the image mask is one everywhere where the image is non-zero, i.e.
-        # zero pixels are masked out
-        fd[self.image_mask] = np.sign(np.sum(images, axis=3, keepdims=True))
-
         return fd
 
 

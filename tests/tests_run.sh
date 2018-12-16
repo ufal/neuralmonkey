@@ -5,11 +5,10 @@ set -ex
 export NEURALMONKEY_STRICT=1
 export PYTHONFAULTHANDLER=1
 
-bin/neuralmonkey-train tests/vocab.ini
 bin/neuralmonkey-train tests/bahdanau.ini
 NEURALMONKEY_STRICT= bin/neuralmonkey-train tests/bpe.ini
 bin/neuralmonkey-train tests/bpe.ini -s 'decoder.encoders=[<encoder_output_frozen>]' -s 'attention.encoder=<encoder_states_frozen>' -s 'main.initial_variables=["tests/outputs/bpe/variables.data"]'
-#bin/neuralmonkey-train tests/alignment.ini
+# bin/neuralmonkey-train tests/alignment.ini
 bin/neuralmonkey-train tests/post-edit.ini
 bin/neuralmonkey-train tests/factored.ini
 bin/neuralmonkey-train tests/classifier.ini
@@ -22,6 +21,9 @@ bin/neuralmonkey-train tests/beamsearch.ini
 bin/neuralmonkey-train tests/self-critical.ini
 bin/neuralmonkey-train tests/rl.ini
 bin/neuralmonkey-train tests/transformer.ini
+bin/neuralmonkey-train tests/str.ini
+bin/neuralmonkey-train tests/flat-multiattention.ini
+bin/neuralmonkey-train tests/hier-multiattention.ini
 
 # Testing environment variable substitution in config file
 NM_EXPERIMENT_NAME=small bin/neuralmonkey-train tests/small.ini
@@ -54,13 +56,9 @@ sleep 20
 curl 127.0.0.1:5000/run -H "Content-Type: application/json" -X POST -d '{"source": ["I am the eggman.", "I am the walrus ."]}'
 kill $SERVER_PID
 
-bin/neuralmonkey-train tests/str.ini
 
 # git clone https://github.com/tensorflow/models tests/tensorflow-models
 # bin/neuralmonkey-train tests/captioning.ini
-
-bin/neuralmonkey-train tests/flat-multiattention.ini
-bin/neuralmonkey-train tests/hier-multiattention.ini
 
 rm -rf tests/tmp-test-output
 echo Tests OK.

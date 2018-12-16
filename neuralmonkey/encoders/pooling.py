@@ -23,14 +23,15 @@ class SequencePooling(ModelPart, Stateful):
         check_argument_types()
         ModelPart.__init__(self, name, reuse, save_checkpoint, load_checkpoint,
                            initializers)
-
         self.input_sequence = input_sequence
 
-        with self.use_scope():
-            self._input_mask = tf.expand_dims(
-                self.input_sequence.temporal_mask, -1)
-            self._masked_input = (
-                self.input_sequence.temporal_states * self._input_mask)
+    @tensor
+    def _masked_input(self) -> tf.Tensor:
+        return self.input_sequence.temporal_states * self._input_mask
+
+    @tensor
+    def _input_mask(self) -> tf.Tensor:
+        return tf.expand_dims(self.input_sequence.temporal_mask, -1)
 # pylint: enable=abstract-method
 
 

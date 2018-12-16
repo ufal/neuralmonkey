@@ -1,4 +1,4 @@
-from typing import Callable, List
+from typing import Callable, Dict, List
 
 import tensorflow as tf
 from typeguard import check_argument_types
@@ -44,17 +44,19 @@ class SequenceRegressor(ModelPart):
         self._layers = layers
         self._activation_fn = activation_fn
         self._dropout_keep_prob = dropout_keep_prob
-
-        with self.use_scope():
-            self.train_inputs = tf.placeholder(tf.float32, [None], "targets")
-
-        tf.summary.scalar(
-            "val_optimization_cost", self.cost,
-            collections=["summary_val"])
-        tf.summary.scalar(
-            "train_optimization_cost",
-            self.cost, collections=["summary_train"])
     # pylint: enable=too-many-arguments
+
+    @property
+    def input_types(self) -> Dict[str, tf.DType]:
+        return {self.data_id: tf.float32}
+
+    @property
+    def input_shapes(self) -> Dict[str, tf.TensorShape]:
+        return {self.data_id: tf.TensorShape([None])}
+
+    @tensor
+    def train_inputs(self) -> tf.Tensor:
+        return self.dataset[self.data_id]
 
     @tensor
     def _mlp_input(self):
@@ -73,8 +75,13 @@ class SequenceRegressor(ModelPart):
 
     @tensor
     def cost(self):
-        return tf.reduce_mean(tf.square(
+        cost = tf.reduce_mean(tf.square(
             self.predictions - tf.expand_dims(self.train_inputs, 1)))
+
+        tf.summary.scalar("optimization_cost", cost,
+                          collections=["summary_val", "summary_train"])
+
+        return cost
 
     @property
     def train_loss(self):

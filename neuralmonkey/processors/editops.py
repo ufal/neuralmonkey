@@ -2,8 +2,6 @@ from typing import Any, Callable, Dict, Iterable, Iterator, List
 
 import numpy as np
 
-from neuralmonkey.dataset import Dataset
-
 
 # pylint: disable=too-few-public-methods
 class Preprocess:
@@ -30,42 +28,29 @@ class Postprocess:
     def __init__(
             self,
             source_id: str,
-            edits_id: str,
-            # pylint: disable=bad-whitespace
-            result_postprocess: Callable[
-                [Iterable[List[str]]], Iterable[List[str]]] = None) -> None:
-        # pylint: enable=bad-whitespace
-        # This disable is due to a pylint bug
+            edits_id: str) -> None:
 
         self._source_id = source_id
         self._edits_id = edits_id
-        self._result_postprocess = result_postprocess
 
-    def _do_postprocess(
-            self, dataset: Dataset,
-            generated_series: Dict[str, Iterable[Any]]) -> Iterator[List[str]]:
+    def __call__(self,
+                 dataset: Dict[str, Iterable[Any]],
+                 generated: Dict[str, Iterable[Any]]) -> List[List[str]]:
 
-        source_series = generated_series.get(self._source_id)
-        if source_series is None:
-            source_series = dataset.get_series(self._source_id)
-        edits_series = generated_series.get(self._edits_id)
-        if edits_series is None:
-            edits_series = dataset.get_series(self._edits_id)
+        if self._source_id not in dataset:
+            raise ValueError("Source series not present in the input dataset")
 
+        if self._edits_id not in generated:
+            raise ValueError("Edits series not present in the output dataset")
+
+        source_series = dataset[self._source_id]
+        edits_series = generated[self._edits_id]
+
+        reconstructed = []
         for src_seq, edit_seq in zip(source_series, edits_series):
-            reconstructed = reconstruct(src_seq, edit_seq)
-            yield reconstructed
+            reconstructed.append(reconstruct(src_seq, edit_seq))
 
-    def __call__(
-            self, dataset: Dataset,
-            generated_series: Dict[str, Iterable[Any]]) -> Iterable[List[str]]:
-
-        reconstructed_seq = self._do_postprocess(dataset, generated_series)
-
-        if self._result_postprocess is not None:
-            return self._result_postprocess(reconstructed_seq)
-
-        return reconstructed_seq
+        return reconstructed
 # pylint: enable=too-few-public-methods
 
 

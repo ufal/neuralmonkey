@@ -2,7 +2,7 @@ from functools import wraps
 
 import tensorflow as tf
 
-from neuralmonkey.model.model_part import ModelPart
+from neuralmonkey.model.parameterized import Parameterized
 from neuralmonkey.tf_utils import tf_print
 
 
@@ -11,7 +11,7 @@ def tensor(func):
     def decorate(self, *args, **kwargs):
         attribute_name = "_{}_cached_placeholder".format(func.__name__)
         if not hasattr(self, attribute_name):
-            if isinstance(self, ModelPart):
+            if isinstance(self, Parameterized):
                 # jump out of the caller's scope and into the ModelPart's scope
                 with self.use_scope():
                     value = func(self, *args, **kwargs)

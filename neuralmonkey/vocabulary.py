@@ -211,7 +211,7 @@ def from_dataset(datasets: List[Dataset], series_ids: List[str], max_size: int,
             warn("Inferring vocabulary from lazy dataset!")
 
         for series_id in series_ids:
-            if not dataset.has_series(series_id):
+            if series_id not in dataset:
                 warn("Data series '{}' not present in the dataset"
                      .format(series_id))
 

@@ -25,7 +25,9 @@ class MultitaskTrainer(GraphExecutor):
         self.trainers = trainers
         self.trainer_idx = 0
 
-        self.var_list = list(set.union(*[set(t.var_list) for t in trainers]))
+    @property
+    def var_list(self) -> List[tf.Variable]:
+        return list(set.union(*[set(t.var_list) for t in self.trainers]))
 
     def get_executable(
             self, compute_losses: bool = True, summaries: bool = True,

@@ -52,12 +52,10 @@ class AttentiveEncoder(ModelPart, TemporalStatefulWithOutput):
         if self.dropout_keep_prob <= 0.0 or self.dropout_keep_prob > 1.0:
             raise ValueError("Dropout keep prob must be inside (0,1].")
 
-        with self.use_scope():
-            self._attention_states_dropped = dropout(
-                get_attention_states(self.input_sequence),
-                self.dropout_keep_prob,
-                self.train_mode)
-    # pylint: enable=too-many-arguments
+    @tensor
+    def _attention_states_dropped(self) -> tf.Tensor:
+        return dropout(get_attention_states(self.input_sequence),
+                       self.dropout_keep_prob, self.train_mode)
 
     @tensor
     def attention_weights(self) -> tf.Tensor:
@@ -80,8 +78,11 @@ class AttentiveEncoder(ModelPart, TemporalStatefulWithOutput):
     def temporal_states(self) -> tf.Tensor:
         states = self._attention_states_dropped
         if self.state_proj_size is not None:
+            # pylint: disable=redefined-variable-type
+            # pylint property-related bug
             states = tf.layers.dense(states, units=self.state_proj_size,
                                      name="state_projection")
+            # pylint: enable=redefined-variable-type
 
         return tf.matmul(a=self.attention_weights, b=states, transpose_a=True)
 

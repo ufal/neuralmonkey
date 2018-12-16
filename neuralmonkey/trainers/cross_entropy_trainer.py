@@ -3,23 +3,21 @@ from typing import Any, List
 import tensorflow as tf
 from typeguard import check_argument_types
 
-from neuralmonkey.trainers.generic_trainer import (
-    GenericTrainer, Objective, ObjectiveWeight)
+from neuralmonkey.logging import warn
+from neuralmonkey.trainers.generic_trainer import GenericTrainer
+from neuralmonkey.trainers.objective import (
+    Objective, CostObjective, ObjectiveWeight)
 
 
+# for compatibility reasons
 def xent_objective(decoder, weight=None) -> Objective:
     """Get XENT objective from decoder with cost."""
-    return Objective(
-        name="{} - cross-entropy".format(decoder.name),
-        decoder=decoder,
-        loss=decoder.cost,
-        gradients=None,
-        weight=weight,
-    )
-
-# pylint: disable=too-few-public-methods,too-many-arguments
+    warn("Using deprecated xent_objective function. Use the CostObjective "
+         "class directly.")
+    return CostObjective(decoder, weight)
 
 
+# pylint: disable=too-many-arguments
 class CrossEntropyTrainer(GenericTrainer):
 
     def __init__(self,
@@ -41,7 +39,7 @@ class CrossEntropyTrainer(GenericTrainer):
                 "decoder_weights (length {}) do not match decoders (length {})"
                 .format(len(decoder_weights), len(decoders)))
 
-        objectives = [xent_objective(dec, w)
+        objectives = [CostObjective(dec, w)
                       for dec, w in zip(decoders, decoder_weights)]
 
         GenericTrainer.__init__(

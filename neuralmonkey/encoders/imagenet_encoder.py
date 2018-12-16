@@ -1,9 +1,8 @@
 """Pre-trained ImageNet networks."""
 
-from typing import Callable, NamedTuple, Tuple, Optional
 import sys
+from typing import Any, Callable, Dict, NamedTuple, Optional, Tuple
 
-from typeguard import check_argument_types
 import numpy as np
 import tensorflow as tf
 import tensorflow.contrib.slim as tf_slim
@@ -12,6 +11,7 @@ import tensorflow.contrib.slim as tf_slim
 # see https://github.com/tensorflow/tensorflow/issues/6064
 import tensorflow.contrib.slim.nets
 # pylint: enable=unused-import
+from typeguard import check_argument_types
 
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.decorators import tensor
@@ -155,45 +155,60 @@ class ImageNet(ModelPart, SpatialStatefulWithOutput):
                 "Network '{}' is not among the supported ones ({})".format(
                     self.network_type, ", ".join(SUPPORTED_NETWORKS.keys())))
 
-        net_specification = SUPPORTED_NETWORKS[self.network_type]()
-        self.height, self.width = net_specification.image_size
+        self.net_specification = SUPPORTED_NETWORKS[self.network_type]()
+        self.height, self.width = self.net_specification.image_size
 
-        with tf_slim.arg_scope(net_specification.scope()):
-            _, self.end_points = net_specification.apply_net(self.input_image)
+    @property
+    def input_types(self) -> Dict[str, tf.DType]:
+        return {self.data_id: tf.float32}
+
+    @property
+    def input_shapes(self) -> Dict[str, tf.TensorShape]:
+        return {
+            self.data_id: tf.TensorShape([None, self.height, self.width, 3])}
+
+    @tensor
+    def input_image(self) -> tf.Tensor:
+        return self.dataset[self.data_id]
+
+    @tensor
+    def end_points(self) -> Any:
+        with tf_slim.arg_scope(self.net_specification.scope()):
+            _, end_points = self.net_specification.apply_net(self.input_image)
 
         if (self.spatial_layer is not None
-                and self.spatial_layer not in self.end_points):
+                and self.spatial_layer not in end_points):
             raise ValueError(
                 "Network '{}' does not contain endpoint '{}'".format(
                     self.network_type, self.spatial_layer))
 
-        if spatial_layer is not None:
-            net_output = self.end_points[self.spatial_layer]
+        if self.spatial_layer is not None:
+            net_output = end_points[self.spatial_layer]
             if len(net_output.get_shape()) != 4:
                 raise ValueError(
-                    ("Endpoint '{}' for network '{}' cannot be "
-                     "a convolutional map, its dimensionality is: {}."
-                    ).format(self.spatial_layer, self.network_type,
-                             ", ".join([str(d.value) for d in
-                                        net_output.get_shape()])))
+                    "Endpoint '{}' for network '{}' cannot be a convolutional "
+                    " map, its dimensionality is: {}.".format(
+                        self.spatial_layer, self.network_type,
+                        ", ".join(
+                            [str(d.value) for d in net_output.get_shape()])))
 
         if (self.encoded_layer is not None
-                and self.encoded_layer not in self.end_points):
+                and self.encoded_layer not in end_points):
             raise ValueError(
                 "Network '{}' does not contain endpoint '{}'.".format(
                     self.network_type, self.encoded_layer))
 
-    @tensor
-    def input_image(self) -> tf.Tensor:
-        return tf.placeholder(
-            tf.float32, [None, self.height, self.width, 3])
+        return end_points
 
     @tensor
     def spatial_states(self) -> Optional[tf.Tensor]:
         if self.spatial_layer is None:
             return None
 
+        # pylint: disable=unsubscriptable-object
         net_output = self.end_points[self.spatial_layer]
+        # pylint: enable=unsubscriptable-object
+
         net_output = tf.stop_gradient(net_output)
         return net_output
 
@@ -212,7 +227,10 @@ class ImageNet(ModelPart, SpatialStatefulWithOutput):
         if self.encoded_layer is None:
             return tf.reduce_mean(self.spatial_states, [1, 2])
 
+        # pylint: disable=unsubscriptable-object
         encoded = tf.squeeze(self.end_points[self.encoded_layer], [1, 2])
+        # pylint: enable=unsubscriptable-object
+
         encoded = tf.stop_gradient(encoded)
         return encoded
 

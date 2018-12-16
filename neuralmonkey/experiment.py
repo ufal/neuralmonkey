@@ -25,6 +25,7 @@ from neuralmonkey.learning_utils import (training_loop, evaluation,
                                          print_final_evaluation)
 from neuralmonkey.model.sequence import EmbeddedFactorSequence
 from neuralmonkey.runners.base_runner import ExecutionResult
+from neuralmonkey.runners.dataset_runner import DatasetRunner
 
 
 _TRAIN_ARGS = [
@@ -151,6 +152,17 @@ class Experiment:
             debug("Runner fetches: {}".format(runner.fetches), "bless")
         log("TF Graph built")
 
+    def register_inputs(self) -> None:
+        feedables = set.union(*[ex.feedables for ex in self.model.runners])
+        if self.train_mode:
+            feedables |= set.union(
+                *[ex.feedables for ex in self.model.trainers])
+
+        for feedable in feedables:
+            feedable.register_input()
+
+        self.model.dataset_runner.register_input()
+
     def build_model(self) -> None:
         """Build the configuration and the computational graph.
 
@@ -187,6 +199,12 @@ class Experiment:
 
             self._model = self.config.model
             self._model_built = True
+
+            # prepare dataset runner
+            self.model.dataset_runner = DatasetRunner()
+
+            # build dataset
+            self.register_inputs()
 
             self._bless_graph_executors()
             self.model.tf_manager.initialize_sessions()
@@ -239,29 +257,13 @@ class Experiment:
         with self.graph.as_default():
             self.model.tf_manager.init_saving(self.get_path("variables.data"))
 
-            training_loop(
-                tf_manager=self.model.tf_manager,
-                epochs=self.model.epochs,
-                trainers=self.model.trainers,
-                batching_scheme=self.model.batching_scheme,
-                runners_batching_scheme=self.model.runners_batching_scheme,
-                log_directory=self.model.output,
-                evaluators=self.model.evaluation,
-                main_metric=self.model.main_metric,
-                runners=self.model.runners,
-                train_dataset=self.model.train_dataset,
-                val_datasets=self.model.val_datasets,
-                test_datasets=self.model.test_datasets,
-                log_timer=self.model.log_timer,
-                val_timer=self.model.val_timer,
-                val_preview_input_series=self.model.val_preview_input_series,
-                val_preview_output_series=self.model.val_preview_output_series,
-                val_preview_num_examples=self.model.val_preview_num_examples,
-                postprocess=self.model.postprocess,
-                train_start_offset=self.model.train_start_offset,
-                initial_variables=self.model.initial_variables,
-                final_variables=self.get_path("variables.data.final"))
+            training_loop(cfg=self.model)
 
+            final_variables = self.get_path("variables.data.final")
+            log("Saving final variables in {}".format(final_variables))
+            self.model.tf_manager.save(final_variables)
+
+            log("Finished.")
             self._vars_loaded = True
 
     def load_variables(self, variable_files: List[str] = None) -> None:
@@ -304,8 +306,8 @@ class Experiment:
                   dataset: Dataset,
                   write_out: bool = False,
                   batch_size: int = None,
-                  log_progress: int = 0) -> Tuple[List[ExecutionResult],
-                                                  Dict[str, List[Any]]]:
+                  log_progress: int = 0) -> Tuple[
+                      List[ExecutionResult], Dict[str, List], Dict[str, List]]:
         """Run the model on a given dataset.
 
         Args:
@@ -335,16 +337,21 @@ class Experiment:
         with self.graph.as_default():
             # TODO: check_dataset_and_coders(dataset, self.model.runners)
             return run_on_dataset(
-                self.model.tf_manager, self.model.runners, dataset,
+                self.model.tf_manager,
+                self.model.runners,
+                self.model.dataset_runner,
+                dataset,
                 self.model.postprocess,
-                write_out=write_out, log_progress=log_progress,
+                write_out=write_out,
+                log_progress=log_progress,
                 batching_scheme=batching_scheme)
 
     def evaluate(self,
                  dataset: Dataset,
                  write_out: bool = False,
                  batch_size: int = None,
-                 log_progress: int = 0) -> Dict[str, Any]:
+                 log_progress: int = 0,
+                 name: str = None) -> Dict[str, Any]:
         """Run the model on a given dataset and evaluate the outputs.
 
         Args:
@@ -353,23 +360,24 @@ class Experiment:
                 defined in the dataset object.
             batch_size: size of the minibatch
             log_progress: log progress every X seconds
+            name: The name of the evaluated dataset
 
         Returns:
             Dictionary of evaluation names and their values which includes the
             metrics applied on respective series loss and loss values from the
             run.
         """
-        execution_results, output_data = self.run_model(
+        execution_results, output_data, f_dataset = self.run_model(
             dataset, write_out, batch_size, log_progress)
 
         evaluators = [(e[0], e[0], e[1]) if len(e) == 2 else e
                       for e in self.model.evaluation]
         with self.graph.as_default():
             eval_result = evaluation(
-                evaluators, dataset, self.model.runners,
+                evaluators, f_dataset, self.model.runners,
                 execution_results, output_data)
         if eval_result:
-            print_final_evaluation(dataset.name, eval_result)
+            print_final_evaluation(eval_result, name)
 
         return eval_result
 

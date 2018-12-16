@@ -10,8 +10,10 @@ from typeguard import check_argument_types
 
 from neuralmonkey.attention.base_attention import Attendable
 from neuralmonkey.attention.feed_forward import Attention
+from neuralmonkey.decorators import tensor
 from neuralmonkey.model.model_part import ModelPart
 from neuralmonkey.model.parameterized import InitializerSpecs
+from neuralmonkey.tf_utils import get_variable
 
 
 class CoverageAttention(Attention):
@@ -30,17 +32,22 @@ class CoverageAttention(Attention):
         Attention.__init__(self, name, encoder, dropout_keep_prob, state_size,
                            reuse, save_checkpoint, load_checkpoint,
                            initializers)
-
         self.max_fertility = max_fertility
+    # pylint: enable=too-many-arguments
 
-        self.coverage_weights = tf.get_variable(
-            "coverage_matrix", [1, 1, 1, self.state_size])
-        self.fertility_weights = tf.get_variable(
+    @tensor
+    def coverage_weights(self) -> tf.Variable:
+        return get_variable("coverage_matrix", [1, 1, 1, self.state_size])
+
+    @tensor
+    def fertility_weights(self) -> tf.Variable:
+        return get_variable(
             "fertility_matrix", [1, 1, self.context_vector_size])
 
-        self.fertility = 1e-8 + self.max_fertility * tf.sigmoid(
+    @tensor
+    def fertility(self) -> tf.Tensor:
+        return 1e-8 + self.max_fertility * tf.sigmoid(
             tf.reduce_sum(self.fertility_weights * self.attention_states, [2]))
-    # pylint: enable=too-many-arguments
 
     def get_energies(self, y: tf.Tensor, weights_in_time: tf.Tensor):
         weight_sum = tf.cond(
