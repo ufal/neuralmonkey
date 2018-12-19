@@ -28,7 +28,7 @@ def image_reader(pad_w: int,
         return tf.data.Dataset.from_generator(
             lambda: gen(files),
             output_types=tf.float32,
-            output_shapes=tf.TensorShape([pad_w, pad_h, channels]))
+            output_shapes=tf.TensorShape([pad_h, pad_w, channels]))
 
     return reader
 
