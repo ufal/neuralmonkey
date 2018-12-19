@@ -36,4 +36,4 @@ class PerplexityRunner(BaseRunner[AutoregressiveDecoder]):
 
     @property
     def loss_names(self) -> List[str]:
-        return ["xents"]
+        return ["xent"]
