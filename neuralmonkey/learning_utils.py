@@ -533,6 +533,8 @@ def evaluation(evaluators, batch, execution_result):
         if ref_id not in batch or hyp_id not in execution_result.outputs:
             continue
 
+        # TODO(tf-data) check if we evaluate od <pad>-free data
+
         references = batch[ref_id]
         hypotheses = execution_result.outputs[hyp_id]
 

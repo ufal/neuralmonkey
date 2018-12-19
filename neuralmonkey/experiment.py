@@ -258,14 +258,16 @@ class Experiment:
         The bulding procedure is executed as follows:
         1. Random seeds are set.
         2. Configuration is built (instantiated) and normalized.
-        3. TODO(tf-data) tf.data.Dataset instance is created and registered
-            in the model parts. (This is not implemented yet!)
+        3. tf.data.Dataset instance is created and registered in the model
+            parts.
         4. Graph executors are "blessed". This causes the rest of the TF Graph
             to be built.
         5. Sessions are initialized using the TF Manager object.
 
         Arguments:
-            TODO(tf-data)
+            test_datasets: A list of Dataset objects used for testing. These
+                can miss some data series that training and validation datasets
+                must contain (e.g. targets).
 
         Raises:
             `RuntimeError` when the model is already built.
@@ -302,8 +304,7 @@ class Experiment:
             if self.train_mode and self.model.visualize_embeddings is not None:
                 self.visualize_embeddings()
 
-        # TODO(tf-data)
-        # self._check_unused_initializers()
+        self._check_unused_initializers()
 
     def train(self) -> None:
         """Train model specified by this experiment.
