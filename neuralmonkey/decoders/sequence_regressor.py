@@ -4,8 +4,6 @@ import tensorflow as tf
 from typeguard import check_argument_types
 
 from neuralmonkey.nn.projection import multilayer_projection
-from neuralmonkey.dataset import Dataset
-from neuralmonkey.model.feedable import FeedDict
 from neuralmonkey.model.parameterized import InitializerSpecs
 from neuralmonkey.model.model_part import ModelPart
 from neuralmonkey.model.stateful import Stateful
@@ -94,13 +92,3 @@ class SequenceRegressor(ModelPart):
     @property
     def decoded(self):
         return self.predictions
-
-    def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
-        fd = ModelPart.feed_dict(self, dataset, train)
-
-        sentences = dataset.maybe_get_series(self.data_id)
-        sentences_list = list(sentences) if sentences is not None else None
-        if sentences_list is not None:
-            fd[self.train_inputs] = list(zip(*sentences_list))[0]
-
-        return fd

@@ -3,14 +3,12 @@ from typing import Callable, Dict, List
 import tensorflow as tf
 from typeguard import check_argument_types
 
-from neuralmonkey.dataset import Dataset
 from neuralmonkey.decorators import tensor
-from neuralmonkey.model.feedable import FeedDict
 from neuralmonkey.model.parameterized import InitializerSpecs
 from neuralmonkey.model.model_part import ModelPart
 from neuralmonkey.model.stateful import Stateful
 from neuralmonkey.nn.mlp import MultilayerPerceptron
-from neuralmonkey.vocabulary import Vocabulary, pad_batch
+from neuralmonkey.vocabulary import Vocabulary
 
 
 class Classifier(ModelPart):
@@ -72,11 +70,8 @@ class Classifier(ModelPart):
 
     @tensor
     def gt_inputs(self) -> tf.Tensor:
-        return self.vocabulary.strings_to_indices(self.targets)
-
-    @tensor
-    def targets(self) -> tf.Tensor:
-        return self.dataset[self.data_id]
+        return self.vocabulary.strings_to_indices(
+            self.dataset[self.data_id], self.max_output_len)[:, 0]
 
     @tensor
     def _mlp(self) -> MultilayerPerceptron:
@@ -130,14 +125,3 @@ class Classifier(ModelPart):
     @property
     def decoded(self):
         return self.decoded_seq
-
-    def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
-        fd = ModelPart.feed_dict(self, dataset, train)
-        sentences = dataset.maybe_get_series(self.data_id)
-
-        if sentences is not None:
-            labels = [l[0] for l in pad_batch(list(sentences),
-                                              self.max_output_len)]
-            fd[self.targets] = labels
-
-        return fd

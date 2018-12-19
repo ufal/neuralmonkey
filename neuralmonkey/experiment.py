@@ -21,8 +21,10 @@ from neuralmonkey.config.normalize import normalize_configuration
 from neuralmonkey.learning_utils import (training_loop, evaluation,
                                          run_on_dataset,
                                          print_final_evaluation)
-from neuralmonkey.runners.base_runner import ExecutionResult
+from neuralmonkey.runners.base_runner import ExecutionResult, FeedDict
 from neuralmonkey.runners.dataset_runner import DatasetRunner
+from neuralmonkey.tf_manager import DatasetInitializers
+from neuralmonkey.writers.plain_text_writer import Writer
 
 
 _TRAIN_ARGS = [
@@ -38,6 +40,8 @@ _EXPERIMENT_FILES = ["experiment.log", "experiment.ini", "original.ini",
                      "git_commit", "git_diff", "variables.data.best"]
 
 
+# pylint: disable=too-many-instance-attributes
+# TODO(tf-data) make some getters
 class Experiment:
     # pylint: disable=no-member
 
@@ -149,31 +153,102 @@ class Experiment:
             debug("Runner fetches: {}".format(runner.fetches), "bless")
         log("TF Graph built")
 
-    def register_inputs(self) -> None:
+    def gather_train_datasets(self, types, shapes):
+        train_data = self.model.train_dataset.get_dataset(types, shapes)
+
+        val_data = [d.get_dataset(types, shapes)
+                    for d in self.model.val_datasets]
+
+        # Add preprocessed series among types
+        out_types = train_data.output_types
+        out_shapes = train_data.output_shapes
+
+        test_data = [d.get_dataset(out_types, out_shapes, ignore_errors=True)
+                     for d in self.model.test_datasets]
+
+        return train_data, val_data, test_data, out_types, out_shapes
+
+    def gather_runtime_datasets(self, types, shapes, test_datasets):
+        test_data = [d.get_dataset(types, shapes, ignore_errors=True)
+                     for d in test_datasets]
+
+        # Add preprocessed series among types
+        out_types = test_data[0].output_types
+        out_shapes = test_data[0].output_shapes
+
+        return test_data, out_types, out_shapes
+
+    def collect_feedables(self):
         feedables = set.union(*[ex.feedables for ex in self.model.runners])
         if self.train_mode:
             feedables |= set.union(
                 *[ex.feedables for ex in self.model.trainers])
 
+        return feedables
+
+    def get_feedable_types_and_shapes(self, feedables):
         # collect input shapes and types
-        input_types = {}  # type: Dict[str, tf.DType]
-        input_shapes = {}  # type: Dict[str, tf.TensorShape]
+        feed_types = {}  # type: Dict[str, tf.DType]
+        feed_shapes = {}  # type: Dict[str, tf.TensorShape]
 
         for feedable in feedables:
-            input_types.update(feedable.input_types)
-            input_shapes.update(feedable.input_shapes)
+            feed_types.update(feedable.input_types)
+            feed_shapes.update(feedable.input_shapes)
 
-        dataset = {}  # type: Dict[str, tf.Tensor]
-        for s_id, dtype in input_types.items():
-            shape = input_shapes[s_id]
-            dataset[s_id] = tf.placeholder(dtype, shape, s_id)
+        return feed_types, feed_shapes
 
+    def gather_tf_datasets(
+            self,
+            test_datasets: List[Dataset] = None) -> None:
+        log("Initializing TF dataset")
+
+        feedables = self.collect_feedables()
+        feed_types, feed_shapes = self.get_feedable_types_and_shapes(feedables)
+
+        if self.train_mode:
+            train_data, val_data, test_data, out_types, out_shapes = \
+                self.gather_train_datasets(feed_types, feed_shapes)
+        else:
+            test_data, out_types, out_shapes = self.gather_runtime_datasets(
+                feed_types, feed_shapes, test_datasets)
+
+        # string handles
+        self.dataset_handle = tf.placeholder(tf.string, shape=[])
+        iterator = tf.data.Iterator.from_string_handle(self.dataset_handle,
+                                                       out_types, out_shapes)
+
+        sess = self.model.tf_manager.sessions[0]
+
+        train_it = None
+        val_its = None
+
+        if self.train_mode:
+            train_it = train_data.make_initializable_iterator()
+            val_its = [d.make_initializable_iterator() for d in val_data]
+            self.train_handle = sess.run(train_it.string_handle())
+            self.val_handles = sess.run([it.string_handle() for it in val_its])
+
+        tst_its = [d.make_initializable_iterator() for d in test_data]
+        self.test_handles = sess.run([it.string_handle() for it in tst_its])
+
+        train_init = train_it.initializer if train_it is not None else None
+        val_init = [
+            it.initializer for it in val_its] if val_its is not None else None
+
+        self.model.tf_manager.register_iterator_initializers(
+            DatasetInitializers(train=train_init, val=val_init,
+                                test=[it.initializer for it in tst_its]))
+
+        self.register_feedable_input(feedables, iterator)
+
+    def register_feedable_input(self, feedables, iterator):
+        next_element = iterator.get_next()
         for feedable in feedables:
-            feedable.register_input(dataset)
+            feedable.register_input(next_element)
 
-        self.model.dataset_runner.register_input(dataset)
+        self.model.dataset_runner.register_input(next_element)
 
-    def build_model(self) -> None:
+    def build_model(self, test_datasets: List[Dataset] = None) -> None:
         """Build the configuration and the computational graph.
 
         This function is invoked by all of the main entrypoints of the
@@ -188,6 +263,9 @@ class Experiment:
         4. Graph executors are "blessed". This causes the rest of the TF Graph
             to be built.
         5. Sessions are initialized using the TF Manager object.
+
+        Arguments:
+            TODO(tf-data)
 
         Raises:
             `RuntimeError` when the model is already built.
@@ -214,7 +292,7 @@ class Experiment:
             self.model.dataset_runner = DatasetRunner()
 
             # build dataset
-            self.register_inputs()
+            self.gather_tf_datasets(test_datasets)
 
             self._bless_graph_executors()
             self.model.tf_manager.initialize_sessions()
@@ -224,7 +302,8 @@ class Experiment:
             if self.train_mode and self.model.visualize_embeddings is not None:
                 self.visualize_embeddings()
 
-        self._check_unused_initializers()
+        # TODO(tf-data)
+        # self._check_unused_initializers()
 
     def train(self) -> None:
         """Train model specified by this experiment.
@@ -255,19 +334,26 @@ class Experiment:
         with self.graph.as_default():
             self.model.tf_manager.init_saving(self.get_path("variables.data"))
 
-            training_loop(cfg=self.model)
+            training_loop(cfg=self.model,
+                          handle=self.dataset_handle,
+                          train_handle=self.train_handle,
+                          val_handles=self.val_handles)
 
             final_variables = self.get_path("variables.data.final")
             log("Saving final variables in {}".format(final_variables))
             self.model.tf_manager.save(final_variables)
 
-            if self.model.test_datasets:
+            if self.test_handles:
                 if self.model.tf_manager.best_score_index is not None:
                     self.model.tf_manager.restore_best_vars()
+                    self._vars_loaded = True
+                self.model.tf_manager.init_testing()
 
-                for test_id, dataset in enumerate(self.model.test_datasets):
-                    self.evaluate(dataset, write_out=True,
-                                  name="test_{}".format(test_id))
+            for test_id, (testhand, test_data) in enumerate(
+                    zip(self.test_handles, self.model.test_datasets)):
+                self.evaluate({self.dataset_handle: testhand},
+                              write_out=test_data.outputs,
+                              name="test_{}".format(test_id))
 
             log("Finished.")
             self._vars_loaded = True
@@ -319,16 +405,15 @@ class Experiment:
         self._vars_loaded = True
 
     def run_model(self,
-                  dataset: Dataset,
-                  write_out: bool = False,
+                  dataset: FeedDict,
+                  write_out: Dict[str, Tuple[str, Writer]] = None,
                   log_progress: int = 0) -> Tuple[
-                      List[ExecutionResult], Dict[str, List], Dict[str, List]]:
+                      ExecutionResult, ExecutionResult]:
         """Run the model on a given dataset.
 
         Args:
-            dataset: The dataset on which the model will be executed.
-            write_out: Flag whether the outputs should be printed to a file
-                defined in the dataset object.
+            dataset: Feed dict with the dataset handle.
+            write_out: A mapping of series IDs to paths/writer tuples.
             log_progress: log progress every X seconds
 
         Returns:
@@ -339,27 +424,30 @@ class Experiment:
         if not self._vars_loaded:
             self.load_variables()
 
+        feedables = set.union(*[ex.feedables for ex in self.model.runners])
+        feedables |= self.model.dataset_runner.feedables
+
         with self.graph.as_default():
             return run_on_dataset(
                 self.model.tf_manager,
+                dataset,
                 self.model.runners,
                 self.model.dataset_runner,
-                dataset,
+                feedables,
                 self.model.postprocess,
                 write_out=write_out,
                 log_progress=log_progress)
 
     def evaluate(self,
-                 dataset: Dataset,
-                 write_out: bool = False,
+                 dataset: FeedDict,
+                 write_out: Dict[str, Tuple[str, Writer]] = None,
                  log_progress: int = 0,
                  name: str = None) -> Dict[str, Any]:
         """Run the model on a given dataset and evaluate the outputs.
 
         Args:
-            dataset: The dataset on which the model will be executed.
-            write_out: Flag whether the outputs should be printed to a file
-                defined in the dataset object.
+            dataset: Feed dict that specifies the dataset handle.
+            write_out: A mapping of series IDs to paths/writer tuples.
             log_progress: log progress every X seconds
             name: The name of the evaluated dataset
 
@@ -368,14 +456,14 @@ class Experiment:
             metrics applied on respective series loss and loss values from the
             run.
         """
-        execution_results, output_data, f_dataset = self.run_model(
+        execution_results, f_dataset = self.run_model(
             dataset, write_out, log_progress)
 
         evaluators = [(e[0], e[0], e[1]) if len(e) == 2 else e
                       for e in self.model.evaluation]
         with self.graph.as_default():
             eval_result = evaluation(
-                evaluators, f_dataset, execution_results, output_data)
+                evaluators, f_dataset, execution_results)
         if eval_result:
             print_final_evaluation(eval_result, name)
 
@@ -486,6 +574,8 @@ def create_config(train_mode: bool = True) -> Configuration:
     else:
         config.add_argument("evaluation", required=False, default=None)
         for argument in _TRAIN_ARGS:
+            # if argument == "train_dataset":
+            #     continue
             config.ignore_argument(argument)
 
     return config

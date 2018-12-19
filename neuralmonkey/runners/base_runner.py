@@ -32,7 +32,8 @@ class ExecutionResult(NamedTuple(
     Attributes:
         outputs: A dictionary mapping an output series to the batch of
             outputs of the graph executor.
-        losses: A (possibly empty) list of loss values computed during the run.
+        losses: A (possibly empty) mapping of loss names to loss values
+            computed during the run.
         size: The length of the output batch.
         summaries: A list of TensorFlow summary objects fetched by the graph
             executor

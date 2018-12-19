@@ -6,7 +6,7 @@ variables.
 
 """
 # pylint: disable=unused-import
-from typing import Any, List, Union, Optional, Set, Sequence
+from typing import Any, List, Union, Optional, Set, Sequence, NamedTuple
 # pylint: enable=unused-import
 
 import os
@@ -19,10 +19,23 @@ from tensorflow.python import debug as tf_debug
 from typeguard import check_argument_types
 
 from neuralmonkey.logging import log
-from neuralmonkey.dataset import Dataset
 from neuralmonkey.model.feedable import Feedable
 from neuralmonkey.runners.base_runner import (
     FeedDict, ExecutionResult, GraphExecutor)
+
+
+class DatasetInitializers(NamedTuple(
+        "DatasetInitializers",
+        [("train", Any),
+         ("val", Any),
+         ("test", Any)])):
+    """Dataset initializers named tuple.
+
+    Attributes:
+        train: The training iterator initializer (unused when running models)
+        val: A list of validation initializers (unused when running models)
+        test: A list of test data initializers (optional when training)
+    """
 
 
 # pylint: disable=too-many-instance-attributes
@@ -82,6 +95,8 @@ class TensorFlowManager:
             self.sessions = [tf_debug.LocalCLIDebugWrapperSession(sess)
                              for sess in self.sessions]
 
+        self._iter_initializers = None  # type: Optional[DatasetInitializers]
+
         self.saver = None
 
         self.best_score_index = None  # type: Optional[int]
@@ -95,6 +110,40 @@ class TensorFlowManager:
         self.variables_files = []  # type: List[str]
         self._best_vars_file = None  # type: Optional[str]
     # pylint: enable=too-many-arguments
+
+    def register_iterator_initializers(
+            self, initializers: DatasetInitializers) -> None:
+        if self._iter_initializers is not None:
+            raise RuntimeError("Iterator initializers already registered.")
+
+        self._iter_initializers = initializers
+
+    def init_training(self) -> None:
+        if self._iter_initializers is None:
+            raise RuntimeError("Iterator initializers not yet registered.")
+        if self._iter_initializers.train is None:
+            raise RuntimeError("No training initializer specified.")
+
+        for sess in self.sessions:
+            sess.run(self._iter_initializers.train)
+
+    def init_validation(self) -> None:
+        if self._iter_initializers is None:
+            raise RuntimeError("Iterator initializers not yet registered.")
+        if self._iter_initializers.val is None:
+            raise RuntimeError("No validation initializer specified.")
+
+        for sess in self.sessions:
+            sess.run([op for op in self._iter_initializers.val])
+
+    def init_testing(self) -> None:
+        if self._iter_initializers is None:
+            raise RuntimeError("Iterator initializers not yet registered.")
+        if self._iter_initializers.test is None:
+            raise RuntimeError("No testing initializer specified.")
+
+        for sess in self.sessions:
+            sess.run([op for op in self._iter_initializers.test])
 
     @property
     def best_vars_file(self) -> str:
@@ -186,7 +235,7 @@ class TensorFlowManager:
 
     # pylint: disable=too-many-locals
     def execute(self,
-                batch: Dataset,
+                data_handle: FeedDict,
                 feedables: Set[Feedable],
                 runners: Sequence[GraphExecutor],
                 train: bool = False,
@@ -211,7 +260,8 @@ class TensorFlowManager:
             A list of `ExecutionResult` tuples, one for each executable
             (runner).
         """
-        default_feed_dict = _feed_dicts(batch, feedables, train=train)
+        default_feed_dict = _feed_dicts(feedables, train=train)
+        default_feed_dict.update(data_handle)
 
         executables = [runner.get_executable(compute_losses=compute_losses,
                                              summaries=summaries,
@@ -288,16 +338,16 @@ class TensorFlowManager:
                 coder.load(session)
 
 
-def _feed_dicts(dataset: Dataset, coders: Set[Feedable], train: bool = False):
+def _feed_dicts(coders: Set[Feedable], train: bool = False):
     """Feed the coders with data from dataset.
 
-    This function ensures all encoder and decoder objects feed their the data
-    they need from the dataset.
+    This function ensures all feedables run their `feed_dict` method with the
+    provided `train` flag.
     """
     res = {}
 
     for coder in coders:
-        res.update(coder.feed_dict(dataset, train=train))
+        res.update(coder.feed_dict(train=train))
 
     return res
 

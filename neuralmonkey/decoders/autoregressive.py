@@ -9,9 +9,7 @@ from typing import NamedTuple, Callable, Tuple, Optional, Any, List, Dict
 
 import tensorflow as tf
 
-from neuralmonkey.dataset import Dataset
 from neuralmonkey.decorators import tensor
-from neuralmonkey.model.feedable import FeedDict
 from neuralmonkey.model.parameterized import InitializerSpecs
 from neuralmonkey.model.model_part import ModelPart
 from neuralmonkey.logging import warn
@@ -19,7 +17,7 @@ from neuralmonkey.model.sequence import EmbeddedSequence
 from neuralmonkey.nn.utils import dropout
 from neuralmonkey.tf_utils import get_variable, get_state_shape_invariants
 from neuralmonkey.vocabulary import (
-    Vocabulary, pad_batch, sentence_mask, UNK_TOKEN_INDEX, START_TOKEN_INDEX)
+    Vocabulary, sentence_mask, UNK_TOKEN_INDEX, START_TOKEN_INDEX)
 
 
 class LoopState(NamedTuple(
@@ -197,7 +195,8 @@ class AutoregressiveDecoder(ModelPart):
     @tensor
     def train_inputs(self) -> tf.Tensor:
         return tf.transpose(
-            self.vocabulary.strings_to_indices(self.train_tokens))
+            self.vocabulary.strings_to_indices(
+                self.train_tokens, self.max_output_len, add_end_symbol=True))
 
     @tensor
     def train_mask(self) -> tf.Tensor:
@@ -468,25 +467,3 @@ class AutoregressiveDecoder(ModelPart):
         mask = final_loop_state.histories.mask
 
         return logits, decoder_outputs, mask, decoded
-
-    def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
-        """Populate the feed dictionary for the decoder object.
-
-        Arguments:
-            dataset: The dataset to use for the decoder.
-            train: Boolean flag, telling whether this is a training run.
-        """
-        fd = ModelPart.feed_dict(self, dataset, train)
-
-        sentences = dataset.maybe_get_series(self.data_id)
-
-        if sentences is None and train:
-            raise ValueError("When training, you must feed "
-                             "reference sentences")
-
-        if sentences is not None:
-            fd[self.train_tokens] = pad_batch(
-                list(sentences), self.max_output_len, add_start_symbol=False,
-                add_end_symbol=True)
-
-        return fd

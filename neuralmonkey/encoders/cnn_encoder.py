@@ -3,12 +3,9 @@
 from typing import cast, Callable, Dict, List, Tuple, Union
 from typeguard import check_argument_types
 
-import numpy as np
 import tensorflow as tf
 
-from neuralmonkey.dataset import Dataset
 from neuralmonkey.decorators import tensor
-from neuralmonkey.model.feedable import FeedDict
 from neuralmonkey.model.parameterized import InitializerSpecs
 from neuralmonkey.model.model_part import ModelPart
 from neuralmonkey.model.stateful import (SpatialStatefulWithOutput,
@@ -38,7 +35,9 @@ class CNNEncoder(ModelPart, SpatialStatefulWithOutput):
                  name: str,
                  data_id: str,
                  convolutions: List[Union[ConvSpec, ResNetSpec, MaxPoolSpec]],
-                 image_height: int, image_width: int, pixel_dim: int,
+                 image_height: int,
+                 image_width: int,
+                 pixel_dim: int,
                  fully_connected: List[int] = None,
                  batch_normalize: bool = False,
                  dropout_keep_prob: float = 0.5,
@@ -90,11 +89,11 @@ class CNNEncoder(ModelPart, SpatialStatefulWithOutput):
     @property
     def input_shapes(self) -> Dict[str, tf.TensorShape]:
         return {self.data_id: tf.TensorShape(
-            [None, self.image_height, self.image_width, self.pixel_dim])}
+            [None, self.image_width, self.image_height, self.pixel_dim])}
 
     @tensor
     def image_input(self) -> tf.Tensor:
-        return self.dataset[self.data_id]
+        return self.dataset[self.data_id] / 255.0
 
     @tensor
     def image_mask(self) -> tf.Tensor:
@@ -177,7 +176,7 @@ class CNNEncoder(ModelPart, SpatialStatefulWithOutput):
         convolutional map is used as a vector output.
         """
         # pylint: disable=no-member
-        last_height, last_width, last_n_channels = [
+        last_width, last_height, last_n_channels = [
             s.value for s in self.spatial_states.get_shape()[1:]]
         # pylint: enable=no-member
 
@@ -195,15 +194,6 @@ class CNNEncoder(ModelPart, SpatialStatefulWithOutput):
             activation=tf.nn.relu,
             dropout_keep_prob=self.dropout_keep_prob,
             train_mode=self.train_mode)
-
-    def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
-        fd = ModelPart.feed_dict(self, dataset, train)
-
-        # if it is from the pickled file, it is a list, not a numpy tensor,
-        # so convert it as as a prevention
-        images = np.array(list(dataset.get_series(self.data_id)))
-        fd[self.image_input] = images / 255.0
-        return fd
 
 
 def plain_convolution(

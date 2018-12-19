@@ -222,13 +222,16 @@ class Vocabulary(collections.Sized):
         return self._vocabulary
 
     def strings_to_indices(self,
-                           # add_start_symbol: bool = False,
-                           # add_end_symbol: bool = False
-                           sentences: tf.Tensor) -> tf.Tensor:
+                           sentences: tf.Tensor,
+                           max_length: int = None,
+                           add_start_symbol: bool = False,
+                           add_end_symbol: bool = False) -> tf.Tensor:
         """Generate the tensor representation for the provided sentences.
 
         Arguments:
-            sentences: List of sentences as lists of tokens.
+            sentences: A 2D Tensor with shape (batch, time) with the input
+                tokens.
+            max_length: Truncate sentences to this length (optional).
             add_start_symbol: If True, the `<s>` token will be added to the
                 beginning of each sentence vector. Enabling this option extends
                 the maximum length by one.
@@ -241,7 +244,48 @@ class Vocabulary(collections.Sized):
         Returns:
             Tensor of indices of the words.
         """
-        return self._string_to_index.lookup(sentences)
+        # First, lookup the symbols in the vocabulary
+        index_tensor = self._string_to_index.lookup(sentences)
+        index_shape = tf.shape(index_tensor, out_type=tf.int64)
+        batch = index_shape[0]
+        max_time = index_shape[1]
+
+        # Second, include end symbols (if needed)
+        if add_end_symbol:
+            # Append one more column of paddings to the end
+            end_paddings = tf.expand_dims(
+                tf.fill([batch], tf.to_int64(PAD_TOKEN_INDEX)), axis=1)
+            index_tensor = tf.concat([index_tensor, end_paddings], axis=1)
+
+            lengths = tf.reduce_sum(
+                tf.to_int64(tf.not_equal(index_tensor, PAD_TOKEN_INDEX)),
+                axis=1)
+
+            # In case PAD_TOKEN_INDEX is not zero, we should compute the
+            # difference to be able to transform PAD to END.
+            end_token_diff = END_TOKEN_INDEX - PAD_TOKEN_INDEX
+
+            sparse_indices = tf.stack([tf.range(batch), lengths], axis=1)
+            sparse_values = tf.fill([batch], tf.to_int64(end_token_diff))
+
+            mask = tf.SparseTensor(
+                sparse_indices, sparse_values, [batch, max_time + 1])
+
+            dense_mask = tf.sparse.to_dense(mask)
+            index_tensor += dense_mask
+
+        # Third, chop the index tensor to adequate length.
+        # We assume that the batch is already padded to the maximum length (+1)
+        if max_length is not None:
+            index_tensor = index_tensor[:, :max_length]
+
+        # Finally, prepend the start symbol.
+        if add_start_symbol:
+            starts = tf.expand_dims(
+                tf.fill([batch], tf.to_int64(START_TOKEN_INDEX)), axis=1)
+            index_tensor = tf.concat([starts, index_tensor], axis=1)
+
+        return index_tensor
 
     def indices_to_strings(self, vectors: tf.Tensor) -> tf.Tensor:
         """Convert tensors of indexes of vocabulary items to lists of words.

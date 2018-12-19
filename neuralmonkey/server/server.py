@@ -36,7 +36,7 @@ def run(data):  # pragma: no cover
         "request", data, BatchingScheme(batch_size=1), {},
         preprocessors=APP.config["preprocess"])
 
-    _, response_data, _ = exp.run_model(dataset, write_out=False)
+    _, response_data, _ = exp.run_model(dataset)
 
     return response_data
 

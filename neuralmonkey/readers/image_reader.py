@@ -2,6 +2,7 @@ from typing import Callable, Iterable, List
 import os
 
 import numpy as np
+import tensorflow as tf
 from typeguard import check_argument_types
 from PIL import Image, ImageFile
 
@@ -18,7 +19,47 @@ def image_reader(pad_w: int,
                  rescale_w: bool = False,
                  rescale_h: bool = False,
                  keep_aspect_ratio: bool = False,
-                 mode: str = "RGB") -> Callable:
+                 mode: str = "RGB") -> Callable[[List[str]], tf.data.Dataset]:
+
+    gen = py_image_reader(pad_w, pad_h, channels, prefix, rescale_w, rescale_h,
+                          keep_aspect_ratio, mode)
+
+    def reader(files: List[str]) -> tf.data.Dataset:
+        return tf.data.Dataset.from_generator(
+            lambda: gen(files),
+            output_types=tf.float32,
+            output_shapes=tf.TensorShape([pad_w, pad_h, channels]))
+
+    return reader
+
+
+def imagenet_reader(prefix: str,
+                    target_width: int = 227,
+                    target_height: int = 227,
+                    vgg_normalization: bool = False,
+                    zero_one_normalization: bool = False) -> Callable[
+                        [List[str]], tf.data.Dataset]:
+
+    gen = py_imagenet_reader(prefix, target_width, target_height,
+                             vgg_normalization, zero_one_normalization)
+
+    def reader(files: List[str]) -> tf.data.Dataset:
+        return tf.data.Dataset.from_generator(
+            lambda: gen(files),
+            output_types=tf.float32,
+            output_shapes=tf.TensorShape([target_height, target_width, 3]))
+
+    return reader
+
+
+def py_image_reader(pad_w: int,
+                    pad_h: int,
+                    channels: int,
+                    prefix: str = "",
+                    rescale_w: bool = False,
+                    rescale_h: bool = False,
+                    keep_aspect_ratio: bool = False,
+                    mode: str = "RGB") -> Callable:
     """Get a reader of images loading them from a list of pahts.
 
     Args:
@@ -99,11 +140,11 @@ def image_reader(pad_w: int,
 VGG_RGB_MEANS = [[[123.68, 116.779, 103.939]]]
 
 
-def imagenet_reader(prefix: str,
-                    target_width: int = 227,
-                    target_height: int = 227,
-                    vgg_normalization: bool = False,
-                    zero_one_normalization: bool = False) -> Callable:
+def py_imagenet_reader(prefix: str,
+                       target_width: int = 227,
+                       target_height: int = 227,
+                       vgg_normalization: bool = False,
+                       zero_one_normalization: bool = False) -> Callable:
     """Load and prepare image the same way as Caffe scripts.
 
     The image preprocessing first rescales the image such that smaller edge has

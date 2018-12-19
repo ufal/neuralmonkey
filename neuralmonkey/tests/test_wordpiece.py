@@ -1,15 +1,19 @@
 #!/usr/bin/env python3.5
 import unittest
 
+import tensorflow as tf
+
 from neuralmonkey.vocabulary import Vocabulary
 from neuralmonkey.processors.wordpiece import (
     WordpiecePreprocessor, WordpiecePostprocessor)
 
 
-class TestWordpieces(unittest.TestCase):
+class TestWordpieces(tf.test.TestCase):
 
     @classmethod
     def setUpClass(cls):
+        tf.reset_default_graph()
+
         corpus = [
             "the colorless ideas slept furiously",
             "pooh slept all night",
@@ -38,21 +42,42 @@ class TestWordpieces(unittest.TestCase):
         raw = "I am the walrus".split()
         gold = "I_ am_ the_ walrus_".split()
 
-        preprocessed = TestWordpieces.preprocessor(raw)
+        with self.test_session():
+            # pylint: disable=no-member
+            # pylint decorator bug
+            pre_bytes = TestWordpieces.preprocessor(raw).eval().tolist()
+            # pylint: enable=no-member
+
+            preprocessed = [tf.compat.as_text(b_word) for b_word in pre_bytes]
+
         self.assertSequenceEqual(preprocessed, gold)
 
     def test_preprocess_split(self):
         raw = "Ich bin der walrus".split()
         gold = "I c h_ b i n_ d e r_ walrus_".split()
 
-        preprocessed = TestWordpieces.preprocessor(raw)
+        with self.test_session():
+            # pylint: disable=no-member
+            # pylint decorator bug
+            pre_bytes = TestWordpieces.preprocessor(raw).eval().tolist()
+            # pylint: enable=no-member
+
+            preprocessed = [tf.compat.as_text(b_word) for b_word in pre_bytes]
+
         self.assertSequenceEqual(preprocessed, gold)
 
     def test_preprocess_unk(self):
         raw = "Ich bin der čermák".split()
         gold = "I c h_ b i n_ d e r_ \\269; e r m \\ 225 ; k_".split()
 
-        preprocessed = TestWordpieces.preprocessor(raw)
+        with self.test_session():
+            # pylint: disable=no-member
+            # pylint decorator bug
+            pre_bytes = TestWordpieces.preprocessor(raw).eval().tolist()
+            # pylint: enable=no-member
+
+            preprocessed = [tf.compat.as_text(b_word) for b_word in pre_bytes]
+
         self.assertSequenceEqual(preprocessed, gold)
 
     def test_postprocess_ok(self):

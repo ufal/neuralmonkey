@@ -13,6 +13,7 @@ from typing import List, Callable, Set
 import re
 
 from typeguard import check_argument_types
+from neuralmonkey.processors.helpers import pyfunc_wrapper
 from neuralmonkey.vocabulary import Vocabulary
 
 
@@ -114,7 +115,12 @@ def wordpiece_decode_batch(sentences: List[List[str]]) -> List[List[str]]:
 def get_wordpiece_preprocessor(
         vocabulary: Vocabulary) -> Callable[[List[str]], List[str]]:
     check_argument_types()
-    return lambda s: wordpiece_encode(s, vocabulary)
+
+    @pyfunc_wrapper
+    def preprocessor(sentence: List[str]) -> List[str]:
+        return wordpiece_encode(sentence, vocabulary)
+
+    return preprocessor
 
 
 # pylint: disable=invalid-name

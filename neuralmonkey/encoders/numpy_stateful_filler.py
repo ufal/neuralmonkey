@@ -4,9 +4,7 @@ from typing import Dict, List
 import tensorflow as tf
 from typeguard import check_argument_types
 
-from neuralmonkey.dataset import Dataset
 from neuralmonkey.decorators import tensor
-from neuralmonkey.model.feedable import FeedDict
 from neuralmonkey.model.parameterized import InitializerSpecs
 from neuralmonkey.model.model_part import ModelPart
 from neuralmonkey.model.stateful import Stateful, SpatialStatefulWithOutput
@@ -70,11 +68,6 @@ class StatefulFiller(ModelPart, Stateful):
             return self.vector
 
         return tf.layers.dense(self.vector, self.output_shape)
-
-    def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
-        fd = ModelPart.feed_dict(self, dataset, train)
-        fd[self.vector] = dataset.get_series(self.data_id)
-        return fd
 
 
 class SpatialFiller(ModelPart, SpatialStatefulWithOutput):
@@ -161,8 +154,3 @@ class SpatialFiller(ModelPart, SpatialStatefulWithOutput):
     @tensor
     def spatial_mask(self) -> tf.Tensor:
         return tf.ones(tf.shape(self.spatial_states)[:3])
-
-    def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
-        fd = ModelPart.feed_dict(self, dataset, train)
-        fd[self.spatial_input] = list(dataset.get_series(self.data_id))
-        return fd

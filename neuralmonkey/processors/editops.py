@@ -1,6 +1,7 @@
-from typing import Any, Callable, Dict, Iterable, Iterator, List
+from typing import Any, Dict, Iterable, List
 
 import numpy as np
+import tensorflow as tf
 
 
 # pylint: disable=too-few-public-methods
@@ -11,15 +12,35 @@ class Preprocess:
         self._source_id = source_id
         self._target_id = target_id
 
-    def __call__(
-            self,
-            iterators: Dict[str, Callable[[], Iterator[List[str]]]]
-    ) -> Iterator[List[str]]:
-        source_series = iterators[self._source_id]()
-        target_series = iterators[self._target_id]()
+    def __call__(self,
+                 data_series: Dict[str, tf.data.Dataset]) -> tf.data.Dataset:
+        source_series = data_series[self._source_id]
+        target_series = data_series[self._target_id]
 
-        for src_seq, tgt_seq in zip(source_series, target_series):
-            yield convert_to_edits(src_seq, tgt_seq)
+        def func(src_seq: np.ndarray, tgt_seq: np.ndarray) -> np.ndarray:
+
+            src_list = tf.contrib.framework.nest.map_structure(
+                tf.compat.as_text, src_seq.tolist())
+
+            tgt_list = tf.contrib.framework.nest.map_structure(
+                tf.compat.as_text, tgt_seq.tolist())
+
+            edits = convert_to_edits(src_list, tgt_list)
+
+            # Here the np.object dtype is because we do not want to pad the
+            # tokens with zero-bytes.
+            return np.array(tf.contrib.framework.nest.map_structure(
+                tf.compat.as_bytes, edits), dtype=np.object)
+
+        zipped = tf.data.Dataset.zip((source_series, target_series))
+
+        def dataset_map(src_seq: tf.Tensor, tgt_seq: tf.Tensor) -> tf.Tensor:
+            preprocessed = tf.py_func(func, [src_seq, tgt_seq], tf.string)
+            preprocessed.set_shape([None])
+            return preprocessed
+
+        # TODO(tf-data) num_parallel_calls
+        return zipped.map(dataset_map)
 
 
 class Postprocess:

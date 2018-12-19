@@ -7,6 +7,7 @@ import sys
 
 import numpy as np
 from scipy.io import wavfile
+import tensorflow as tf
 
 
 class Audio(NamedTuple("Audio", [("rate", int), ("data", np.ndarray)])):
@@ -18,8 +19,22 @@ class Audio(NamedTuple("Audio", [("rate", int), ("data", np.ndarray)])):
     """
 
 
-def audio_reader(prefix: str = "",
-                 audio_format: str = "wav") -> Callable:
+def audio_reader(
+        prefix: str = "",
+        audio_format: str = "wav") -> Callable[[List[str]], tf.data.Dataset]:
+    gen = py_audio_reader(prefix, audio_format)
+
+    def reader(files: List[str]) -> tf.data.Dataset:
+        return tf.data.Dataset.from_generator(
+            lambda: gen(files),
+            output_types=(tf.int32, tf.float32),
+            output_shapes=(tf.TensorShape([]), tf.TensorShape([None])))
+
+    return reader
+
+
+def py_audio_reader(prefix: str = "",
+                    audio_format: str = "wav") -> Callable:
     """Get a reader of audio files loading them from a list of pahts.
 
     Args:

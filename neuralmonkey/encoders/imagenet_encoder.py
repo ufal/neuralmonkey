@@ -3,7 +3,6 @@
 import sys
 from typing import Any, Callable, Dict, NamedTuple, Optional, Tuple
 
-import numpy as np
 import tensorflow as tf
 import tensorflow.contrib.slim as tf_slim
 # pylint: disable=unused-import
@@ -13,9 +12,7 @@ import tensorflow.contrib.slim.nets
 # pylint: enable=unused-import
 from typeguard import check_argument_types
 
-from neuralmonkey.dataset import Dataset
 from neuralmonkey.decorators import tensor
-from neuralmonkey.model.feedable import FeedDict
 from neuralmonkey.model.model_part import ModelPart
 from neuralmonkey.model.parameterized import InitializerSpecs
 from neuralmonkey.model.stateful import SpatialStatefulWithOutput
@@ -156,7 +153,7 @@ class ImageNet(ModelPart, SpatialStatefulWithOutput):
                     self.network_type, ", ".join(SUPPORTED_NETWORKS.keys())))
 
         self.net_specification = SUPPORTED_NETWORKS[self.network_type]()
-        self.height, self.width = self.net_specification.image_size
+        self.width, self.height = self.net_specification.image_size
 
     @property
     def input_types(self) -> Dict[str, tf.DType]:
@@ -165,7 +162,7 @@ class ImageNet(ModelPart, SpatialStatefulWithOutput):
     @property
     def input_shapes(self) -> Dict[str, tf.TensorShape]:
         return {
-            self.data_id: tf.TensorShape([None, self.height, self.width, 3])}
+            self.data_id: tf.TensorShape([None, self.width, self.height, 3])}
 
     @tensor
     def input_image(self) -> tf.Tensor:
@@ -243,12 +240,3 @@ class ImageNet(ModelPart, SpatialStatefulWithOutput):
                     tf.GraphKeys.GLOBAL_VARIABLES, scope=self.network_type)
                 self._saver = tf.train.Saver(
                     var_list=local_variables + slim_variables)
-
-    def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
-        fd = ModelPart.feed_dict(self, dataset, train)
-
-        images = np.array(dataset.get_series(self.data_id))
-        assert images.shape[1:] == (self.height, self.width, 3)
-        fd[self.input_image] = images
-
-        return fd

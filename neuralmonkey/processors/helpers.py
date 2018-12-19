@@ -1,11 +1,37 @@
-from typing import Any, Callable, Generator, List
 from random import randint
+from typing import Any, Callable, Generator, List
+
+import numpy as np
+import tensorflow as tf
 
 
+def pyfunc_wrapper(function: Callable[[List[str]], List[str]]) -> Callable[
+        [tf.Tensor], tf.Tensor]:
+
+    def wrap(sentence: tf.Tensor) -> tf.Tensor:
+
+        def func(sentence: np.ndarray) -> np.ndarray:
+            sent_list = tf.contrib.framework.nest.map_structure(
+                tf.compat.as_text, sentence.tolist())
+
+            result = function(sent_list)
+
+            return np.array(tf.contrib.framework.nest.map_structure(
+                tf.compat.as_bytes, result), dtype=np.object)
+
+        preprocessed = tf.py_func(func, [sentence], tf.string)
+        preprocessed.set_shape([None])
+        return preprocessed
+
+    return wrap
+
+
+@pyfunc_wrapper
 def preprocess_char_based(sentence: List[str]) -> List[str]:
     return list(" ".join(sentence))
 
 
+@pyfunc_wrapper
 def preprocess_add_noise(sentence: List[str]) -> List[str]:
     sent = sentence[:]
     length = len(sentence)

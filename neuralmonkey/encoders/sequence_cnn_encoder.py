@@ -5,14 +5,12 @@ from typing import Dict, List, Tuple
 from typeguard import check_argument_types
 import tensorflow as tf
 
-from neuralmonkey.dataset import Dataset
 from neuralmonkey.decorators import tensor
-from neuralmonkey.model.feedable import FeedDict
 from neuralmonkey.model.parameterized import InitializerSpecs
 from neuralmonkey.model.model_part import ModelPart
 from neuralmonkey.model.stateful import Stateful
 from neuralmonkey.nn.utils import dropout
-from neuralmonkey.vocabulary import Vocabulary, pad_batch, sentence_mask
+from neuralmonkey.vocabulary import Vocabulary, sentence_mask
 from neuralmonkey.tf_utils import get_variable
 
 
@@ -70,11 +68,8 @@ class SequenceCNNEncoder(ModelPart, Stateful):
 
     @tensor
     def inputs(self) -> tf.Tensor:
-        return self.vocabulary.strings_to_indices(self.input_tokens)
-
-    @tensor
-    def input_tokens(self) -> tf.Tensor:
-        return self.dataset[self.data_id]
+        return self.vocabulary.strings_to_indices(
+            self.dataset[self.data_id], self.max_input_len)
 
     @tensor
     def input_mask(self) -> tf.Tensor:
@@ -123,15 +118,3 @@ class SequenceCNNEncoder(ModelPart, Stateful):
 
         # Combine all the pooled features
         return tf.concat(pooled_outputs, axis=1)
-
-    def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
-        """Populate the feed dictionary with the encoder inputs.
-
-        Arguments:
-            dataset: The dataset to use
-            train: Boolean flag telling whether it is training time
-        """
-        fd = ModelPart.feed_dict(self, dataset, train)
-        sentences = dataset.get_series(self.data_id)
-        fd[self.input_tokens] = pad_batch(list(sentences), self.max_input_len)
-        return fd

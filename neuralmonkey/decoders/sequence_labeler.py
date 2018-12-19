@@ -3,15 +3,13 @@ from typing import Dict, Union
 import tensorflow as tf
 from typeguard import check_argument_types
 
-from neuralmonkey.dataset import Dataset
 from neuralmonkey.decorators import tensor
 from neuralmonkey.encoders.recurrent import RecurrentEncoder
 from neuralmonkey.encoders.facebook_conv import SentenceEncoder
-from neuralmonkey.model.feedable import FeedDict
 from neuralmonkey.model.parameterized import InitializerSpecs
 from neuralmonkey.model.model_part import ModelPart
 from neuralmonkey.tf_utils import get_variable
-from neuralmonkey.vocabulary import Vocabulary, pad_batch, sentence_mask
+from neuralmonkey.vocabulary import Vocabulary, sentence_mask
 
 
 class SequenceLabeler(ModelPart):
@@ -52,7 +50,7 @@ class SequenceLabeler(ModelPart):
 
     @tensor
     def train_targets(self) -> tf.Tensor:
-        return self.vocabulary.strings_to_indices(self.target_tokens)
+        return self.vocabulary.strings_to_indices(self.dataset[self.data_id])
 
     @tensor
     def train_mask(self) -> tf.Tensor:
@@ -136,12 +134,3 @@ class SequenceLabeler(ModelPart):
     @property
     def runtime_loss(self) -> tf.Tensor:
         return self.cost
-
-    def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
-        fd = ModelPart.feed_dict(self, dataset, train)
-
-        sentences = dataset.maybe_get_series(self.data_id)
-        if sentences is not None:
-            fd[self.target_tokens] = pad_batch(list(sentences))
-
-        return fd

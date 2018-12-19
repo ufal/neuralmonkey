@@ -1,18 +1,11 @@
-from typing import List, Iterable, Callable
-import gzip
-import csv
-import io
+from typing import List, Callable
 import sys
 import unicodedata
 
-from neuralmonkey.logging import warn
+import numpy as np
+import tensorflow as tf
+from typeguard import check_argument_types
 
-
-# pylint: disable=invalid-name
-PlainTextFileReader = Callable[[List[str]], Iterable[List[str]]]
-# pylint: enable=invalid-name
-
-csv.field_size_limit(sys.maxsize)
 
 ALNUM_CHARSET = set(
     chr(i) for i in range(sys.maxunicode)
@@ -20,34 +13,31 @@ ALNUM_CHARSET = set(
         or unicodedata.category(chr(i)).startswith("N")))
 
 
-def string_reader(
-        encoding: str = "utf-8") -> Callable[[List[str]], Iterable[str]]:
-    def reader(files: List[str]) -> Iterable[str]:
-        for path in files:
-            if path.endswith(".gz"):
-                with gzip.open(path, "r") as f_data:
-                    for line in f_data:
-                        yield str(line, "utf-8")
-            else:
-                with open(path, encoding=encoding) as f_data:
-                    for line in f_data:
-                        yield line
+def string_reader(files: List[str]) -> tf.data.Dataset:
+    compressed = ["GZIP" if path.endswith(".gz") else None for path in files]
+    dataset = tf.data.TextLineDataset(files[0], compressed[0])
 
-    return reader
+    for path, compression in zip(files[1:], compressed[1:]):
+        new_dataset = tf.data.TextLineDataset(path, compression)
+        # pylint: disable=redefined-variable-type
+        dataset = dataset.concatenate(new_dataset)
+        # pylint: enable=redefined-variable-type
+
+    return dataset
 
 
-def tokenized_text_reader(encoding: str = "utf-8") -> PlainTextFileReader:
-    """Get reader for space-separated tokenized text."""
-    def reader(files: List[str]) -> Iterable[List[str]]:
-        lines = string_reader(encoding)
-        for line in lines(files):
-            yield line.strip().split()
+def tokenized_text_reader(files: List[str]) -> tf.data.Dataset:
+    """Get dataset of space-separated tokenized text."""
 
-    return reader
+    def tokenize(line: tf.Tensor) -> tf.Tensor:
+        return tf.sparse.to_dense(
+            tf.strings.split([tf.strings.strip(line)]), default_value="")[0]
+
+    return string_reader(files).map(tokenize)
 
 
-def t2t_tokenized_text_reader(encoding: str = "utf-8") -> PlainTextFileReader:
-    """Get a tokenizing reader for plain text.
+def t2t_tokenized_text_reader(files: List[str]) -> tf.data.Dataset:
+    """Get dataset with tokenizer for plain text.
 
     Tokenization is inspired by the tensor2tensor tokenizer:
     https://github.com/tensorflow/tensor2tensor/blob/v1.5.5/tensor2tensor/data_generators/text_encoder.py
@@ -57,83 +47,77 @@ def t2t_tokenized_text_reader(encoding: str = "utf-8") -> PlainTextFileReader:
     to preserve the whitespace around weird characters and whitespace on weird
     positions (beginning and end of the text).
     """
-    def reader(files: List[str]) -> Iterable[List[str]]:
-        lines = string_reader(encoding)
-        for line in lines(files):
-            if not line:
-                yield []
-            line = line.strip()
 
-            tokens = []
-            is_alnum = [ch in ALNUM_CHARSET for ch in line]
-            current_token_start = 0
+    def tokenize(b_line: bytes) -> np.ndarray:
+        line = tf.compat.as_text(b_line)
 
-            for pos in range(1, len(line)):
-                # Boundary of alnum and non-alnum character groups
-                if is_alnum[pos] != is_alnum[pos - 1]:
-                    token = line[current_token_start:pos]
+        if not line:
+            return []
+        line = line.strip()
 
-                    # Drop single space if it's not on the beginning
-                    if token != " " or current_token_start == 0:
-                        tokens.append(token)
+        tokens = []
+        is_alnum = [ch in ALNUM_CHARSET for ch in line]
+        current_token_start = 0
 
-                    current_token_start = pos
+        for pos in range(1, len(line)):
+            # Boundary of alnum and non-alnum character groups
+            if is_alnum[pos] != is_alnum[pos - 1]:
+                token = line[current_token_start:pos]
 
-            # Add a final token (even if it's a single space)
-            final_token = line[current_token_start:]
-            tokens.append(final_token)
+                # Drop single space if it's not on the beginning
+                if token != " " or current_token_start == 0:
+                    tokens.append(tf.compat.as_bytes(token))
 
-            yield tokens
+                current_token_start = pos
 
-    return reader
+        # Add a final token (even if it's a single space)
+        final_token = line[current_token_start:]
+        tokens.append(tf.compat.as_bytes(final_token))
+
+        return np.array(tokens, dtype=np.object)
+
+    def mapper(line: tf.Tensor) -> tf.Tensor:
+        tokenized = tf.py_func(tokenize, [line], tf.string)
+        tokenized.set_shape([None])
+        return tokenized
+
+    return string_reader(files).map(mapper)
 
 
 def column_separated_reader(
-        column: int, delimiter: str = "\t", quotechar: str = None,
-        encoding: str = "utf-8") -> PlainTextFileReader:
+        column: int, default: str = "", delimiter: str = "\t",
+        header: bool = False) -> Callable[[List[str]], tf.data.Dataset]:
     """Get reader for delimiter-separated tokenized text.
 
     Args:
-        column: number of column to be returned. It starts with 1 for the first
+        files: List of input files.
+        column: number of column to be returned. Indices start at 0.
+        default: When the value is missing, it is replaced by this.
+        delimiter: Delimiter. Defaults to tab.
+        header: If True, ignore first line.
+
+    Returns:
+        The newly created dataset.
     """
-    def reader(files: List[str]) -> Iterable[List[str]]:
-        column_count = None
-        text_reader = string_reader(encoding)
-        for line in text_reader(files):
-            io_line = io.StringIO(line.strip())
-            if quotechar is not None:
-                parsed_csv = list(csv.reader(io_line, delimiter=delimiter,
-                                             quotechar=quotechar,
-                                             skipinitialspace=True))
-            else:
-                parsed_csv = list(csv.reader(io_line, delimiter=delimiter,
-                                             quoting=csv.QUOTE_NONE,
-                                             skipinitialspace=True))
-            columns = len(parsed_csv[0])
-            if column_count is None:
-                column_count = columns
-            elif column_count != columns:
-                warn("A mismatch in number of columns. Expected {} got {}"
-                     .format(column_count, columns))
-            if columns < column:
-                warn("There is a missing column number {} in the dataset."
-                     .format(column))
-                yield []
-            else:
-                yield parsed_csv[0][column - 1].split()
+    check_argument_types()
+
+    def reader(files: List[str]) -> tf.data.Dataset:
+        compression = None
+        if all(path.endswith(".gz") for path in files):
+            compression = "GZIP"
+        elif any(path.endswith(".gz") for path in files):
+            raise ValueError("All CSV files must be either compressed or not.")
+
+        return tf.data.experimental.CsvDataset(
+            files, [default], compression_type=compression, header=header,
+            field_delim=delimiter, select_cols=[column])
 
     return reader
 
 
-def csv_reader(column: int):
-    return column_separated_reader(column, delimiter=",", quotechar='"')
+def csv_reader(column: int) -> Callable[[List[str]], tf.data.Dataset]:
+    return column_separated_reader(column, delimiter=",")
 
 
-def tsv_reader(column: int):
-    return column_separated_reader(column, delimiter="\t", quotechar=None)
-
-
-# pylint: disable=invalid-name
-UtfPlainTextReader = tokenized_text_reader()
-T2TReader = t2t_tokenized_text_reader()
-# pylint: enable=invalid-name
+def tsv_reader(column: int) -> Callable[[List[str]], tf.data.Dataset]:
+    return column_separated_reader(column, delimiter="\t")

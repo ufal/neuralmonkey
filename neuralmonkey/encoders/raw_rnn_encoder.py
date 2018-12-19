@@ -1,16 +1,13 @@
 from typing import List, Dict, Tuple
 
-import numpy as np
 import tensorflow as tf
 from typeguard import check_argument_types
 
-from neuralmonkey.dataset import Dataset
 from neuralmonkey.decorators import tensor
 # pylint: disable=protected-access
 from neuralmonkey.encoders.recurrent import (
     RNNSpecTuple, _make_rnn_spec, _make_rnn_cell)
 # pylint: enable=protected-access
-from neuralmonkey.model.feedable import FeedDict
 from neuralmonkey.model.parameterized import InitializerSpecs
 from neuralmonkey.model.model_part import ModelPart
 from neuralmonkey.model.stateful import TemporalStatefulWithOutput
@@ -65,13 +62,19 @@ class RawRNNEncoder(ModelPart, TemporalStatefulWithOutput):
 
     @tensor
     def inputs(self) -> tf.Tensor:
-        return self.dataset[self.data_id]
+        data = self.dataset[self.data_id]
+        data.set_shape([None, None, self.input_size])
 
-    # pylint: disable=no-self-use
+        if self.max_input_len is not None:
+            data = data[:, :self.max_input_len]
+
+        return data
+
     @tensor
     def _input_lengths(self) -> tf.Tensor:
-        return tf.placeholder(tf.int32, [None], "encoder_padding_lengths")
-    # pylint: enable=no-self-use
+        data = self.dataset[self.data_id]
+        nonzero_columns = tf.reduce_any(tf.not_equal(data, 0), axis=2)
+        return tf.reduce_sum(tf.to_int32(nonzero_columns), axis=1)
 
     @tensor
     def states_mask(self) -> tf.Tensor:
@@ -151,33 +154,33 @@ class RawRNNEncoder(ModelPart, TemporalStatefulWithOutput):
     def temporal_mask(self) -> tf.Tensor:
         return self.states_mask
 
-    def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
-        """Populate the feed dictionary with the encoder inputs.
+    # def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
+    #     """Populate the feed dictionary with the encoder inputs.
 
-        Arguments:
-            dataset: The dataset to use
-            train: Boolean flag telling whether it is training time
-        """
-        fd = ModelPart.feed_dict(self, dataset, train)
+    #     Arguments:
+    #         dataset: The dataset to use
+    #         train: Boolean flag telling whether it is training time
+    #     """
+    #     fd = ModelPart.feed_dict(self, dataset, train)
 
-        series = list(dataset.get_series(self.data_id))
-        lengths = []
-        inputs = []
+    #     series = list(dataset.get_series(self.data_id))
+    #     lengths = []
+    #     inputs = []
 
-        max_len = max(x.shape[0] for x in series)
-        if self.max_input_len is not None:
-            max_len = min(self.max_input_len, max_len)
+    #     max_len = max(x.shape[0] for x in series)
+    #     if self.max_input_len is not None:
+    #         max_len = min(self.max_input_len, max_len)
 
-        for x in series:
-            length = min(max_len, x.shape[0])
-            x_padded = np.zeros(shape=(max_len,) + x.shape[1:],
-                                dtype=x.dtype)
-            x_padded[:length] = x[:length]
+    #     for x in series:
+    #         length = min(max_len, x.shape[0])
+    #         x_padded = np.zeros(shape=(max_len,) + x.shape[1:],
+    #                             dtype=x.dtype)
+    #         x_padded[:length] = x[:length]
 
-            lengths.append(length)
-            inputs.append(x_padded)
+    #         lengths.append(length)
+    #         inputs.append(x_padded)
 
-        fd[self.inputs] = inputs
-        fd[self._input_lengths] = lengths
+    #     fd[self.inputs] = inputs
+    #     fd[self._input_lengths] = lengths
 
-        return fd
+    #     return fd

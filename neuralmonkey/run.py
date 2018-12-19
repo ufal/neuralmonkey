@@ -35,17 +35,22 @@ def main() -> None:
                         help="look at the SGE variables for slicing the data")
     args = parser.parse_args()
 
-    datasets_model = load_runtime_config(args.datasets)
-
     exp = Experiment(config_path=args.config)
-    exp.build_model()
+    with exp.graph.as_default():
+        datasets_model = load_runtime_config(args.datasets)
+
+    exp.build_model(datasets_model.test_datasets)
     exp.load_variables(datasets_model.variables)
 
     if args.grid and len(datasets_model.test_datasets) > 1:
         raise ValueError("Only one test dataset supported when using --grid")
 
+    exp.model.tf_manager.init_testing()
+
     results = []
-    for dataset in datasets_model.test_datasets:
+    for dataset, dataset_handle in zip(
+            datasets_model.test_datasets, exp.test_handles):
+
         if args.grid:
             if ("SGE_TASK_FIRST" not in os.environ
                     or "SGE_TASK_LAST" not in os.environ
@@ -67,9 +72,11 @@ def main() -> None:
             dataset = dataset.subset(start, length)
 
         if exp.config.args.evaluation is None:
-            exp.run_model(dataset, write_out=True)
+            exp.run_model({exp.dataset_handle: dataset_handle},
+                          write_out=dataset.outputs)
         else:
-            eval_result = exp.evaluate(dataset, write_out=True)
+            eval_result = exp.evaluate({exp.dataset_handle: dataset_handle},
+                                       write_out=dataset.outputs)
             results.append(eval_result)
 
     if args.json:

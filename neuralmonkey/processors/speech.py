@@ -2,15 +2,15 @@ from typing import Callable
 
 import numpy as np
 from python_speech_features import mfcc, fbank, logfbank, ssc, delta
-
-from neuralmonkey.readers.audio_reader import Audio
+import tensorflow as tf
 
 
 # pylint: disable=invalid-name
 def SpeechFeaturesPreprocessor(feature_type: str = "mfcc",
                                delta_order: int = 0,
                                delta_window: int = 2,
-                               **kwargs) -> Callable:
+                               **kwargs) -> Callable[[tf.Tensor, tf.Tensor],
+                                                     tf.Tensor]:
     """Calculate speech features.
 
     First, the given type of features (e.g. MFCC) is computed using a window
@@ -37,14 +37,20 @@ def SpeechFeaturesPreprocessor(feature_type: str = "mfcc",
         raise ValueError(
             "Unknown speech feature type '{}'".format(feature_type))
 
-    def preprocess(audio: Audio) -> np.ndarray:
+    def py_preprocess(rate: int, data: np.ndarray) -> np.ndarray:
         features = [FEATURE_TYPES[feature_type](
-            audio.data, samplerate=audio.rate, **kwargs)]
+            data, samplerate=rate, **kwargs)]
 
         for _ in range(delta_order):
             features.append(delta(features[-1], delta_window))
 
-        return np.concatenate(features, axis=1)
+        return np.concatenate(features, axis=1).astype(np.float32)
+
+    def preprocess(rate: tf.Tensor, data: tf.Tensor) -> tf.Tensor:
+
+        result = tf.py_func(py_preprocess, [rate, data], tf.float32)
+        result.set_shape([None, None])
+        return result
 
     return preprocess
 

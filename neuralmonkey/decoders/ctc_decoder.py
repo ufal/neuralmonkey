@@ -3,15 +3,13 @@ from typing import Dict
 import tensorflow as tf
 from typeguard import check_argument_types
 
-from neuralmonkey.dataset import Dataset
 from neuralmonkey.decorators import tensor
-from neuralmonkey.model.feedable import FeedDict
 from neuralmonkey.model.parameterized import InitializerSpecs
 from neuralmonkey.model.model_part import ModelPart
 from neuralmonkey.model.stateful import TemporalStateful
 from neuralmonkey.tf_utils import get_variable
-from neuralmonkey.vocabulary import (Vocabulary, pad_batch, END_TOKEN_INDEX,
-                                     PAD_TOKEN_INDEX)
+from neuralmonkey.vocabulary import (
+    Vocabulary, END_TOKEN_INDEX, PAD_TOKEN_INDEX)
 
 
 class CTCDecoder(ModelPart):
@@ -62,7 +60,8 @@ class CTCDecoder(ModelPart):
 
     @tensor
     def train_targets(self) -> tf.SparseTensor:
-        params = self.vocabulary.strings_to_indices(self.target_tokens)
+        params = self.vocabulary.strings_to_indices(self.dataset[self.data_id],
+                                                    self.max_length)
 
         indices = tf.where(tf.not_equal(params, PAD_TOKEN_INDEX))
         values = tf.gather_nd(params, indices)
@@ -138,17 +137,3 @@ class CTCDecoder(ModelPart):
 
         logits = multiplication_3d + biases_3d
         return tf.transpose(logits, perm=[1, 0, 2])  # time major
-
-    def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
-        fd = ModelPart.feed_dict(self, dataset, train)
-
-        sentences = dataset.maybe_get_series(self.data_id)
-
-        if sentences is None and train:
-            raise ValueError("You must feed reference sentences when training")
-
-        if sentences is not None:
-            fd[self.target_tokens] = pad_batch(list(sentences),
-                                               self.max_length)
-
-        return fd

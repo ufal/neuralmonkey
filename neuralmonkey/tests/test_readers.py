@@ -1,40 +1,16 @@
 #!/usr/bin/env python3.5
 """Unit tests for readers"""
 
-import unittest
 import tempfile
 import numpy as np
+import tensorflow as tf
+# pylint: disable=no-name-in-module
+from tensorflow.python.framework.errors_impl import InvalidArgumentError
+# pylint: enable=no-name-in-module
 
-from neuralmonkey.readers.string_vector_reader import get_string_vector_reader
-from neuralmonkey.readers.plain_text_reader import T2TReader
-
-STRING_INTS = """
-1   2 3
-4 5   6
-7 8 9 10
-
-"""
-
-LIST_INTS = [np.array(row.strip().split(), dtype=np.int32)
-             for row in STRING_INTS.strip().split("\n")]
-
-STRING_FLOATS = """
-1 2       3.5
-      4 -5.0e10     6
-7 8 9.2e-12 10.1123213213214123141234123112312312
-"""
-
-LIST_FLOATS = [np.array(row.strip().split(), dtype=np.float32)
-               for row in STRING_FLOATS.strip().split("\n")]
-
-STRING_INTS_FINE = """
-1 2 3
-4 5 6
-7 8 9
-"""
-
-LIST_INTS_FINE = [np.array(row.strip().split(), dtype=np.int32)
-                  for row in STRING_INTS_FINE.strip().split("\n")]
+from neuralmonkey.readers.string_vector_reader import (
+    get_string_vector_reader, float_vector_reader, int_vector_reader)
+from neuralmonkey.readers.plain_text_reader import t2t_tokenized_text_reader
 
 
 def _make_file(from_var):
@@ -44,49 +20,105 @@ def _make_file(from_var):
     return tmpfile
 
 
-class TestStringVectorReader(unittest.TestCase):
+class TestStringVectorReader(tf.test.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        tf.reset_default_graph()
+
+        cls.str_ints = """ 1   2 3
+                           4 5   6
+                           7 8 9 10 """
+
+        cls.str_floats = """ 1 2       3.5
+                             4 -5.0e10     6
+                             7 8 9.2e-12 10.1134123112312 """
+
+        cls.str_ints_fine = """1 2 3
+                               4 5 6
+                               7 8 9 """
+
+        cls.list_ints = [np.array(row.strip().split(), dtype=np.int32)
+                         for row in cls.str_ints.strip().split("\n")]
+
+        cls.list_floats = [np.array(row.strip().split(), dtype=np.float32)
+                           for row in cls.str_floats.strip().split("\n")]
+
+        cls.list_ints_fine = [np.array(row.strip().split(), dtype=np.int32)
+                              for row in cls.str_ints_fine.strip().split("\n")]
 
     def setUp(self):
-        self.tmpfile_floats = _make_file(STRING_FLOATS)
-        self.tmpfile_ints = _make_file(STRING_INTS)
-        self.tmpfile_ints_fine = _make_file(STRING_INTS_FINE)
+        self.tmpfile_floats = _make_file(self.str_floats)
+        self.tmpfile_ints = _make_file(self.str_ints)
+        self.tmpfile_ints_fine = _make_file(self.str_ints_fine)
 
-    def test_reader(self):
-        r = get_string_vector_reader(np.float32)
-        floats = list(r([self.tmpfile_floats.name]))
-        equals = [np.array_equal(f, g) for f, g in zip(floats, LIST_FLOATS)]
+    def test_float_reader(self):
+        dataset = float_vector_reader([self.tmpfile_floats.name])
+        iterator = dataset.make_one_shot_iterator().get_next()
+
+        with self.test_session():
+            floats = [iterator.eval() for _ in range(3)]
+
+        equals = [np.array_equal(f, g)
+                  for f, g in zip(floats, self.list_floats)]
 
         for comp in equals:
             self.assertTrue(comp)
 
-        r = get_string_vector_reader(np.int32)
-        ints = list(r([self.tmpfile_ints.name, self.tmpfile_ints_fine.name]))
+    def test_int_reader(self):
+        dataset = int_vector_reader(
+            [self.tmpfile_ints.name, self.tmpfile_ints_fine.name])
+        iterator = dataset.make_one_shot_iterator().get_next()
+
+        with self.test_session():
+            ints = [iterator.eval() for _ in range(3)]
+
         equals = [np.array_equal(f, g)
-                  for f, g in zip(ints, LIST_INTS + LIST_INTS_FINE)]
+                  for f, g in zip(ints, self.list_ints + self.list_ints_fine)]
 
         for comp in equals:
             self.assertTrue(comp)
 
     def test_columns(self):
         for cols in range(2, 4):
-            with self.assertRaisesRegex(ValueError, "Wrong number of columns"):
-                r = get_string_vector_reader(np.int32, columns=cols)
-                list(r([self.tmpfile_ints.name]))
 
-            with self.assertRaisesRegex(ValueError, "Wrong number of columns"):
+            with self.assertRaisesRegex(
+                    InvalidArgumentError, "Bad number of columns"):
+                r = get_string_vector_reader(np.int32, columns=cols)
+                dataset = r([self.tmpfile_ints.name])
+                iterator = dataset.make_one_shot_iterator().get_next()
+
+                with self.test_session():
+                    list(iterator.eval() for _ in range(3))
+
+            with self.assertRaisesRegex(
+                    InvalidArgumentError, "Bad number of columns"):
                 r = get_string_vector_reader(np.float32, columns=cols)
-                list(r([self.tmpfile_floats.name]))
+                dataset = r([self.tmpfile_floats.name])
+                iterator = dataset.make_one_shot_iterator().get_next()
+
+                with self.test_session():
+                    list(iterator.eval() for _ in range(3))
 
             if cols != 3:
-                with self.assertRaisesRegex(ValueError,
-                                            "Wrong number of columns"):
+                with self.assertRaisesRegex(
+                        InvalidArgumentError, "Bad number of columns"):
                     r = get_string_vector_reader(np.int32, columns=cols)
-                    list(r([self.tmpfile_ints_fine.name]))
+                    dataset = r([self.tmpfile_ints_fine.name])
+                    iterator = dataset.make_one_shot_iterator().get_next()
+
+                    with self.test_session():
+                        list(iterator.eval() for _ in range(3))
 
         r = get_string_vector_reader(np.int32, columns=3)
-        ints = list(r([self.tmpfile_ints_fine.name]))
+        dataset = r([self.tmpfile_ints_fine.name])
+        iterator = dataset.make_one_shot_iterator().get_next()
+
+        with self.test_session():
+            ints = list(iterator.eval() for _ in range(3))
+
         equals = [np.array_equal(f, g)
-                  for f, g in zip(ints, LIST_INTS_FINE)]
+                  for f, g in zip(ints, self.list_ints_fine)]
 
         for comp in equals:
             self.assertTrue(comp)
@@ -97,10 +129,10 @@ class TestStringVectorReader(unittest.TestCase):
         self.tmpfile_ints_fine.close()
 
 
-class TestT2TReader(unittest.TestCase):
+class TestT2TReader(tf.test.TestCase):
 
     def setUp(self):
-        self.reader = T2TReader
+        self.reader = t2t_tokenized_text_reader
 
     def test_reader(self):
         text = "Ich bin  der čermák -=- - !!! alfonso "
@@ -108,10 +140,17 @@ class TestT2TReader(unittest.TestCase):
                        "alfonso"]
 
         tmpfile = _make_file(text)
+        dataset = self.reader([tmpfile.name])
+        iterator = dataset.make_one_shot_iterator().get_next()
 
         read = []
-        for line in self.reader([tmpfile.name]):
-            read.append(line)
+        with self.test_session():
+            while True:
+                try:
+                    line = iterator.eval().tolist()
+                    read.append([tf.compat.as_text(l) for l in line])
+                except tf.errors.OutOfRangeError:
+                    break
 
         tmpfile.close()
 
@@ -120,4 +159,4 @@ class TestT2TReader(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    unittest.main()
+    tf.test.main()

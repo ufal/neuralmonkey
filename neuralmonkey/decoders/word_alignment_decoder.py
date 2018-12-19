@@ -1,15 +1,11 @@
 # TODO untested module
 from typing import cast, Dict, Tuple
 
-import numpy as np
 import tensorflow as tf
 from typeguard import check_argument_types
 
-from neuralmonkey.dataset import Dataset
 from neuralmonkey.encoders.recurrent import RecurrentEncoder
 from neuralmonkey.decoders.decoder import Decoder
-from neuralmonkey.logging import warn
-from neuralmonkey.model.feedable import FeedDict
 from neuralmonkey.model.parameterized import InitializerSpecs
 from neuralmonkey.model.model_part import ModelPart
 from neuralmonkey.model.sequence import Sequence
@@ -112,20 +108,3 @@ class WordAlignmentDecoder(ModelPart):
     @property
     def cost(self) -> tf.Tensor:
         return self.train_loss
-
-    def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
-        fd = ModelPart.feed_dict(self, dataset, train)
-
-        alignment = dataset.maybe_get_series(self.data_id)
-        if alignment is None:
-            if train:
-                warn("Training alignment not present!")
-
-            alignment = np.zeros((len(dataset),
-                                  self.decoder.max_output_len,
-                                  self.enc_input.max_length),
-                                 np.float32)
-
-        fd[self.ref_alignment] = alignment
-
-        return fd

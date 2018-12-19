@@ -1,36 +1,29 @@
 """Implementation of the dataset class."""
 # pylint: disable=too-many-lines
-# After deleting the legacy function load_dataset_from_files, this file becomes
-# short again.
+# TODO(tf-data) Shorten!
 import glob
 import os
-import random
 import re
 
-from collections import deque
-from itertools import islice
-from typing import (
-    Any, TypeVar, Iterator, Callable, Optional, Dict, Union, List, Tuple, cast)
+from typing import Callable, Dict, Union, List, Tuple, cast
 
+import numpy as np
+import tensorflow as tf
 from typeguard import check_argument_types
 from neuralmonkey.config.parsing import get_first_match
-from neuralmonkey.logging import debug, log, warn
-from neuralmonkey.readers.plain_text_reader import UtfPlainTextReader
+from neuralmonkey.logging import debug, log
+from neuralmonkey.readers.plain_text_reader import tokenized_text_reader
 from neuralmonkey.util.match_type import match_type
+from neuralmonkey.vocabulary import PAD_TOKEN
 from neuralmonkey.writers.auto import AutoWriter
 from neuralmonkey.writers.plain_text_writer import Writer
 
+
 # pylint: disable=invalid-name
-DataType = TypeVar("DataType")
-DataSeries = Iterator[DataType]
-DataExample = Dict[str, DataType]
+# Reader: function that gets list of files and returns a dataset
+Reader = Callable[[List[str]], tf.data.Dataset]
 
-# Reader: function that gets list of files and yields data
-Reader = Callable[[List[str]], Any]
-
-DatasetPreprocess = Callable[["Dataset"], DataSeries]
-DatasetPostprocess = Callable[
-    ["Dataset", Dict[str, DataSeries]], DataSeries]
+DatasetPreprocess = Callable[[Dict[str, tf.data.Dataset]], tf.data.Dataset]
 
 FileDef = Union[str, List[str]]  # one or many files
 ReaderDef = Union[FileDef, Tuple[FileDef, Reader]]  # files and optional reader
@@ -103,7 +96,7 @@ def _normalize_readerdef(reader_def: ReaderDef) -> Tuple[List[str], Reader]:
         reader = reader_def[1]
         files = _normalize_filedef(reader_def[0])
     else:
-        reader = UtfPlainTextReader
+        reader = tokenized_text_reader
         files = _normalize_filedef(reader_def)
 
     return files, reader
@@ -164,7 +157,7 @@ def _get_series_paths_and_readers(
             patterns, reader = value  # type: ignore
         else:
             patterns = value
-            reader = UtfPlainTextReader
+            reader = tokenized_text_reader
 
         if isinstance(patterns, str):
             patterns = [patterns]
@@ -209,8 +202,7 @@ def load(name: str,
          data: List[SourceSpec],
          batching: BatchingScheme = None,
          outputs: List[OutputSpec] = None,
-         buffer_size: int = None,
-         shuffled: bool = False) -> "Dataset":
+         buffer_size: int = None) -> "Dataset":
     """Create a dataset using specification from the configuration.
 
     The dataset provides iterators over data series. The dataset has a buffer,
@@ -266,25 +258,10 @@ def load(name: str,
 
     log("Initializing dataset {}.".format(name))
 
-    iterators = {}  # type: Dict[str, Callable[[], DataSeries]]
+    data_series = {}  # type: Dict[str, tf.data.Dataset]
 
     prep_sl = {}  # type: Dict[str, Tuple[Callable, str]]
     prep_dl = {}  # type: Dict[str, DatasetPreprocess]
-
-    def _make_iterator(reader, files):
-        def itergen():
-            return reader(files)
-        return itergen
-
-    def _make_sl_iterator(src, prep):
-        def itergen():
-            return (prep(item) for item in iterators[src]())
-        return itergen
-
-    def _make_dl_iterator(func):
-        def itergen():
-            return func(iterators)
-        return itergen
 
     # First, prepare iterators for series using file readers
     for s_name, source_spec in zip(series, data):
@@ -296,7 +273,7 @@ def load(name: str,
                         "File not found. Series: {}, Path: {}"
                         .format(s_name, path))
 
-            iterators[s_name] = _make_iterator(reader, files)
+            data_series[s_name] = reader(files)
 
         elif match_type(source_spec, Tuple[Callable, str]):
             prep_sl[s_name] = cast(Tuple[Callable, str], source_spec)
@@ -309,15 +286,16 @@ def load(name: str,
     # Note that series-level preprocessors cannot be stacked on the dataset
     # specification level.
     for s_name, (preprocessor, source) in prep_sl.items():
-        if source not in iterators:
+        if source not in data_series:
             raise ValueError(
                 "Source series for series-level preprocessor nonexistent: "
                 "Preprocessed series '{}', source series '{}'")
-        iterators[s_name] = _make_sl_iterator(source, preprocessor)
+        # TODO(tf-data) num_parallel_calls
+        data_series[s_name] = data_series[source].map(preprocessor)
 
     # Finally, dataset-level preprocessors.
     for s_name, func in prep_dl.items():
-        iterators[s_name] = _make_dl_iterator(func)
+        data_series[s_name] = func(data_series)
 
     output_dict = None
     if outputs is not None:
@@ -325,101 +303,46 @@ def load(name: str,
                        for s_name, path, writer
                        in [_normalize_outputspec(out) for out in outputs]}
 
-    if buffer_size is not None:
-        return Dataset(name, iterators, batching, output_dict,
-                       (buffer_size // 2, buffer_size), shuffled)
-
-    return Dataset(name, iterators, batching, output_dict, None, shuffled)
+    return Dataset(name, data_series, batching, output_dict, buffer_size)
 # pylint: enable=too-many-locals,too-many-branches
 
 
 class Dataset:
-    """Buffered and batched dataset.
-
-    This class serves as collection of data series for particular encoders and
-    decoders in the model.
+    """Aggregate dataset class for input series.
 
     Dataset has a number of data series, which are sequences of data (of any
-    type) that should have the same length. The sequences are loaded in a
-    buffer and can be loaded lazily.
+    type) that should have the same length. The sequences are loaded lazily in
+    a tf.data.Dataset instance.
 
-    Using the `batches` method, dataset yields batches, through which the data
-    are accessed by the model.
+    Using the `get_dataset` method, this class returns zipped tf.data.Dataset,
+    through which the data are accessed by the model parts.
     """
 
     def __init__(self,
                  name: str,
-                 iterators: Dict[str, Callable[[], Iterator]],
+                 data_series: Dict[str, tf.data.Dataset],
                  batching: BatchingScheme,
                  outputs: Dict[str, Tuple[str, Writer]] = None,
-                 buffer_size: Tuple[int, int] = None,
-                 shuffled: bool = False) -> None:
+                 buffer_size: int = None) -> None:
         """Construct a new instance of the dataset class.
 
         Do not call this method from the configuration directly. Instead, use
-        the `from_files` function of this module.
-
-        The dataset iterators are provided through factory functions, which
-        return the opened iterators when called with no arguments.
+        the `load` function of this module.
 
         Arguments:
             name: The name for the dataset.
-            iterators: A series-iterator generator mapping.
-            lazy: If False, load the data from iterators to a list and store
-                the list in memory.
-            buffer_size: Use this tuple as a minimum and maximum buffer size
-                for pre-loading data. This should be (a few times) larger than
-                the batch size used for mini-batching. When the buffer size
-                gets under the lower threshold, it is refilled with the new
-                data and optionally reshuffled. If the buffer size is `None`,
-                all data is loaded into memory.
-            shuffled: Whether to shuffle the buffer during batching.
+            data_series: A mapping of data_ids to `tf.data.Dataset` objects.
+            batching: `BatchingScheme` for batching this dataset.
+            outputs: A mapping of data_ids to files and writers.
+            buffer_size: Buffer size for shuffling the dataset. If None, the
+                dataset will not be shuffled.
         """
         self.name = name
-        self.iterators = iterators
+        self.data_series = data_series
         self.batching = batching
         self.outputs = outputs
-
-        if buffer_size is not None:
-            self.lazy = True
-            self.buffer_min_size, self.buffer_size = buffer_size
-        else:
-            self.lazy = False
-
-        self.shuffled = shuffled
-        self.length = None
-
-        if not self.lazy:
-            # Load the data from iterators to memory and point new iterators
-            # to these structures. (This prevents multiple loads from disk.)
-            data = {s_name: list(it())
-                    for s_name, it in self.iterators.items()}
-
-            # Check whether all loaded series have the same length
-            length_dict = {
-                s_name: len(s_data) for s_name, s_data in data.items()}
-            if len(set(length_dict.values())) > 1:
-                raise ValueError("Lengths of data series do not match: {}"
-                                 .format(str(length_dict)))
-
-            self.length = next(iter(length_dict.values()))
-            self.iterators = {
-                s_name: lambda n=s_name: iter(data[n])  # type: ignore
-                for s_name in self.iterators}
-
-    def __len__(self) -> int:
-        """Get the length of the dataset.
-
-        Returns:
-            The length of the dataset.
-
-        Raises:
-            `NotImplementedError` when the dataset is lazy.
-        """
-        if self.lazy:
-            raise NotImplementedError("Querying the len of a lazy dataset.")
-        assert self.length is not None
-        return self.length
+        self.buffer_size = buffer_size
+        # TODO(tf-data) Use 'cache' for nonlazy datasets
 
     def __contains__(self, name: str) -> bool:
         """Check if the dataset contains a series of a given name.
@@ -430,185 +353,170 @@ class Dataset:
         Returns:
             True if the dataset contains the series, False otherwise.
         """
-        return name in self.iterators
+        return name in self.data_series
 
-    @property
-    def series(self) -> List[str]:
-        return list(sorted(self.iterators.keys()))
-
-    def get_series(self, name: str) -> Iterator:
-        """Get the data series with a given name.
-
-        Arguments:
-            name: The name of the series to fetch.
-
-        Returns:
-            A freshly initialized iterator over the data series.
-
-        Raises:
-            KeyError if the series does not exists.
-        """
-        return self.iterators[name]()
-
-    def maybe_get_series(self, name: str) -> Optional[Iterator]:
-        """Get the data series with a given name, if it exists.
+    def get_dataset(self,
+                    types: Dict[str, tf.DType],
+                    shapes: Dict[str, tf.TensorShape],
+                    ignore_errors: bool = False) -> tf.data.Dataset:
+        """Construct the associated tf.data.Dataset object.
 
         Arguments:
-            name: The name of the series to fetch.
+            types: A mapping of model part data series to their types.
+            shapes: A mapping of model part data series to their shapes.
+            ignore_errors: If True, do not raise exception when a series is
+                present in the model but missing in the dataset.
 
         Returns:
-            The data series or None if it does not exist.
+            tf.data.Dataset, ready to be registered in feedables.
         """
-        if name in self.iterators:
-            return self.get_series(name)
-        return None
+        assert types.keys() == shapes.keys()
 
-    # pylint: disable=too-many-locals,too-many-branches,too-many-statements
-    def batches(self) -> Iterator["Dataset"]:
-        """Split the dataset into batches.
+        # TODO(tf-data) should we check if provided types and shapes match the
+        # data series in this dataset?
 
-        Returns:
-            Generator yielding the batches.
-        """
-        if self.batching.batch_size is not None:
-            max_bs = self.batching.batch_size
-        else:
-            assert self.batching.bucket_batch_sizes is not None
-            max_bs = max(self.batching.bucket_batch_sizes)
+        add_series = {}  # Dict[str, tf.data.Dataset]
 
-        if self.lazy and self.buffer_min_size < max_bs:
-            warn("Minimum buffer size ({}) lower than batch size ({}). "
-                 "It is recommended to use large buffer size."
-                 .format(self.buffer_min_size, max_bs))
+        # Data series that are missing in the types but are present in dataset
+        miss_feed = [s_id for s_id in self.data_series if s_id not in types]
 
-        # Initialize iterators
-        iterators = {s: it() for s, it in self.iterators.items()}
+        # Data series required by the model not present in the dataset
+        miss_data = [s_id for s_id in types if s_id not in self.data_series]
 
-        # Create iterator over instances
-        zipped_iterator = (
-            dict(zip(iterators, row)) for row in zip(*iterators.values()))
+        if miss_feed:
+            # Some series in the dataset are not used directly by the model.
+            # They can be e.g. inputs to preprocessors.
+            msg = ("Unused data series (not present in model): {}".format(
+                ", ".join(miss_feed)))
+            log(msg)
 
-        # Fill the buffer with initial values, shuffle optionally
-        if self.lazy:
-            # pylint: disable=stop-iteration-return
-            # This is pylint issue https://github.com/PyCQA/pylint/issues/2158
-            lbuf = list(next(zipped_iterator) for _ in range(self.buffer_size))
-            # pylint: enable=stop-iteration-return
-        else:
-            lbuf = list(zipped_iterator)
-        if self.shuffled:
-            random.shuffle(lbuf)
-        buf = deque(lbuf)
+        # We should include input series not used by the model to be able to
+        # print them out at the end.
+        use_series = {s_id: data for s_id, data in self.data_series.items()}
 
-        def _make_datagen(rows, key):
-            def itergen():
-                return (row[key] for row in rows)
-            return itergen
+        if miss_data:
+            msg = "Dataset does not include feedable series: {}".format(
+                ", ".join(miss_data))
+            if ignore_errors:
+                log(msg)
+            else:
+                raise ValueError(msg)
 
-        # Iterate over the rest of the data until buffer is empty
-        batch_index = 0
-        buckets = [[]]  # type: List[List[DataExample]]
+            # If there are series missing from the dataset and ignore_errors
+            # is True, we fill the series with dummy data.
+            log("Filling missing series with dummy values {}"
+                .format(", ".join(miss_data)))
+
+            def get_dummy_gen(shape, val):
+                def gen():
+                    while True:
+                        yield np.full(shape, val)
+                return gen
+
+            for s_id in miss_data:
+                dtype = types[s_id]
+                shape = [dim if dim is not None else 1
+                         for dim in shapes[s_id].as_list()[1:]]
+
+                if dtype == tf.string:
+                    add_series[s_id] = tf.data.Dataset.from_generator(
+                        get_dummy_gen(shape, ""), dtype, shape)
+
+                elif dtype == tf.bool:
+                    add_series[s_id] = tf.data.Dataset.from_generator(
+                        get_dummy_gen(shape, False), dtype, shape)
+                else:  # regard data as numeric
+                    add_series[s_id] = tf.data.Dataset.from_generator(
+                        get_dummy_gen(shape, 0), dtype, shape)
+
+        dataset = tf.data.Dataset.zip({**use_series, **add_series})
+
+        if self.buffer_size:
+            # pylint: disable=redefined-variable-type
+            dataset = dataset.shuffle(self.buffer_size)
+            # pylint: enable=redefined-variable-type
+
+        shapes = dataset.output_shapes
+
+        # TODO(tf-data)
+        # Set num_parallel_calls everywhere possible according to
+        # tf_manager.num_threads
+
+        def make_zero(t):
+            """Adapted from TF dataset_ops."""
+            if t.base_dtype == tf.string:
+                return PAD_TOKEN
+            if t.base_dtype == tf.variant:
+                raise TypeError("Unable to create padding for field of type "
+                                "'variant'")
+            return np.zeros_like(t.as_numpy_dtype())
+
+        padding_values = tf.contrib.framework.nest.map_structure(
+            make_zero, dataset.output_types)
 
         if self.batching.bucket_boundaries is not None:
-            buckets += [[] for _ in self.batching.bucket_boundaries]
+            assert self.batching.bucket_batch_sizes is not None
 
-        while buf:
-            row = buf.popleft()
+            def bucketing_hash_function(
+                    data_point: Dict[str, tf.Tensor]) -> tf.Tensor:
 
-            if self.batching.bucket_boundaries is None:
-                bucket_id = 0
-            else:
-                # TODO: use only specific series to determine the bucket number
-                length = max(len(row[key]) for key in row)
+                lengths = [tf.shape(item) for key, item in data_point.items()
+                           if key not in self.batching.ignore_series]
 
-                bucket_id = -1
-                for b_id, limit in enumerate(self.batching.bucket_boundaries):
-                    fits_in = length <= limit
-                    tighter_fit = (
-                        bucket_id == -1
-                        or limit < self.batching.bucket_boundaries[
-                            bucket_id])
+                return tf.reduce_max(tf.concat(lengths, axis=0))
 
-                    if fits_in and tighter_fit:
-                        bucket_id = b_id
+            dataset = dataset.apply(
+                tf.data.experimental.bucket_by_sequence_length(
+                    bucketing_hash_function,
+                    bucket_boundaries=self.batching.bucket_boundaries,
+                    bucket_batch_sizes=self.batching.bucket_batch_sizes,
+                    padded_shapes=shapes,
+                    padding_values=padding_values))
+        else:
+            assert self.batching.batch_size
 
-            buckets[bucket_id].append(row)
+            dataset = dataset.padded_batch(
+                batch_size=self.batching.batch_size,
+                padded_shapes=shapes,
+                padding_values=padding_values,
+                drop_remainder=self.batching.drop_remainder)
 
-            if self.batching.bucket_batch_sizes is None:
-                assert self.batching.batch_size is not None
-                is_full = len(buckets[bucket_id]) >= self.batching.batch_size
-            else:
-                is_full = (len(buckets[bucket_id])
-                           >= self.batching.bucket_batch_sizes[bucket_id])
+        dataset = dataset.prefetch(1)
 
-            if is_full:
-                # Create the batch
-                name = "{}.batch.{}".format(self.name, batch_index)
-                data = {key: _make_datagen(buckets[bucket_id], key)
-                        for key in buckets[bucket_id][0]}
+        # TODO(tf-data) repeat and skip will be added in learning_utils
+        return dataset
 
-                yield Dataset(
-                    name=name, iterators=data, batching=self.batching)
-                batch_index += 1
-                buckets[bucket_id] = []
-
-            # If lazy, refill buffer & shuffle if needed
-            # Otherwise, all of the data is already loaded in the buffer.
-            if self.lazy and len(buf) < self.buffer_min_size:
-                # In case buffer_size is lower than batch_size
-                to_add = self.buffer_size - len(buf)
-
-                for _, item in zip(range(to_add), zipped_iterator):
-                    buf.append(item)
-
-                if self.shuffled:
-                    lbuf = list(buf)
-                    random.shuffle(lbuf)
-                    buf = deque(lbuf)
-
-        if not self.batching.drop_remainder:
-            for bucket in buckets:
-                if bucket:
-                    name = "{}.batch.{}".format(self.name, batch_index)
-                    data = {key: _make_datagen(bucket, key)
-                            for key in bucket[0]}
-
-                    yield Dataset(
-                        name=name, iterators=data, batching=self.batching)
-                    batch_index += 1
-    # pylint: enable=too-many-locals,too-many-branches
-
-    def subset(self, start: int, length: int) -> "Dataset":
+    def subset(self, start: int, length: int) -> tf.data.Dataset:
         """Create a subset of the dataset.
-
-        The sub-dataset will inherit the laziness and buffer size and shuffling
-        from the parent dataset.
 
         Arguments:
             start: Index of the first data instance in the dataset.
             length: Number of instances to include in the subset.
 
         Returns:
-            A subset `Dataset` object.
+            A subset tf.data.Dataset object
         """
-        name = "{}.{}.{}".format(self.name, start, length)
+        # name = "{}.{}.{}".format(self.name, start, length)
 
-        outputs = None
-        if self.outputs is not None:
-            outputs = {key: ("{}.{:010}".format(path, start), writer)
-                       for key, (path, writer) in self.outputs.items()}
+        # outputs = None
+        # if self.outputs is not None:
+        #     outputs = {key: ("{}.{:010}".format(path, start), writer)
+        #                for key, (path, writer) in self.outputs.items()}
 
-        slices = {s_id: lambda s=s_id: islice(self.get_series(s),
-                                              start, start + length)
-                  for s_id in self.iterators}
+        # slices = {s_id: lambda s=s_id: islice(self.get_series(s),
+        #                                       start, start + length)
+        #           for s_id in self.iterators}
 
-        # Here, the type: ignore is because of the tied argument to the lambda
-        # function above, which made it Callable[[Any], ...] instead of just
-        # Callable[[], ...].
-        return Dataset(  # type: ignore
-            name=name,
-            iterators=slices,
-            batching=self.batching,
-            outputs=outputs,
-            buffer_size=self.buffer_size,
-            shuffled=self.shuffled)
+        # # Here, the type ignore is because of the tied argument to the lambda
+        # # function above, which made it Callable[[Any], ...] instead of just
+        # # Callable[[], ...].
+        # return Dataset(  # type: ignore
+        #     name=name,
+        #     iterators=slices,
+        #     batching=self.batching,
+        #     outputs=outputs,
+        #     buffer_size=self.buffer_size,
+        #     shuffled=self.shuffled)
+
+        # TODO(tf-data) HOW to assign different write_outs and such?
+        raise NotImplementedError("Not implemented yet!")
