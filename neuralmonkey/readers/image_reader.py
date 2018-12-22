@@ -23,7 +23,7 @@ def image_reader(pad_w: int,
 
     Args:
         pad_w: Width to which the images will be padded/cropped/resized.
-        pad_h: Height to with the images will be padded/cropped/resized.
+        pad_h: Height to which the images will be padded/cropped/resized.
         channels: Number of channels in each image (default 3 for RGB)
         prefix: Prefix of the paths that are listed in a image files.
         rescale_w: If true, image is rescaled to have given width. It is

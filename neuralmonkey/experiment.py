@@ -420,7 +420,11 @@ class Experiment:
                 "variables: " + ", ".join(unused_initializers))
 
     def visualize_embeddings(self) -> None:
-        """Visualize embeddings of sequences in `main.visualize_embeddings`."""
+        """Insert visualization of embeddings in TensorBoard.
+
+        Visualize the embeddings of `EmbeddedFactorSequence` objects specified
+        in the `main.visualize_embeddings` config attribute.
+        """
         tb_projector = projector.ProjectorConfig()
 
         for sequence in self.model.visualize_embeddings:
