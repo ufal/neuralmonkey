@@ -1,5 +1,6 @@
 from typing import List, Dict
 from typeguard import check_argument_types
+import numpy as np
 from neuralmonkey.evaluators.evaluator import Evaluator
 
 # pylint: disable=invalid-name
@@ -25,7 +26,6 @@ class ChrFEvaluator(Evaluator[List[str]]):
         super().__init__(name)
 
         self.n = n
-        self.max_ord = n
         self.beta_2 = beta**2
 
         self.ignored = []  # type: List[str]
@@ -58,44 +58,39 @@ class ChrFEvaluator(Evaluator[List[str]]):
                 / ((self.beta_2 * precision) + recall))
 
     def chr_r(self, hyp_ngrams: NGramDicts, ref_ngrams: NGramDicts) -> float:
-        recall = 0.0
+        count_all = np.zeros(self.n)
+        count_matched = np.zeros(self.n)
         for m in range(1, self.n + 1):
-            count_all = 0
-            count_matched = 0
             for ngr in ref_ngrams[m - 1]:
                 ref_count = ref_ngrams[m - 1][ngr]
-                count_all += ref_count
+                count_all[m - 1] += ref_count
                 if ngr in hyp_ngrams[m - 1]:
-                    count_matched += min(ref_count, hyp_ngrams[m - 1][ngr])
-            # Catch division by zero
-            if count_all != 0.0:
-                recall += count_matched / count_all
-        return recall / float(self.max_ord)
+                    count_matched[m - 1] += min(
+                        ref_count, hyp_ngrams[m - 1][ngr])
+        return np.mean(np.divide(
+            count_matched, count_all, out=np.ones_like(count_all),
+            where=(count_all!=0)))
 
     def chr_p(self, hyp_ngrams: NGramDicts, ref_ngrams: NGramDicts) -> float:
-        precision = 0.0
+        count_all = np.zeros(self.n)
+        count_matched = np.zeros(self.n)
         for m in range(1, self.n + 1):
-            count_all = 0
-            count_matched = 0
             for ngr in hyp_ngrams[m - 1]:
                 hyp_count = hyp_ngrams[m - 1][ngr]
-                count_all += hyp_count
+                count_all[m - 1] += hyp_count
                 if ngr in ref_ngrams[m - 1]:
-                    count_matched += min(hyp_count, ref_ngrams[m - 1][ngr])
-            # Catch division by zero
-            if count_all != 0.0:
-                precision += count_matched / count_all
-
-        return precision / float(self.max_ord)
+                    count_matched[m - 1] += min(
+                        hyp_count, ref_ngrams[m - 1][ngr])
+        return np.mean(np.divide(
+            count_matched, count_all, out=np.ones_like(count_all),
+            where=(count_all!=0)))
 
     def _get_ngrams(self, tokens: List[str], n: int) -> NGramDicts:
-        if len(tokens) < n:
-            self.max_ord = len(tokens)
-
         ngr_dicts = []
         for m in range(1, n + 1):
             ngr_dict = {}  # type: Dict[str, int]
-            for i in range(m, len(tokens)):
+            # if m > len(tokens), return an empty dict
+            for i in range(m, len(tokens) + 1):
                 ngr = "".join(tokens[i - m:i])
                 ngr_dict[ngr] = ngr_dict.setdefault(ngr, 0) + 1
             ngr_dicts.append(ngr_dict)
