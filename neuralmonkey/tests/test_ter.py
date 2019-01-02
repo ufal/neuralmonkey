@@ -1,5 +1,3 @@
-#!/usr/bin/env python3.5
-
 import unittest
 
 from neuralmonkey.evaluators.ter import TER

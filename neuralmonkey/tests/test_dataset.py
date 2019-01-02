@@ -1,5 +1,3 @@
-#!/usr/bin/env python3.5
-
 from typing import Iterable, List
 import os
 import tempfile

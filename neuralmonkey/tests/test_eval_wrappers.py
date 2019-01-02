@@ -1,4 +1,4 @@
-# test evaluation metric wrappers
+"""Test for evaluation metric wrappers"""
 
 import unittest
 import os.path

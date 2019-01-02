@@ -1,4 +1,3 @@
-#!/usr/bin/env python3.5
 """Test init methods of encoders."""
 
 import unittest
