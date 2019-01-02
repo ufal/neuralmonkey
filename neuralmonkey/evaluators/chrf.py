@@ -37,11 +37,11 @@ class ChrFEvaluator(Evaluator[List[str]]):
                        reference: List[str]) -> float:
         hyp_joined = " ".join(hypothesis)
         hyp_chars = [x for x in list(hyp_joined) if x not in self.ignored]
-        hyp_ngrams = self._get_ngrams(hyp_chars, self.n)
+        hyp_ngrams = _get_ngrams(hyp_chars, self.n)
 
         ref_joined = " ".join(reference)
         ref_chars = [x for x in list(ref_joined) if x not in self.ignored]
-        ref_ngrams = self._get_ngrams(ref_chars, self.n)
+        ref_ngrams = _get_ngrams(ref_chars, self.n)
 
         if not hyp_chars or not ref_chars:
             if "".join(hyp_chars) == "".join(ref_chars):
@@ -69,7 +69,7 @@ class ChrFEvaluator(Evaluator[List[str]]):
                         ref_count, hyp_ngrams[m - 1][ngr])
         return np.mean(np.divide(
             count_matched, count_all, out=np.ones_like(count_all),
-            where=(count_all!=0)))
+            where=(count_all != 0)))
 
     def chr_p(self, hyp_ngrams: NGramDicts, ref_ngrams: NGramDicts) -> float:
         count_all = np.zeros(self.n)
@@ -83,18 +83,18 @@ class ChrFEvaluator(Evaluator[List[str]]):
                         hyp_count, ref_ngrams[m - 1][ngr])
         return np.mean(np.divide(
             count_matched, count_all, out=np.ones_like(count_all),
-            where=(count_all!=0)))
+            where=(count_all != 0)))
 
-    def _get_ngrams(self, tokens: List[str], n: int) -> NGramDicts:
-        ngr_dicts = []
-        for m in range(1, n + 1):
-            ngr_dict = {}  # type: Dict[str, int]
-            # if m > len(tokens), return an empty dict
-            for i in range(m, len(tokens) + 1):
-                ngr = "".join(tokens[i - m:i])
-                ngr_dict[ngr] = ngr_dict.setdefault(ngr, 0) + 1
-            ngr_dicts.append(ngr_dict)
-        return ngr_dicts
+
+def _get_ngrams(tokens: List[str], n: int) -> NGramDicts:
+    ngr_dicts = []
+    for m in range(1, n + 1):
+        ngr_dict = {}  # type: Dict[str, int]
+        for i in range(m, len(tokens) + 1):
+            ngr = "".join(tokens[i - m:i])
+            ngr_dict[ngr] = ngr_dict.setdefault(ngr, 0) + 1
+        ngr_dicts.append(ngr_dict)
+    return ngr_dicts
 
 
 # pylint: disable=invalid-name
