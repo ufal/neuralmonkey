@@ -11,7 +11,7 @@ from neuralmonkey.model.feedable import FeedDict
 from neuralmonkey.model.parameterized import InitializerSpecs
 from neuralmonkey.model.model_part import ModelPart
 from neuralmonkey.tf_utils import get_variable
-from neuralmonkey.vocabulary import Vocabulary, PAD_TOKEN_INDEX
+from neuralmonkey.vocabulary import Vocabulary, pad_batch, sentence_mask
 
 
 class SequenceLabeler(ModelPart):
@@ -40,19 +40,23 @@ class SequenceLabeler(ModelPart):
 
     @property
     def input_types(self) -> Dict[str, tf.DType]:
-        return {self.data_id: tf.int32}
+        return {self.data_id: tf.string}
 
     @property
     def input_shapes(self) -> Dict[str, tf.TensorShape]:
         return {self.data_id: tf.TensorShape([None, None])}
 
     @tensor
-    def train_targets(self) -> tf.Tensor:
+    def target_tokens(self) -> tf.Tensor:
         return self.dataset[self.data_id]
 
     @tensor
+    def train_targets(self) -> tf.Tensor:
+        return self.vocabulary.strings_to_indices(self.target_tokens)
+
+    @tensor
     def train_mask(self) -> tf.Tensor:
-        return tf.to_float(tf.not_equal(self.train_targets, PAD_TOKEN_INDEX))
+        return sentence_mask(self.train_targets)
 
     @property
     def rnn_size(self) -> int:
@@ -91,7 +95,7 @@ class SequenceLabeler(ModelPart):
 
         multiplication = tf.nn.conv2d(
             encoder_states, weights_4d, [1, 1, 1, 1], "SAME")
-        multiplication_3d = tf.squeeze(multiplication, squeeze_dims=[2])
+        multiplication_3d = tf.squeeze(multiplication, axis=[2])
 
         biases_3d = tf.expand_dims(tf.expand_dims(self.decoding_b, 0), 0)
 
@@ -102,7 +106,7 @@ class SequenceLabeler(ModelPart):
 
         dmultiplication = tf.nn.conv2d(
             embedded_inputs, dweights_4d, [1, 1, 1, 1], "SAME")
-        dmultiplication_3d = tf.squeeze(dmultiplication, squeeze_dims=[2])
+        dmultiplication_3d = tf.squeeze(dmultiplication, axis=[2])
 
         logits = multiplication_3d + dmultiplication_3d + biases_3d
         return logits
@@ -138,8 +142,6 @@ class SequenceLabeler(ModelPart):
 
         sentences = dataset.maybe_get_series(self.data_id)
         if sentences is not None:
-            vectors, _ = self.vocabulary.sentences_to_tensor(
-                list(sentences), pad_to_max_len=False, train_mode=train)
+            fd[self.target_tokens] = pad_batch(list(sentences))
 
-            fd[self.train_targets] = vectors.T
         return fd

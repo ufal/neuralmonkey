@@ -9,9 +9,10 @@ from typing import Dict, List, Any, Iterable
 from neuralmonkey.encoders.recurrent import SentenceEncoder
 from neuralmonkey.encoders.sentence_cnn_encoder import SentenceCNNEncoder
 from neuralmonkey.model.sequence import EmbeddedSequence
-from neuralmonkey.tests.test_vocabulary import VOCABULARY
+from neuralmonkey.vocabulary import Vocabulary
 
 
+VOCABULARY = Vocabulary(["ich", "bin", "der", "walrus"])
 INPUT_SEQUENCE = EmbeddedSequence("seq", VOCABULARY, "marmelade", 300)
 
 SENTENCE_ENCODER_GOOD = {

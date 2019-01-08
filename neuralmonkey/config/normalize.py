@@ -14,7 +14,6 @@ from typing import List, Union, Callable
 
 import numpy as np
 
-from neuralmonkey.dataset import BatchingScheme
 from neuralmonkey.logging import warn
 from neuralmonkey.tf_manager import get_default_tf_manager
 from neuralmonkey.trainers.delayed_update_trainer import DelayedUpdateTrainer
@@ -33,25 +32,6 @@ def normalize_configuration(cfg: Namespace, train_mode: bool) -> None:
 
     if cfg.tf_manager is None:
         cfg.tf_manager = get_default_tf_manager()
-
-    if (cfg.batch_size is None) == (cfg.batching_scheme is None):
-        raise ValueError("You must specify either batch_size or "
-                         "batching_scheme (not both).")
-
-    if cfg.batch_size is not None:
-        assert cfg.batching_scheme is None
-        cfg.batching_scheme = BatchingScheme(batch_size=cfg.batch_size)
-    else:
-        assert cfg.batching_scheme is not None
-        cfg.batch_size = cfg.batching_scheme.batch_size
-
-    if cfg.runners_batch_size is None:
-        cfg.runners_batch_size = cfg.batching_scheme.batch_size
-
-    cfg.runners_batching_scheme = BatchingScheme(
-        batch_size=cfg.runners_batch_size,
-        token_level_batching=cfg.batching_scheme.token_level_batching,
-        use_leftover_buckets=True)
 
     cfg.evaluation = [(e[0], e[0], e[1]) if len(e) == 2 else e
                       for e in cfg.evaluation]

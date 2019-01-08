@@ -45,9 +45,7 @@ class LabelRunner(BaseRunner[SequenceLabeler]):
             if self.executor.postprocess is not None:
                 decoded_labels = self.executor.postprocess(decoded_labels)
 
-            self.set_result(outputs=decoded_labels, losses=[loss],
-                            scalar_summaries=None, histogram_summaries=None,
-                            image_summaries=None)
+            self.set_runner_result(outputs=decoded_labels, losses=[loss])
     # pylint: enable=too-few-public-methods
 
     def __init__(self,

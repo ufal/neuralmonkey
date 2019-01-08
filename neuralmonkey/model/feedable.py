@@ -1,6 +1,8 @@
 from abc import ABCMeta
+
+from typing import Any, Dict, List
 # pylint: disable=unused-import
-from typing import Any, Dict, List, Optional
+from typing import Optional
 # pylint: enable=unused-import
 
 import tensorflow as tf
@@ -60,10 +62,5 @@ class Feedable(metaclass=ABCMeta):
             raise RuntimeError("Getting dataset before registering it.")
         return self._dataset
 
-    def register_input(self) -> None:
-        assert self.input_types.keys() == self.input_shapes.keys()
-        self._dataset = {}
-
-        for s_id, dtype in self.input_types.items():
-            shape = self.input_shapes[s_id]
-            self.dataset[s_id] = tf.placeholder(dtype, shape, s_id)
+    def register_input(self, dataset: Dict[str, tf.Tensor]) -> None:
+        self._dataset = dataset

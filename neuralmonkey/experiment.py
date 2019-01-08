@@ -12,18 +12,15 @@ from typing import Set  # pylint: disable=unused-import
 import numpy as np
 import tensorflow as tf
 from tensorflow.contrib.tensorboard.plugins import projector
-from typeguard import check_argument_types
 
-from neuralmonkey.checking import (check_dataset_and_coders,
-                                   CheckingException)
-from neuralmonkey.dataset import BatchingScheme, Dataset
+from neuralmonkey.checking import CheckingException
+from neuralmonkey.dataset import Dataset
 from neuralmonkey.logging import Logging, log, debug, warn
 from neuralmonkey.config.configuration import Configuration
 from neuralmonkey.config.normalize import normalize_configuration
 from neuralmonkey.learning_utils import (training_loop, evaluation,
                                          run_on_dataset,
                                          print_final_evaluation)
-from neuralmonkey.model.sequence import EmbeddedFactorSequence
 from neuralmonkey.runners.base_runner import ExecutionResult
 from neuralmonkey.runners.dataset_runner import DatasetRunner
 
@@ -158,10 +155,23 @@ class Experiment:
             feedables |= set.union(
                 *[ex.feedables for ex in self.model.trainers])
 
-        for feedable in feedables:
-            feedable.register_input()
+        # collect input shapes and types
+        input_types = {}  # type: Dict[str, tf.DType]
+        input_shapes = {}  # type: Dict[str, tf.TensorShape]
 
-        self.model.dataset_runner.register_input()
+        for feedable in feedables:
+            input_types.update(feedable.input_types)
+            input_shapes.update(feedable.input_shapes)
+
+        dataset = {}  # type: Dict[str, tf.Tensor]
+        for s_id, dtype in input_types.items():
+            shape = input_shapes[s_id]
+            dataset[s_id] = tf.placeholder(dtype, shape, s_id)
+
+        for feedable in feedables:
+            feedable.register_input(dataset)
+
+        self.model.dataset_runner.register_input(dataset)
 
     def build_model(self) -> None:
         """Build the configuration and the computational graph.
@@ -211,20 +221,8 @@ class Experiment:
 
             type(self)._current_experiment = None
 
-            if self.train_mode:
-                check_dataset_and_coders(self.model.train_dataset,
-                                         self.model.runners)
-                if isinstance(self.model.val_dataset, Dataset):
-                    check_dataset_and_coders(self.model.val_dataset,
-                                             self.model.runners)
-                else:
-                    for val_dataset in self.model.val_dataset:
-                        check_dataset_and_coders(val_dataset,
-                                                 self.model.runners)
-
-            if self.train_mode and self.model.visualize_embeddings:
-                visualize_embeddings(self.model.visualize_embeddings,
-                                     self.model.output)
+            if self.train_mode and self.model.visualize_embeddings is not None:
+                self.visualize_embeddings()
 
         self._check_unused_initializers()
 
@@ -263,17 +261,31 @@ class Experiment:
             log("Saving final variables in {}".format(final_variables))
             self.model.tf_manager.save(final_variables)
 
+            if self.model.test_datasets:
+                if self.model.tf_manager.best_score_index is not None:
+                    self.model.tf_manager.restore_best_vars()
+
+                for test_id, dataset in enumerate(self.model.test_datasets):
+                    self.evaluate(dataset, write_out=True,
+                                  name="test_{}".format(test_id))
+
             log("Finished.")
             self._vars_loaded = True
 
     def load_variables(self, variable_files: List[str] = None) -> None:
-        """Load variables from files.
+        """Load variables of the built model from file(s).
+
+        When variable files are not provided, Neural Monkey will try to infer
+        the name of a default checkpoint file using the following key:
+        1. Look for the averaged checkpoints named `variables.data.avg` or
+           `variables.data.avg-0`.
+        2. Look for file `variables.data.best` file which usually contains the
+           best scoring checkpoint from the run.
+        3. Look for the final checkpoint saved in `variables.data.final`.
 
         Arguments:
-            variable_files: A list of checkpoint file prefixes. A TF checkpoint
-                is usually three files with a common prefix. This list should
-                have the same number of files as there are sessions in the
-                `tf_manager` object.
+            variable_files: A list of variable files to load. The length of
+                this list should match the number of sessions.
         """
         if not self._model_built:
             self.build_model()
@@ -283,12 +295,16 @@ class Experiment:
                 variable_files = [self.get_path("variables.data.avg-0")]
             elif os.path.exists(self.get_path("variables.data.avg.index")):
                 variable_files = [self.get_path("variables.data.avg")]
-            else:
+            elif os.path.exists(self.get_path("variables.data.best")):
                 best_var_file = self.get_path("variables.data.best")
                 with open(best_var_file, "r") as f_best:
                     var_path = f_best.read().rstrip()
                 variable_files = [os.path.join(self.config.args.output,
                                                var_path)]
+            elif os.path.exists(self.get_path("variables.data.final.index")):
+                variable_files = [self.get_path("variables.data.final")]
+            else:
+                raise RuntimeError("Cannot infer default variables file")
 
             log("Default variable file '{}' will be used for loading "
                 "variables.".format(variable_files[0]))
@@ -305,7 +321,6 @@ class Experiment:
     def run_model(self,
                   dataset: Dataset,
                   write_out: bool = False,
-                  batch_size: int = None,
                   log_progress: int = 0) -> Tuple[
                       List[ExecutionResult], Dict[str, List], Dict[str, List]]:
         """Run the model on a given dataset.
@@ -314,7 +329,6 @@ class Experiment:
             dataset: The dataset on which the model will be executed.
             write_out: Flag whether the outputs should be printed to a file
                 defined in the dataset object.
-            batch_size: size of the minibatch
             log_progress: log progress every X seconds
 
         Returns:
@@ -325,17 +339,7 @@ class Experiment:
         if not self._vars_loaded:
             self.load_variables()
 
-        toklevel = self.model.runners_batching_scheme.token_level_batching
-        assert self.model.runners_batching_scheme.batch_bucket_span is None
-
-        batching_scheme = BatchingScheme(
-            batch_size=batch_size or self.model.runners_batch_size,
-            batch_bucket_span=None,
-            token_level_batching=toklevel,
-            bucketing_ignore_series=[])
-
         with self.graph.as_default():
-            # TODO: check_dataset_and_coders(dataset, self.model.runners)
             return run_on_dataset(
                 self.model.tf_manager,
                 self.model.runners,
@@ -343,13 +347,11 @@ class Experiment:
                 dataset,
                 self.model.postprocess,
                 write_out=write_out,
-                log_progress=log_progress,
-                batching_scheme=batching_scheme)
+                log_progress=log_progress)
 
     def evaluate(self,
                  dataset: Dataset,
                  write_out: bool = False,
-                 batch_size: int = None,
                  log_progress: int = 0,
                  name: str = None) -> Dict[str, Any]:
         """Run the model on a given dataset and evaluate the outputs.
@@ -358,7 +360,6 @@ class Experiment:
             dataset: The dataset on which the model will be executed.
             write_out: Flag whether the outputs should be printed to a file
                 defined in the dataset object.
-            batch_size: size of the minibatch
             log_progress: log progress every X seconds
             name: The name of the evaluated dataset
 
@@ -368,14 +369,13 @@ class Experiment:
             run.
         """
         execution_results, output_data, f_dataset = self.run_model(
-            dataset, write_out, batch_size, log_progress)
+            dataset, write_out, log_progress)
 
         evaluators = [(e[0], e[0], e[1]) if len(e) == 2 else e
                       for e in self.model.evaluation]
         with self.graph.as_default():
             eval_result = evaluation(
-                evaluators, f_dataset, self.model.runners,
-                execution_results, output_data)
+                evaluators, f_dataset, execution_results, output_data)
         if eval_result:
             print_final_evaluation(eval_result, name)
 
@@ -419,6 +419,31 @@ class Experiment:
                 "Initializers were specified for the following non-existent "
                 "variables: " + ", ".join(unused_initializers))
 
+    def visualize_embeddings(self) -> None:
+        """Insert visualization of embeddings in TensorBoard.
+
+        Visualize the embeddings of `EmbeddedFactorSequence` objects specified
+        in the `main.visualize_embeddings` config attribute.
+        """
+        tb_projector = projector.ProjectorConfig()
+
+        for sequence in self.model.visualize_embeddings:
+            for i, (vocabulary, emb_matrix) in enumerate(
+                    zip(sequence.vocabularies, sequence.embedding_matrices)):
+
+                # TODO when vocabularies will have name parameter, change it
+                path = self.get_path("seq.{}-{}.tsv".format(sequence.name, i))
+                vocabulary.save_wordlist(path)
+
+                embedding = tb_projector.embeddings.add()
+                # pylint: disable=unsubscriptable-object
+                embedding.tensor_name = emb_matrix.name
+                embedding.metadata_path = path
+                # pylint: enable=unsubscriptable-object
+
+        summary_writer = tf.summary.FileWriter(self.model.output)
+        projector.visualize_embeddings(summary_writer, tb_projector)
+
     @classmethod
     def get_current(cls) -> "Experiment":
         """Return the experiment that is currently being built."""
@@ -430,11 +455,9 @@ def create_config(train_mode: bool = True) -> Configuration:
     config.add_argument("tf_manager", required=False, default=None)
     config.add_argument("batch_size", required=False, default=None,
                         cond=lambda x: x is None or x > 0)
-    config.add_argument("batching_scheme", required=False, default=None)
     config.add_argument("output")
     config.add_argument("postprocess", required=False, default=None)
     config.add_argument("runners")
-    config.add_argument("runners_batch_size", required=False, default=None)
 
     if train_mode:
         config.add_argument("epochs", cond=lambda x: x >= 0)
@@ -522,16 +545,3 @@ def save_git_info(git_commit_file: str, git_diff_file: str,
             )
     else:
         warn("No git executable found. Not storing git commit and diffs")
-
-
-def visualize_embeddings(sequences: List[EmbeddedFactorSequence],
-                         output_dir: str) -> None:
-    check_argument_types()
-
-    tb_projector = projector.ProjectorConfig()
-
-    for sequence in sequences:
-        sequence.tb_embedding_visualization(output_dir, tb_projector)
-
-    summary_writer = tf.summary.FileWriter(output_dir)
-    projector.visualize_embeddings(summary_writer, tb_projector)

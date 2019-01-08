@@ -476,7 +476,8 @@ class BeamSearchDecoder(ModelPart):
             topk_indices.set_shape([None, self.beam_size])
             topk_scores.set_shape([None, self.beam_size])
 
-            next_word_ids = tf.mod(topk_indices, len(self.vocabulary))
+            next_word_ids = tf.to_int64(
+                tf.mod(topk_indices, len(self.vocabulary)))
             next_beam_ids = tf.div(topk_indices, len(self.vocabulary))
 
             # batch offset for tf.gather_nd

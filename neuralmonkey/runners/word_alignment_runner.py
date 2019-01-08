@@ -16,9 +16,7 @@ class WordAlignmentRunner(BaseRunner[BaseAttention]):
     class Executable(BaseRunner.Executable["WordAlignmentRunner"]):
 
         def collect_results(self, results: List[Dict]) -> None:
-            self.set_result(outputs=results[0]["alignment"], losses=[],
-                            scalar_summaries=None, histogram_summaries=None,
-                            image_summaries=None)
+            self.set_runner_result(outputs=results[0]["alignment"], losses=[])
     # pylint: enable=too-few-public-methods
 
     def __init__(self,

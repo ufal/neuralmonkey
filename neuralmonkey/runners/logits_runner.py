@@ -52,11 +52,8 @@ class LogitsRunner(BaseRunner[Classifier]):
 
             str_outputs = [["\t".join(l)] for l in outputs]
 
-            self.set_result(outputs=str_outputs,
-                            losses=[train_loss, runtime_loss],
-                            scalar_summaries=None,
-                            histogram_summaries=None,
-                            image_summaries=None)
+            self.set_runner_result(outputs=str_outputs,
+                                   losses=[train_loss, runtime_loss])
 
     def __init__(self,
                  output_series: str,
@@ -88,8 +85,8 @@ class LogitsRunner(BaseRunner[Classifier]):
         self.normalize = normalize
         if pick_value is not None:
             if pick_value in self.decoder.vocabulary:
-                vocab_map = self.decoder.vocabulary.word_to_index
-                self.pick_index = vocab_map[pick_value]
+                self.pick_index = self.decoder.vocabulary.index_to_word.index(
+                    pick_value)
             else:
                 raise ValueError(
                     "Value '{}' is not in vocabulary of decoder '{}'".format(

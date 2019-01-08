@@ -7,7 +7,6 @@ Descendants should only specify the initial state and the while loop body.
 """
 from typing import NamedTuple, Callable, Tuple, Optional, Any, List, Dict
 
-import numpy as np
 import tensorflow as tf
 
 from neuralmonkey.dataset import Dataset
@@ -20,8 +19,7 @@ from neuralmonkey.model.sequence import EmbeddedSequence
 from neuralmonkey.nn.utils import dropout
 from neuralmonkey.tf_utils import get_variable, get_state_shape_invariants
 from neuralmonkey.vocabulary import (
-    Vocabulary, START_TOKEN, UNK_TOKEN_INDEX, START_TOKEN_INDEX,
-    PAD_TOKEN_INDEX)
+    Vocabulary, pad_batch, sentence_mask, UNK_TOKEN_INDEX, START_TOKEN_INDEX)
 
 
 class LoopState(NamedTuple(
@@ -181,23 +179,29 @@ class AutoregressiveDecoder(ModelPart):
 
     @tensor
     def go_symbols(self) -> tf.Tensor:
-        return tf.fill([self.batch_size], START_TOKEN_INDEX)
+        return tf.fill([self.batch_size],
+                       tf.constant(START_TOKEN_INDEX, dtype=tf.int64))
 
     @property
     def input_types(self) -> Dict[str, tf.DType]:
-        return {self.data_id: tf.int32}
+        return {self.data_id: tf.string}
 
     @property
     def input_shapes(self) -> Dict[str, tf.TensorShape]:
         return {self.data_id: tf.TensorShape([None, None])}
 
     @tensor
-    def train_inputs(self) -> tf.Tensor:
+    def train_tokens(self) -> tf.Tensor:
         return self.dataset[self.data_id]
 
     @tensor
+    def train_inputs(self) -> tf.Tensor:
+        return tf.transpose(
+            self.vocabulary.strings_to_indices(self.train_tokens))
+
+    @tensor
     def train_mask(self) -> tf.Tensor:
-        return tf.to_float(tf.not_equal(self.train_inputs, PAD_TOKEN_INDEX))
+        return sentence_mask(self.train_inputs)
 
     @tensor
     def decoding_w(self) -> tf.Variable:
@@ -373,7 +377,7 @@ class AutoregressiveDecoder(ModelPart):
 
         outputs = tf.zeros(
             shape=[0, self.batch_size],
-            dtype=tf.int32,
+            dtype=tf.int64,
             name="outputs")
 
         feedables = DecoderFeedables(
@@ -480,18 +484,9 @@ class AutoregressiveDecoder(ModelPart):
             raise ValueError("When training, you must feed "
                              "reference sentences")
 
-        go_symbol_idx = self.vocabulary.get_word_index(START_TOKEN)
-        fd[self.go_symbols] = np.full([len(dataset)], go_symbol_idx,
-                                      dtype=np.int32)
-
         if sentences is not None:
-            sentences_list = list(sentences)
-            # train_mode=False, since we don't want to <unk>ize target words!
-            inputs, _ = self.vocabulary.sentences_to_tensor(
-                sentences_list, self.max_output_len, train_mode=False,
-                add_start_symbol=False, add_end_symbol=True,
-                pad_to_max_len=False)
-
-            fd[self.train_inputs] = inputs
+            fd[self.train_tokens] = pad_batch(
+                list(sentences), self.max_output_len, add_start_symbol=False,
+                add_end_symbol=True)
 
         return fd

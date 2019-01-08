@@ -54,13 +54,13 @@ class GreedyRunner(BaseRunner[SupportedDecoder]):
             if self.executor.postprocess is not None:
                 decoded_tokens = self.executor.postprocess(decoded_tokens)
 
-            image_summaries = results[0].get("image_summaries")
+            summaries = None
+            if "image_summaries" in results[0]:
+                summaries = [results[0]["image_summaries"]]
 
-            self.set_result(outputs=decoded_tokens,
-                            losses=[train_loss, runtime_loss],
-                            scalar_summaries=None,
-                            histogram_summaries=None,
-                            image_summaries=image_summaries)
+            self.set_runner_result(
+                outputs=decoded_tokens, losses=[train_loss, runtime_loss],
+                summaries=summaries)
 
     def __init__(self,
                  output_series: str,

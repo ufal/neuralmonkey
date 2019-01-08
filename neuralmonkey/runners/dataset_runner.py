@@ -13,11 +13,8 @@ class DatasetRunner(GraphExecutor, Feedable):
 
         def collect_results(self, results: List[Dict]) -> None:
             res = results[0]
-            # convert bytes to str, probably here.
-
-            data = [dict(zip(res, series)) for series in zip(*res.values())]
-
-            self.set_result(data, [], None, None, None)
+            size = res["batch"]
+            self.set_result(res, {}, size, [])
     # pylint: enable=too-few-public-methods
 
     def __init__(self) -> None:
@@ -27,4 +24,5 @@ class DatasetRunner(GraphExecutor, Feedable):
     @tensor
     def fetches(self) -> Dict[str, tf.Tensor]:
         assert self.dataset is not None
-        return self.dataset
+        # TODO(tf-data) this will change to fetch real data
+        return {"batch": self.batch_size}

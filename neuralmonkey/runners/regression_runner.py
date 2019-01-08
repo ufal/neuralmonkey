@@ -30,16 +30,12 @@ class RegressionRunner(BaseRunner[SequenceRegressor]):
 
                 predictions_sum += sess_result["prediction"]
 
-            predictions = predictions_sum / len(results)
+            predictions = (predictions_sum / len(results)).tolist()
 
             if self.executor.postprocess is not None:
                 predictions = self.executor.postprocess(predictions)
 
-            self.set_result(outputs=predictions.tolist(),
-                            losses=[mse_loss],
-                            scalar_summaries=None,
-                            histogram_summaries=None,
-                            image_summaries=None)
+            self.set_runner_result(outputs=predictions, losses=[mse_loss])
     # pylint: enable=too-few-public-methods
 
     def __init__(self,

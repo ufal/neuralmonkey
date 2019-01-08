@@ -24,6 +24,7 @@ bin/neuralmonkey-train tests/transformer.ini
 bin/neuralmonkey-train tests/str.ini
 bin/neuralmonkey-train tests/flat-multiattention.ini
 bin/neuralmonkey-train tests/hier-multiattention.ini
+bin/neuralmonkey-train tests/small_sent_cnn.ini
 
 # Testing environment variable substitution in config file
 NM_EXPERIMENT_NAME=small bin/neuralmonkey-train tests/small.ini
@@ -32,8 +33,6 @@ bin/neuralmonkey-run tests/small.ini tests/test_data.ini
 bin/neuralmonkey-run tests/small.ini tests/test_data.ini --json /dev/stdout \
     | python -c 'import sys,json; print(json.load(sys.stdin)[0]["target/bleu"])'
 unset NM_EXPERIMENT_NAME
-
-bin/neuralmonkey-train tests/small_sent_cnn.ini
 
 # Ensembles testing
 score_single=$(bin/neuralmonkey-run tests/beamsearch.ini tests/test_data_ensembles_single.ini --json /dev/stdout | python -c 'import sys,json;print(json.load(sys.stdin)[0]["target_beam.rank001/beam_search_score"])')

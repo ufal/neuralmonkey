@@ -10,7 +10,7 @@ from neuralmonkey.model.parameterized import InitializerSpecs
 from neuralmonkey.model.model_part import ModelPart
 from neuralmonkey.model.stateful import Stateful
 from neuralmonkey.nn.mlp import MultilayerPerceptron
-from neuralmonkey.vocabulary import Vocabulary
+from neuralmonkey.vocabulary import Vocabulary, pad_batch
 
 
 class Classifier(ModelPart):
@@ -64,7 +64,7 @@ class Classifier(ModelPart):
 
     @property
     def input_types(self) -> Dict[str, tf.DType]:
-        return {self.data_id: tf.int32}
+        return {self.data_id: tf.string}
 
     @property
     def input_shapes(self) -> Dict[str, tf.TensorShape]:
@@ -72,6 +72,10 @@ class Classifier(ModelPart):
 
     @tensor
     def gt_inputs(self) -> tf.Tensor:
+        return self.vocabulary.strings_to_indices(self.targets)
+
+    @tensor
+    def targets(self) -> tf.Tensor:
         return self.dataset[self.data_id]
 
     @tensor
@@ -132,8 +136,8 @@ class Classifier(ModelPart):
         sentences = dataset.maybe_get_series(self.data_id)
 
         if sentences is not None:
-            label_tensors, _ = self.vocabulary.sentences_to_tensor(
-                list(sentences), self.max_output_len)
-            fd[self.gt_inputs] = label_tensors[0]
+            labels = [l[0] for l in pad_batch(list(sentences),
+                                              self.max_output_len)]
+            fd[self.targets] = labels
 
         return fd

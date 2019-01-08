@@ -1,10 +1,8 @@
 """Module which impements the sequence class and a few of its subclasses."""
 
-import os
 from typing import List, Dict
 
 import tensorflow as tf
-from tensorflow.contrib.tensorboard.plugins import projector
 from typeguard import check_argument_types
 
 from neuralmonkey.dataset import Dataset
@@ -14,7 +12,7 @@ from neuralmonkey.model.model_part import ModelPart
 from neuralmonkey.model.parameterized import InitializerSpecs
 from neuralmonkey.model.stateful import TemporalStateful
 from neuralmonkey.tf_utils import get_variable
-from neuralmonkey.vocabulary import Vocabulary, PAD_TOKEN_INDEX
+from neuralmonkey.vocabulary import Vocabulary, pad_batch, sentence_mask
 
 
 # pylint: disable=abstract-method
@@ -133,39 +131,20 @@ class EmbeddedFactorSequence(Sequence):
 
     @property
     def input_types(self) -> Dict[str, tf.DType]:
-        return {d_id: tf.int32 for d_id in self.data_ids}
+        return {d_id: tf.string for d_id in self.data_ids}
 
     @property
     def input_shapes(self) -> Dict[str, tf.TensorShape]:
         return {d_id: tf.TensorShape([None, None]) for d_id in self.data_ids}
 
     @tensor
+    def input_factor_indices(self) -> List[tf.Tensor]:
+        return [vocab.strings_to_indices(factor) for
+                vocab, factor in zip(self.vocabularies, self.input_factors)]
+
+    @tensor
     def input_factors(self) -> List[tf.Tensor]:
         return [self.dataset[s_id] for s_id in self.data_ids]
-
-    # TODO this should be placed into the abstract embedding class
-    def tb_embedding_visualization(self, logdir: str,
-                                   prj: projector):
-        """Link embeddings with vocabulary wordlist.
-
-        Used for tensorboard visualization.
-
-        Arguments:
-            logdir: directory where model is stored
-            projector: TensorBoard projector for storing linking info.
-        """
-        for i in range(len(self.vocabularies)):
-            # the overriding is turned to true, because if the model would not
-            # be allowed to override the output folder it would failed earlier.
-            # TODO when vocabularies will have name parameter, change it
-            metadata_path = self.name + "_" + str(i) + ".tsv"
-            self.vocabularies[i].save_wordlist(
-                os.path.join(logdir, metadata_path), True, True)
-
-            embedding = prj.embeddings.add()
-            # pylint: disable=unsubscriptable-object
-            embedding.tensor_name = self.embedding_matrices[i].name
-            embedding.metadata_path = metadata_path
 
     @tensor
     def embedding_matrices(self) -> List[tf.Tensor]:
@@ -195,7 +174,7 @@ class EmbeddedFactorSequence(Sequence):
         """
         embedded_factors = []
         for (factor, embedding_matrix) in zip(
-                self.input_factors, self.embedding_matrices):
+                self.input_factor_indices, self.embedding_matrices):
             emb_factor = tf.nn.embedding_lookup(embedding_matrix, factor)
 
             # github.com/tensorflow/tensor2tensor/blob/v1.5.6/tensor2tensor/
@@ -214,8 +193,7 @@ class EmbeddedFactorSequence(Sequence):
     # pylint: disable=unsubscriptable-object
     @tensor
     def temporal_mask(self) -> tf.Tensor:
-        return tf.to_float(tf.not_equal(
-            self.input_factors[0], PAD_TOKEN_INDEX))
+        return sentence_mask(self.input_factor_indices[0])
     # pylint: enable=unsubscriptable-object
 
     def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
@@ -232,27 +210,11 @@ class EmbeddedFactorSequence(Sequence):
         fd = ModelPart.feed_dict(self, dataset, train)
 
         # for checking the lengths of individual factors
-        arr_strings = []
-        last_paddings = None
-
-        for factor_plc, name, vocabulary in zip(
-                self.input_factors, self.data_ids, self.vocabularies):
-            factors = dataset.get_series(name)
-            vectors, paddings = vocabulary.sentences_to_tensor(
-                list(factors), self.max_length, pad_to_max_len=False,
-                train_mode=train, add_start_symbol=self.add_start_symbol,
-                add_end_symbol=self.add_end_symbol)
-
-            fd[factor_plc] = list(zip(*vectors))
-
-            arr_strings.append(paddings.tostring())
-            last_paddings = paddings
-
-        if len(set(arr_strings)) > 1:
-            raise ValueError("The lenghts of factors do not match")
-
-        assert last_paddings is not None
-        # fd[self.mask] = list(zip(*last_paddings))
+        for factor_plc, name in zip(self.input_factors, self.data_ids):
+            sentences = dataset.get_series(name)
+            fd[factor_plc] = pad_batch(
+                list(sentences), self.max_length, self.add_start_symbol,
+                self.add_end_symbol)
 
         return fd
 
@@ -314,7 +276,7 @@ class EmbeddedSequence(EmbeddedFactorSequence):
     @property
     def inputs(self) -> tf.Tensor:
         """Return a 2D placeholder for the sequence inputs."""
-        return self.input_factors[0]
+        return self.input_factor_indices[0]
 
     @property
     def embedding_matrix(self) -> tf.Tensor:

@@ -81,7 +81,7 @@ def wordpiece_encode(sentence: List[str], vocabulary: Vocabulary) -> List[str]:
             for end in range(token_len, current_subtoken_start, -1):
                 subtoken = esc_token[current_subtoken_start:end]
 
-                if subtoken in vocabulary.word_to_index:
+                if subtoken in vocabulary:
                     subtokens.append(subtoken)
                     current_subtoken_start = end
                     break
