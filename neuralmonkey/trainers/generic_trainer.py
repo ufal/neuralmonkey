@@ -121,7 +121,7 @@ class GenericTrainer:
             self.all_coders = set.union(*(obj.decoder.get_dependencies()
                                           for obj in self.objectives))
 
-            self.gradient = gradients
+            self.gradients = gradients
             self.train_op = self.optimizer.apply_gradients(
                 self.gradients,
                 global_step=tf.train.get_or_create_global_step())

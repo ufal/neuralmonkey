@@ -14,6 +14,11 @@ PlainTextFileReader = Callable[[List[str]], Iterable[List[str]]]
 
 csv.field_size_limit(sys.maxsize)
 
+ALNUM_CHARSET = set(
+    chr(i) for i in range(sys.maxunicode)
+    if (unicodedata.category(chr(i)).startswith("L")
+        or unicodedata.category(chr(i)).startswith("N")))
+
 
 def string_reader(
         encoding: str = "utf-8") -> Callable[[List[str]], Iterable[str]]:
@@ -52,20 +57,15 @@ def t2t_tokenized_text_reader(encoding: str = "utf-8") -> PlainTextFileReader:
     to preserve the whitespace around weird characters and whitespace on weird
     positions (beginning and end of the text).
     """
-    alphanumeric_charset = set(
-        chr(i) for i in range(sys.maxunicode)
-        if (unicodedata.category(chr(i)).startswith("L")
-            or unicodedata.category(chr(i)).startswith("N")))
-
     def reader(files: List[str]) -> Iterable[List[str]]:
         lines = string_reader(encoding)
         for line in lines(files):
             if not line:
                 yield []
-            line = line.rstrip("\n")
+            line = line.strip()
 
             tokens = []
-            is_alnum = [ch in alphanumeric_charset for ch in line]
+            is_alnum = [ch in ALNUM_CHARSET for ch in line]
             current_token_start = 0
 
             for pos in range(1, len(line)):

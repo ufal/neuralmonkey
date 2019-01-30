@@ -17,6 +17,7 @@ from neuralmonkey.decoders.autoregressive import (
 from neuralmonkey.encoders.transformer import (
     TransformerLayer, position_signal)
 from neuralmonkey.model.sequence import EmbeddedSequence
+from neuralmonkey.model.model_part import ModelPart
 from neuralmonkey.logging import log
 from neuralmonkey.nn.utils import dropout
 from neuralmonkey.vocabulary import (
@@ -61,7 +62,7 @@ class TransformerDecoder(AutoregressiveDecoder):
                  n_heads_enc: int,
                  depth: int,
                  max_output_len: int,
-                 reuse: bool = False,
+                 reuse: ModelPart = None,
                  dropout_keep_prob: float = 1.0,
                  embedding_size: int = None,
                  embeddings_source: EmbeddedSequence = None,
@@ -144,8 +145,6 @@ class TransformerDecoder(AutoregressiveDecoder):
         self._variable_scope.set_initializer(tf.variance_scaling_initializer(
             mode="fan_avg", distribution="uniform"))
 
-        if reuse:
-            self._variable_scope.reuse_variables()
         log("Decoder cost op: {}".format(self.cost))
         self._variable_scope.reuse_variables()
         log("Runtime logits: {}".format(self.runtime_logits))

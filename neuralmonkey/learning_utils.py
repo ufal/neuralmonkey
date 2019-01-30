@@ -192,7 +192,7 @@ def training_loop(tf_manager: TensorFlowManager,
                         batch, trainers, train=True, summaries=True)
                     train_results, train_outputs = run_on_dataset(
                         tf_manager, runners, batch, postprocess,
-                        write_out=False, batch_size=len(batch))
+                        write_out=False, batch_size=runners_batch_size)
                     # ensure train outputs are iterable more than once
                     train_outputs = {
                         k: list(v) for k, v in train_outputs.items()}
@@ -386,9 +386,6 @@ def run_on_dataset(tf_manager: TensorFlowManager,
                    postprocess: Postprocess,
                    batch_size: int,
                    write_out: bool = False,
-                   batch_size: Optional[int] = None,
-                   batch_bucket_span: int = -1,
-                   token_level_batching: bool = False,
                    log_progress: int = 0) -> Tuple[
                        List[ExecutionResult], Dict[str, List[Any]]]:
     """Apply the model on a dataset and optionally write outputs to files.
@@ -424,7 +421,7 @@ def run_on_dataset(tf_manager: TensorFlowManager,
     batch_results = [[] for _ in runners]  # type: List[List[ExecutionResult]]
 
     num_processed = 0
-    for i, batch in enumerate(dataset.batches(batch_size, batch_bucket_span, token_level_batching)):
+    for batch in dataset.batches(batch_size):
         num_processed += len(batch)
         if 0 < log_progress < time.process_time() - last_log_time:
             log("Processed {} examples.".format(processed))

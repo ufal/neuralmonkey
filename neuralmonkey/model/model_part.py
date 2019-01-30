@@ -21,7 +21,7 @@ class ModelPart(metaclass=ABCMeta):
 
     def __init__(self,
                  name: str,
-                 reuse: bool = False,
+                 reuse: "ModelPart" = None,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None,
                  initializers: InitializerSpecs = None) -> None:
@@ -30,6 +30,7 @@ class ModelPart(metaclass=ABCMeta):
         self._load_checkpoint = load_checkpoint
 
         self._saver = None  # type: tf.train.Saver
+        self._reuse = reuse is not None
 
         with tf.variable_scope(name) as scope:
             self._variable_scope = scope
@@ -38,12 +39,26 @@ class ModelPart(metaclass=ABCMeta):
                     (scope.name + "/" + name, initializer)
                     for name, initializer in initializers)
 
+        if reuse is not None:
+            if initializers is not None:
+                raise ValueError("Cannot use initializers in model part '{}' "
+                                 "that reuses variables from '{}'."
+                                 .format(name, reuse.name))
+
+            # pylint: disable=protected-access
+            self._variable_scope = reuse._variable_scope  # type: ignore
+            # pylint: enable=protected-access
+        else:
+            with tf.variable_scope(name) as scope:
+                self._variable_scope = scope
+                if initializers is not None:
+                    tf_utils.update_initializers(
+                        (scope.name + "/" + name, initializer)
+                        for name, initializer in initializers)
+
         with self.use_scope():
             self.train_mode = tf.placeholder(tf.bool, [], "train_mode")
             self.batch_size = tf.placeholder(tf.int32, [], "batch_size")
-
-        if reuse:
-            self._variable_scope.reuse_variables()
 
     @property
     def name(self) -> str:
@@ -57,7 +72,9 @@ class ModelPart(metaclass=ABCMeta):
         Return a context manager that (re)opens the model part's variable
         and name scope.
         """
-        with tf.variable_scope(self._variable_scope):
+        reuse = self._variable_scope.reuse or self._reuse
+
+        with tf.variable_scope(self._variable_scope, reuse=reuse):
             # tf.variable_scope always creates a NEW name scope for ops, but
             # we want to use the original one:
             with tf.name_scope(self._variable_scope.original_name_scope):
