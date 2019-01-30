@@ -372,7 +372,7 @@ def load(name: str,
             _add_preprocessed_series(iterators, source, prep_sl)
         if source not in iterators:
             raise ValueError(
-            "Source series {} for series-level preprocessor nonexistent: "
+                "Source series {} for series-level preprocessor nonexistent: "
                 "Preprocessed series '', source series ''".format(source))
         iterators[s_name] = _make_sl_iterator(source, preprocessor)
 
@@ -469,7 +469,6 @@ class Dataset:
             self.buffer_min_size, self.buffer_size = buffer_size
         else:
             self.lazy = False
-            self.buffer_size = None
 
         self.shuffled = shuffled
         self.length = None
@@ -590,11 +589,6 @@ class Dataset:
                 return (row[key] for row in rows)
             return itergen
 
-        def _make_datagen(rows, key):
-            def itergen():
-                return (row[key] for row in rows)
-            return itergen
-
         # Iterate over the rest of the data until buffer is empty
         batch_index = 0
         buckets = [[]]  # type: List[List[DataExample]]
@@ -653,14 +647,6 @@ class Dataset:
 
                 if self.shuffled:
                     random.shuffle(buf)  # type: ignore
-        for bucket_id in buckets:
-            if buckets[bucket_id]:
-                name = "{}.batch.{}".format(self.name, batch_index)
-                data = {key: _make_datagen(buckets[bucket_id], key)
-                        for key in buckets[bucket_id][0]}
-
-                yield Dataset(name=name, iterators=data)
-                batch_index += 1
 
         if not self.batching.drop_remainder:
             for bucket in buckets:

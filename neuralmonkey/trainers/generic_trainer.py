@@ -48,7 +48,7 @@ class GenericTrainer(GraphExecutor, Feedable):
                                   result["histogram_summaries"]])
 
             objective_names = [obj.name for obj in self.executor.objectives]
-            objective_names += ["L1", "L2"]
+            objective_names += [reg.name for reg in self.executor.regularizers]
 
             losses = dict(zip(objective_names, result["losses"]))
 
@@ -87,24 +87,27 @@ class GenericTrainer(GraphExecutor, Feedable):
 
     # pylint: disable=no-self-use
     @tensor
+    def regularizable(self) -> List[tf.Tensor]:
+        return [v for v in tf.trainable_variables()
+                if not BIAS_REGEX.findall(v.name)
+                and not v.name.startswith("vgg")
+                and not v.name.startswith("Inception")
+                and not v.name.startswith("resnet")]
+    # pylint: enable=no-self-use
+
+    @tensor
     def regularization_losses(self) -> List[tf.Tensor]:
         """Compute the regularization losses, e.g. L1 and L2."""
-        regularizable = [v for v in tf.trainable_variables()
-                         if not BIAS_REGEX.findall(v.name)
-                         and not v.name.startswith("vgg")
-                         and not v.name.startswith("Inception")
-                         and not v.name.startswith("resnet")]
-
+        regularizable = self.regularizable
         if not regularizable:
             warn("It seems that there are no trainable variables in the model")
-            return tf.zeros([]), tf.zeros([])
+            return [tf.zeros([]) for _ in self.regularizers]
 
         with tf.name_scope("regularization"):
             reg_values = [reg.value(regularizable)
                           for reg in self.regularizers]
 
         return reg_values
-    # pylint: enable=no-self-use
 
     @tensor
     def objective_values(self) -> List[tf.Tensor]:
@@ -127,7 +130,7 @@ class GenericTrainer(GraphExecutor, Feedable):
             else:
                 obj_weights.append(obj.weight)
 
-        obj_weights += [reg.weights for reg in self.regularizers]
+        obj_weights += [reg.weight for reg in self.regularizers]
         diff_loss = sum(
             o * w for o, w in zip(self.objective_values, obj_weights)
             if w is not None)
@@ -219,11 +222,11 @@ class GenericTrainer(GraphExecutor, Feedable):
         # we always want to include l2 values in the summary
         if L1Regularizer not in [type(r) for r in self.regularizers]:
             l1_reg = L1Regularizer(name="train_l1", weight=0.)
-            tf.summary.scalar(l1_reg.name, l1_reg.value(regularizable),
+            tf.summary.scalar(l1_reg.name, l1_reg.value(self.regularizable),
                               collections=["summary_train"])
         if L2Regularizer not in [type(r) for r in self.regularizers]:
             l2_reg = L2Regularizer(name="train_l2", weight=0.)
-            tf.summary.scalar(l2_reg.name, l2_reg.value(regularizable),
+            tf.summary.scalar(l2_reg.name, l2_reg.value(self.regularizable),
                               collections=["summary_train"])
 
         for reg, reg_value in zip(self.regularizers, reg_values):

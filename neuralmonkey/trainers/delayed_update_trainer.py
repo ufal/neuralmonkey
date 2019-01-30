@@ -9,6 +9,8 @@ from neuralmonkey.decorators import tensor
 from neuralmonkey.runners.base_runner import GraphExecutor, NextExecute
 from neuralmonkey.trainers.generic_trainer import (GenericTrainer, Objective,
                                                    Gradients)
+from neuralmonkey.trainers.regularizers import (Regularizer, L1Regularizer,
+                                                L2Regularizer)
 
 
 class DelayedUpdateTrainer(GenericTrainer):
@@ -76,7 +78,7 @@ class DelayedUpdateTrainer(GenericTrainer):
             assert self.res_batch is not None
 
             objective_names = [obj.name for obj in self.executor.objectives]
-            objective_names += ["L1", "L2"]
+            objective_names += [reg.name for reg in self.executor.regularizers]
             losses = dict(zip(objective_names, self.res_losses))
 
             self.set_result({}, losses, self.res_batch, self.res_sums)
@@ -85,16 +87,14 @@ class DelayedUpdateTrainer(GenericTrainer):
     def __init__(self,
                  batches_per_update: int,
                  objectives: List[Objective],
-                 l1_weight: float = 0.0,
-                 l2_weight: float = 0.0,
                  clip_norm: float = None,
                  optimizer: tf.train.Optimizer = None,
+                 regularizers: List[Regularizer] = None,
                  var_scopes: List[str] = None,
                  var_collection: str = None) -> None:
         check_argument_types()
-        GenericTrainer.__init__(self, objectives, l1_weight, l2_weight,
-                                clip_norm, optimizer, var_scopes,
-                                var_collection)
+        GenericTrainer.__init__(self, objectives, clip_norm, optimizer,
+                                regularizers, var_scopes, var_collection)
 
         self.batches_per_update = batches_per_update
     # pylint: enable=too-many-arguments
@@ -186,17 +186,6 @@ class DelayedUpdateTrainer(GenericTrainer):
                           for grad in self.gradient_buffers]
         # pylint: enable=not-an-iterable
 
-        tf.summary.scalar(
-            "train_opt_cost",
-            self.diff_buffer / tf.to_float(self.cumulator_counter),
-            collections=["summary_train"])
-
-        # log all objectives
-        for obj, objbuf in zip(self.objectives, self.objective_buffers):
-            tf.summary.scalar(
-                obj.name, objbuf / tf.to_float(self.cumulator_counter),
-                collections=["summary_train"])
-
         # now, zip averaged grads with associated vars to a Gradients struct.
         # pylint: disable=unpacking-non-sequence
         _, existing_vars = self.existing_grads_and_vars
@@ -205,18 +194,37 @@ class DelayedUpdateTrainer(GenericTrainer):
 
     @tensor
     def summaries(self) -> Dict[str, tf.Tensor]:
+
         # pylint: disable=protected-access
         if isinstance(self.optimizer._lr, tf.Tensor):
             tf.summary.scalar("learning_rate", self.optimizer._lr,
                               collections=["summary_train"])
         # pylint: enable=protected-access
 
-        # pylint: disable=unpacking-non-sequence
-        l1_norm, l2_norm = self.regularization_losses
-        # pylint: enable=unpacking-non-sequence
+        reg_values = self.regularization_losses
+        # we always want to include l2 values in the summary
+        if L1Regularizer not in [type(r) for r in self.regularizers]:
+            l1_reg = L1Regularizer(name="train_l1", weight=0.)
+            tf.summary.scalar(l1_reg.name, l1_reg.value(self.regularizable),
+                              collections=["summary_train"])
+        if L2Regularizer not in [type(r) for r in self.regularizers]:
+            l2_reg = L2Regularizer(name="train_l2", weight=0.)
+            tf.summary.scalar(l2_reg.name, l2_reg.value(self.regularizable),
+                              collections=["summary_train"])
 
-        tf.summary.scalar("train_l1", l1_norm, collections=["summary_train"])
-        tf.summary.scalar("train_l2", l2_norm, collections=["summary_train"])
+        for reg, reg_value in zip(self.regularizers, reg_values):
+            tf.summary.scalar(reg.name, reg_value,
+                              collections=["summary_train"])
+
+        for obj, objbuf in zip(self.objectives, self.objective_buffers):
+            tf.summary.scalar(
+                obj.name, objbuf / tf.to_float(self.cumulator_counter),
+                collections=["summary_train"])
+
+        tf.summary.scalar(
+            "train_opt_cost",
+            self.diff_buffer / tf.to_float(self.cumulator_counter),
+            collections=["summary_train"])
 
         # pylint: disable=not-an-iterable
         # Pylint does not understand @tensor annotations

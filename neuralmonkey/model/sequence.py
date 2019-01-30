@@ -188,7 +188,6 @@ class EmbeddedFactorSequence(Sequence):
             emb_factor = emb_factor * tf.expand_dims(self.temporal_mask, -1)
             embedded_factors.append(emb_factor)
 
-        
         return tf.concat(embedded_factors, 2)
 
     # pylint: disable=unsubscriptable-object

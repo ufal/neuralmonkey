@@ -5,7 +5,7 @@ from typing import List, Tuple, Callable, Iterator
 import tensorflow as tf
 
 from neuralmonkey.tf_utils import update_initializers
-from neuralmonkey.logging import log, warn
+from neuralmonkey.logging import log
 
 # pylint: enable=invalid-name
 InitializerSpecs = List[Tuple[str, Callable]]
