@@ -5,7 +5,7 @@ during training. All implementation should be derived from the Regularizer
 class.
 """
 from abc import ABCMeta, abstractmethod
-from typing import List, Union
+from typing import List
 
 import numpy as np
 import tensorflow as tf
@@ -104,34 +104,30 @@ class EWCRegularizer(Regularizer):
     def __init__(self,
                  name: str,
                  weight: float,
-                 fisher_file: Union[str, List[str]],
-                 variables_file: Union[str, List[str]]) -> None:
+                 fisher_files: List[str],
+                 variables_files: List[str]) -> None:
         # TODO: change *file -> *files
         """Create the regularizer.
 
         Arguments:
             name: Regularizer name.
             weight: Weight of the regularization term.
-            fisher_file: File containing the diagonal of the fisher information
-                matrix estimated on the previous task.
+            fisher_files: File containing the diagonal of the fisher
+                information matrix estimated on the previous task.
             variables_files: File containing the variables learned
                 on the previous task.
         """
-        if isinstance(fisher_file, str):
-            fisher_file = [fisher_file]
-        if isinstance(variables_file, str):
-            variables_file = [variables_file]
-
         check_argument_types()
         Regularizer.__init__(self, name, weight)
 
         log("Loading initial variables for EWC from {}."
-            .format(variables_file))
-        self.init_vars = [tf.contrib.framework.load_checkpoint(f) for f in variables_file]
+            .format(variables_files))
+        self.init_vars = [tf.contrib.framework.load_checkpoint(f)
+                          for f in variables_files]
         log("EWC initial variables loaded.")
 
-        log("Loading gradient estimates from {}.".format(fisher_file))
-        self.fisher = [np.load(f) for f in fisher_file]
+        log("Loading gradient estimates from {}.".format(fisher_files))
+        self.fisher = [np.load(f) for f in fisher_files]
         log("Gradient estimates loaded.")
 
     def value(self, variables: List[tf.Tensor]) -> tf.Tensor:
@@ -145,6 +141,7 @@ class EWCRegularizer(Regularizer):
 
         ewc_value = tf.constant(0.0)
         for var in variables:
+            # pylint: disable=invalid-name
             for f, v in zip(self.fisher, self.init_vars):
                 init_var_name = var.name.split(":")[0]
                 if (var.name in f.files
@@ -154,5 +151,6 @@ class EWCRegularizer(Regularizer):
                         name="{}_init_value".format(init_var_name))
                     ewc_value += tf.reduce_sum(tf.multiply(
                         f[var.name], tf.square(var - init_var)))
+            # pylint: enable=invalid-name
 
         return ewc_value
