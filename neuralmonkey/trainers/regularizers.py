@@ -5,7 +5,7 @@ during training. All implementation should be derived from the Regularizer
 class.
 """
 from abc import ABCMeta, abstractmethod
-from typing import List
+from typing import List, Union
 
 import numpy as np
 import tensorflow as tf
@@ -104,8 +104,9 @@ class EWCRegularizer(Regularizer):
     def __init__(self,
                  name: str,
                  weight: float,
-                 fisher_file: str,
-                 variables_file: str) -> None:
+                 fisher_file: Union[str, List[str]],
+                 variables_file: Union[str, List[str]]) -> None:
+        # TODO: change *file -> *files
         """Create the regularizer.
 
         Arguments:
@@ -116,16 +117,21 @@ class EWCRegularizer(Regularizer):
             variables_files: File containing the variables learned
                 on the previous task.
         """
+        if isinstance(fisher_file, str):
+            fisher_file = [fisher_file]
+        if isinstance(variables_file, str):
+            variables_file = [variables_file]
+
         check_argument_types()
         Regularizer.__init__(self, name, weight)
 
         log("Loading initial variables for EWC from {}."
             .format(variables_file))
-        self.init_vars = tf.contrib.framework.load_checkpoint(variables_file)
+        self.init_vars = [tf.contrib.framework.load_checkpoint(f) for f in variables_file]
         log("EWC initial variables loaded.")
 
         log("Loading gradient estimates from {}.".format(fisher_file))
-        self.fisher = np.load(fisher_file)
+        self.fisher = [np.load(f) for f in fisher_file]
         log("Gradient estimates loaded.")
 
     def value(self, variables: List[tf.Tensor]) -> tf.Tensor:
@@ -139,13 +145,14 @@ class EWCRegularizer(Regularizer):
 
         ewc_value = tf.constant(0.0)
         for var in variables:
-            init_var_name = var.name.split(":")[0]
-            if (var.name in self.fisher.files
-                    and self.init_vars.has_tensor(init_var_name)):
-                init_var = tf.constant(
-                    self.init_vars.get_tensor(init_var_name),
-                    name="{}_init_value".format(init_var_name))
-                ewc_value += tf.reduce_sum(tf.multiply(
-                    self.fisher[var.name], tf.square(var - init_var)))
+            for f, v in zip(self.fisher, self.init_vars):
+                init_var_name = var.name.split(":")[0]
+                if (var.name in f.files
+                        and v.has_tensor(init_var_name)):
+                    init_var = tf.constant(
+                        v.get_tensor(init_var_name),
+                        name="{}_init_value".format(init_var_name))
+                    ewc_value += tf.reduce_sum(tf.multiply(
+                        f[var.name], tf.square(var - init_var)))
 
         return ewc_value

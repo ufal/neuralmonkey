@@ -49,13 +49,6 @@ class Parameterized(metaclass=ABCMeta):
         self._reuse = reuse is not None
 
         if reuse is not None:
-            # pylint: disable=unidiomatic-typecheck
-            # Here we need an exact match of types
-            if type(self) != type(reuse):
-                warn("Warning: sharing parameters between model parts of "
-                     "different types.")
-            # pylint: enable=unidiomatic-typecheck
-
             if initializers is not None:
                 raise ValueError("Cannot use initializers in model part '{}' "
                                  "that reuses variables from '{}'."

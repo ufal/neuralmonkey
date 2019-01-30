@@ -364,6 +364,18 @@ def load(name: str,
             return func(iterators)
         return itergen
 
+    def _add_preprocessed_series(iterators, s_name, prep_sl):
+        preprocessor, source = prep_sl[s_name]
+        if s_name in iterators:
+            return
+        if source in prep_sl:
+            _add_preprocessed_series(iterators, source, prep_sl)
+        if source not in iterators:
+            raise ValueError(
+            "Source series {} for series-level preprocessor nonexistent: "
+                "Preprocessed series '', source series ''".format(source))
+        iterators[s_name] = _make_sl_iterator(source, preprocessor)
+
     # First, prepare iterators for series using file readers
     for s_name, source_spec in zip(series, data):
         if match_type(source_spec, ReaderDef):  # type: ignore
@@ -386,12 +398,8 @@ def load(name: str,
     # Second, prepare series-level preprocessors.
     # Note that series-level preprocessors cannot be stacked on the dataset
     # specification level.
-    for s_name, (preprocessor, source) in prep_sl.items():
-        if source not in iterators:
-            raise ValueError(
-                "Source series for series-level preprocessor nonexistent: "
-                "Preprocessed series '{}', source series '{}'")
-        iterators[s_name] = _make_sl_iterator(source, preprocessor)
+    for s_name in prep_sl:
+        _add_preprocessed_series(iterators, s_name, prep_sl)
 
     # Finally, dataset-level preprocessors.
     for s_name, func in prep_dl.items():
@@ -443,8 +451,6 @@ class Dataset:
         Arguments:
             name: The name for the dataset.
             iterators: A series-iterator generator mapping.
-            lazy: If False, load the data from iterators to a list and store
-                the list in memory.
             buffer_size: Use this tuple as a minimum and maximum buffer size
                 for pre-loading data. This should be (a few times) larger than
                 the batch size used for mini-batching. When the buffer size
@@ -463,6 +469,7 @@ class Dataset:
             self.buffer_min_size, self.buffer_size = buffer_size
         else:
             self.lazy = False
+            self.buffer_size = None
 
         self.shuffled = shuffled
         self.length = None
@@ -588,31 +595,6 @@ class Dataset:
                 return (row[key] for row in rows)
             return itergen
 
-        buckets = {}
-        def _fetch_batch(buf, batch_size):
-            while buf:
-                row = buf.popleft()
-                if bucket_span == -1:
-                    bucket_id = 0
-                else:
-                    # TODO: use only specific series to determine
-                    # the bucket number
-                    bucket_id = max(len(row[key]) for key in row) % bucket_span
-                if bucket_id not in buckets:
-                    buckets[bucket_id] = []
-                    bucket_sizes = 0
-                buckets[bucket_id].append(row)
-                is_full = (len(buckets[bucket_id]) >= batch_size)
-                if token_level:
-                    is_full = (bucket_id 
-                        * bucket_span * len(buckets[bucket_id]) >= batch_sizea)
-                if is_full:
-                    yield buckets[bucket_id]
-                    buckets[bucket_id] = []
-            for bucket_id in buckets:
-                if buckets[bucket_id]:
-                    yield buckets[bucket_id]
-
         # Iterate over the rest of the data until buffer is empty
         batch_index = 0
         buckets = [[]]  # type: List[List[DataExample]]
@@ -670,9 +652,15 @@ class Dataset:
                     buf.append(item)
 
                 if self.shuffled:
-                    lbuf = list(buf)
-                    random.shuffle(lbuf)
-                    buf = deque(lbuf)
+                    random.shuffle(buf)  # type: ignore
+        for bucket_id in buckets:
+            if buckets[bucket_id]:
+                name = "{}.batch.{}".format(self.name, batch_index)
+                data = {key: _make_datagen(buckets[bucket_id], key)
+                        for key in buckets[bucket_id][0]}
+
+                yield Dataset(name=name, iterators=data)
+                batch_index += 1
 
         if not self.batching.drop_remainder:
             for bucket in buckets:
