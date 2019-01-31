@@ -364,18 +364,6 @@ def load(name: str,
             return func(iterators)
         return itergen
 
-    def _add_preprocessed_series(iterators, s_name, prep_sl):
-        preprocessor, source = prep_sl[s_name]
-        if s_name in iterators:
-            return
-        if source in prep_sl:
-            _add_preprocessed_series(iterators, source, prep_sl)
-        if source not in iterators:
-            raise ValueError(
-                "Source series {} for series-level preprocessor nonexistent: "
-                "Preprocessed series '', source series ''".format(source))
-        iterators[s_name] = _make_sl_iterator(source, preprocessor)
-
     # First, prepare iterators for series using file readers
     for s_name, source_spec in zip(series, data):
         if match_type(source_spec, ReaderDef):  # type: ignore
@@ -398,8 +386,12 @@ def load(name: str,
     # Second, prepare series-level preprocessors.
     # Note that series-level preprocessors cannot be stacked on the dataset
     # specification level.
-    for s_name in prep_sl:
-        _add_preprocessed_series(iterators, s_name, prep_sl)
+    for s_name, (preprocessor, source) in prep_sl.items():
+        if source not in iterators:
+            raise ValueError(
+                "Source series {} for series-level preprocessor nonexistent: "
+                "Preprocessed series '', source series ''".format(source))
+        iterators[s_name] = _make_sl_iterator(source, preprocessor)
 
     # Finally, dataset-level preprocessors.
     for s_name, func in prep_dl.items():

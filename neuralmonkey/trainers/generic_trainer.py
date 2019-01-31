@@ -76,8 +76,6 @@ class GenericTrainer(GraphExecutor, Feedable):
         if self.var_collection is None:
             self.var_collection = tf.GraphKeys.TRAINABLE_VARIABLES
 
-        self.objectives = objectives
-
         self.regularizers = []  # type: List[Regularizer]
         if regularizers is not None:
             self.regularizers = regularizers

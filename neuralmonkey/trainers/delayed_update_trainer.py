@@ -240,3 +240,13 @@ class DelayedUpdateTrainer(GenericTrainer):
                 tf.get_collection("summary_train")),
             "histogram_summaries": tf.summary.merge(
                 tf.get_collection("summary_gradients"))}
+
+    @property
+    def fetches(self) -> Dict[str, tf.Tensor]:
+        return {"train_op": self.train_op,
+                "losses": self.objective_values,
+                "batch_size": self.batch_size,
+                "_update_ops": tf.get_collection(tf.GraphKeys.UPDATE_OPS),
+                "accumulators": self.accumulate_ops,
+                "counter": self.cumulator_counter,
+                "resets": self.reset_ops}
