@@ -1,17 +1,18 @@
-from typing import Dict, Union
+from typing import Dict
 
 import tensorflow as tf
 from typeguard import check_argument_types
 
 from neuralmonkey.dataset import Dataset
 from neuralmonkey.decorators import tensor
-from neuralmonkey.encoders.recurrent import RecurrentEncoder
-from neuralmonkey.encoders.facebook_conv import SentenceEncoder
+from neuralmonkey.model.stateful import TemporalStateful
+from neuralmonkey.model.sequence import EmbeddedSequence
 from neuralmonkey.model.feedable import FeedDict
 from neuralmonkey.model.parameterized import InitializerSpecs
 from neuralmonkey.model.model_part import ModelPart
 from neuralmonkey.tf_utils import get_variable
 from neuralmonkey.vocabulary import Vocabulary, pad_batch, sentence_mask
+from neuralmonkey.logging import warn
 
 
 class SequenceLabeler(ModelPart):
@@ -20,9 +21,10 @@ class SequenceLabeler(ModelPart):
     # pylint: disable=too-many-arguments
     def __init__(self,
                  name: str,
-                 encoder: Union[RecurrentEncoder, SentenceEncoder],
-                 vocabulary: Vocabulary,
+                 encoder: TemporalStateful,
                  data_id: str,
+                 vocabulary: Vocabulary,
+                 embeddings_source: EmbeddedSequence = None,
                  dropout_keep_prob: float = 1.0,
                  reuse: ModelPart = None,
                  save_checkpoint: str = None,
@@ -32,10 +34,19 @@ class SequenceLabeler(ModelPart):
         ModelPart.__init__(self, name, reuse, save_checkpoint, load_checkpoint,
                            initializers)
 
-        self.encoder = encoder
         self.vocabulary = vocabulary
+        self.embeddings_source = embeddings_source
+        self.encoder = encoder
         self.data_id = data_id
         self.dropout_keep_prob = dropout_keep_prob
+
+        # We provide only embedding_source when we want to input and output
+        # projections
+        if self.embeddings_source is not None and self.vocabulary is not None:
+            warn("Both `vocabulary` and `embedding_source` was provided. "
+                 "using `embedding_source.vocabulary` instead of provided "
+                 "`vocabulary`")
+            self.vocabulary = self.embeddings_source.vocabulary
     # pylint: enable=too-many-arguments
 
     @property
@@ -64,23 +75,33 @@ class SequenceLabeler(ModelPart):
 
     @tensor
     def decoding_w(self) -> tf.Variable:
-        return get_variable(
-            name="state_to_word_W",
-            shape=[self.rnn_size, len(self.vocabulary)])
+        if (self.embeddings_source is not None
+                and self.embeddings_source.dimension != self.rnn_size):
+            raise ValueError(
+                "Dimension of the embeddings_source ({}) must be equal "
+                "to the encoder `rnn_size` ({}) when defined".format(
+                    self.embeddings_source.dimension, self.rnn_size))
+
+        with tf.name_scope("output_projection"):
+            if self.embeddings_source is not None:
+                return tf.transpose(self.embeddings_source.embedding_matrix)
+
+            # NOTE: default glorot initializer - is this alright?
+            return get_variable(
+                name="state_to_word_W",
+                shape=[self.rnn_size, len(self.vocabulary)])
 
     @tensor
     def decoding_b(self) -> tf.Variable:
-        return get_variable(
-            name="state_to_word_b",
-            shape=[len(self.vocabulary)],
-            initializer=tf.zeros_initializer())
+        if self.embeddings_source:
+            return tf.zeros(
+                self.embeddings_source.embedding_matrix.get_shape()[0])
 
-    @tensor
-    def decoding_residual_w(self) -> tf.Variable:
-        input_dim = self.encoder.input_sequence.dimension
-        return get_variable(
-            name="emb_to_word_W",
-            shape=[input_dim, len(self.vocabulary)])
+        with tf.name_scope("output_projection"):
+            return get_variable(
+                name="state_to_word_b",
+                shape=[len(self.vocabulary)],
+                initializer=tf.zeros_initializer())
 
     @tensor
     def logits(self) -> tf.Tensor:
@@ -99,16 +120,7 @@ class SequenceLabeler(ModelPart):
 
         biases_3d = tf.expand_dims(tf.expand_dims(self.decoding_b, 0), 0)
 
-        embedded_inputs = tf.expand_dims(
-            self.encoder.input_sequence.temporal_states, 2)
-        dweights_4d = tf.expand_dims(
-            tf.expand_dims(self.decoding_residual_w, 0), 0)
-
-        dmultiplication = tf.nn.conv2d(
-            embedded_inputs, dweights_4d, [1, 1, 1, 1], "SAME")
-        dmultiplication_3d = tf.squeeze(dmultiplication, axis=[2])
-
-        logits = multiplication_3d + dmultiplication_3d + biases_3d
+        logits = multiplication_3d + biases_3d
         return logits
 
     @tensor

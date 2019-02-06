@@ -173,9 +173,10 @@ class AutoregressiveDecoder(ModelPart):
         if self.embeddings_source is not None:
             if self._embedding_size is not None:
                 warn("Overriding the embedding_size parameter with the "
-                     "size of the reused embeddings from the encoder.")
+                     "size of the reused embeddings from the "
+                     "`embeddings_source`.")
 
-        return self.embeddings_source.embedding_matrix.get_shape()[1].value
+        return self.embeddings_source.dimension
 
     @tensor
     def go_symbols(self) -> tf.Tensor:
