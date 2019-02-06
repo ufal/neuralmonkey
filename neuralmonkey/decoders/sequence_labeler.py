@@ -12,7 +12,6 @@ from neuralmonkey.model.parameterized import InitializerSpecs
 from neuralmonkey.model.model_part import ModelPart
 from neuralmonkey.tf_utils import get_variable
 from neuralmonkey.vocabulary import Vocabulary, pad_batch, sentence_mask
-from neuralmonkey.logging import warn
 
 
 class SequenceLabeler(ModelPart):
@@ -23,7 +22,7 @@ class SequenceLabeler(ModelPart):
                  name: str,
                  encoder: TemporalStateful,
                  data_id: str,
-                 vocabulary: Vocabulary,
+                 vocabulary: Vocabulary = None,
                  embeddings_source: EmbeddedSequence = None,
                  dropout_keep_prob: float = 1.0,
                  reuse: ModelPart = None,
@@ -34,19 +33,20 @@ class SequenceLabeler(ModelPart):
         ModelPart.__init__(self, name, reuse, save_checkpoint, load_checkpoint,
                            initializers)
 
-        self.vocabulary = vocabulary
         self.embeddings_source = embeddings_source
         self.encoder = encoder
         self.data_id = data_id
         self.dropout_keep_prob = dropout_keep_prob
 
-        # We provide only embedding_source when we want to input and output
+        # We provide only embedding_source when we want to tie input and output
         # projections
-        if self.embeddings_source is not None and self.vocabulary is not None:
-            warn("Both `vocabulary` and `embedding_source` was provided. "
-                 "using `embedding_source.vocabulary` instead of provided "
-                 "`vocabulary`")
+        if (self.embeddings_source is None) == (vocabulary is None):
+            raise ValueError("You must specify either `vocabulary or` or "
+                             "`embeddings_source`, not both")
+        elif self.embeddings_source is not None:
             self.vocabulary = self.embeddings_source.vocabulary
+        elif vocabulary is not None:
+            self.vocabulary = vocabulary
     # pylint: enable=too-many-arguments
 
     @property
