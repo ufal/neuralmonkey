@@ -1,4 +1,4 @@
-"""Abstract class for autoregressive decoding.
+        """Abstract class for autoregressive decoding.
 
 Either for the recurrent decoder, or for the transformer decoder.
 
