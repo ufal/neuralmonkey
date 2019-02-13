@@ -5,7 +5,7 @@ Either for the recurrent decoder, or for the transformer decoder.
 The autoregressive decoder uses the while loop to get the outputs.
 Descendants should only specify the initial state and the while loop body.
 """
-from typing import NamedTuple, Callable, Tuple, Optional, Any, List, Dict
+from typing import NamedTuple, Callable, Optional, Any, List, Dict
 
 import tensorflow as tf
 
@@ -260,19 +260,18 @@ class AutoregressiveDecoder(ModelPart):
         return logits
 
     @tensor
-    def train_loop_result(self) -> Tuple[tf.Tensor, tf.Tensor,
-                                         tf.Tensor, tf.Tensor]:
+    def train_loop_result(self) -> LoopState:
         return self.decoding_loop(train_mode=True)
 
     @tensor
     def train_logits(self) -> tf.Tensor:
-        # THE LAST TRAIN INPUT IS NOT USED IN DECODING FUNCTION
-        # (just as a target)
-        return tuple(self.train_loop_result)[0]
+        train_result = LoopState(*self.train_loop_result)
+        return train_result.histories.logits
 
     @tensor
     def train_output_states(self) -> tf.Tensor:
-        return tuple(self.train_loop_result)[1]
+        train_result = LoopState(*self.train_loop_result)
+        return train_result.histories.decoder_outputs
 
     @tensor
     def train_logprobs(self) -> tf.Tensor:
@@ -309,21 +308,23 @@ class AutoregressiveDecoder(ModelPart):
         return self.train_loss
 
     @tensor
-    def runtime_loop_result(self) -> Tuple[tf.Tensor, tf.Tensor,
-                                           tf.Tensor, tf.Tensor]:
+    def runtime_loop_result(self) -> LoopState:
         return self.decoding_loop(train_mode=False)
 
     @tensor
     def runtime_logits(self) -> tf.Tensor:
-        return tuple(self.runtime_loop_result)[0]
+        runtime_result = LoopState(*self.runtime_loop_result)
+        return runtime_result.histories.logits
 
     @tensor
     def runtime_output_states(self) -> tf.Tensor:
-        return tuple(self.runtime_loop_result)[1]
+        runtime_result = LoopState(*self.runtime_loop_result)
+        return runtime_result.histories.decoder_outputs
 
     @tensor
     def runtime_mask(self) -> tf.Tensor:
-        return tuple(self.runtime_loop_result)[2]
+        runtime_result = LoopState(*self.runtime_loop_result)
+        return runtime_result.histories.mask
 
     @tensor
     def decoded(self) -> tf.Tensor:
@@ -437,8 +438,7 @@ class AutoregressiveDecoder(ModelPart):
         """
 
     def decoding_loop(self, train_mode: bool, sample: bool = False,
-                      temperature: float = 1) -> Tuple[tf.Tensor, tf.Tensor,
-                                                       tf.Tensor, tf.Tensor]:
+                      temperature: float = 1) -> LoopState:
         """Run the decoding while loop.
 
         Calls get_initial_loop_state and constructs tf.while_loop
@@ -467,14 +467,7 @@ class AutoregressiveDecoder(ModelPart):
 
         self.finalize_loop(final_loop_state, train_mode)
 
-        logits = final_loop_state.histories.logits
-        decoder_outputs = final_loop_state.histories.decoder_outputs
-        decoded = final_loop_state.histories.outputs
-
-        # TODO mask should include also the end symbol
-        mask = final_loop_state.histories.mask
-
-        return logits, decoder_outputs, mask, decoded
+        return final_loop_state
 
     def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
         """Populate the feed dictionary for the decoder object.

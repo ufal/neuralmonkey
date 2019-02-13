@@ -87,7 +87,7 @@ def training_loop(cfg: Namespace) -> None:
                         summaries=True)
                     # workaround: we need to use validation batching scheme
                     #             during evaluation
-                    batch.batching = BatchingScheme(batch_size=cfg.batch_size)
+                    batch.batching = BatchingScheme(batch_size=1)
                     train_results, train_outputs, f_batch = run_on_dataset(
                         cfg.tf_manager, cfg.runners, cfg.dataset_runner, batch,
                         cfg.postprocess, write_out=False)
