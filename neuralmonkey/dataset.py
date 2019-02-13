@@ -389,8 +389,8 @@ def load(name: str,
     for s_name, (preprocessor, source) in prep_sl.items():
         if source not in iterators:
             raise ValueError(
-                "Source series {} for series-level preprocessor nonexistent: "
-                "Preprocessed series '', source series ''".format(source))
+                "Source series for series-level preprocessor nonexistent: "
+                "Preprocessed series '{}', source series '{}'")
         iterators[s_name] = _make_sl_iterator(source, preprocessor)
 
     # Finally, dataset-level preprocessors.
@@ -638,7 +638,9 @@ class Dataset:
                     buf.append(item)
 
                 if self.shuffled:
-                    random.shuffle(buf)  # type: ignore
+                    lbuf = list(buf)
+                    random.shuffle(lbuf)
+                    buf = deque(lbuf)
 
         if not self.batching.drop_remainder:
             for bucket in buckets:
@@ -684,5 +686,5 @@ class Dataset:
             iterators=slices,
             batching=self.batching,
             outputs=outputs,
-            buffer_size=self.buffer_size,
+            buffer_size=None,
             shuffled=self.shuffled)

@@ -176,7 +176,7 @@ class AutoregressiveDecoder(ModelPart):
                      "size of the reused embeddings from the "
                      "`embeddings_source`.")
 
-        return self.embeddings_source.dimension
+        return self.embeddings_source.embedding_matrix.get_shape()[1].value
 
     @tensor
     def go_symbols(self) -> tf.Tensor:
