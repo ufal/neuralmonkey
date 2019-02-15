@@ -238,25 +238,21 @@ class TransformerDecoder(AutoregressiveDecoder):
             embedded *= math.sqrt(embedding_size)
 
         length = tf.shape(inputs)[1]
-        return embedded + position_signal(self.dimension, length)
+        return dropout(embedded + position_signal(self.dimension, length),
+                       self.dropout_keep_prob,
+                       self.train_mode)
 
     @tensor
-    def embedded_train_inputs(self) -> tf.Tensor:
+    def train_input_symbols(self) -> tf.Tensor:
         # THE LAST TRAIN INPUT IS NOT USED IN DECODING FUNCTION
         # (just as a target)
 
         # shape (batch, 1 + (time - 1))
         # pylint: disable=unsubscriptable-object
-        input_tokens = tf.concat(
+        return tf.concat(
             [tf.expand_dims(self.go_symbols, 1),
              tf.transpose(self.train_inputs[:-1])], 1)
         # pylint: enable=unsubscriptable-object
-
-        input_embeddings = self.embed_inputs(input_tokens)
-
-        return dropout(input_embeddings,
-                       self.dropout_keep_prob,
-                       self.train_mode)
 
     def self_attention_sublayer(
             self, prev_layer: TransformerLayer) -> tf.Tensor:
@@ -388,8 +384,9 @@ class TransformerDecoder(AutoregressiveDecoder):
         # was called.
         decoder_ls = AutoregressiveDecoder.get_initial_loop_state(self)
 
-        last_layer = self.layer(self.depth, self.embedded_train_inputs,
-                                tf.transpose(self.train_mask))
+        last_layer = self.layer(
+            self.depth, self.embed_inputs(self.train_input_symbols),
+            tf.transpose(self.train_mask))
 
         # t_states shape: (batch, time, channels)
         # dec_w shape: (channels, vocab)
