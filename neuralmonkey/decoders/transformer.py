@@ -382,7 +382,12 @@ class TransformerDecoder(AutoregressiveDecoder):
         return TransformerLayer(states=output_states, mask=mask)
 
     @tensor
-    def train_logits(self) -> tf.Tensor:
+    def train_loop_result(self) -> LoopState:
+        # We process all decoding the steps together during training.
+        # However, we still want to pretend that a proper decoding_loop
+        # was called.
+        decoder_ls = AutoregressiveDecoder.get_initial_loop_state(self)
+
         last_layer = self.layer(self.depth, self.embedded_train_inputs,
                                 tf.transpose(self.train_mask))
 
@@ -393,18 +398,32 @@ class TransformerDecoder(AutoregressiveDecoder):
             last_layer.temporal_states,
             [-1, last_layer_shape[-1]])
 
-        # Reusing input embedding matrix for generating logits
-        # significantly reduces the overall size of the model.
-        # See: https://arxiv.org/pdf/1608.05859.pdf
-        #
         # shape (batch, time, vocab)
         logits = tf.reshape(
             tf.matmul(last_layer_states, self.decoding_w),
             [last_layer_shape[0], last_layer_shape[1], len(self.vocabulary)])
         logits += tf.reshape(self.decoding_b, [1, 1, -1])
 
-        # return logits in time-major shape
-        return tf.transpose(logits, perm=[1, 0, 2])
+        feedables = DecoderFeedables(
+            step=last_layer_shape[1],
+            finished=tf.ones([self.batch_size], dtype=tf.bool),
+            input_symbol=tf.tile(
+                [END_TOKEN_INDEX], [self.batch_size]),
+            prev_logits=logits[:, -1, :])
+
+        histories = TransformerHistories(
+            logits=tf.transpose(logits, perm=[1, 0, 2]),
+            decoder_outputs=tf.transpose(
+                last_layer.temporal_states, [1, 0, 2]),
+            mask=self.train_mask,
+            outputs=self.train_inputs,
+            decoded_symbols=self.train_inputs,
+            input_mask=self.train_mask)
+
+        return LoopState(
+            feedables=feedables,
+            histories=histories,
+            constants=decoder_ls.constants)
 
     def get_initial_loop_state(self) -> LoopState:
 
