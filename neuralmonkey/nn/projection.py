@@ -18,7 +18,7 @@ def maxout(inputs: tf.Tensor,
 
     Arguments:
         inputs: A tensor or list of tensors. It should be 2D tensors with
-                equal length in the first dimension (batch size)
+            equal length in the first dimension (batch size)
         size: The size of dimension 1 of the output tensor.
         scope: The name of the scope used for the variables
 
