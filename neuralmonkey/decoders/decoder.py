@@ -1,4 +1,4 @@
-from typing import List, Callable, Tuple, cast, NamedTuple
+from typing import Any, List, Tuple, cast, NamedTuple
 
 import tensorflow as tf
 from typeguard import check_argument_types
@@ -6,8 +6,7 @@ from typeguard import check_argument_types
 from neuralmonkey.decoders.autoregressive import (
     AutoregressiveDecoder, LoopState)
 from neuralmonkey.attention.base_attention import BaseAttention
-from neuralmonkey.vocabulary import (
-    Vocabulary, END_TOKEN_INDEX, PAD_TOKEN_INDEX)
+from neuralmonkey.vocabulary import Vocabulary
 from neuralmonkey.model.sequence import EmbeddedSequence
 from neuralmonkey.model.stateful import Stateful
 from neuralmonkey.model.parameterized import InitializerSpecs
@@ -21,7 +20,6 @@ from neuralmonkey.decoders.encoder_projection import (
 from neuralmonkey.decoders.output_projection import (
     OutputProjectionSpec, OutputProjection, nonlinear_output)
 from neuralmonkey.decorators import tensor
-from neuralmonkey.tf_utils import append_tensor
 
 
 RNN_CELL_TYPES = {
@@ -31,21 +29,12 @@ RNN_CELL_TYPES = {
 }
 
 
-# Inheriting namedtuples not yet fully supported in Python nor in mypy/pylint,
-# so we just copy the parent attributes.
 class RNNFeedables(NamedTuple(
         "RNNFeedables", [
-            ("step", tf.Tensor),
-            ("finished", tf.Tensor),
-            ("input_symbol", tf.Tensor),
-            ("prev_logits", tf.Tensor),
             ("prev_rnn_state", tf.Tensor),
             ("prev_rnn_output", tf.Tensor),
             ("prev_contexts", List[tf.Tensor])])):
-    """The feedables used by an RNN-based decoder.
-
-    Shares attributes with the ``DecoderFeedables`` class. The special
-    attributes are listed below.
+    """Additional feedables used only by the RNN-based decoder.
 
     Attributes:
         prev_rnn_state: The recurrent state from the previous step. A tensor
@@ -60,15 +49,8 @@ class RNNFeedables(NamedTuple(
 
 class RNNHistories(NamedTuple(
         "RNNHistories", [
-            ("logits", tf.Tensor),
-            ("decoder_outputs", tf.Tensor),
-            ("outputs", tf.Tensor),
-            ("mask", tf.Tensor),
             ("attention_histories", List[Tuple])])):
-    """The loop state histories for RNN-based decoders.
-
-    Shares attributes with the ``DecoderHistories`` class. The special
-    attributes are listed below.
+    """The loop state histories specific for RNN-based decoders.
 
     Attributes:
         attention_histories: A list of ``AttentionLoopState`` objects (or
@@ -176,7 +158,8 @@ class Decoder(AutoregressiveDecoder):
         if self._attention_on_input:
             self.input_projection = self.input_plus_attention
         else:
-            self.input_projection = self.embed_input_symbol
+            self.input_projection = (
+                lambda *args: LoopState(*args).feedables.embedded_input)
 
         with self.use_scope():
             with tf.variable_scope("attention_decoder") as self.step_scope:
@@ -274,13 +257,6 @@ class Decoder(AutoregressiveDecoder):
 
         return RNN_CELL_TYPES[self._rnn_cell_str](self.rnn_size)
 
-    def embed_input_symbol(self, *args) -> tf.Tensor:
-        loop_state = LoopState(*args)
-        embedded_input = tf.nn.embedding_lookup(
-            self.embedding_matrix, loop_state.feedables.input_symbol)
-
-        return dropout(embedded_input, self.dropout_keep_prob, self.train_mode)
-
     def input_plus_attention(self, *args) -> tf.Tensor:
         """Merge input and previous attentions.
 
@@ -288,169 +264,103 @@ class Decoder(AutoregressiveDecoder):
         of the size fo embedding.
         """
         loop_state = LoopState(*args)
-        embedded_input = self.embed_input_symbol(*loop_state)
+        feedables = loop_state.feedables
         emb_with_ctx = tf.concat(
-            [embedded_input] + loop_state.feedables.prev_contexts, 1)
+            [feedables.embedded_input] + feedables.prev_contexts, 1)
 
         return tf.layers.dense(emb_with_ctx, self.embedding_size)
 
-    def get_body(self,
-                 train_mode: bool,
-                 sample: bool = False,
-                 temperature: float = 1) -> Callable:
-        # pylint: disable=too-many-branches
-        def body(*args) -> LoopState:
-            loop_state = LoopState(*args)
-            step = loop_state.feedables.step
+    def next_state(self, loop_state: LoopState) -> Tuple[tf.Tensor, Any, Any]:
+        rnn_feedables = loop_state.feedables.other
+        rnn_histories = loop_state.histories.other
 
-            with tf.variable_scope(self.step_scope):
-                # Compute the input to the RNN
-                rnn_input = self.input_projection(*loop_state)
+        with tf.variable_scope(self.step_scope):
+            rnn_input = self.input_projection(*loop_state)
 
-                # Run the RNN.
-                cell = self._get_rnn_cell()
-                if self._rnn_cell_str in ["GRU", "NematusGRU"]:
-                    cell_output, next_state = cell(
-                        rnn_input, loop_state.feedables.prev_rnn_output)
+            cell = self._get_rnn_cell()
+            if self._rnn_cell_str in ["GRU", "NematusGRU"]:
+                cell_output, next_state = cell(
+                    rnn_input, rnn_feedables.prev_rnn_output)
 
-                    attns = [
-                        a.attention(
-                            cell_output, loop_state.feedables.prev_rnn_output,
-                            rnn_input, att_loop_state)
-                        for a, att_loop_state in zip(
-                            self.attentions,
-                            loop_state.histories.attention_histories)]
-                    if self.attentions:
-                        contexts, att_loop_states = zip(*attns)
-                    else:
-                        contexts, att_loop_states = [], []
-
-                    if self._conditional_gru:
-                        cell_cond = self._get_conditional_gru_cell()
-                        cond_input = tf.concat(contexts, -1)
-                        cell_output, next_state = cell_cond(
-                            cond_input, next_state, scope="cond_gru_2_cell")
-
-                elif self._rnn_cell_str == "LSTM":
-                    prev_state = tf.contrib.rnn.LSTMStateTuple(
-                        loop_state.feedables.prev_rnn_state,
-                        loop_state.feedables.prev_rnn_output)
-                    cell_output, state = cell(rnn_input, prev_state)
-                    next_state = state.c
-                    attns = [
-                        a.attention(
-                            cell_output, loop_state.feedables.prev_rnn_output,
-                            rnn_input, att_loop_state)
-                        for a, att_loop_state in zip(
-                            self.attentions,
-                            loop_state.histories.attention_histories)]
-                    if self.attentions:
-                        contexts, att_loop_states = zip(*attns)
-                    else:
-                        contexts, att_loop_states = [], []
+                attns = [
+                    a.attention(
+                        cell_output, rnn_feedables.prev_rnn_output,
+                        rnn_input, att_loop_state)
+                    for a, att_loop_state in zip(
+                        self.attentions,
+                        rnn_histories.attention_histories)]
+                if self.attentions:
+                    contexts, att_loop_states = zip(*attns)
                 else:
-                    raise ValueError("Unknown RNN cell.")
+                    contexts, att_loop_states = [], []
 
-                with tf.name_scope("rnn_output_projection"):
-                    embedded_input = tf.nn.embedding_lookup(
-                        self.embedding_matrix,
-                        loop_state.feedables.input_symbol)
+                if self._conditional_gru:
+                    cell_cond = self._get_conditional_gru_cell()
+                    cond_input = tf.concat(contexts, -1)
+                    cell_output, next_state = cell_cond(
+                        cond_input, next_state, scope="cond_gru_2_cell")
 
-                    # pylint: disable=not-callable
-                    output = self.output_projection(
-                        cell_output, embedded_input, list(contexts),
-                        self.train_mode)
-                    # pylint: enable=not-callable
-
-                logits = self.get_logits(output) / temperature
-
-            self.step_scope.reuse_variables()
-
-            if sample:
-                next_symbols = tf.squeeze(tf.multinomial(
-                    logits, num_samples=1), axis=1)
-            elif train_mode:
-                next_symbols = loop_state.constants.train_inputs[step]
+            elif self._rnn_cell_str == "LSTM":
+                prev_state = tf.contrib.rnn.LSTMStateTuple(
+                    rnn_feedables.prev_rnn_state,
+                    rnn_feedables.prev_rnn_output)
+                cell_output, state = cell(rnn_input, prev_state)
+                next_state = state.c
+                attns = [
+                    a.attention(
+                        cell_output, rnn_feedables.prev_rnn_output,
+                        rnn_input, att_loop_state)
+                    for a, att_loop_state in zip(
+                        self.attentions,
+                        rnn_histories.attention_histories)]
+                if self.attentions:
+                    contexts, att_loop_states = zip(*attns)
+                else:
+                    contexts, att_loop_states = [], []
             else:
-                next_symbols = tf.argmax(logits, axis=1)
-                int_unfinished_mask = tf.to_int64(
-                    tf.logical_not(loop_state.feedables.finished))
+                raise ValueError("Unknown RNN cell.")
 
-                # Note this works only when PAD_TOKEN_INDEX is 0. Otherwise
-                # this have to be rewritten
-                assert PAD_TOKEN_INDEX == 0
-                next_symbols = next_symbols * int_unfinished_mask
+            with tf.name_scope("rnn_output_projection"):
+                # pylint: disable=not-callable
+                output = self.output_projection(
+                    cell_output, loop_state.feedables.embedded_input,
+                    list(contexts), self.train_mode)
+                # pylint: enable=not-callable
 
-            has_just_finished = tf.equal(next_symbols, END_TOKEN_INDEX)
-            has_finished = tf.logical_or(loop_state.feedables.finished,
-                                         has_just_finished)
-            not_finished = tf.logical_not(has_finished)
+        new_feedables = RNNFeedables(
+            prev_rnn_state=next_state,
+            prev_rnn_output=cell_output,
+            prev_contexts=list(contexts))
 
-            # pylint: disable=not-callable
-            new_feedables = RNNFeedables(
-                step=step + 1,
-                finished=has_finished,
-                input_symbol=next_symbols,
-                prev_logits=logits,
-                prev_rnn_state=next_state,
-                prev_rnn_output=cell_output,
-                prev_contexts=list(contexts))
+        new_histories = RNNHistories(
+            attention_histories=list(att_loop_states))
 
-            new_histories = RNNHistories(
-                attention_histories=list(att_loop_states),
-                logits=append_tensor(loop_state.histories.logits, logits),
-                decoder_outputs=append_tensor(
-                    loop_state.histories.decoder_outputs, cell_output),
-                outputs=append_tensor(
-                    loop_state.histories.outputs, next_symbols),
-                mask=append_tensor(loop_state.histories.mask, not_finished))
-            # pylint: enable=not-callable
-
-            new_loop_state = LoopState(
-                histories=new_histories,
-                constants=loop_state.constants,
-                feedables=new_feedables)
-
-            return new_loop_state
-        # pylint: enable=too-many-branches
-
-        return body
+        return (cell_output, new_feedables, new_histories)
 
     def get_initial_loop_state(self) -> LoopState:
         default_ls = AutoregressiveDecoder.get_initial_loop_state(self)
-        feedables = default_ls.feedables._asdict()
-        histories = default_ls.histories._asdict()
+        feedables = default_ls.feedables
+        histories = default_ls.histories
 
-        feedables["prev_contexts"] = [
-            tf.zeros([self.batch_size, a.context_vector_size])
-            for a in self.attentions]
+        rnn_feedables = RNNFeedables(
+            prev_contexts=[tf.zeros([self.batch_size, a.context_vector_size])
+                           for a in self.attentions],
+            prev_rnn_state=self.initial_state,
+            prev_rnn_output=self.initial_state)
 
-        feedables["prev_rnn_state"] = self.initial_state
-        feedables["prev_rnn_output"] = self.initial_state
-
-        histories["attention_histories"] = [
-            a.initial_loop_state()
-            for a in self.attentions if a is not None]
-
-        histories["decoder_outputs"] = tf.zeros(
-            shape=[0, self.batch_size, self.rnn_size],
-            dtype=tf.float32,
-            name="hist_decoder_outputs")
-
-        # pylint: disable=not-callable
-        rnn_feedables = RNNFeedables(**feedables)
-        rnn_histories = RNNHistories(**histories)
-        # pylint: enable=not-callable
+        rnn_histories = RNNHistories(
+            attention_histories=[a.initial_loop_state()
+                                 for a in self.attentions if a is not None])
 
         return LoopState(
-            histories=rnn_histories,
+            histories=histories._replace(other=rnn_histories),
             constants=default_ls.constants,
-            feedables=rnn_feedables)
+            feedables=feedables._replace(other=rnn_feedables))
 
     def finalize_loop(self, final_loop_state: LoopState,
                       train_mode: bool) -> None:
         for att_state, attn_obj in zip(
-                final_loop_state.histories.attention_histories,
+                final_loop_state.histories.other.attention_histories,
                 self.attentions):
 
             att_history_key = "{}_{}".format(

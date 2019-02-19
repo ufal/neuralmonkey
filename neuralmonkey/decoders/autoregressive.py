@@ -1,11 +1,12 @@
-        """Abstract class for autoregressive decoding.
+# pylint: disable=too-many-lines
+"""Abstract class for autoregressive decoding.
 
 Either for the recurrent decoder, or for the transformer decoder.
 
 The autoregressive decoder uses the while loop to get the outputs.
 Descendants should only specify the initial state and the while loop body.
 """
-from typing import NamedTuple, Callable, Optional, Any, List, Dict
+from typing import NamedTuple, Callable, Optional, Any, List, Dict, Tuple
 
 import tensorflow as tf
 
@@ -17,9 +18,11 @@ from neuralmonkey.model.model_part import ModelPart
 from neuralmonkey.logging import warn
 from neuralmonkey.model.sequence import EmbeddedSequence
 from neuralmonkey.nn.utils import dropout
-from neuralmonkey.tf_utils import get_variable, get_state_shape_invariants
+from neuralmonkey.tf_utils import (
+    append_tensor, get_variable, get_state_shape_invariants)
 from neuralmonkey.vocabulary import (
-    Vocabulary, pad_batch, sentence_mask, UNK_TOKEN_INDEX, START_TOKEN_INDEX)
+    Vocabulary, pad_batch, sentence_mask, UNK_TOKEN_INDEX, START_TOKEN_INDEX,
+    END_TOKEN_INDEX, PAD_TOKEN_INDEX)
 
 
 class LoopState(NamedTuple(
@@ -44,21 +47,28 @@ class LoopState(NamedTuple(
 class DecoderHistories(NamedTuple(
         "DecoderHistories",
         [("logits", tf.Tensor),
-         ("decoder_outputs", tf.Tensor),
-         ("outputs", tf.Tensor),
-         ("mask", tf.Tensor)])):
+         ("output_states", tf.Tensor),
+         ("output_symbols", tf.Tensor),
+         ("output_mask", tf.Tensor),
+         ("other", Any)])):
     """The values collected during the run of an autoregressive decoder.
+
+    This should only record decoding history and the decoding should not be
+    dependent on these values.
 
     Attributes:
         logits: A tensor of shape ``(time, batch, vocabulary)`` which contains
             the unnormalized output scores of words in a vocabulary.
-        decoder_outputs: A tensor of shape ``(time, batch, state_size)``. The
+        output_states: A tensor of shape ``(time, batch, state_size)``. The
             states of the decoder before the final output (logit) projection.
-        outputs: An int tensor of shape ``(time, batch)``. Stores the generated
-            symbols. (Either an argmax-ed value from the logits, or a target
-            token, during training.)
-        mask: A float tensor of zeros and ones of shape ``(time, batch)``.
-            Keeps track of valid positions in the decoded data.
+        output_symbols: An int tensor of shape ``(time, batch)``. Stores the
+            generated symbols. (Either an argmax-ed value from the logits, or
+            a target token, during training.)
+        output_mask: A float tensor of zeros and ones of shape
+            ``(time, batch)``. Keeps track of valid positions in the decoded
+            data.
+        other: A structure related to a specific AutoregressiveDecoder
+            implementation.
     """
 
 
@@ -77,20 +87,22 @@ class DecoderFeedables(NamedTuple(
         "DecoderFeedables",
         [("step", tf.Tensor),
          ("finished", tf.Tensor),
-         ("input_symbol", tf.Tensor),
-         ("prev_logits", tf.Tensor)])):
+         ("embedded_input", tf.Tensor),
+         ("other", Any)])):
     """The input of a single step of an autoregressive decoder.
+
+    The decoder should be able to decode in each step only using this.
 
     Attributes:
         step: A scalar int tensor, stores the number of the current time step.
         finished: A boolean tensor of shape ``(batch)``,  which says whether
             the decoding of a sentence in the batch is finished or not. (E.g.
             whether the end token has already been generated.)
-        input_symbol: A boolean ``batch``-sized tensor with the inputs to the
+        embedded_input: A ``batch``-sized tensor with embedded inputs to the
             decoder. During inference, this contains the previously generated
             tokens. During training, this contains the reference tokens.
-        prev_logits: A tensor of shape ``(batch, vocabulary)``. Contains the
-            logits from the previous decoding step.
+        other: A structure related to a specific AutoregressiveDecoder
+            implementation.
     """
 
 
@@ -247,6 +259,11 @@ class AutoregressiveDecoder(ModelPart):
             name="word_embeddings",
             shape=[len(self.vocabulary), self.embedding_size])
 
+    def embed_input_symbols(self, input_symbols: tf.Tensor) -> tf.Tensor:
+        embedded_input = tf.nn.embedding_lookup(
+            self.embedding_matrix, input_symbols)
+        return dropout(embedded_input, self.dropout_keep_prob, self.train_mode)
+
     def get_logits(self, state: tf.Tensor) -> tf.Tensor:
         """Project the decoder's output layer to logits over the vocabulary."""
         state = dropout(state, self.dropout_keep_prob, self.train_mode)
@@ -368,37 +385,38 @@ class AutoregressiveDecoder(ModelPart):
 
     def get_initial_loop_state(self) -> LoopState:
 
-        dec_output = tf.zeros(
+        output_states = tf.zeros(
             shape=[0, self.batch_size, self.embedding_size],
             dtype=tf.float32,
-            name="hist_decoder_outputs")
+            name="hist_output_states")
 
-        logit = tf.zeros(
+        output_mask = tf.zeros(
+            shape=[0, self.batch_size],
+            dtype=tf.bool,
+            name="hist_output_mask")
+
+        output_symbols = tf.zeros(
+            shape=[0, self.batch_size],
+            dtype=tf.int64,
+            name="hist_output_symbols")
+
+        logits = tf.zeros(
             shape=[0, self.batch_size, len(self.vocabulary)],
             dtype=tf.float32,
             name="hist_logits")
 
-        mask = tf.zeros(
-            shape=[0, self.batch_size],
-            dtype=tf.bool,
-            name="mask")
-
-        outputs = tf.zeros(
-            shape=[0, self.batch_size],
-            dtype=tf.int64,
-            name="outputs")
-
         feedables = DecoderFeedables(
             step=tf.constant(0, tf.int32),
             finished=tf.zeros([self.batch_size], dtype=tf.bool),
-            input_symbol=self.go_symbols,
-            prev_logits=tf.zeros([self.batch_size, len(self.vocabulary)]))
+            embedded_input=self.embed_input_symbols(self.go_symbols),
+            other=None)
 
         histories = DecoderHistories(
-            logits=logit,
-            decoder_outputs=dec_output,
-            mask=mask,
-            outputs=outputs)
+            logits=logits,
+            output_states=output_states,
+            output_mask=output_mask,
+            output_symbols=output_symbols,
+            other=None)
 
         constants = DecoderConstants(train_inputs=self.train_inputs)
 
@@ -421,10 +439,81 @@ class AutoregressiveDecoder(ModelPart):
                                  self.max_output_len)
         return tf.logical_and(not_all_done, before_max_len)
 
+    def next_state(self, loop_state: LoopState) -> Tuple[tf.Tensor, Any, Any]:
+        raise NotImplementedError("Abstract method.")
+
     def get_body(self, train_mode: bool, sample: bool = False,
-                 temperature: float = 1) -> Callable:
+                 temperature: float = 1.) -> Callable:
         """Return the while loop body function."""
-        raise NotImplementedError("Abstract method")
+
+        def is_finished(finished: tf.Tensor, symbols: tf.Tensor) -> tf.Tensor:
+            has_just_finished = tf.equal(symbols, END_TOKEN_INDEX)
+            return tf.logical_or(finished, has_just_finished)
+
+        def state_to_logits(state: tf.Tensor) -> tf.Tensor:
+            logits = tf.matmul(state, self.decoding_w)
+            logits += self.decoding_b
+            return logits
+
+        def logits_to_symbols(logits: tf.Tensor,
+                              loop_state: LoopState) -> tf.Tensor:
+            step = loop_state.feedables.step
+            if sample:
+                next_symbols = tf.squeeze(
+                    tf.multinomial(logits, num_samples=1), axis=1)
+            elif train_mode:
+                next_symbols = loop_state.constants.train_inputs[step]
+            else:
+                next_symbols = tf.argmax(logits, axis=1)
+
+            int_unfinished_mask = tf.to_int64(
+                tf.logical_not(loop_state.feedables.finished))
+
+            # Note this works only when PAD_TOKEN_INDEX is 0. Otherwise
+            # this have to be rewritten
+            assert PAD_TOKEN_INDEX == 0
+            next_symbols = next_symbols * int_unfinished_mask
+
+            return next_symbols
+
+        def body(*args) -> LoopState:
+
+            loop_state = LoopState(*args)
+            feedables = loop_state.feedables
+            histories = loop_state.histories
+
+            with tf.variable_scope(self._variable_scope, reuse=tf.AUTO_REUSE):
+                output_state, dec_other, hist_other = self.next_state(
+                    loop_state)
+
+                logits = state_to_logits(output_state)
+                logits /= temperature
+
+                next_symbols = logits_to_symbols(logits, loop_state)
+                finished = is_finished(feedables.finished, next_symbols)
+
+            next_feedables = DecoderFeedables(
+                step=feedables.step + 1,
+                finished=finished,
+                embedded_input=self.embed_input_symbols(next_symbols),
+                other=dec_other)
+
+            next_histories = DecoderHistories(
+                logits=append_tensor(histories.logits, logits),
+                output_states=append_tensor(
+                    histories.output_states, output_state),
+                output_symbols=append_tensor(
+                    histories.output_symbols, next_symbols),
+                output_mask=append_tensor(
+                    histories.output_mask, tf.logical_not(finished)),
+                other=hist_other)
+
+            return LoopState(
+                feedables=next_feedables,
+                histories=next_histories,
+                constants=loop_state.constants)
+
+        return body
 
     def finalize_loop(self, final_loop_state: LoopState,
                       train_mode: bool) -> None:
