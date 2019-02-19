@@ -14,6 +14,7 @@ from neuralmonkey.model.model_part import ModelPart
 from neuralmonkey.logging import log
 from neuralmonkey.nn.ortho_gru_cell import OrthoGRUCell, NematusGRUCell
 from neuralmonkey.nn.utils import dropout
+from neuralmonkey.tf_utils import append_tensor
 from neuralmonkey.decoders.encoder_projection import (
     linear_encoder_projection, concat_encoder_projection, empty_initial_state,
     EncoderProjection)
@@ -49,10 +50,13 @@ class RNNFeedables(NamedTuple(
 
 class RNNHistories(NamedTuple(
         "RNNHistories", [
+            ("rnn_outputs", tf.Tensor),
             ("attention_histories", List[Tuple])])):
     """The loop state histories specific for RNN-based decoders.
 
     Attributes:
+        rnn_outputs: History of outputs produced by RNN cell itself (before
+            applying output projections).
         attention_histories: A list of ``AttentionLoopState`` objects (or
             similar) populated by values from the attention mechanisms used in
             the decoder.
@@ -268,7 +272,9 @@ class Decoder(AutoregressiveDecoder):
         emb_with_ctx = tf.concat(
             [feedables.embedded_input] + feedables.prev_contexts, 1)
 
-        return tf.layers.dense(emb_with_ctx, self.embedding_size)
+        return dropout(
+            tf.layers.dense(emb_with_ctx, self.embedding_size),
+            self.dropout_keep_prob, self.train_mode)
 
     def next_state(self, loop_state: LoopState) -> Tuple[tf.Tensor, Any, Any]:
         rnn_feedables = loop_state.feedables.other
@@ -320,6 +326,13 @@ class Decoder(AutoregressiveDecoder):
             else:
                 raise ValueError("Unknown RNN cell.")
 
+            # TODO: attention functions should apply dropout on output
+            #       themselves before returning the tensors
+            contexts = [dropout(ctx, self.dropout_keep_prob, self.train_mode)
+                        for ctx in list(contexts)]
+            cell_output = dropout(
+                cell_output, self.dropout_keep_prob, self.train_mode)
+
             with tf.name_scope("rnn_output_projection"):
                 # pylint: disable=not-callable
                 output = self.output_projection(
@@ -333,9 +346,10 @@ class Decoder(AutoregressiveDecoder):
             prev_contexts=list(contexts))
 
         new_histories = RNNHistories(
+            rnn_outputs=append_tensor(rnn_histories.rnn_outputs, cell_output),
             attention_histories=list(att_loop_states))
 
-        return (cell_output, new_feedables, new_histories)
+        return (output, new_feedables, new_histories)
 
     def get_initial_loop_state(self) -> LoopState:
         default_ls = AutoregressiveDecoder.get_initial_loop_state(self)
@@ -349,6 +363,10 @@ class Decoder(AutoregressiveDecoder):
             prev_rnn_output=self.initial_state)
 
         rnn_histories = RNNHistories(
+            rnn_outputs=tf.zeros(
+                shape=[0, self.batch_size, self.rnn_size],
+                dtype=tf.float32,
+                name="hist_rnn_output_states"),
             attention_histories=[a.initial_loop_state()
                                  for a in self.attentions if a is not None])
 

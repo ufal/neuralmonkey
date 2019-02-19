@@ -264,18 +264,6 @@ class AutoregressiveDecoder(ModelPart):
             self.embedding_matrix, input_symbols)
         return dropout(embedded_input, self.dropout_keep_prob, self.train_mode)
 
-    def get_logits(self, state: tf.Tensor) -> tf.Tensor:
-        """Project the decoder's output layer to logits over the vocabulary."""
-        state = dropout(state, self.dropout_keep_prob, self.train_mode)
-        logits = tf.matmul(state, self.decoding_w) + self.decoding_b
-
-        if self.supress_unk:
-            unk_mask = tf.one_hot(
-                UNK_TOKEN_INDEX, depth=len(self.vocabulary), on_value=-1e9)
-            logits += unk_mask
-
-        return logits
-
     @tensor
     def train_loop_result(self) -> LoopState:
         return self.decoding_loop(train_mode=True)
@@ -453,6 +441,12 @@ class AutoregressiveDecoder(ModelPart):
         def state_to_logits(state: tf.Tensor) -> tf.Tensor:
             logits = tf.matmul(state, self.decoding_w)
             logits += self.decoding_b
+
+            if self.supress_unk:
+                unk_mask = tf.one_hot(
+                    UNK_TOKEN_INDEX, depth=len(self.vocabulary), on_value=-1e0)
+                logits += unk_mask
+
             return logits
 
         def logits_to_symbols(logits: tf.Tensor,
