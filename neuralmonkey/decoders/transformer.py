@@ -39,10 +39,16 @@ class TransformerFeedables(NamedTuple(
          ("input_mask", tf.Tensor)])):
     """Additional feedables used only by the Transformer-based decoder.
 
+    Follows the shape pattern of having batch_sized first dimension
+    shape(batch_size, ...)
+
     Attributes:
         input_sequence: The whole input sequence (embedded) that is fed into
             the decoder in each decoding step.
-        input_mask: Mask for masking finished sequences.
+            shape(batch, len, emb)
+        input_mask: Mask for masking finished sequences. The last dimension
+            is required for compatibility with the beam_search_decoder.
+            shape(batch, len, 1)
     """
 
 
@@ -392,14 +398,14 @@ class TransformerDecoder(AutoregressiveDecoder):
         decoder_ls = AutoregressiveDecoder.get_initial_loop_state(self)
 
         input_sequence = self.embed_input_symbols(self.train_input_symbols)
-        last_layer = self.layer(
-            self.depth, input_sequence, tf.transpose(self.train_mask))
+        input_mask = tf.transpose(self.train_mask)
 
-        # We transpose input sequence and mask only to convey to
-        # the defined shapes
+        last_layer = self.layer(
+            self.depth, input_sequence, input_mask)
+
         tr_feedables = TransformerFeedables(
-            input_sequence=tf.transpose(input_sequence),
-            input_mask=self.train_mask)
+            input_sequence=input_sequence,
+            input_mask=tf.expand_dims(input_mask, -1))
 
         # t_states shape: (batch, time, channels)
         # dec_w shape: (channels, vocab)
@@ -453,11 +459,11 @@ class TransformerDecoder(AutoregressiveDecoder):
 
         tr_feedables = TransformerFeedables(
             input_sequence=tf.zeros(
-                shape=[0, self.batch_size, self.dimension],
+                shape=[self.batch_size, 0, self.dimension],
                 dtype=tf.float32,
                 name="input_sequence"),
             input_mask=tf.zeros(
-                shape=[0, self.batch_size],
+                shape=[self.batch_size, 0, 1],
                 dtype=tf.float32,
                 name="input_mask"))
 
@@ -486,16 +492,16 @@ class TransformerDecoder(AutoregressiveDecoder):
         with tf.variable_scope(self._variable_scope, reuse=tf.AUTO_REUSE):
             # shape (time, batch)
             input_sequence = append_tensor(
-                tr_feedables.input_sequence, feedables.embedded_input)
+                tr_feedables.input_sequence, feedables.embedded_input, 1)
 
             unfinished_mask = tf.to_float(tf.logical_not(feedables.finished))
             input_mask = append_tensor(
-                tr_feedables.input_mask, unfinished_mask)
+                tr_feedables.input_mask,
+                tf.expand_dims(unfinished_mask, -1),
+                axis=1)
 
             last_layer = self.layer(
-                self.depth,
-                tf.transpose(input_sequence, [1, 0, 2]),
-                tf.transpose(input_mask))
+                self.depth, input_sequence, tf.squeeze(input_mask, -1))
 
             # (batch, state_size)
             output_state = last_layer.temporal_states[:, -1, :]

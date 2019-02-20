@@ -334,6 +334,12 @@ class Decoder(AutoregressiveDecoder):
                 cell_output, self.dropout_keep_prob, self.train_mode)
 
             with tf.name_scope("rnn_output_projection"):
+                if self.embedding_size != self.output_dimension:
+                    raise ValueError(
+                        "The dimension ({}) of the output projection must be "
+                        "same as the dimension of the input embedding "
+                        "({})".format(self.output_dimension,
+                                      self.embedding_size))
                 # pylint: disable=not-callable
                 output = self.output_projection(
                     cell_output, loop_state.feedables.embedded_input,

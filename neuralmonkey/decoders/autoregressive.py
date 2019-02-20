@@ -56,6 +56,9 @@ class DecoderHistories(NamedTuple(
     This should only record decoding history and the decoding should not be
     dependent on these values.
 
+    Attributes defined here (and in the `other`) substructure should always
+    be time-major (e.g., shape(time, batch, ...)).
+
     Attributes:
         logits: A tensor of shape ``(time, batch, vocabulary)`` which contains
             the unnormalized output scores of words in a vocabulary.
@@ -92,6 +95,9 @@ class DecoderFeedables(NamedTuple(
     """The input of a single step of an autoregressive decoder.
 
     The decoder should be able to decode in each step only using this.
+
+    Attributes defined here (and in the `other`) substructure should always
+    be batch-major (e.g., shape(batch, ...)).
 
     Attributes:
         step: A scalar int tensor, stores the number of the current time step.
@@ -276,7 +282,7 @@ class AutoregressiveDecoder(ModelPart):
     @tensor
     def train_output_states(self) -> tf.Tensor:
         train_result = LoopState(*self.train_loop_result)
-        return train_result.histories.decoder_outputs
+        return train_result.histories.output_states
 
     @tensor
     def train_logprobs(self) -> tf.Tensor:
@@ -324,12 +330,12 @@ class AutoregressiveDecoder(ModelPart):
     @tensor
     def runtime_output_states(self) -> tf.Tensor:
         runtime_result = LoopState(*self.runtime_loop_result)
-        return runtime_result.histories.decoder_outputs
+        return runtime_result.histories.output_states
 
     @tensor
     def runtime_mask(self) -> tf.Tensor:
         runtime_result = LoopState(*self.runtime_loop_result)
-        return runtime_result.histories.mask
+        return runtime_result.histories.output_mask
 
     @tensor
     def decoded(self) -> tf.Tensor:
