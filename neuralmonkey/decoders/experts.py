@@ -1,13 +1,14 @@
+from typing import NamedTuple, Callable, List, Optional
+
 import tensorflow as tf
 from typeguard import check_argument_types
 
 from neuralmonkey.decoders.autoregressive import (
-    AutoregressiveDecoder, LoopState)
+    AutoregressiveDecoder, LoopState, DecoderFeedables, DecoderHistories)
 from neuralmonkey.decorators import tensor
+from neuralmonkey.model.parameterized import InitializerSpecs
 from neuralmonkey.model.model_part import ModelPart
-from neuralmonkey.tf_utils import (
-    append_tensor, gather_flat, get_state_shape_invariants, partial_transpose,
-    get_shape_list)
+from neuralmonkey.tf_utils import append_tensor, get_variable, get_shape_list
 from neuralmonkey.vocabulary import (
     Vocabulary, END_TOKEN_INDEX, PAD_TOKEN_INDEX)
 
@@ -16,12 +17,19 @@ STRATEGIES = ["uniform", "global", "context-aware"]
 
 
 class ExpertFeedables(NamedTuple(
-        "ExpertFeedables", [
-            ("step", tf.Tensor),
-            ("finished", tf.Tensor),
-            ("input_symbol", tf.Tensor),
-            ("prev_logits", tf.Tensor),
-            ("dec_loop_states", List[LoopState])]))
+        "ExpertFeedables",
+        [("dec_loop_states", List[LoopState])])):
+    """TODO
+
+    """
+
+
+class ExpertHistories(NamedTuple(
+        "ExpertHistories",
+        [("probs", tf.Tensor)])):
+    """TODO
+
+    """
 
 
 class ExpertDecoder(AutoregressiveDecoder):
@@ -30,6 +38,7 @@ class ExpertDecoder(AutoregressiveDecoder):
     TODO
     """
 
+    # pylint: disable=too-many-arguments
     def __init__(self,
                  name: str,
                  decoders: List[AutoregressiveDecoder],
@@ -39,9 +48,9 @@ class ExpertDecoder(AutoregressiveDecoder):
                  gating_strategy: str = "uniform",
                  gate_dimension: int = None,
                  dropout_keep_prob: float = 1.0,
-                 reuse: ModelPart = None
-                 save_checkpoint: str = None
-                 load_checkpoint: str = None
+                 reuse: ModelPart = None,
+                 save_checkpoint: str = None,
+                 load_checkpoint: str = None,
                  initializers: InitializerSpecs = None) -> None:
         """TODO
 
@@ -58,7 +67,7 @@ class ExpertDecoder(AutoregressiveDecoder):
             max_output_len=max_output_len,
             dropout_keep_prob=dropout_keep_prob,
             embedding_size=None,
-            embeddings_source=None
+            embeddings_source=None,
             tie_embeddings=False,
             label_smoothing=False,
             supress_unk=False,
@@ -87,6 +96,7 @@ class ExpertDecoder(AutoregressiveDecoder):
                 and self.gate_dimension is None):
             raise ValueError("Gate dimension must be defined when using "
                              "`context-aware` gating strategy")
+    # pylint: enable=too-many-arguments
 
     @property
     def embedding_size(self) -> int:
@@ -107,14 +117,10 @@ class ExpertDecoder(AutoregressiveDecoder):
     def decoding_b(self) -> Optional[tf.Variable]:
         # TODO: see decoding_w
         raise NotImplementedError("Not supported by the ExpertDecoder")
-    
+
     @tensor
     def embedding_matrix(self) -> tf.Variable:
         # TODO: concatenate embedding matrices as in decoding_w?
-        raise NotImplementedError("Not supported by the ExpertDecoder")
-
-    @tensor
-    def get_logits(self, state: tf.Tensor) -> tf.Tensor:
         raise NotImplementedError("Not supported by the ExpertDecoder")
 
     @tensor
@@ -136,7 +142,7 @@ class ExpertDecoder(AutoregressiveDecoder):
         return tf.log(self.train_probs)
 
     @tensor
-    def train_xents(self) -> tf.Tensor
+    def train_xents(self) -> tf.Tensor:
         # TODO: label smoothing?
         train_targets = tf.one_hot(self.train_inputs, len(self.vocabulary))
         xent = -tf.reduce_sum(
@@ -155,13 +161,15 @@ class ExpertDecoder(AutoregressiveDecoder):
                               tf.shape(self.runtime_logprobs)[0])
 
         xent = -tf.reduce_sum(
-            train_targets[:min_time, :] * self.runtime_logprobs[:min_time, :], 2)
+            train_targets[:min_time, :] * self.runtime_logprobs[:min_time, :],
+            axis=2)
         masked_xent = xent * self.train_mask[:min_time, :]
         return tf.reduce_mean(masked_xent, 0)
 
     @tensor
     def runtime_probs(self) -> tf.Tensor:
-        #TODO
+        runtime_result = LoopState(*self.runtime_loop_result)
+        return runtime_result.histories.other.probs
 
     @tensor
     def runtime_logprobs(self) -> tf.Tensor:
@@ -170,9 +178,8 @@ class ExpertDecoder(AutoregressiveDecoder):
 
     @tensor
     def output_dimension(self) -> int:
-        # TODO
+        raise NotImplementedError("Not supported by the ExpertDecoder")
 
-    @tensor
     def expert_weights(self, contexts) -> tf.Tensor:
         """Compute the weights of the decoders.
 
@@ -188,14 +195,14 @@ class ExpertDecoder(AutoregressiveDecoder):
         if self.gating_strategy == "uniform":
             weights = tf.constant(
                 [1. for _ in self.decoders], name="expert_weights")
-            weights = tf.tile([[weights]], contexts.get_shape()[:2] + [1])
+            weights = tf.tile([[weights]], get_shape_list(contexts)[:2] + [1])
         elif self.gating_strategy == "global":
             weights = get_variable(
-                name="expert_weights"
+                name="expert_weights",
                 shape=[len(self.decoders)],
                 dtype=tf.float32,
                 initializer=tf.ones_initializer())
-            weights = tf.tile([[weights]], contexts.get_shape()[:2] + [1])
+            weights = tf.tile([[weights]], get_shape_list(contexts)[:2] + [1])
         elif self.gating_strategy == "context-aware":
             hidden_layer = tf.layers.dense(
                 contexts, self.gate_dimension, use_bias=True,
@@ -208,94 +215,144 @@ class ExpertDecoder(AutoregressiveDecoder):
                 "Unknown decoder weighing combination strategy: {}"
                 .format(self.gating_strategy))
 
-        return tf.softmax(weights, -1)
+        return tf.nn.softmax(weights, -1)
+
+    def get_initial_feedables(self) -> DecoderFeedables:
+        # We assign a dummy variable to the attributes not used
+        # by the ExpertDecoder so the tf.while_loop can infer its shape
+        dummy_var = tf.constant(0, name="feed_dummy")
+        return DecoderFeedables(
+            step=tf.constant(0, tf.int32),
+            finished=tf.zeros([self.batch_size], dtype=tf.bool),
+            embedded_input=dummy_var,
+            other=None)
+
+    def get_initial_histories(self) -> DecoderHistories:
+        output_symbols = tf.zeros(
+            shape=[0, self.batch_size],
+            dtype=tf.int64,
+            name="hist_output_symbols")
+
+        output_mask = tf.zeros(
+            shape=[0, self.batch_size],
+            dtype=tf.bool,
+            name="hist_output_mask")
+
+        # We assign a dummy variable to the attributes not used
+        # by the ExpertDecoder so the tf.while_loop can infer its shape
+        dummy_var = tf.constant(0, name="hist_dummy")
+        return DecoderHistories(
+            logits=dummy_var,
+            output_states=dummy_var,
+            output_symbols=output_symbols,
+            output_mask=output_mask,
+            other=None)
 
     def get_initial_loop_state(self) -> LoopState:
-        default_ls = AutoregressiveDecoder.get_initial_loop_state(self)
-        feedables = default_ls.feedables
-        histories = default_ls.histories
+        feedables = self.get_initial_feedables()
+        histories = self.get_initial_histories()
 
-        feedables = feedables._replace(
+        expert_feedables = ExpertFeedables(
             dec_loop_states=[d.get_initial_loop_state()
-                             for d in self.decoders],
-            prev_logits=None)
+                             for d in self.decoders])
 
-        histories = histories._replace(
-            logits=None
-            decoder_outputs=None)
+        expert_histories = ExpertHistories(
+            probs=tf.zeros(
+                shape=[0, self.batch_size, len(self.vocabulary)],
+                dtype=tf.float32,
+                name="hist_expert_probs"))
 
         return LoopState(
-            feedables=feedables,
-            histories=histories,
-            constants=default_ls.constants)
+            feedables=feedables._replace(other=expert_feedables),
+            histories=histories._replace(other=expert_histories),
+            constants=self.get_initial_constants())
 
     def get_body(self, train_mode: bool, sample: bool = False,
                  temperature: float = 1.) -> Callable:
         decoder_bodies = [d.get_body(train_mode=train_mode)
                           for d in self.decoders]
 
+        def is_finished(finished: tf.Tensor, symbols: tf.Tensor) -> tf.Tensor:
+            has_just_finished = tf.equal(symbols, END_TOKEN_INDEX)
+            return tf.logical_or(finished, has_just_finished)
+
+        def probs_to_symbols(probs: tf.Tensor,
+                             loop_state: LoopState) -> tf.Tensor:
+            if sample:
+                # TODO: multinomial sampling from probs
+                raise ValueError("Not supported by the ExpertDecoder")
+            else:
+                next_symbols = tf.argmax(probs, axis=1)
+
+            int_unfinished_mask = tf.to_int64(
+                tf.logical_not(loop_state.feedables.finished))
+
+            # Note this works only when PAD_TOKEN_INDEX is 0. Otherwise
+            # this have to be rewritten
+            assert PAD_TOKEN_INDEX == 0
+            next_symbols = next_symbols * int_unfinished_mask
+
+            return next_symbols
+
         # pylint: disable=too-many-locals
         def body(*args) -> LoopState:
             loop_state = LoopState(*args)
             histories = loop_state.histories
             feedables = loop_state.feedables
-            
-            decoder_states = feedables.dec_loop_states
-            
+
+            decoder_states = feedables.other.dec_loop_states
+
             next_dec_states = [
                 body(*state) for body, state in zip(decoder_bodies,
-                                                    decoder_states)
+                                                    decoder_states)]
             next_dec_feedables = [ls.feedables for ls in next_dec_states]
             next_dec_histories = [ls.histories for ls in next_dec_states]
 
-            probs = tf.stack(
-                [tf.nn.softmax(tf.expand_dims(f.prev_logits, 0))
-                 for f in next_dec_feedables], -1)
-            contexts = tf.concat([h.decoder_outputs[-1, :, :]
+            probs = tf.stack([tf.nn.softmax(
+                                tf.expand_dims(h.logits[-1, :, :], 0),
+                                axis=-1)
+                              for h in next_dec_histories], -1)
+            contexts = tf.concat([tf.expand_dims(h.output_states[-1, :, :], 0)
                                   for h in next_dec_histories], -1)
 
             weights = tf.expand_dims(self.expert_weights(contexts), 2)
-            next_probs = tf.reduce_sum(weights * probs, -1)
+            next_probs = tf.squeeze(tf.reduce_sum(weights * probs, -1), 0)
 
-            if sample:
-                # TODO: multinomial sampling from next_probs
-                raise ValueError("Not supported by the ExpertDecoder")
-            else:
-                next_symbols = tf.argmax(next_probs, axis=1)
-
-                # TODO: why do we mask only in this if-else branch?
-                int_unfinished_mask = tf.to_int64(
-                    tf.logical_not(feedables.finished))
-
-                # Note this works only when PAD_TOKEN_INDEX is 0. Otherwise
-                # this have to be rewritten
-                assert PAD_TOKEN_INDEX == 0
-                next_symbols = next_symbols * int_unfinished_mask 
-
-            has_just_finished = tf.equal(next_symbols, END_TOKEN_INDEX)
-            has_finished = tf.logical_or(feedables.finished,
-                                         has_just_finished)
-            not_finished = tf.logical_not(has_finished)
+            next_symbols = probs_to_symbols(next_probs, loop_state)
+            finished = is_finished(feedables.finished, next_symbols)
 
             # update the loop states of the decoders
-            # TODO: check if the states are really updated
             for i, _ in enumerate(next_dec_states):
                 next_dec_feedables[i] = next_dec_feedables[i]._replace(
-                    finished=has_finished,
-                    input_symbol=next_symbol)
+                    finished=finished,
+                    embedded_input=self.decoders[i].embed_input_symbols(
+                        next_symbols))
 
                 next_dec_states[i] = next_dec_states[i]._replace(
-                    feedables=dec_feed)
+                    feedables=next_dec_feedables[i])
 
-            next_feedables = DecoderFeedables(
+            expert_feedables = ExpertFeedables(
+                dec_loop_states=next_dec_states)
+
+            expert_histories = ExpertHistories(
+                probs=append_tensor(histories.other.probs, next_probs))
+
+            next_feedables = feedables._replace(
                 step=feedables.step + 1,
-                finished=has_finished,
-                input_symbol=next_symbol,
-                prev_logits=None,
-                dec_loop_states=dec_loop_states)
+                finished=finished,
+                other=expert_feedables)
 
-            next_histories = DecoderHistories(
-                logits=None,
-                decoder_outputs=None,
-                mask=append_tensor(feedables.mask, has_finished),
-                outputs=append_tensor(feedables.outputs, next_symbol))
+            next_histories = histories._replace(
+                output_symbols=append_tensor(
+                    histories.output_symbols, next_symbols),
+                output_mask=append_tensor(
+                    histories.output_mask, tf.logical_not(finished)),
+                other=expert_histories)
+
+            return LoopState(
+                feedables=next_feedables,
+                histories=next_histories,
+                constants=loop_state.constants)
+        # pylint: enable=too-many-locals
+
+        return body
