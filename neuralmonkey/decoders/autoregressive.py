@@ -282,6 +282,11 @@ class AutoregressiveDecoder(ModelPart):
         return train_result.histories.output_states
 
     @tensor
+    def train_probs(self) -> tf.Tensor:
+        # required for mixture of experts
+        return tf.nn.softmax(self.train_logits)
+
+    @tensor
     def train_logprobs(self) -> tf.Tensor:
         return tf.nn.log_softmax(self.train_logits)
 
@@ -374,8 +379,14 @@ class AutoregressiveDecoder(ModelPart):
     def output_dimension(self) -> int:
         raise NotImplementedError("Abstract property")
 
-    def get_initial_loop_state(self) -> LoopState:
+    def get_initial_feedables(self) -> DecoderFeedables:
+        return DecoderFeedables(
+            step=tf.constant(0, tf.int32),
+            finished=tf.zeros([self.batch_size], dtype=tf.bool),
+            embedded_input=self.embed_input_symbols(self.go_symbols),
+            other=None)
 
+    def get_initial_histories(self) -> DecoderHistories:
         output_states = tf.zeros(
             shape=[0, self.batch_size, self.embedding_size],
             dtype=tf.float32,
@@ -396,25 +407,21 @@ class AutoregressiveDecoder(ModelPart):
             dtype=tf.float32,
             name="hist_logits")
 
-        feedables = DecoderFeedables(
-            step=tf.constant(0, tf.int32),
-            finished=tf.zeros([self.batch_size], dtype=tf.bool),
-            embedded_input=self.embed_input_symbols(self.go_symbols),
-            other=None)
-
-        histories = DecoderHistories(
+        return DecoderHistories(
             logits=logits,
             output_states=output_states,
             output_mask=output_mask,
             output_symbols=output_symbols,
             other=None)
 
-        constants = DecoderConstants(train_inputs=self.train_inputs)
+    def get_initial_constants(self) -> DecoderConstants:
+        return DecoderConstants(train_inputs=self.train_inputs)
 
+    def get_initial_loop_state(self) -> LoopState:
         return LoopState(
-            histories=histories,
-            constants=constants,
-            feedables=feedables)
+            feedables=self.get_initial_feedables(),
+            histories=self.get_initial_histories(),
+            constants=self.get_initial_constants())
 
     def loop_continue_criterion(self, *args) -> tf.Tensor:
         """Decide whether to break out of the while loop.

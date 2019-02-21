@@ -31,10 +31,10 @@ RNN_CELL_TYPES = {
 
 
 class RNNFeedables(NamedTuple(
-        "RNNFeedables", [
-            ("prev_rnn_state", tf.Tensor),
-            ("prev_rnn_output", tf.Tensor),
-            ("prev_contexts", List[tf.Tensor])])):
+        "RNNFeedables",
+        [("prev_rnn_state", tf.Tensor),
+         ("prev_rnn_output", tf.Tensor),
+         ("prev_contexts", List[tf.Tensor])])):
     """Additional feedables used only by the RNN-based decoder.
 
     Attributes:
@@ -49,9 +49,9 @@ class RNNFeedables(NamedTuple(
 
 
 class RNNHistories(NamedTuple(
-        "RNNHistories", [
-            ("rnn_outputs", tf.Tensor),
-            ("attention_histories", List[Tuple])])):
+        "RNNHistories",
+        [("rnn_outputs", tf.Tensor),
+         ("attention_histories", List[Tuple])])):
     """The loop state histories specific for RNN-based decoders.
 
     Attributes:
