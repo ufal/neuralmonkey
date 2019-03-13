@@ -64,7 +64,7 @@ class SequenceLabeler(ModelPart):
             tf.assert_equal(
                 mask_main, enc.temporal_mask,
                 message=("Encoders '{}' and '{}' does not have equal temporal "
-                         "masks.".format(self.encoders[0].name, enc.name)))
+                         "masks.".format(str(self.encoders[0]), str(enc))))
             for enc in self.encoders[1:]]
 
         with tf.control_dependencies(asserts):
@@ -86,7 +86,7 @@ class SequenceLabeler(ModelPart):
     @tensor
     def concatenated_inputs(self) -> tf.Tensor:
         # Validate shapes first
-        with tf.control_dependencies(self.input_mask):
+        with tf.control_dependencies([self.input_mask]):
             return tf.concat(
                 [inp.temporal_states for inp in self.encoders], axis=2)
 

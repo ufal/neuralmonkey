@@ -260,15 +260,13 @@ def _check_series_collisions(runners: List[BaseRunner],
         if series in runners_outputs:
             raise Exception(("Output series '{}' is multiple times among the "
                              "runners' outputs.").format(series))
-        else:
-            runners_outputs.add(series)
+        runners_outputs.add(series)
     if postprocess is not None:
         for series, _ in postprocess:
             if series in runners_outputs:
                 raise Exception(("Postprocess output series '{}' "
                                  "already exists.").format(series))
-            else:
-                runners_outputs.add(series)
+            runners_outputs.add(series)
 
 
 def run_on_dataset(tf_manager: TensorFlowManager,
