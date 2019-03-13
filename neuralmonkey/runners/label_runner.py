@@ -60,7 +60,7 @@ class LabelRunner(BaseRunner[SequenceLabeler]):
     def fetches(self) -> Dict[str, tf.Tensor]:
         return {
             "label_logprobs": self.decoder.logprobs,
-            "input_mask": self.decoder.encoders[0].temporal_mask,
+            "input_mask": self.decoder.input_mask,
             "loss": self.decoder.cost}
 
     @property

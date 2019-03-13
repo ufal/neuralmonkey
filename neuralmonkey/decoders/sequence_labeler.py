@@ -23,7 +23,7 @@ class SequenceLabeler(ModelPart):
                  encoders: List[TemporalStateful],
                  vocabulary: Vocabulary,
                  data_id: str,
-                 max_output_len: int,
+                 max_output_len: int = None,
                  hidden_dim: int = None,
                  activation: Callable = tf.nn.relu,
                  dropout_keep_prob: float = 1.0,
@@ -57,6 +57,20 @@ class SequenceLabeler(ModelPart):
         return {self.data_id: tf.TensorShape([None, None])}
 
     @tensor
+    def input_mask(self) -> tf.Tensor:
+        mask_main = self.encoders[0].temporal_mask
+
+        asserts = [
+            tf.assert_equal(
+                mask_main, enc.temporal_mask,
+                message=("Encoders '{}' and '{}' does not have equal temporal "
+                         "masks.".format(self.encoders[0].name, enc.name)))
+            for enc in self.encoders[1:]]
+
+        with tf.control_dependencies(asserts):
+            return mask_main
+
+    @tensor
     def target_tokens(self) -> tf.Tensor:
         return self.dataset[self.data_id]
 
@@ -71,8 +85,10 @@ class SequenceLabeler(ModelPart):
 
     @tensor
     def concatenated_inputs(self) -> tf.Tensor:
-        return tf.concat(
-            [inp.temporal_states for inp in self.encoders], axis=2)
+        # Validate shapes first
+        with tf.control_dependencies(self.input_mask):
+            return tf.concat(
+                [inp.temporal_states for inp in self.encoders], axis=2)
 
     @tensor
     def states(self) -> tf.Tensor:
@@ -112,6 +128,8 @@ class SequenceLabeler(ModelPart):
 
     @tensor
     def cost(self) -> tf.Tensor:
+        # Cross entropy mean over all words in the batch
+        # (could also be done as a mean over sentences)
         return tf.reduce_sum(self.train_xents) / tf.reduce_sum(self.train_mask)
 
     @property
@@ -143,7 +161,7 @@ class EmbeddingsLabeler(SequenceLabeler):
                  encoders: List[TemporalStateful],
                  embedded_sequence: EmbeddedSequence,
                  data_id: str,
-                 max_output_len: int,
+                 max_output_len: int = None,
                  hidden_dim: int = None,
                  activation: Callable = tf.nn.relu,
                  train_embeddings: bool = True,
@@ -183,6 +201,7 @@ class EmbeddingsLabeler(SequenceLabeler):
         if states_dim != embedding_dim:
             states = tf.layers.dense(
                 states, embedding_dim, name="project_for_embeddings")
+            states = dropout(states, self.dropout_keep_prob, self.train_mode)
         # pylint: enable=redefined-variable-type
 
         reshaped_states = tf.reshape(states, [-1, embedding_dim])
