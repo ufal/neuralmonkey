@@ -355,7 +355,7 @@ class AutoregressiveDecoder(ModelPart):
     @tensor
     def runtime_loss(self) -> tf.Tensor:
         return (tf.reduce_sum(self.runtime_xents)
-                / tf.reduce_sum(self.runtime_mask))
+                / tf.reduce_sum(tf.to_float(self.runtime_mask)))
 
     @tensor
     def runtime_logprobs(self) -> tf.Tensor:
