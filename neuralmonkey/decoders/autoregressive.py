@@ -6,7 +6,7 @@ Either for the recurrent decoder, or for the transformer decoder.
 The autoregressive decoder uses the while loop to get the outputs.
 Descendants should only specify the initial state and the while loop body.
 """
-from typing import NamedTuple, Callable, Optional, Any, List, Dict, Tuple
+from typing import NamedTuple, Callable, Optional, Any, Dict
 
 import tensorflow as tf
 
@@ -161,9 +161,6 @@ class AutoregressiveDecoder(ModelPart):
         self.label_smoothing = label_smoothing
         self.tie_embeddings = tie_embeddings
         self.supress_unk = supress_unk
-
-        self.encoder_states = lambda: []  # type: Callable[[], List[tf.Tensor]]
-        self.encoder_masks = lambda: []  # type: Callable[[], List[tf.Tensor]]
 
         # Check the values of the parameters (max_output_len, ...)
         if self.max_output_len <= 0:

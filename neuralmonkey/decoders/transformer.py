@@ -11,16 +11,13 @@ import tensorflow as tf
 from typeguard import check_argument_types
 
 from neuralmonkey.attention.scaled_dot_product import attention
-from neuralmonkey.attention.base_attention import (
-    Attendable, get_attention_states, get_attention_mask)
-from neuralmonkey.attention.transformer_cross_layer import (
-    serial, parallel, flat, hierarchical)
+from neuralmonkey.attention.base_attention import Attendable
 from neuralmonkey.decorators import tensor
 from neuralmonkey.decoders.autoregressive import (
     AutoregressiveDecoder, LoopState, DecoderFeedables, DecoderHistories)
+from neuralmonkey.decoders.attentive import Attentive
 from neuralmonkey.encoders.transformer import (
     TransformerLayer, position_signal)
-from neuralmonkey.logging import warn
 from neuralmonkey.model.sequence import EmbeddedSequence
 from neuralmonkey.model.parameterized import InitializerSpecs
 from neuralmonkey.model.model_part import ModelPart
@@ -28,9 +25,6 @@ from neuralmonkey.nn.utils import dropout
 from neuralmonkey.vocabulary import (
     Vocabulary, END_TOKEN_INDEX)
 from neuralmonkey.tf_utils import append_tensor, layer_norm
-
-
-STRATEGIES = ["serial", "parallel", "flat", "hierarchical"]
 
 
 class TransformerFeedables(NamedTuple(
@@ -69,7 +63,7 @@ class TransformerHistories(NamedTuple(
 
 
 # pylint: disable=too-many-instance-attributes
-class TransformerDecoder(AutoregressiveDecoder):
+class TransformerDecoder(AutoregressiveDecoder, Attentive):
 
     # pylint: disable=too-many-arguments,too-many-locals,too-many-branches
     def __init__(self,
@@ -151,56 +145,25 @@ class TransformerDecoder(AutoregressiveDecoder):
             save_checkpoint=save_checkpoint,
             load_checkpoint=load_checkpoint)
 
-        self.encoders = encoders
+        Attentive.__init__(
+            self,
+            name=name,
+            encoders=encoders,
+            n_heads_enc=n_heads_enc,
+            n_heads_hier=n_heads_hier,
+            attention_combination_strategy=attention_combination_strategy,
+            dropout_keep_prob=dropout_keep_prob,
+            attention_dropout_keep_prob=attention_dropout_keep_prob,
+            use_att_transform_bias=use_att_transform_bias,
+            reuse=reuse,
+            save_checkpoint=save_checkpoint,
+            load_checkpoint=load_checkpoint,
+            initializers=initializers)
+
         self.ff_hidden_size = ff_hidden_size
         self.n_heads_self = n_heads_self
-
-        if isinstance(n_heads_enc, int):
-            if attention_combination_strategy == "flat":
-                self.n_heads_enc = [n_heads_enc]
-            else:
-                self.n_heads_enc = [n_heads_enc for _ in self.encoders]
-        else:
-            self.n_heads_enc = n_heads_enc
-
         self.depth = depth
-        if isinstance(attention_dropout_keep_prob, float):
-            self.attention_dropout_keep_prob = [
-                attention_dropout_keep_prob for _ in encoders]
-        else:
-            self.attention_dropout_keep_prob = attention_dropout_keep_prob
         self.self_att_dropout_keep_prob = self_attention_dropout_keep_prob
-        self.use_att_transform_bias = use_att_transform_bias
-        self.attention_combination_strategy = attention_combination_strategy
-        self.n_heads_hier = n_heads_hier
-
-        self.encoder_states = lambda: [get_attention_states(e)
-                                       for e in self.encoders]
-        self.encoder_masks = lambda: [get_attention_mask(e)
-                                      for e in self.encoders]
-
-        if self.attention_combination_strategy not in STRATEGIES:
-            raise ValueError(
-                "Unknown attention combination strategy '{}'. "
-                "Allowed: {}.".format(self.attention_combination_strategy,
-                                      ", ".join(STRATEGIES)))
-
-        if (self.attention_combination_strategy == "hierarchical"
-                and self.n_heads_hier is None):
-            raise ValueError(
-                "You must provide n_heads_hier when using the hierarchical "
-                "attention combination strategy.")
-
-        if (self.attention_combination_strategy != "hierarchical"
-                and self.n_heads_hier is not None):
-            warn("Ignoring n_heads_hier parameter -- use the hierarchical "
-                 "attention combination strategy instead.")
-
-        if (self.attention_combination_strategy == "flat"
-                and len(self.n_heads_enc) != 1):
-            raise ValueError(
-                "For the flat attention combination strategy, only a single "
-                "value is permitted in n_heads_enc.")
 
         self._variable_scope.set_initializer(tf.variance_scaling_initializer(
             mode="fan_avg", distribution="uniform"))
@@ -296,48 +259,8 @@ class TransformerDecoder(AutoregressiveDecoder):
 
     def encoder_attention_sublayer(self, queries: tf.Tensor) -> tf.Tensor:
         """Create the encoder-decoder attention sublayer."""
-        enc_states = self.encoder_states()
-        enc_masks = self.encoder_masks()
-        assert enc_states is not None
-        assert enc_masks is not None
 
-        # Attention dropout callbacks are created in a loop so we need to
-        # use a factory function to prevent late binding.
-        def make_attn_callback(
-                prob: float) -> Callable[[tf.Tensor], tf.Tensor]:
-            def callback(x: tf.Tensor) -> tf.Tensor:
-                return dropout(x, prob, self.train_mode)
-            return callback
-
-        dropout_cb = make_attn_callback(self.dropout_keep_prob)
-        attn_dropout_cbs = [make_attn_callback(prob)
-                            for prob in self.attention_dropout_keep_prob]
-
-        if self.attention_combination_strategy == "serial":
-            return serial(queries, enc_states, enc_masks, self.n_heads_enc,
-                          attn_dropout_cbs, dropout_cb)
-
-        if self.attention_combination_strategy == "parallel":
-            return parallel(queries, enc_states, enc_masks, self.n_heads_enc,
-                            attn_dropout_cbs, dropout_cb)
-
-        if self.attention_combination_strategy == "flat":
-            assert len(set(self.n_heads_enc)) == 1
-            assert len(set(self.attention_dropout_keep_prob)) == 1
-
-            return flat(queries, enc_states, enc_masks, self.n_heads_enc[0],
-                        attn_dropout_cbs[0], dropout_cb)
-
-        if self.attention_combination_strategy == "hierarchical":
-            assert self.n_heads_hier is not None
-
-            return hierarchical(
-                queries, enc_states, enc_masks, self.n_heads_enc,
-                self.n_heads_hier, attn_dropout_cbs, dropout_cb)
-
-        raise NotImplementedError(
-            "Unknown attention combination strategy: {}"
-            .format(self.attention_combination_strategy))
+        return self.encoder_attention(queries)
 
     def feedforward_sublayer(self, layer_input: tf.Tensor) -> tf.Tensor:
         """Create the feed-forward network sublayer."""

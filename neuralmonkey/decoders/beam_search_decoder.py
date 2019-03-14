@@ -31,6 +31,7 @@ from typeguard import check_argument_types
 
 from neuralmonkey.decoders.autoregressive import (
     AutoregressiveDecoder, LoopState)
+from neuralmonkey.decoders.attentive import Attentive
 from neuralmonkey.decorators import tensor
 from neuralmonkey.model.model_part import ModelPart
 from neuralmonkey.tf_utils import (
@@ -171,22 +172,25 @@ class BeamSearchDecoder(ModelPart):
         # the graph, replace them with beam-size-times copied originals, create
         # the beam search graph, and then replace the inner states back.
 
-        enc_states = self.parent_decoder.encoder_states
-        enc_masks = self.parent_decoder.encoder_masks
+        if isinstance(self, Attentive):
+            enc_states = self.parent_decoder.encoder_states
+            enc_masks = self.parent_decoder.encoder_masks
 
-        setattr(self.parent_decoder, "encoder_states",
-                lambda: [self.expand_to_beam(sts) for sts in enc_states()])
-        setattr(self.parent_decoder, "encoder_masks",
-                lambda: [self.expand_to_beam(mask) for mask in enc_masks()])
+            setattr(self.parent_decoder, "encoder_states",
+                    lambda: [self.expand_to_beam(sts) for sts in enc_states()])
+            setattr(self.parent_decoder, "encoder_masks",
+                    lambda: [self.expand_to_beam(mask)
+                             for mask in enc_masks()])
 
         # Create the beam search symbolic graph.
         with self.use_scope():
             self._initial_loop_state = self.get_initial_loop_state()
             outputs = self.decoding_loop()
 
-        # Reassign the original encoder states and mask back
-        setattr(self.parent_decoder, "encoder_states", enc_states)
-        setattr(self.parent_decoder, "encoder_masks", enc_masks)
+        if isinstance(self, Attentive):
+            # Reassign the original encoder states and mask back
+            setattr(self.parent_decoder, "encoder_states", enc_states)
+            setattr(self.parent_decoder, "encoder_masks", enc_masks)
 
         return outputs
 
