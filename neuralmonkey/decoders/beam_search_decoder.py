@@ -172,7 +172,7 @@ class BeamSearchDecoder(ModelPart):
         # the graph, replace them with beam-size-times copied originals, create
         # the beam search graph, and then replace the inner states back.
 
-        if isinstance(self, Attentive):
+        if isinstance(self.parent_decoder, Attentive):
             enc_states = self.parent_decoder.encoder_states
             enc_masks = self.parent_decoder.encoder_masks
 
@@ -187,7 +187,7 @@ class BeamSearchDecoder(ModelPart):
             self._initial_loop_state = self.get_initial_loop_state()
             outputs = self.decoding_loop()
 
-        if isinstance(self, Attentive):
+        if isinstance(self.parent_decoder, Attentive):
             # Reassign the original encoder states and mask back
             setattr(self.parent_decoder, "encoder_states", enc_states)
             setattr(self.parent_decoder, "encoder_masks", enc_masks)
