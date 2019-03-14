@@ -32,7 +32,11 @@ class PerplexityRunner(BaseRunner[AutoregressiveDecoder]):
 
     @tensor
     def fetches(self) -> Dict[str, tf.Tensor]:
-        return {"xents": self.decoder.train_xents}
+        # decoder.train_xents are (batch, time)
+        # we average xents over the time dimension
+        return {"xents": tf.reduce_sum(
+            self.decoder.train_xents, axis=1) / tf.reduce_sum(
+                tf.transpose(self.decoder.train_mask), axis=1)}
 
     @property
     def loss_names(self) -> List[str]:

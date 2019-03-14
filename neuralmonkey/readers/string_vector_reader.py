@@ -13,7 +13,7 @@ def get_string_vector_reader(dtype: Type = np.float32, columns: int = None):
 
         return np.array(numbers, dtype=dtype)
 
-    def reader(files: List[str])-> Iterable[List[np.ndarray]]:
+    def reader(files: List[str]) -> Iterable[List[np.ndarray]]:
         for path in files:
             current_line = 0
 
