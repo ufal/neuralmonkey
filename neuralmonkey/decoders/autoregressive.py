@@ -288,16 +288,21 @@ class AutoregressiveDecoder(ModelPart):
                     tf.one_hot(labels, len(self.vocabulary)),
                     logits, label_smoothing=self.label_smoothing))
 
+        # Return losses of shape (batch, time). Losses on invalid positions
+        # are zero.
         return tf.contrib.seq2seq.sequence_loss(
             tf.transpose(self.train_logits, perm=[1, 0, 2]),
             train_targets,
             tf.transpose(self.train_mask),
             average_across_batch=False,
+            average_across_timesteps=False,
             softmax_loss_function=softmax_function)
 
     @tensor
     def train_loss(self) -> tf.Tensor:
-        return tf.reduce_mean(self.train_xents)
+        # Cross entropy mean over all words in the batch
+        # (could also be done as a mean over sentences)
+        return tf.reduce_sum(self.train_xents) / tf.reduce_sum(self.train_mask)
 
     @property
     def cost(self) -> tf.Tensor:
@@ -344,11 +349,13 @@ class AutoregressiveDecoder(ModelPart):
             logits=batch_major_logits[:, :min_time],
             targets=train_targets[:, :min_time],
             weights=tf.transpose(self.train_mask)[:, :min_time],
-            average_across_batch=False)
+            average_across_batch=False,
+            average_across_timesteps=False)
 
     @tensor
     def runtime_loss(self) -> tf.Tensor:
-        return tf.reduce_mean(self.runtime_xents)
+        return (tf.reduce_sum(self.runtime_xents)
+                / tf.reduce_sum(self.runtime_mask))
 
     @tensor
     def runtime_logprobs(self) -> tf.Tensor:
