@@ -5,12 +5,11 @@ import tensorflow as tf
 import numpy as np
 
 from neuralmonkey.decoders.autoregressive import AutoregressiveDecoder
-from neuralmonkey.decoders.sequence_labeler import SequenceLabeler
 from neuralmonkey.decorators import tensor
 from neuralmonkey.runners.base_runner import BaseRunner
 
 
-SupportedDecoders = Union[AutoregressiveDecoder, SequenceLabeler]
+SupportedDecoders = Union[AutoregressiveDecoder]
 
 
 class XentRunner(BaseRunner[SupportedDecoders]):
