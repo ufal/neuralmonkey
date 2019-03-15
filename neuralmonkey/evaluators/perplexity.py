@@ -7,7 +7,7 @@ from neuralmonkey.evaluators.evaluator import Evaluator
 
 
 class PerplexityEvaluator(Evaluator[float]):
-    """Just average the numeric output of a runner."""
+    """Just 2 ** average the numeric output of a runner."""
 
     def score_batch(self,
                     hypotheses: List[float],

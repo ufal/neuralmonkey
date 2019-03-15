@@ -5,11 +5,11 @@ import tensorflow as tf
 import numpy as np
 
 from neuralmonkey.decoders.autoregressive import AutoregressiveDecoder
+from neuralmonkey.decoders.sequence_labeler import SequenceLabeler
 from neuralmonkey.decorators import tensor
 from neuralmonkey.runners.base_runner import BaseRunner
 
-
-SupportedDecoders = Union[AutoregressiveDecoder]
+SupportedDecoders = Union[AutoregressiveDecoder, SequenceLabeler]
 
 
 class XentRunner(BaseRunner[SupportedDecoders]):
@@ -19,7 +19,7 @@ class XentRunner(BaseRunner[SupportedDecoders]):
     class Executable(BaseRunner.Executable["XentRunner"]):
 
         def collect_results(self, results: List[Dict]) -> None:
-            xents = np.concatenate([res["xents"] for res in results], axis=0)
+            xents = np.mean([res["xents"] for res in results], axis=0)
             self.set_runner_result(outputs=xents.tolist(),
                                    losses=[float(np.mean(xents))])
     # pylint: enable=too-few-public-methods

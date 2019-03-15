@@ -31,9 +31,7 @@ class Evaluator(Generic[EvalType]):
     implementations of `score_batch` and `score_instance` functions.
     """
 
-    def __init__(self,
-                 name: str = None,
-                 ) -> None:
+    def __init__(self, name: str = None) -> None:
         check_argument_types()
         if name is None:
             name = type(self).__name__
@@ -126,7 +124,7 @@ class SequenceEvaluator(Evaluator[Sequence[EvalType]]):
 
     def __init__(self,
                  name: str = None,
-                 mask_symbol: str = None) -> None:
+                 mask_symbol: EvalType = None) -> None:
         """Initialize class.
 
         Argumets:
