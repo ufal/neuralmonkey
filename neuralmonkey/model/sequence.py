@@ -54,7 +54,7 @@ class Sequence(ModelPart, TemporalStateful):
 class EmbeddedFactorSequence(Sequence):
     """A sequence that stores one or more embedded inputs (factors)."""
 
-    # pylint: disable=too-many-arguments
+    # pylint: disable=too-many-arguments,too-many-locals
     def __init__(self,
                  name: str,
                  vocabularies: List[Vocabulary],
@@ -129,7 +129,7 @@ class EmbeddedFactorSequence(Sequence):
 
         self._variable_scope.set_initializer(
             tf.random_normal_initializer(stddev=0.001))
-    # pylint: enable=too-many-arguments
+    # pylint: enable=too-many-arguments,too-many-locals
 
     @property
     def input_types(self) -> Dict[str, tf.DType]:
@@ -225,7 +225,7 @@ class EmbeddedFactorSequence(Sequence):
 class EmbeddedSequence(EmbeddedFactorSequence):
     """A sequence of embedded inputs (for a single factor)."""
 
-    # pylint: disable=too-many-arguments
+    # pylint: disable=too-many-arguments,too-many-locals
     def __init__(self,
                  name: str,
                  vocabulary: Vocabulary,
@@ -275,7 +275,7 @@ class EmbeddedSequence(EmbeddedFactorSequence):
             save_checkpoint=save_checkpoint,
             load_checkpoint=load_checkpoint,
             initializers=initializers)
-    # pylint: enable=too-many-arguments
+    # pylint: enable=too-many-arguments,too-many-locals
 
     # pylint: disable=unsubscriptable-object
     @property
