@@ -13,8 +13,20 @@ from neuralmonkey.vocabulary import Vocabulary, SPECIAL_TOKENS
 
 class Word2Vec:
 
-    def __init__(self, path: str, encoding: str = "utf-8") -> None:
-        """Load the word2vec file."""
+    def __init__(
+            self,
+            path: str,
+            encoding: str = "utf-8",
+            allow_missing_unk: bool = False) -> None:
+        """Load the word2vec file.
+
+        Args:
+            path: Path to word embeddings stored in the word2vec format.
+            encoding: File encoding.
+            allow_missing_unk: If true, embedding of <unk> is set to zero,
+                otherwise it must be in the embeddings file.
+
+        """
         check_argument_types()
 
         # Create the vocabulary object, load the words and vectors from the
@@ -33,7 +45,10 @@ class Word2Vec:
             embedding_vectors.append(np.zeros(emb_size))
             embedding_vectors.append(np.zeros(emb_size))
             # Add placeholder for embedding of the unknown symbol
-            embedding_vectors.append(None)
+            if allow_missing_unk:
+                embedding_vectors.append(np.zeros(emb_size))
+            else:
+                embedding_vectors.append(None)
 
             for line in f_data:
                 fields = line.split()
