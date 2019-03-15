@@ -168,7 +168,7 @@ class RecurrentEncoder(ModelPart, TemporalStatefulWithOutput):
     @tensor
     def rnn(self) -> Tuple[tf.Tensor, tf.Tensor]:
         layer_input = self.rnn_input  # type: tf.Tensor
-        layer_final = None
+        layer_final = self.rnn_input[:, -1]
 
         for i, rnn_spec in enumerate(self.rnn_specs):
             with tf.variable_scope("rnn_{}_{}".format(i, rnn_spec.direction),
@@ -190,7 +190,6 @@ class RecurrentEncoder(ModelPart, TemporalStatefulWithOutput):
                 out_dim = layer_output.get_shape()[-1]
 
                 if self.add_residual and in_dim == out_dim:
-                    assert layer_final is not None
                     layer_input += layer_output
                     layer_final += layer_final_output
                 else:
@@ -360,7 +359,7 @@ class FactoredEncoder(RecurrentEncoder):
             self,
             name=name,
             input_sequence=input_sequence,
-            rnn_layers=[(rnn_size, rnn_cell, rnn_direction)],
+            rnn_layers=[(rnn_size, rnn_direction, rnn_cell)],
             add_residual=add_residual,
             add_layer_norm=add_layer_norm,
             dropout_keep_prob=dropout_keep_prob,
