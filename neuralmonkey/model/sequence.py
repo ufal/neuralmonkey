@@ -64,6 +64,7 @@ class EmbeddedFactorSequence(Sequence):
                  add_start_symbol: bool = False,
                  add_end_symbol: bool = False,
                  scale_embeddings_by_depth: bool = False,
+                 trainable: bool = True,
                  embeddings_source: "EmbeddedFactorSequence" = None,
                  reuse: ModelPart = None,
                  save_checkpoint: str = None,
@@ -105,6 +106,7 @@ class EmbeddedFactorSequence(Sequence):
         self.add_end_symbol = add_end_symbol
         self.scale_embeddings_by_depth = scale_embeddings_by_depth
         self.embeddings_source = embeddings_source
+        self.trainable = trainable
 
         if not (len(self.data_ids)
                 == len(self.vocabularies)
@@ -160,7 +162,8 @@ class EmbeddedFactorSequence(Sequence):
         return [
             get_variable(
                 name="embedding_matrix_{}".format(i),
-                shape=[vocab_size, emb_size])
+                shape=[vocab_size, emb_size],
+                trainable=self.trainable)
             for i, (data_id, vocab_size, emb_size) in enumerate(zip(
                 self.data_ids, self.vocabulary_sizes, self.embedding_sizes))]
 
@@ -232,6 +235,7 @@ class EmbeddedSequence(EmbeddedFactorSequence):
                  add_start_symbol: bool = False,
                  add_end_symbol: bool = False,
                  scale_embeddings_by_depth: bool = False,
+                 trainable: bool = True,
                  embeddings_source: "EmbeddedSequence" = None,
                  reuse: ModelPart = None,
                  save_checkpoint: str = None,
@@ -265,6 +269,7 @@ class EmbeddedSequence(EmbeddedFactorSequence):
             add_start_symbol=add_start_symbol,
             add_end_symbol=add_end_symbol,
             scale_embeddings_by_depth=scale_embeddings_by_depth,
+            trainable=trainable,
             embeddings_source=embeddings_source,
             reuse=reuse,
             save_checkpoint=save_checkpoint,
