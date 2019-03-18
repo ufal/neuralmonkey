@@ -22,6 +22,7 @@ bin/neuralmonkey-train tests/self-critical.ini
 bin/neuralmonkey-train tests/rl.ini
 bin/neuralmonkey-train tests/transformer.ini
 bin/neuralmonkey-run tests/transformer.ini tests/test_data.ini
+bin/neuralmonkey-train tests/bert.ini
 bin/neuralmonkey-train tests/str.ini
 bin/neuralmonkey-train tests/flat-multiattention.ini
 bin/neuralmonkey-train tests/hier-multiattention.ini
