@@ -10,7 +10,7 @@ from neuralmonkey.attention.base_attention import (
     get_attention_states, get_attention_mask, Attendable)
 
 
-class AttentiveEncoder(ModelPart, TemporalStatefulWithOutput):
+class StructuredEncoder(ModelPart, TemporalStatefulWithOutput):
     """An encoder with attention over the input and a fixed-dimension output.
 
     Based on "A Structured Self-attentive Sentence Embedding",
