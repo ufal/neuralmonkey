@@ -168,7 +168,9 @@ class RecurrentEncoder(ModelPart, TemporalStatefulWithOutput):
     @tensor
     def rnn(self) -> Tuple[tf.Tensor, tf.Tensor]:
         layer_input = self.rnn_input  # type: tf.Tensor
+        # pylint: disable=unsubscriptable-object
         layer_final = self.rnn_input[:, -1]
+        # pylint: enable=unsubscriptable-object
 
         for i, rnn_spec in enumerate(self.rnn_specs):
             with tf.variable_scope("rnn_{}_{}".format(i, rnn_spec.direction),
