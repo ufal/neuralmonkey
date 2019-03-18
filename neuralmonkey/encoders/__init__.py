@@ -1,6 +1,5 @@
 from .cnn_encoder import CNNEncoder
 from .cnn_encoder import CNNTemporalView
-from .raw_rnn_encoder import RawRNNEncoder
 from .recurrent import FactoredEncoder
 from .recurrent import RecurrentEncoder
 from .recurrent import SentenceEncoder
