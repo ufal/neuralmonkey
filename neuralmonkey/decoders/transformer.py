@@ -20,7 +20,7 @@ from neuralmonkey.decoders.autoregressive import (
     AutoregressiveDecoder, LoopState, DecoderFeedables)
 from neuralmonkey.encoders.transformer import (
     TransformerLayer, position_signal)
-from neuralmonkey.logging import warn
+from neuralmonkey.logging import warn, debug
 from neuralmonkey.model.sequence import EmbeddedSequence
 from neuralmonkey.model.parameterized import InitializerSpecs
 from neuralmonkey.model.model_part import ModelPart
@@ -433,6 +433,11 @@ class TransformerDecoder(AutoregressiveDecoder):
         # pylint: disable=not-callable
         tr_histories = TransformerHistories(**histories)
         # pylint: enable=not-callable
+
+        for encoder in self.encoders:
+            debug("Encoder states: {}".format(encoder.temporal_states), "bless")
+        debug("Output proj. params.: {}, {}".format(
+            self.decoding_w, self.decoding_b), "bless")
 
         return LoopState(
             histories=tr_histories,
