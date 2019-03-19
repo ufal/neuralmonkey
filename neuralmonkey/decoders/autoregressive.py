@@ -450,7 +450,7 @@ class AutoregressiveDecoder(ModelPart):
 
             if self.supress_unk:
                 unk_mask = tf.one_hot(
-                    UNK_TOKEN_INDEX, depth=len(self.vocabulary), on_value=-1e0)
+                    UNK_TOKEN_INDEX, depth=len(self.vocabulary), on_value=-1e9)
                 logits += unk_mask
 
             return logits
