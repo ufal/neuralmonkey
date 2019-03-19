@@ -37,10 +37,8 @@ class Word2Vec:
             emb_size = int(header.split()[1])
 
             # Add zero embeddings for padding, start, end, and unk token
-            embedding_vectors.append(np.zeros(emb_size))
-            embedding_vectors.append(np.zeros(emb_size))
-            embedding_vectors.append(np.zeros(emb_size))
-            embedding_vectors.append(np.zeros(emb_size))
+            for _ in SPECIAL_TOKENS:
+                embedding_vectors.append(np.zeros(emb_size))
 
             for line in f_data:
                 fields = line.split()
