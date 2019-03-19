@@ -16,16 +16,12 @@ class Word2Vec:
     def __init__(
             self,
             path: str,
-            encoding: str = "utf-8",
-            allow_missing_unk: bool = False) -> None:
+            encoding: str = "utf-8") -> None:
         """Load the word2vec file.
 
         Args:
             path: Path to word embeddings stored in the word2vec format.
             encoding: File encoding.
-            allow_missing_unk: If true, embedding of <unk> is set to zero,
-                otherwise it must be in the embeddings file.
-
         """
         check_argument_types()
 
@@ -40,15 +36,11 @@ class Word2Vec:
             header = next(f_data)
             emb_size = int(header.split()[1])
 
-            # Add zero embeddings for padding, start, and end token
+            # Add zero embeddings for padding, start, end, and unk token
             embedding_vectors.append(np.zeros(emb_size))
             embedding_vectors.append(np.zeros(emb_size))
             embedding_vectors.append(np.zeros(emb_size))
-            # Add placeholder for embedding of the unknown symbol
-            if allow_missing_unk:
-                embedding_vectors.append(np.zeros(emb_size))
-            else:
-                embedding_vectors.append(None)
+            embedding_vectors.append(np.zeros(emb_size))
 
             for line in f_data:
                 fields = line.split()
@@ -68,7 +60,6 @@ class Word2Vec:
 
         self.vocab = Vocabulary(words)
 
-        assert embedding_vectors[3] is not None
         assert emb_size is not None
 
         self.embedding_matrix = np.stack(embedding_vectors)
