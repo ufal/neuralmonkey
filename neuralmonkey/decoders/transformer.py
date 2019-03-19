@@ -4,7 +4,7 @@ Described in Vaswani et al. (2017), arxiv.org/abs/1706.03762
 """
 # TODO make this code simpler
 # pylint: disable=too-many-lines
-from typing import Any, Callable, NamedTuple, List, Union, Tuple
+from typing import Any, NamedTuple, List, Union, Tuple
 import math
 
 import tensorflow as tf
