@@ -434,11 +434,6 @@ class TransformerDecoder(AutoregressiveDecoder):
         tr_histories = TransformerHistories(**histories)
         # pylint: enable=not-callable
 
-        for encoder in self.encoders:
-            debug("Encoder states: {}".format(encoder.temporal_states), "bless")
-        debug("Output proj. params.: {}, {}".format(
-            self.decoding_w, self.decoding_b), "bless")
-
         return LoopState(
             histories=tr_histories,
             constants=[],
@@ -534,4 +529,10 @@ class TransformerDecoder(AutoregressiveDecoder):
         # pylint: enable=too-many-locals
 
         return body
+
+    def decoding_loop(self, train_mode: bool, sample: bool = False,
+                      temperature: float = 1) -> LoopState:
+        with tf.control_dependencies([self.decoding_w, self.decoding_b]):
+            return super(TransformerDecoder, self).decoding_loop(
+                train_mode, sample, temperature)
 # pylint: enable=too-many-instance-attributes
