@@ -26,7 +26,8 @@ class ExpertFeedables(NamedTuple(
 
 class ExpertHistories(NamedTuple(
         "ExpertHistories",
-        [("probs", tf.Tensor)])):
+        [("probs", tf.Tensor),
+         ("weights", tf.Tensor)])):
     """TODO
 
     """
@@ -147,8 +148,12 @@ class ExpertDecoder(AutoregressiveDecoder):
         train_targets = tf.one_hot(self.train_inputs, len(self.vocabulary))
         xent = -tf.reduce_sum(
             train_targets * self.train_logprobs, 2)
-        masked_xent = xent * self.train_mask
-        return tf.reduce_mean(masked_xent, 0)
+        return xent * self.train_mask
+
+    @tensor
+    def train_loss(self) -> tf.Tensor:
+        return (tf.reduce_sum(self.train_xents)
+                / tf.reduce_sum(self.train_mask))
 
     @tensor
     def runtime_logits(self) -> tf.Tensor:
@@ -163,8 +168,12 @@ class ExpertDecoder(AutoregressiveDecoder):
         xent = -tf.reduce_sum(
             train_targets[:min_time, :] * self.runtime_logprobs[:min_time, :],
             axis=2)
-        masked_xent = xent * self.train_mask[:min_time, :]
-        return tf.reduce_mean(masked_xent, 0)
+        return xent * self.train_mask[:min_time, :]
+
+    @tensor
+    def runtime_loss(self) -> tf.Tensor:
+        return (tf.reduce_sum(self.runtime_xents)
+                / tf.reduce_sum(self.train_mask))
 
     @tensor
     def runtime_probs(self) -> tf.Tensor:
@@ -218,6 +227,10 @@ class ExpertDecoder(AutoregressiveDecoder):
         return tf.nn.softmax(weights, -1)
 
     def get_initial_feedables(self) -> DecoderFeedables:
+        expert_feedables = ExpertFeedables(
+            dec_loop_states=[d.get_initial_loop_state()
+                             for d in self.decoders])
+
         # We assign a dummy variable to the attributes not used
         # by the ExpertDecoder so the tf.while_loop can infer its shape
         dummy_var = tf.constant(0, name="feed_dummy")
@@ -225,7 +238,7 @@ class ExpertDecoder(AutoregressiveDecoder):
             step=tf.constant(0, tf.int32),
             finished=tf.zeros([self.batch_size], dtype=tf.bool),
             embedded_input=dummy_var,
-            other=None)
+            other=expert_feedables)
 
     def get_initial_histories(self) -> DecoderHistories:
         output_symbols = tf.zeros(
@@ -238,6 +251,17 @@ class ExpertDecoder(AutoregressiveDecoder):
             dtype=tf.bool,
             name="hist_output_mask")
 
+        expert_histories = ExpertHistories(
+            probs=tf.zeros(
+                shape=[0, self.batch_size, len(self.vocabulary)],
+                dtype=tf.float32,
+                name="hist_expert_probs"),
+            weights=tf.zeros(
+                shape=[0, self.batch_size, len(self.decoders)],
+                dtype=tf.float32,
+                name="hist_expert_weights"))
+
+
         # We assign a dummy variable to the attributes not used
         # by the ExpertDecoder so the tf.while_loop can infer its shape
         dummy_var = tf.constant(0, name="hist_dummy")
@@ -246,26 +270,7 @@ class ExpertDecoder(AutoregressiveDecoder):
             output_states=dummy_var,
             output_symbols=output_symbols,
             output_mask=output_mask,
-            other=None)
-
-    def get_initial_loop_state(self) -> LoopState:
-        feedables = self.get_initial_feedables()
-        histories = self.get_initial_histories()
-
-        expert_feedables = ExpertFeedables(
-            dec_loop_states=[d.get_initial_loop_state()
-                             for d in self.decoders])
-
-        expert_histories = ExpertHistories(
-            probs=tf.zeros(
-                shape=[0, self.batch_size, len(self.vocabulary)],
-                dtype=tf.float32,
-                name="hist_expert_probs"))
-
-        return LoopState(
-            feedables=feedables._replace(other=expert_feedables),
-            histories=histories._replace(other=expert_histories),
-            constants=self.get_initial_constants())
+            other=expert_histories)
 
     def get_body(self, train_mode: bool, sample: bool = False,
                  temperature: float = 1.) -> Callable:
@@ -308,6 +313,7 @@ class ExpertDecoder(AutoregressiveDecoder):
             next_dec_feedables = [ls.feedables for ls in next_dec_states]
             next_dec_histories = [ls.histories for ls in next_dec_states]
 
+            # shape(time, batch, vocab)
             probs = tf.stack([tf.nn.softmax(
                                 tf.expand_dims(h.logits[-1, :, :], 0),
                                 axis=-1)
@@ -316,6 +322,7 @@ class ExpertDecoder(AutoregressiveDecoder):
                                   for h in next_dec_histories], -1)
 
             weights = tf.expand_dims(self.expert_weights(contexts), 2)
+            # shape(batch, vocab)
             next_probs = tf.squeeze(tf.reduce_sum(weights * probs, -1), 0)
 
             next_symbols = probs_to_symbols(next_probs, loop_state)
@@ -335,7 +342,9 @@ class ExpertDecoder(AutoregressiveDecoder):
                 dec_loop_states=next_dec_states)
 
             expert_histories = ExpertHistories(
-                probs=append_tensor(histories.other.probs, next_probs))
+                probs=append_tensor(histories.other.probs, next_probs),
+                weights=append_tensor(histories.other.weights,
+                                      tf.squeeze(weights, [0, 2])))
 
             next_feedables = feedables._replace(
                 step=feedables.step + 1,
