@@ -130,8 +130,8 @@ class SequenceLabeler(ModelPart):
     def cost(self) -> tf.Tensor:
         # Cross entropy mean over all words in the batch
         # (could also be done as a mean over sentences)
-        return ((tf.reduce_sum(self.train_xents) + 1)
-                / (tf.reduce_sum(self.train_mask) + 1))
+        return (tf.reduce_sum(self.train_xents)
+                / (tf.reduce_sum(self.train_mask) + 1e-9))
 
     @property
     def train_loss(self) -> tf.Tensor:
