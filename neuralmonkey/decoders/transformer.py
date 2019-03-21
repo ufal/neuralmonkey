@@ -20,7 +20,7 @@ from neuralmonkey.decoders.autoregressive import (
     AutoregressiveDecoder, LoopState, DecoderFeedables)
 from neuralmonkey.encoders.transformer import (
     TransformerLayer, position_signal)
-from neuralmonkey.logging import warn, debug
+from neuralmonkey.logging import warn
 from neuralmonkey.model.sequence import EmbeddedSequence
 from neuralmonkey.model.parameterized import InitializerSpecs
 from neuralmonkey.model.model_part import ModelPart
@@ -529,10 +529,4 @@ class TransformerDecoder(AutoregressiveDecoder):
         # pylint: enable=too-many-locals
 
         return body
-
-    def decoding_loop(self, train_mode: bool, sample: bool = False,
-                      temperature: float = 1) -> LoopState:
-        with tf.control_dependencies([self.decoding_w, self.decoding_b]):
-            return super(TransformerDecoder, self).decoding_loop(
-                train_mode, sample, temperature)
 # pylint: enable=too-many-instance-attributes
