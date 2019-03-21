@@ -85,8 +85,8 @@ class SequenceLabeler(ModelPart):
 
     @tensor
     def output_mask(self) -> tf.Tensor:
-        return tf.where(
-            self.train_mode, self.train_mask, self.input_mask)
+        return tf.cond(
+            self.train_mode, lambda: self.train_mask, lambda: self.input_mask)
 
     @tensor
     def concatenated_inputs(self) -> tf.Tensor:
