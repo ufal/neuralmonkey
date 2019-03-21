@@ -94,7 +94,8 @@ class DecoderFeedables(NamedTuple(
          ("other", Any)])):
     """The input of a single step of an autoregressive decoder.
 
-    The decoder should be able to decode in each step only using this.
+    The decoder should be able to generate an output symbol only using the
+    information contained in this structure.
 
     Attributes defined here (and in the `other`) substructure should always
     be batch-major (e.g., shape(batch, ...)).
