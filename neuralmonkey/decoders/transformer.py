@@ -452,10 +452,8 @@ class TransformerDecoder(AutoregressiveDecoder):
             histories=histories,
             constants=decoder_ls.constants)
 
-    def get_initial_loop_state(self) -> LoopState:
-        default_ls = AutoregressiveDecoder.get_initial_loop_state(self)
-        feedables = default_ls.feedables
-        histories = default_ls.histories
+    def get_initial_feedables(self) -> DecoderFeedables:
+        feedables = AutoregressiveDecoder.get_initial_feedables(self)
 
         tr_feedables = TransformerFeedables(
             input_sequence=tf.zeros(
@@ -466,6 +464,11 @@ class TransformerDecoder(AutoregressiveDecoder):
                 shape=[self.batch_size, 0, 1],
                 dtype=tf.float32,
                 name="input_mask"))
+
+        return feedables._replace(other=tr_feedables)
+
+    def get_initial_histories(self) -> DecoderHistories:
+        histories = AutoregressiveDecoder.get_initial_histories(self)
 
         # TODO: record histories properly
         tr_histories = tf.zeros([])
@@ -479,10 +482,7 @@ class TransformerDecoder(AutoregressiveDecoder):
         #                                    self.n_heads_enc)
         #        for a in range(self.depth)])
 
-        return LoopState(
-            histories=histories._replace(other=tr_histories),
-            constants=default_ls.constants,
-            feedables=feedables._replace(other=tr_feedables))
+        return histories._replace(other=tr_histories)
 
     def next_state(self, loop_state: LoopState) -> Tuple[tf.Tensor, Any, Any]:
         feedables = loop_state.feedables

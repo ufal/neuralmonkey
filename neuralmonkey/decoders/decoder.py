@@ -4,7 +4,7 @@ import tensorflow as tf
 from typeguard import check_argument_types
 
 from neuralmonkey.decoders.autoregressive import (
-    AutoregressiveDecoder, LoopState)
+    AutoregressiveDecoder, DecoderFeedables, DecoderHistories, LoopState)
 from neuralmonkey.attention.base_attention import BaseAttention
 from neuralmonkey.vocabulary import Vocabulary
 from neuralmonkey.model.sequence import EmbeddedSequence
@@ -357,16 +357,19 @@ class Decoder(AutoregressiveDecoder):
 
         return (output, new_feedables, new_histories)
 
-    def get_initial_loop_state(self) -> LoopState:
-        default_ls = AutoregressiveDecoder.get_initial_loop_state(self)
-        feedables = default_ls.feedables
-        histories = default_ls.histories
+    def get_initial_feedables(self) -> DecoderFeedables:
+        feedables = AutoregressiveDecoder.get_initial_feedables(self)
 
         rnn_feedables = RNNFeedables(
             prev_contexts=[tf.zeros([self.batch_size, a.context_vector_size])
                            for a in self.attentions],
             prev_rnn_state=self.initial_state,
             prev_rnn_output=self.initial_state)
+
+        return feedables._replace(other=rnn_feedables)
+
+    def get_initial_histories(self) -> DecoderHistories:
+        histories = AutoregressiveDecoder.get_initial_histories(self)
 
         rnn_histories = RNNHistories(
             rnn_outputs=tf.zeros(
@@ -376,10 +379,7 @@ class Decoder(AutoregressiveDecoder):
             attention_histories=[a.initial_loop_state()
                                  for a in self.attentions if a is not None])
 
-        return LoopState(
-            histories=histories._replace(other=rnn_histories),
-            constants=default_ls.constants,
-            feedables=feedables._replace(other=rnn_feedables))
+        return histories._replace(other=rnn_histories)
 
     def finalize_loop(self, final_loop_state: LoopState,
                       train_mode: bool) -> None:
