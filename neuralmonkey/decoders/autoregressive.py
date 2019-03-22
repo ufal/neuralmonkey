@@ -550,12 +550,13 @@ class AutoregressiveDecoder(ModelPart):
             temperature: float value specifying the softmax temperature
         """
         initial_loop_state = self.get_initial_loop_state()
-        final_loop_state = tf.while_loop(
-            self.loop_continue_criterion,
-            self.get_body(train_mode, sample, temperature),
-            initial_loop_state,
-            shape_invariants=tf.contrib.framework.nest.map_structure(
-                get_state_shape_invariants, initial_loop_state))
+        with tf.control_dependencies([self.decoding_w, self.decoding_b]):
+            final_loop_state = tf.while_loop(
+                self.loop_continue_criterion,
+                self.get_body(train_mode, sample, temperature),
+                initial_loop_state,
+                shape_invariants=tf.contrib.framework.nest.map_structure(
+                    get_state_shape_invariants, initial_loop_state))
 
         self.finalize_loop(final_loop_state, train_mode)
 

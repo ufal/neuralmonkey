@@ -49,6 +49,7 @@ class ExpertDecoder(AutoregressiveDecoder):
                  gating_strategy: str = "uniform",
                  gate_dimension: int = None,
                  dropout_keep_prob: float = 1.0,
+                 label_smooting: float = None,
                  reuse: ModelPart = None,
                  save_checkpoint: str = None,
                  load_checkpoint: str = None,
@@ -70,7 +71,7 @@ class ExpertDecoder(AutoregressiveDecoder):
             embedding_size=None,
             embeddings_source=None,
             tie_embeddings=False,
-            label_smoothing=False,
+            label_smoothing=label_smoothing,
             supress_unk=False,
             reuse=reuse,
             save_checkpoint=save_checkpoint,
@@ -144,11 +145,14 @@ class ExpertDecoder(AutoregressiveDecoder):
 
     @tensor
     def train_xents(self) -> tf.Tensor:
-        # TODO: label smoothing?
         train_targets = tf.one_hot(self.train_inputs, len(self.vocabulary))
+        if self.label_smoothing:
+            train_targets = (
+                (train_targets * (1 - self.label_smoothing))
+                + self.label_smoothing / len(self.vocabulary))
         xent = -tf.reduce_sum(
             train_targets * self.train_logprobs, 2)
-        return xent * self.train_mask
+        return tf.transpose(xent * self.train_mask, [1, 0])
 
     @tensor
     def train_loss(self) -> tf.Tensor:
@@ -168,7 +172,7 @@ class ExpertDecoder(AutoregressiveDecoder):
         xent = -tf.reduce_sum(
             train_targets[:min_time, :] * self.runtime_logprobs[:min_time, :],
             axis=2)
-        return xent * self.train_mask[:min_time, :]
+        return tf.transpose(xent * self.train_mask[:min_time, :], [1, 0])
 
     @tensor
     def runtime_loss(self) -> tf.Tensor:
