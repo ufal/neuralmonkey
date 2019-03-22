@@ -20,7 +20,7 @@ class XentRunner(BaseRunner[SupportedDecoders]):
 
         def collect_results(self, results: List[Dict]) -> None:
             xents = np.mean([res["xents"] for res in results], axis=0)
-            self.set_runner_result(outputs=xents.tolist(),
+            self.set_runner_result(outputs=xents.T,
                                    losses=[float(np.mean(xents))])
     # pylint: enable=too-few-public-methods
 
