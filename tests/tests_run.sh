@@ -13,6 +13,7 @@ bin/neuralmonkey-train tests/post-edit.ini
 bin/neuralmonkey-train tests/factored.ini
 bin/neuralmonkey-train tests/classifier.ini
 bin/neuralmonkey-train tests/labeler.ini
+bin/neuralmonkey-run tests/labeler.ini tests/test_data.ini
 bin/neuralmonkey-train tests/regressor.ini
 bin/neuralmonkey-train tests/language-model.ini
 bin/neuralmonkey-train tests/audio-classifier.ini
