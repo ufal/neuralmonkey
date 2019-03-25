@@ -23,19 +23,19 @@ class LabelRunner(BaseRunner[SequenceLabeler]):
         def collect_results(self, results: List[Dict]) -> None:
             loss = results[0].get("loss", 0.)
             summed_logprobs = results[0]["label_logprobs"]
-            output_mask = results[0]["output_mask"]
+            input_mask = results[0]["input_mask"]
 
             for sess_result in results[1:]:
                 loss += sess_result.get("loss", 0.)
                 summed_logprobs = np.logaddexp(summed_logprobs,
                                                sess_result["label_logprobs"])
-                assert output_mask == sess_result["output_mask"]
+                assert input_mask == sess_result["input_mask"]
 
             argmaxes = np.argmax(summed_logprobs, axis=2)
 
             # We change all masked tokens to END_TOKEN
             argmaxes -= END_TOKEN_INDEX
-            argmaxes *= output_mask.astype(int)
+            argmaxes *= input_mask.astype(int)
             argmaxes += END_TOKEN_INDEX
 
             # transpose argmaxes because vectors_to_sentences is time-major
@@ -60,7 +60,7 @@ class LabelRunner(BaseRunner[SequenceLabeler]):
     def fetches(self) -> Dict[str, tf.Tensor]:
         return {
             "label_logprobs": self.decoder.logprobs,
-            "output_mask": self.decoder.output_mask,
+            "input_mask": self.decoder.input_mask,
             "loss": self.decoder.cost}
 
     @property
