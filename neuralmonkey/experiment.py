@@ -30,7 +30,7 @@ _TRAIN_ARGS = [
     "test_datasets", "initial_variables", "validation_period",
     "val_preview_input_series", "val_preview_output_series",
     "val_preview_num_examples", "logging_period", "visualize_embeddings",
-    "random_seed", "overwrite_output_dir"
+    "overwrite_output_dir"
 ]
 
 
@@ -458,6 +458,7 @@ def create_config(train_mode: bool = True) -> Configuration:
     config.add_argument("output")
     config.add_argument("postprocess", required=False, default=None)
     config.add_argument("runners")
+    config.add_argument("random_seed", required=False, default=2574600)
 
     if train_mode:
         config.add_argument("epochs", cond=lambda x: x >= 0)
@@ -479,7 +480,6 @@ def create_config(train_mode: bool = True) -> Configuration:
         config.add_argument("train_start_offset", required=False, default=0)
         config.add_argument("name", required=False,
                             default="Neural Monkey Experiment")
-        config.add_argument("random_seed", required=False, default=2574600)
         config.add_argument("initial_variables", required=False, default=None)
         config.add_argument("overwrite_output_dir", required=False,
                             default=False)
