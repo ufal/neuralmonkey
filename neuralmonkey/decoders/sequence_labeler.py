@@ -83,6 +83,13 @@ class SequenceLabeler(ModelPart):
     def train_mask(self) -> tf.Tensor:
         return sentence_mask(self.train_targets)
 
+    # TODO(tf-dataset) Uncomment this method after tf-dataset is done
+    # @tensor
+    # def output_mask(self) -> tf.Tensor:
+    #     return tf.cond(
+    #         self.train_mode, lambda: self.train_mask,
+    #         lambda: self.input_mask)
+
     @tensor
     def concatenated_inputs(self) -> tf.Tensor:
         # Validate shapes first
