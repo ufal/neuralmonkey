@@ -33,7 +33,7 @@ class LabelRunner(BaseRunner[SequenceLabeler]):
 
             argmaxes = np.argmax(summed_logprobs, axis=2)
 
-            # CAUTION! FABULOUS HACK BELIEVE ME
+            # We change all masked tokens to END_TOKEN
             argmaxes -= END_TOKEN_INDEX
             argmaxes *= input_mask.astype(int)
             argmaxes += END_TOKEN_INDEX

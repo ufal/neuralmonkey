@@ -13,6 +13,7 @@ bin/neuralmonkey-train tests/post-edit.ini
 bin/neuralmonkey-train tests/factored.ini
 bin/neuralmonkey-train tests/classifier.ini
 bin/neuralmonkey-train tests/labeler.ini
+bin/neuralmonkey-run tests/labeler.ini tests/test_data.ini
 bin/neuralmonkey-train tests/regressor.ini
 bin/neuralmonkey-train tests/language-model.ini
 bin/neuralmonkey-train tests/audio-classifier.ini
@@ -22,6 +23,7 @@ bin/neuralmonkey-train tests/self-critical.ini
 bin/neuralmonkey-train tests/rl.ini
 bin/neuralmonkey-train tests/transformer.ini
 bin/neuralmonkey-run tests/transformer.ini tests/test_data.ini
+bin/neuralmonkey-train tests/bert.ini
 bin/neuralmonkey-train tests/str.ini
 bin/neuralmonkey-train tests/flat-multiattention.ini
 bin/neuralmonkey-train tests/hier-multiattention.ini

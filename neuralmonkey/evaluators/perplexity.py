@@ -21,4 +21,6 @@ class PerplexityEvaluator(Evaluator[float]):
             sum(float(xent != 0.0) for xent in hyp_xent)
             for hyp_xent in hypotheses)
 
+        if count_of_all == 0:
+            return float("nan")
         return 2 ** (sum_of_all / count_of_all)

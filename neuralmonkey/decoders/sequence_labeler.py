@@ -83,6 +83,13 @@ class SequenceLabeler(ModelPart):
     def train_mask(self) -> tf.Tensor:
         return sentence_mask(self.train_targets)
 
+    # TODO(tf-dataset) Uncomment this method after tf-dataset is done
+    # @tensor
+    # def output_mask(self) -> tf.Tensor:
+    #     return tf.cond(
+    #         self.train_mode, lambda: self.train_mask,
+    #         lambda: self.input_mask)
+
     @tensor
     def concatenated_inputs(self) -> tf.Tensor:
         # Validate shapes first
@@ -92,17 +99,12 @@ class SequenceLabeler(ModelPart):
 
     @tensor
     def states(self) -> tf.Tensor:
-        states = dropout(
-            self.concatenated_inputs, self.dropout_keep_prob, self.train_mode)
-
-        if self.hidden_dim is not None:
-            hidden = tf.layers.dense(
-                states, self.hidden_dim, self.activation,
-                name="hidden_layer")
-            # pylint: disable=redefined-variable-type
-            states = dropout(hidden, self.dropout_keep_prob, self.train_mode)
-            # pylint: enable=redefined-variable-type
-        return states
+        if self.hidden_dim is None:
+            return self.concatenated_inputs
+        states = tf.layers.dense(
+            self.concatenated_inputs, self.hidden_dim, self.activation,
+            name="hidden_layer")
+        return dropout(states, self.dropout_keep_prob, self.train_mode)
 
     @tensor
     def logits(self) -> tf.Tensor:
@@ -130,7 +132,8 @@ class SequenceLabeler(ModelPart):
     def cost(self) -> tf.Tensor:
         # Cross entropy mean over all words in the batch
         # (could also be done as a mean over sentences)
-        return tf.reduce_sum(self.train_xents) / tf.reduce_sum(self.train_mask)
+        return (tf.reduce_sum(self.train_xents)
+                / (tf.reduce_sum(self.train_mask) + 1e-9))
 
     @property
     def train_loss(self) -> tf.Tensor:
