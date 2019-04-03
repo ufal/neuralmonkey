@@ -279,13 +279,14 @@ class BeamSearchDecoder(ModelPart):
         # time, the placeholder replacement is done on the whole structures, as
         # you can see below.
 
+        logits = dec_next_ls.histories.logits[-1, :, :]
         search_state = SearchState(
             logprob_sum=tf.tile(
                 tf.expand_dims([0.0] + [-INF] * (self.beam_size - 1), 0),
                 [self.batch_size, 1],
                 name="bs_logprob_sum"),
             prev_logprobs=tf.reshape(
-                tf.nn.log_softmax(dec_next_ls.feedables.prev_logits),
+                tf.nn.log_softmax(logits),
                 [self.batch_size, self.beam_size, len(self.vocabulary)]),
             lengths=tf.zeros(
                 [self.batch_size, self.beam_size], dtype=tf.int32,
@@ -296,13 +297,14 @@ class BeamSearchDecoder(ModelPart):
         # We add the input_symbol to token_ids during search_results
         # initialization for simpler beam_body implementation
 
+        input_symbols = dec_next_ls.histories.output_symbols[-1, :]
         search_results = SearchResults(
             scores=tf.zeros(
                 shape=[self.batch_size, self.beam_size],
                 dtype=tf.float32,
                 name="beam_scores"),
             token_ids=tf.reshape(
-                feedables.input_symbol,
+                input_symbols,
                 [1, self.batch_size, self.beam_size],
                 name="beam_tokens"))
 
@@ -505,11 +507,15 @@ class BeamSearchDecoder(ModelPart):
                 dec_loop_state.feedables)
 
             next_feedables = next_feedables._replace(
-                input_symbol=tf.reshape(next_word_ids, [-1]),
+                embedded_input=self.parent_decoder.embed_input_symbols(
+                    tf.reshape(next_word_ids, [-1])),
                 finished=tf.reshape(next_finished, [-1]))
 
             # histories have shape [len, batch, ...]
             def gather_fn(x):
+                if len(x.shape.dims) < 2:
+                    return x
+
                 return partial_transpose(
                     gather_flat(
                         partial_transpose(x, [1, 0]),
@@ -528,10 +534,11 @@ class BeamSearchDecoder(ModelPart):
             # CALL THE DECODER BODY FUNCTION
             next_loop_state = decoder_body(*dec_loop_state)
 
+            logits = next_loop_state.histories.logits[-1, :, :]
             next_search_state = SearchState(
                 logprob_sum=next_beam_logprob_sum,
                 prev_logprobs=tf.reshape(
-                    tf.nn.log_softmax(next_loop_state.feedables.prev_logits),
+                    tf.nn.log_softmax(logits),
                     [self.batch_size, self.beam_size, len(self.vocabulary)]),
                 lengths=next_beam_lengths,
                 finished=next_finished)

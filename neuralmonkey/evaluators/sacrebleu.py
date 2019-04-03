@@ -13,8 +13,8 @@ class SacreBLEUEvaluator(Evaluator[List[str]]):
 
     def __init__(self,
                  name: str,
-                 smooth: str = "exp",
-                 smooth_floor: float = 0.0,
+                 smooth_method: str = "exp",
+                 smooth_value: float = 0.0,
                  force: bool = False,
                  lowercase: bool = False,
                  tokenize: str = "none",
@@ -27,13 +27,14 @@ class SacreBLEUEvaluator(Evaluator[List[str]]):
                 "Unknown tokenizer '{}'. You must use one of sacrebleu's "
                 "tokenizers: {}".format(tokenize, str(TOKENIZERS)))
 
-        if smooth not in SMOOTH_VARIANTS:
+        if smooth_method not in SMOOTH_VARIANTS:
             raise ValueError(
                 "Unknown smoothing '{}'. You must use one of sacrebleu's "
-                "smoothing methods: {}".format(smooth, str(SMOOTH_VARIANTS)))
+                "smoothing methods: {}".format(smooth_method,
+                                               str(SMOOTH_VARIANTS)))
 
-        self.smooth = smooth
-        self.smooth_floor = smooth_floor
+        self.smooth_method = smooth_method
+        self.smooth_value = smooth_value
         self.force = force
         self.lowercase = lowercase
         self.tokenize = tokenize
@@ -48,8 +49,8 @@ class SacreBLEUEvaluator(Evaluator[List[str]]):
         ref_joined = [" ".join(ref) for ref in references]
 
         bleu = corpus_bleu(hyp_joined, [ref_joined],
-                           smooth=self.smooth,
-                           smooth_floor=self.smooth_floor,
+                           smooth_method=self.smooth_method,
+                           smooth_value=self.smooth_value,
                            force=self.force,
                            lowercase=self.lowercase,
                            tokenize=self.tokenize,

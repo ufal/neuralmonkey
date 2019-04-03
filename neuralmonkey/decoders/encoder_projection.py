@@ -65,9 +65,10 @@ def linear_encoder_projection(dropout_keep_prob: float) -> EncoderProjection:
                 "You must supply rnn_size for this type of encoder projection")
 
         en_concat = concat_encoder_projection(train_mode, None, encoders)
-        en_concat = dropout(en_concat, dropout_keep_prob, train_mode)
 
-        return tf.layers.dense(en_concat, rnn_size, name="encoders_projection")
+        return dropout(
+            tf.layers.dense(en_concat, rnn_size, name="encoders_projection"),
+            dropout_keep_prob, train_mode)
 
     return cast(EncoderProjection, func)
 
@@ -126,7 +127,6 @@ def nematus_projection(dropout_keep_prob: float = 1.0) -> EncoderProjection:
         lengths = tf.reduce_sum(encoder.temporal_mask, 1, keepdims=True)
 
         means = masked_sum / lengths
-        means = dropout(means, dropout_keep_prob, train_mode)
 
         encoder_rnn_size = means.get_shape()[1].value
 
@@ -134,10 +134,12 @@ def nematus_projection(dropout_keep_prob: float = 1.0) -> EncoderProjection:
         if encoder_rnn_size != rnn_size:
             kernel_initializer = None
 
-        return tf.layers.dense(
-            means, rnn_size, activation=tf.tanh,
-            kernel_initializer=get_initializer(
-                "encoders_projection/kernel", kernel_initializer),
-            name="encoders_projection")
+        return dropout(
+            tf.layers.dense(
+                means, rnn_size, activation=tf.tanh,
+                kernel_initializer=get_initializer(
+                    "encoders_projection/kernel", kernel_initializer),
+                name="encoders_projection"),
+            dropout_keep_prob, train_mode)
 
     return cast(EncoderProjection, func)

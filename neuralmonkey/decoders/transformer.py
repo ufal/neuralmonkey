@@ -4,7 +4,7 @@ Described in Vaswani et al. (2017), arxiv.org/abs/1706.03762
 """
 # TODO make this code simpler
 # pylint: disable=too-many-lines
-from typing import Callable, NamedTuple, List, Union
+from typing import Any, Callable, NamedTuple, List, Union, Tuple
 import math
 
 import tensorflow as tf
@@ -17,7 +17,7 @@ from neuralmonkey.attention.transformer_cross_layer import (
     serial, parallel, flat, hierarchical)
 from neuralmonkey.decorators import tensor
 from neuralmonkey.decoders.autoregressive import (
-    AutoregressiveDecoder, LoopState, DecoderFeedables)
+    AutoregressiveDecoder, LoopState, DecoderFeedables, DecoderHistories)
 from neuralmonkey.encoders.transformer import (
     TransformerLayer, position_signal)
 from neuralmonkey.logging import warn
@@ -26,32 +26,45 @@ from neuralmonkey.model.parameterized import InitializerSpecs
 from neuralmonkey.model.model_part import ModelPart
 from neuralmonkey.nn.utils import dropout
 from neuralmonkey.vocabulary import (
-    Vocabulary, PAD_TOKEN_INDEX, END_TOKEN_INDEX)
+    Vocabulary, END_TOKEN_INDEX)
 from neuralmonkey.tf_utils import append_tensor, layer_norm
+
 
 STRATEGIES = ["serial", "parallel", "flat", "hierarchical"]
 
 
-class TransformerHistories(NamedTuple(
-        "TransformerHistories", [
-            ("logits", tf.Tensor),
-            ("decoder_outputs", tf.Tensor),
-            ("outputs", tf.Tensor),
-            ("mask", tf.Tensor),
-            ("decoded_symbols", tf.Tensor),
-            ("input_mask", tf.Tensor)])):
-    # TODO include these:
-    # ("self_attention_histories", List[Tuple]),
-    # ("inter_attention_histories", List[Tuple]),
-    """The loop state histories for the transformer decoder.
+class TransformerFeedables(NamedTuple(
+        "TransformerFeedables",
+        [("input_sequence", tf.Tensor),
+         ("input_mask", tf.Tensor)])):
+    """Additional feedables used only by the Transformer-based decoder.
 
-    Shares attributes with the ``DecoderHistories`` class. The special
-    attributes are listed below.
+    Follows the shape pattern of having batch_sized first dimension
+    shape(batch_size, ...)
 
     Attributes:
-        decoded_symbols: A tensor which stores the decoded symbols.
-        input_mask: A float tensor with zeros and ones which marks the valid
-            positions on the input.
+        input_sequence: The whole input sequence (embedded) that is fed into
+            the decoder in each decoding step.
+            shape(batch, len, emb)
+        input_mask: Mask for masking finished sequences. The last dimension
+            is required for compatibility with the beam_search_decoder.
+            shape(batch, len, 1)
+    """
+
+
+class TransformerHistories(NamedTuple(
+        "TransformerHistories",
+        [("self_attention_histories", List[Tuple]),
+         ("encoder_attention_histories", List[Tuple])])):
+    """The loop state histories specific for Transformer-based decoders.
+
+    Attributes:
+        self_attention_histories: A list of ``MultiHeadLoopState`` objects
+            populated by values from the self-attention mechanisms used
+            in the decoder.
+        encoder_attention_histories: A list of ``MultiHeadLoopState`` objects
+            populated by values from the encoder-attention mechanisms used
+            in the decoder.
     """
 
 
@@ -224,7 +237,7 @@ class TransformerDecoder(AutoregressiveDecoder):
     def output_dimension(self) -> int:
         return self.dimension
 
-    def embed_inputs(self, inputs: tf.Tensor) -> tf.Tensor:
+    def embed_input_symbol(self, inputs: tf.Tensor) -> tf.Tensor:
         embedded = tf.nn.embedding_lookup(self.embedding_matrix, inputs)
 
         if (self.embeddings_source is not None
@@ -238,25 +251,21 @@ class TransformerDecoder(AutoregressiveDecoder):
             embedded *= math.sqrt(embedding_size)
 
         length = tf.shape(inputs)[1]
-        return embedded + position_signal(self.dimension, length)
+        return dropout(embedded + position_signal(self.dimension, length),
+                       self.dropout_keep_prob,
+                       self.train_mode)
 
     @tensor
-    def embedded_train_inputs(self) -> tf.Tensor:
+    def train_input_symbols(self) -> tf.Tensor:
         # THE LAST TRAIN INPUT IS NOT USED IN DECODING FUNCTION
         # (just as a target)
 
         # shape (batch, 1 + (time - 1))
         # pylint: disable=unsubscriptable-object
-        input_tokens = tf.concat(
+        return tf.concat(
             [tf.expand_dims(self.go_symbols, 1),
              tf.transpose(self.train_inputs[:-1])], 1)
         # pylint: enable=unsubscriptable-object
-
-        input_embeddings = self.embed_inputs(input_tokens)
-
-        return dropout(input_embeddings,
-                       self.dropout_keep_prob,
-                       self.train_mode)
 
     def self_attention_sublayer(
             self, prev_layer: TransformerLayer) -> tf.Tensor:
@@ -382,9 +391,21 @@ class TransformerDecoder(AutoregressiveDecoder):
         return TransformerLayer(states=output_states, mask=mask)
 
     @tensor
-    def train_logits(self) -> tf.Tensor:
-        last_layer = self.layer(self.depth, self.embedded_train_inputs,
-                                tf.transpose(self.train_mask))
+    def train_loop_result(self) -> LoopState:
+        # We process all decoding the steps together during training.
+        # However, we still want to pretend that a proper decoding_loop
+        # was called.
+        decoder_ls = AutoregressiveDecoder.get_initial_loop_state(self)
+
+        input_sequence = self.embed_input_symbols(self.train_input_symbols)
+        input_mask = tf.transpose(self.train_mask)
+
+        last_layer = self.layer(
+            self.depth, input_sequence, input_mask)
+
+        tr_feedables = TransformerFeedables(
+            input_sequence=input_sequence,
+            input_mask=tf.expand_dims(input_mask, -1))
 
         # t_states shape: (batch, time, channels)
         # dec_w shape: (channels, vocab)
@@ -393,140 +414,104 @@ class TransformerDecoder(AutoregressiveDecoder):
             last_layer.temporal_states,
             [-1, last_layer_shape[-1]])
 
-        # Reusing input embedding matrix for generating logits
-        # significantly reduces the overall size of the model.
-        # See: https://arxiv.org/pdf/1608.05859.pdf
-        #
         # shape (batch, time, vocab)
         logits = tf.reshape(
             tf.matmul(last_layer_states, self.decoding_w),
             [last_layer_shape[0], last_layer_shape[1], len(self.vocabulary)])
         logits += tf.reshape(self.decoding_b, [1, 1, -1])
 
-        # return logits in time-major shape
-        return tf.transpose(logits, perm=[1, 0, 2])
+        # TODO: record histories properly
+        tr_histories = tf.zeros([])
+        # tr_histories = TransformerHistories(
+        #    self_attention_histories=[
+        #        empty_multi_head_loop_state(self.batch_size,
+        #                                    self.n_heads_self)
+        #        for a in range(self.depth)],
+        #    encoder_attention_histories=[
+        #        empty_multi_head_loop_state(self.batch_size,
+        #                                    self.n_heads_enc)
+        #        for a in range(self.depth)])
 
-    def get_initial_loop_state(self) -> LoopState:
+        feedables = DecoderFeedables(
+            step=last_layer_shape[1],
+            finished=tf.ones([self.batch_size], dtype=tf.bool),
+            embedded_input=self.embed_input_symbols(tf.tile(
+                [END_TOKEN_INDEX], [self.batch_size])),
+            other=tr_feedables)
 
-        default_ls = AutoregressiveDecoder.get_initial_loop_state(self)
-        histories = default_ls.histories._asdict()
-
-#        histories["self_attention_histories"] = [
-#            empty_multi_head_loop_state(self.batch_size, self.n_heads_self)
-#            for a in range(self.depth)]
-
-#        histories["inter_attention_histories"] = [
-#            empty_multi_head_loop_state(self.batch_size, self.n_heads_enc)
-#            for a in range(self.depth)]
-
-        histories["decoded_symbols"] = tf.zeros(
-            shape=[0, self.batch_size],
-            dtype=tf.int64,
-            name="decoded_symbols")
-
-        histories["input_mask"] = tf.zeros(
-            shape=[0, self.batch_size],
-            dtype=tf.float32,
-            name="input_mask")
-
-        # TransformerHistories is a type and should be callable
-        # pylint: disable=not-callable
-        tr_histories = TransformerHistories(**histories)
-        # pylint: enable=not-callable
+        histories = DecoderHistories(
+            logits=tf.transpose(logits, perm=[1, 0, 2]),
+            output_states=tf.transpose(
+                last_layer.temporal_states, [1, 0, 2]),
+            output_mask=self.train_mask,
+            output_symbols=self.train_inputs,
+            other=tr_histories)
 
         return LoopState(
-            histories=tr_histories,
-            constants=[],
-            feedables=default_ls.feedables)
+            feedables=feedables,
+            histories=histories,
+            constants=decoder_ls.constants)
 
-    def get_body(self, train_mode: bool, sample: bool = False,
-                 temperature: float = 1.) -> Callable:
-        assert not train_mode
+    def get_initial_feedables(self) -> DecoderFeedables:
+        feedables = AutoregressiveDecoder.get_initial_feedables(self)
 
-        # pylint: disable=too-many-locals
-        def body(*args) -> LoopState:
+        tr_feedables = TransformerFeedables(
+            input_sequence=tf.zeros(
+                shape=[self.batch_size, 0, self.dimension],
+                dtype=tf.float32,
+                name="input_sequence"),
+            input_mask=tf.zeros(
+                shape=[self.batch_size, 0, 1],
+                dtype=tf.float32,
+                name="input_mask"))
 
-            loop_state = LoopState(*args)
-            histories = loop_state.histories
-            feedables = loop_state.feedables
+        return feedables._replace(other=tr_feedables)
 
+    def get_initial_histories(self) -> DecoderHistories:
+        histories = AutoregressiveDecoder.get_initial_histories(self)
+
+        # TODO: record histories properly
+        tr_histories = tf.zeros([])
+        # tr_histories = TransformerHistories(
+        #    self_attention_histories=[
+        #        empty_multi_head_loop_state(self.batch_size,
+        #                                    self.n_heads_self)
+        #        for a in range(self.depth)],
+        #    encoder_attention_histories=[
+        #        empty_multi_head_loop_state(self.batch_size,
+        #                                    self.n_heads_enc)
+        #        for a in range(self.depth)])
+
+        return histories._replace(other=tr_histories)
+
+    def next_state(self, loop_state: LoopState) -> Tuple[tf.Tensor, Any, Any]:
+        feedables = loop_state.feedables
+        tr_feedables = feedables.other
+        tr_histories = loop_state.histories.other
+
+        with tf.variable_scope(self._variable_scope, reuse=tf.AUTO_REUSE):
             # shape (time, batch)
-            decoded_symbols = append_tensor(
-                histories.decoded_symbols, feedables.input_symbol)
+            input_sequence = append_tensor(
+                tr_feedables.input_sequence, feedables.embedded_input, 1)
 
             unfinished_mask = tf.to_float(tf.logical_not(feedables.finished))
-            input_mask = append_tensor(histories.input_mask, unfinished_mask)
+            input_mask = append_tensor(
+                tr_feedables.input_mask,
+                tf.expand_dims(unfinished_mask, -1),
+                axis=1)
 
-            # shape (batch, time)
-            decoded_symbols_in_batch = tf.transpose(decoded_symbols)
+            last_layer = self.layer(
+                self.depth, input_sequence, tf.squeeze(input_mask, -1))
 
-            # mask (time, batch)
-            mask = input_mask
+            # (batch, state_size)
+            output_state = last_layer.temporal_states[:, -1, :]
 
-            with tf.variable_scope(self._variable_scope, reuse=tf.AUTO_REUSE):
-                # shape (batch, time, dimension)
-                embedded_inputs = self.embed_inputs(decoded_symbols_in_batch)
+        new_feedables = TransformerFeedables(
+            input_sequence=input_sequence,
+            input_mask=input_mask)
 
-                last_layer = self.layer(
-                    self.depth, embedded_inputs, tf.transpose(mask))
+        # TODO: do something more interesting here
+        new_histories = tr_histories
 
-                # (batch, state_size)
-                output_state = last_layer.temporal_states[:, -1, :]
-
-                # See train_logits definition
-                logits = tf.matmul(output_state, self.decoding_w)
-                logits += self.decoding_b
-
-                # apply temperature
-                logits /= temperature
-
-                if sample:
-                    next_symbols = tf.squeeze(
-                        tf.multinomial(logits, num_samples=1), axis=1)
-                else:
-                    next_symbols = tf.argmax(logits, axis=1)
-                    int_unfinished_mask = tf.to_int64(
-                        tf.logical_not(loop_state.feedables.finished))
-
-                    # Note this works only when PAD_TOKEN_INDEX is 0. Otherwise
-                    # this have to be rewritten
-                    assert PAD_TOKEN_INDEX == 0
-                    next_symbols = next_symbols * int_unfinished_mask
-
-                has_just_finished = tf.equal(next_symbols, END_TOKEN_INDEX)
-                has_finished = tf.logical_or(feedables.finished,
-                                             has_just_finished)
-                not_finished = tf.logical_not(has_finished)
-
-            new_feedables = DecoderFeedables(
-                step=feedables.step + 1,
-                finished=has_finished,
-                input_symbol=next_symbols,
-                prev_logits=logits)
-
-            # TransformerHistories is a type and should be callable
-            # pylint: disable=not-callable
-            new_histories = TransformerHistories(
-                logits=append_tensor(histories.logits, logits),
-                decoder_outputs=append_tensor(
-                    histories.decoder_outputs, output_state),
-                mask=append_tensor(histories.mask, not_finished),
-                outputs=append_tensor(histories.outputs, next_symbols),
-                # transformer-specific:
-                decoded_symbols=decoded_symbols,
-                # TODO(all) handle these!
-                # self_attention_histories=histories.self_attention_histories,
-                # inter_attention_histories analogicky
-                input_mask=input_mask)
-            # pylint: enable=not-callable
-
-            new_loop_state = LoopState(
-                histories=new_histories,
-                constants=loop_state.constants,
-                feedables=new_feedables)
-
-            return new_loop_state
-        # pylint: enable=too-many-locals
-
-        return body
+        return (output_state, new_feedables, new_histories)
 # pylint: enable=too-many-instance-attributes
