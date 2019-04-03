@@ -119,6 +119,7 @@ class RecurrentEncoder(ModelPart, TemporalStatefulWithOutput):
                  rnn_layers: List[RNNSpecTuple],
                  add_residual: bool = False,
                  add_layer_norm: bool = False,
+                 include_final_layer_norm: bool = True,
                  dropout_keep_prob: float = 1.0,
                  reuse: ModelPart = None,
                  save_checkpoint: str = None,
@@ -138,6 +139,7 @@ class RecurrentEncoder(ModelPart, TemporalStatefulWithOutput):
                 well as the number of encoder parameters.
             add_residual: Add residual connections to the RNN layer output.
             add_layer_norm: Add layer normalization after each RNN layer.
+            include_final_layer_norm: Normalize also output of the network.
             dropout_keep_prob: 1 - dropout probability.
             save_checkpoint: ModelPart save checkpoint file.
             load_checkpoint: ModelPart load checkpoint file.
@@ -152,9 +154,18 @@ class RecurrentEncoder(ModelPart, TemporalStatefulWithOutput):
         self.rnn_specs = [_make_rnn_spec(*r) for r in rnn_layers]
         self.add_residual = add_residual
         self.add_layer_norm = add_layer_norm
+        self.include_final_layer_norm = include_final_layer_norm
 
         if self.dropout_keep_prob <= 0.0 or self.dropout_keep_prob > 1.0:
             raise ValueError("Dropout keep prob must be inside (0,1].")
+
+        layer_sizes = [
+            2 * layer.size if layer.direction == "bidirectional"
+            else layer.size for layer in self.rnn_specs]
+        if add_residual and len(set(layer_sizes)) > 1:
+            raise ValueError(
+                "When using residual connectiong, all layers must have "
+                "the same size, but are {}.".format(layer_sizes))
 
         self._variable_scope.set_initializer(
             tf.random_normal_initializer(stddev=0.001))
@@ -201,6 +212,8 @@ class RecurrentEncoder(ModelPart, TemporalStatefulWithOutput):
                     # pylint: enable=redefined-variable-type
 
         assert layer_final is not None
+        if self.include_final_layer_norm:
+            return layer_norm(layer_input), layer_norm(layer_final)
         return layer_input, layer_final
 
     @tensor
