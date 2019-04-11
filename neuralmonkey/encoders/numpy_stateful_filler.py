@@ -1,6 +1,7 @@
 # TODO untested module
 from typing import Dict, List
 
+import numpy as np
 import tensorflow as tf
 from typeguard import check_argument_types
 
@@ -9,7 +10,8 @@ from neuralmonkey.decorators import tensor
 from neuralmonkey.model.feedable import FeedDict
 from neuralmonkey.model.parameterized import InitializerSpecs
 from neuralmonkey.model.model_part import ModelPart
-from neuralmonkey.model.stateful import Stateful, SpatialStatefulWithOutput
+from neuralmonkey.model.stateful import (
+    Stateful, SpatialStatefulWithOutput, TemporalStateful)
 
 
 # pylint: disable=too-few-public-methods
@@ -74,6 +76,81 @@ class StatefulFiller(ModelPart, Stateful):
     def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
         fd = ModelPart.feed_dict(self, dataset, train)
         fd[self.vector] = dataset.get_series(self.data_id)
+        return fd
+
+
+class TemporalFiller(ModelPart, TemporalStateful):
+    """Placeholder class for 2D numerical input.
+
+    This model part is used to feed 2D tensors (e.g., audio input).
+    """
+
+    # pylint: disable=too-many-arguments
+    def __init__(self,
+                 name: str,
+                 data_id: str,
+                 input_size: int,
+                 max_input_len: int = None,
+                 dropout_keep_prob: float = 1.0,
+                 reuse: ModelPart = None,
+                 save_checkpoint: str = None,
+                 load_checkpoint: str = None,
+                 initializers: InitializerSpecs = None) -> None:
+        check_argument_types()
+        ModelPart.__init__(
+            self, name, reuse, save_checkpoint, load_checkpoint, initializers)
+
+        self.data_id = data_id
+        self.input_size = input_size
+        self.max_input_len = max_input_len
+        self.dropout_keep_prob = dropout_keep_prob
+    # pylint: enable=too-many-arguments
+
+    @property
+    def input_types(self) -> Dict[str, tf.DType]:
+        return {self.data_id: tf.float32}
+
+    @property
+    def input_shapes(self) -> Dict[str, tf.TensorShape]:
+        return {self.data_id: tf.TensorShape([None, None, self.input_size])}
+
+    @tensor
+    def temporal_states(self) -> tf.Tensor:
+        return self.dataset[self.data_id]
+
+    # pylint: disable=no-self-use
+    @tensor
+    def _input_lengths(self) -> tf.Tensor:
+        return tf.placeholder(tf.int32, [None], "encoder_padding_lengths")
+    # pylint: enable=no-self-use
+
+    @tensor
+    def temporal_mask(self) -> tf.Tensor:
+        return tf.sequence_mask(self._input_lengths, dtype=tf.float32)
+
+    def feed_dict(self, dataset: Dataset, train: bool = False) -> FeedDict:
+        fd = ModelPart.feed_dict(self, dataset, train)
+
+        series = list(dataset.get_series(self.data_id))
+        lengths = []
+        inputs = []
+
+        max_len = max(x.shape[0] for x in series)
+        if self.max_input_len is not None:
+            max_len = min(self.max_input_len, max_len)
+
+        for x in series:
+            length = min(max_len, x.shape[0])
+            x_padded = np.zeros(shape=(max_len,) + x.shape[1:],
+                                dtype=x.dtype)
+            x_padded[:length] = x[:length]
+
+            lengths.append(length)
+            inputs.append(x_padded)
+
+        fd[self.temporal_states] = inputs
+        fd[self._input_lengths] = lengths
+
         return fd
 
 
