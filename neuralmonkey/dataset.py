@@ -602,12 +602,6 @@ class Dataset:
                                               start, start + length)
                   for s_id in self.iterators}
 
-        # Workaround since self.buffer_size and self.buffer_min_size
-        # may not be initialized
-        buffer_size = None
-        if hasattr(self, "buffer_min_size") and hasattr(self, "buffer_size"):
-            buffer_size = (self.buffer_min_size, self.buffer_size)
-
         # Here, the type: ignore is because of the tied argument to the lambda
         # function above, which made it Callable[[Any], ...] instead of just
         # Callable[[], ...].
@@ -616,5 +610,6 @@ class Dataset:
             iterators=slices,
             batching=self.batching,
             outputs=outputs,
-            buffer_size=buffer_size,
+            buffer_size=((self.buffer_min_size, self.buffer_size)
+                         if self.lazy else None),
             shuffled=self.shuffled)
