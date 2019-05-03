@@ -84,7 +84,7 @@ class CostObjective(Objective[GenericModelPart]):
 
         name = "{} - cost".format(str(decoder))
 
-        Objective[GenericModelPart].__init__(self, name, decoder)
+        super().__init__(name, decoder)
         self._weight = weight
 
     @tensor

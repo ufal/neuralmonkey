@@ -74,7 +74,7 @@ class LogitsRunner(BaseRunner[Classifier]):
                 vocabulary whose logit or probability should be on output.
         """
         check_argument_types()
-        BaseRunner[Classifier].__init__(self, output_series, decoder)
+        super().__init__(output_series, decoder)
 
         if pick_index is not None and pick_value is not None:
             raise ValueError("Either a pick index or a vocabulary value can "

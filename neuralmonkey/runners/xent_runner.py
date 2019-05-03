@@ -28,8 +28,7 @@ class XentRunner(BaseRunner[SupportedDecoders]):
                  output_series: str,
                  decoder: SupportedDecoders) -> None:
         check_argument_types()
-        BaseRunner[SupportedDecoders].__init__(
-            self, output_series, decoder)
+        super().__init__(output_series, decoder)
 
     @tensor
     def fetches(self) -> Dict[str, tf.Tensor]:

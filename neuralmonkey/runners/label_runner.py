@@ -53,7 +53,7 @@ class LabelRunner(BaseRunner[SequenceLabeler]):
                  decoder: SequenceLabeler,
                  postprocess: Postprocessor = None) -> None:
         check_argument_types()
-        BaseRunner[SequenceLabeler].__init__(self, output_series, decoder)
+        super().__init__(output_series, decoder)
         self.postprocess = postprocess
 
     @tensor

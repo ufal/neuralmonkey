@@ -41,7 +41,7 @@ class SelfCriticalObjective(Objective[Decoder]):
         """
         check_argument_types()
         name = "{}_self_critical".format(decoder.name)
-        Objective[Decoder].__init__(self, name, decoder)
+        super().__init__(name, decoder)
 
         self.reward_function = reward_function
         self._weight = weight
