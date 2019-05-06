@@ -64,7 +64,7 @@ class ReinforceObjective(Objective[Decoder]):
         """
         check_argument_types()
         name = "{}_rl".format(decoder.name)
-        Objective[Decoder].__init__(self, name, decoder)
+        super().__init__(name, decoder)
 
         self.reward_function = reward_function
         self.subtract_baseline = subtract_baseline

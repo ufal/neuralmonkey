@@ -43,7 +43,7 @@ class CTCDebugRunner(BaseRunner[CTCDecoder]):
                  output_series: str,
                  decoder: CTCDecoder) -> None:
         check_argument_types()
-        BaseRunner[CTCDecoder].__init__(self, output_series, decoder)
+        super().__init__(output_series, decoder)
 
     @tensor
     def fetches(self) -> Dict[str, tf.Tensor]:

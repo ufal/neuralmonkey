@@ -110,8 +110,7 @@ class TensorRunner(BaseRunner[GenericModelPart]):
         if not modelparts:
             raise ValueError("At least one model part is expected")
 
-        BaseRunner[GenericModelPart].__init__(
-            self, output_series, modelparts[0])
+        super().__init__(output_series, modelparts[0])
 
         if len(modelparts) != len(tensors):
             raise ValueError("TensorRunner: 'modelparts' and 'tensors' lists "

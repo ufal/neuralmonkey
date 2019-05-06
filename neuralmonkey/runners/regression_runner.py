@@ -43,7 +43,7 @@ class RegressionRunner(BaseRunner[SequenceRegressor]):
                  decoder: SequenceRegressor,
                  postprocess: Postprocessor = None) -> None:
         check_argument_types()
-        BaseRunner[SequenceRegressor].__init__(self, output_series, decoder)
+        super().__init__(output_series, decoder)
         self.postprocess = postprocess
 
     @tensor

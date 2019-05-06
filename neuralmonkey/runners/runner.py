@@ -67,8 +67,7 @@ class GreedyRunner(BaseRunner[SupportedDecoder]):
                  decoder: SupportedDecoder,
                  postprocess: Postprocessor = None) -> None:
         check_argument_types()
-        BaseRunner[AutoregressiveDecoder].__init__(
-            self, output_series, decoder)
+        super().__init__(output_series, decoder)
 
         self.postprocess = postprocess
         self.vocabulary = self.decoder.vocabulary

@@ -24,7 +24,7 @@ class WordAlignmentRunner(BaseRunner[BaseAttention]):
                  attention: BaseAttention,
                  decoder: Decoder) -> None:
         check_argument_types()
-        BaseRunner[BaseAttention].__init__(self, output_series, attention)
+        super().__init__(output_series, attention)
 
         self._key = "{}_run".format(decoder.name)
 

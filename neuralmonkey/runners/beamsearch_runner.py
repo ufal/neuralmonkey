@@ -132,7 +132,7 @@ class BeamSearchRunner(BaseRunner[BeamSearchDecoder]):
             postprocess: The postprocessor to apply to the output data.
         """
         check_argument_types()
-        BaseRunner[BeamSearchDecoder].__init__(self, output_series, decoder)
+        super().__init__(output_series, decoder)
 
         if rank < 1 or rank > decoder.beam_size:
             raise ValueError(

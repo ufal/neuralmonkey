@@ -49,7 +49,7 @@ class PlainRunner(BaseRunner[SupportedDecoder]):
                  decoder: SupportedDecoder,
                  postprocess: Postprocessor = None) -> None:
         check_argument_types()
-        BaseRunner[SupportedDecoder].__init__(self, output_series, decoder)
+        super().__init__(output_series, decoder)
         self.postprocess = postprocess
 
     @tensor

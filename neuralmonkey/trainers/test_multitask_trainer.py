@@ -27,9 +27,6 @@ class TestMP(ModelPart):
 
 # pylint: disable=too-few-public-methods
 class DummyObjective(Objective[TestMP]):
-    def __init__(self, name: str, decoder: TestMP) -> None:
-        Objective[TestMP].__init__(self, name, decoder)
-
     @tensor
     def loss(self) -> tf.Tensor:
         return self.decoder.loss
