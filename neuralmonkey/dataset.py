@@ -610,5 +610,6 @@ class Dataset:
             iterators=slices,
             batching=self.batching,
             outputs=outputs,
-            buffer_size=self.buffer_size,
+            buffer_size=((self.buffer_min_size, self.buffer_size)
+                         if self.lazy else None),
             shuffled=self.shuffled)
