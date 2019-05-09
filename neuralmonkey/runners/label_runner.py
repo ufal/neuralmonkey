@@ -1,4 +1,4 @@
-from typing import List, Dict, Set, Optional, Callable
+from typing import Any, List, Dict, Set, Optional, Callable
 import numpy as np
 from typeguard import check_argument_types
 
@@ -68,7 +68,7 @@ class LabelRunner(BaseRunner[SequenceLabeler]):
 
     def __init__(self,
                  output_series: str,
-                 decoder: SequenceLabeler,
+                 decoder: Any,
                  postprocess: Postprocessor = None) -> None:
         check_argument_types()
         BaseRunner[SequenceLabeler].__init__(self, output_series, decoder)
