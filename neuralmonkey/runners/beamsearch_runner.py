@@ -1,6 +1,6 @@
 from typing import Callable, List, Dict
 
-import scipy
+from scipy import special
 import numpy as np
 import tensorflow as tf
 from typeguard import check_argument_types
@@ -51,7 +51,7 @@ class BeamSearchRunner(BaseRunner[BeamSearchDecoder]):
                              for res in results]
 
             # Arithmetic mean
-            ens_logprobs = (scipy.misc.logsumexp(prev_logprobs, 0)
+            ens_logprobs = (special.logsumexp(prev_logprobs, 0)
                             - np.log(self.num_sessions))
 
             if self._is_finished(results):

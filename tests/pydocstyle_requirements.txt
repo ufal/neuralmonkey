@@ -1,1 +1,1 @@
-pydocstyle
+pydocstyle==3.0.0
