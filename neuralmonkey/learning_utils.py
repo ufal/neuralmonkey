@@ -87,7 +87,7 @@ def training_loop(cfg: Namespace) -> None:
                         summaries=True)
                     # workaround: we need to use validation batching scheme
                     #             during evaluation
-                    batch.batching = BatchingScheme(batch_size=cfg.batch_size)
+                    batch.batching = BatchingScheme(batch_size=1)
                     train_results, train_outputs, f_batch = run_on_dataset(
                         cfg.tf_manager, cfg.runners, cfg.dataset_runner, batch,
                         cfg.postprocess, write_out=False)
@@ -250,8 +250,11 @@ def _initialize_model(tf_manager: TensorFlowManager,
     else:
         try:
             tf_manager.restore(initial_variables)
-        except tf.errors.NotFoundError:
-            warn("Some variables were not found in checkpoint.)")
+        except tf.errors.NotFoundError as e:
+            warn("Some variables were not found in checkpoint. For "
+                 "initialization only of the specific parts of the graph, "
+                 "use the specific 'Parameterized.load_checkpoint' methods.")
+            raise e
 
 
 def _check_series_collisions(runners: List[BaseRunner],
@@ -263,15 +266,13 @@ def _check_series_collisions(runners: List[BaseRunner],
         if series in runners_outputs:
             raise Exception(("Output series '{}' is multiple times among the "
                              "runners' outputs.").format(series))
-        else:
-            runners_outputs.add(series)
+        runners_outputs.add(series)
     if postprocess is not None:
         for series, _ in postprocess:
             if series in runners_outputs:
                 raise Exception(("Postprocess output series '{}' "
                                  "already exists.").format(series))
-            else:
-                runners_outputs.add(series)
+            runners_outputs.add(series)
 
 
 def run_on_dataset(tf_manager: TensorFlowManager,

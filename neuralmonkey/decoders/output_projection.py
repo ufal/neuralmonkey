@@ -89,10 +89,7 @@ def nematus_output(
     check_argument_types()
 
     def _projection(prev_state, prev_output, ctx_tensors, train_mode):
-        prev_state = dropout(prev_state, dropout_keep_prob, train_mode)
-        prev_output = dropout(prev_output, dropout_keep_prob, train_mode)
         ctx_concat = tf.concat(ctx_tensors, 1)
-        ctx = dropout(ctx_concat, dropout_keep_prob, train_mode)
 
         logit_rnn = tf.layers.dense(
             prev_state, output_size,
@@ -105,32 +102,37 @@ def nematus_output(
             name="prev_out")
 
         logit_ctx = tf.layers.dense(
-            ctx, output_size,
+            ctx_concat, output_size,
             kernel_initializer=get_initializer("context/kernel", None),
             name="context")
 
-        return activation_fn(logit_rnn + logit_emb + logit_ctx)
+        return dropout(activation_fn(logit_rnn + logit_emb + logit_ctx),
+                       dropout_keep_prob, train_mode)
 
     return _projection, output_size
 
 
 def nonlinear_output(
         output_size: int,
-        activation_fn: Callable[[tf.Tensor], tf.Tensor] = tf.tanh
-) -> Tuple[OutputProjection, int]:
+        activation_fn: Callable[[tf.Tensor], tf.Tensor] = tf.tanh,
+        dropout_keep_prob: float = 1.0) -> Tuple[OutputProjection, int]:
     check_argument_types()
 
     # pylint: disable=unused-argument
     def _projection(prev_state, prev_output, ctx_tensors, train_mode):
         state_out_ctx = tf.concat([prev_state, prev_output] + ctx_tensors, 1)
-        return tf.layers.dense(state_out_ctx, output_size,
-                               activation=activation_fn)
+        return dropout(
+            tf.layers.dense(
+                state_out_ctx, output_size, activation=activation_fn),
+            dropout_keep_prob, train_mode)
     # pylint: enable=unused-argument
 
     return _projection, output_size
 
 
-def maxout_output(maxout_size: int) -> Tuple[OutputProjection, int]:
+def maxout_output(
+        maxout_size: int,
+        dropout_keep_prob: float = 1.0) -> Tuple[OutputProjection, int]:
     """Apply maxout.
 
     Compute RNN output out of the previous state and output, and the
@@ -149,9 +151,11 @@ def maxout_output(maxout_size: int) -> Tuple[OutputProjection, int]:
     """
     check_argument_types()
 
-    def _projection(prev_state, prev_output, ctx_tensors, _):
+    def _projection(prev_state, prev_output, ctx_tensors, train_mode):
         state_out_ctx = tf.concat([prev_state, prev_output] + ctx_tensors, 1)
-        return maxout(state_out_ctx, maxout_size)
+        return dropout(
+            maxout(state_out_ctx, maxout_size),
+            dropout_keep_prob, train_mode)
 
     return _projection, maxout_size
 

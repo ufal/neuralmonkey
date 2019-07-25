@@ -389,8 +389,8 @@ def load(name: str,
     for s_name, (preprocessor, source) in prep_sl.items():
         if source not in iterators:
             raise ValueError(
-                "Source series {} for series-level preprocessor nonexistent: "
-                "Preprocessed series '', source series ''".format(source))
+                "Source series for series-level preprocessor nonexistent: "
+                "Preprocessed series '{}', source series '{}'")
         iterators[s_name] = _make_sl_iterator(source, preprocessor)
 
     # Finally, dataset-level preprocessors.
@@ -443,6 +443,8 @@ class Dataset:
         Arguments:
             name: The name for the dataset.
             iterators: A series-iterator generator mapping.
+            lazy: If False, load the data from iterators to a list and store
+                the list in memory.
             buffer_size: Use this tuple as a minimum and maximum buffer size
                 for pre-loading data. This should be (a few times) larger than
                 the batch size used for mini-batching. When the buffer size
@@ -638,7 +640,9 @@ class Dataset:
                     buf.append(item)
 
                 if self.shuffled:
-                    random.shuffle(buf)  # type: ignore
+                    lbuf = list(buf)
+                    random.shuffle(lbuf)
+                    buf = deque(lbuf)
 
         if not self.batching.drop_remainder:
             for bucket in buckets:
@@ -684,5 +688,6 @@ class Dataset:
             iterators=slices,
             batching=self.batching,
             outputs=outputs,
-            buffer_size=self.buffer_size,
+            buffer_size=((self.buffer_min_size, self.buffer_size)
+                         if self.lazy else None),
             shuffled=self.shuffled)

@@ -8,7 +8,6 @@ from neuralmonkey.decorators import tensor
 from neuralmonkey.logging import warn
 from neuralmonkey.model.model_part import GenericModelPart
 from neuralmonkey.runners.base_runner import BaseRunner
-from neuralmonkey.experiment import Experiment
 
 
 class TensorRunner(BaseRunner[GenericModelPart]):
@@ -46,10 +45,8 @@ class TensorRunner(BaseRunner[GenericModelPart]):
             for name, val in sess_results.items():
                 batch_dim = self.executor.batch_ids[name]
 
-                perm = [batch_dim]
-                for dim in range(len(val.shape)):
-                    if dim != batch_dim:
-                        perm.append(dim)
+                perm = ([batch_dim]
+                        + [x for x in range(val.ndim) if x != batch_dim])
 
                 transposed_val = np.transpose(val, perm)
                 transposed[name] = transposed_val
@@ -58,24 +55,16 @@ class TensorRunner(BaseRunner[GenericModelPart]):
             # to have a batch of dicts with the batch dim removed
             batched = [dict(zip(transposed, col))
                        for col in zip(*transposed.values())]
-
-            if self.executor.single_tensor:
-                # extract the only item from each dict
-                batched = [next(iter(d.values())) for d in batched]
-
             return batched
     # pylint: enable=too-few-public-methods
 
     # pylint: disable=too-many-arguments
     def __init__(self,
                  output_series: str,
-                 modelparts: List[GenericModelPart],
-                 tensors: List[str],
+                 modelpart: GenericModelPart,
+                 tensors: List[tf.Tensor],
                  batch_dims: List[int],
-                 tensors_by_name: List[str],
-                 batch_dims_by_name: List[int],
-                 select_session: int = None,
-                 single_tensor: bool = False) -> None:
+                 select_session: int = None):
         """Construct a new ``TensorRunner`` object.
 
         Note that at this time, one must specify the toplevel objects so that
@@ -86,49 +75,30 @@ class TensorRunner(BaseRunner[GenericModelPart]):
 
         Args:
             output_series: The name of the generated output data series.
-            modelparts: A list of ``GenericModelPart`` objects that hold the
+            modelparts: ``GenericModelPart`` object that hold the
                 tensors that will be retrieved.
             tensors: A list of names of tensors that should be retrieved.
             batch_dims_by_ref: A list of integers that correspond to the
                 batch dimension in each wanted tensor.
-            tensors_by_name: A list of tensor names to fetch. If a tensor
-                is not in the graph, a warning is generated and the tensor is
-                ignored.
-            batch_dims_by_name: A list of integers that correspond to the
-                batch dimension in each wanted tensor specified by name.
             select_session: An optional integer specifying the session to use
                 in case of ensembling. When not used, tensors from all sessions
                 are stored. In case of a single session, this option has no
                 effect.
-            single_tensor: If `True`, it is assumed that only one tensor is to
-                be fetched, and the execution result will consist of this
-                tensor only. If `False`, the result will be a dict mapping
-                tensor names to NumPy arrays.
         """
         check_argument_types()
 
-        if not modelparts:
-            raise ValueError("At least one model part is expected")
-
+        # TODO: remove ``modelpart'' altogether or use some dummy modelpart
+        # here
         BaseRunner[GenericModelPart].__init__(
-            self, output_series, modelparts[0])
+            self, output_series, modelpart)
 
-        if len(modelparts) != len(tensors):
-            raise ValueError("TensorRunner: 'modelparts' and 'tensors' lists "
-                             "must have the same length")
+        if len(tensors) != len(batch_dims):
+            raise ValueError("TODO")
 
-        total_tensors = len(tensors_by_name) + len(tensors)
-        if single_tensor and total_tensors > 1:
-            raise ValueError("single_tensor is True, but {} tensors were given"
-                             .format(total_tensors))
-
-        self._names = tensors_by_name
-        self._modelparts = modelparts
-        self._tensors = tensors
-        self._batch_dims_name = batch_dims_by_name
+        self.modelpart = modelpart
+        self.tensors = tensors
         self.batch_dims = batch_dims
         self.select_session = select_session
-        self.single_tensor = single_tensor
 
         self.batch_ids = {}  # type: Dict[str, int]
     # pylint: enable=too-many-arguments
@@ -137,26 +107,13 @@ class TensorRunner(BaseRunner[GenericModelPart]):
     def fetches(self) -> Dict[str, tf.Tensor]:
 
         fetches = {}  # type: Dict[str, tf.Tensor]
-        for name, bid in zip(self._names, self._batch_dims_name):
+        for tensor, bid in zip(self.tensors, self.batch_dims):
             try:
-                fetches[name] = (
-                    Experiment.get_current().graph.get_tensor_by_name(name))
-                self.batch_ids[name] = bid
+                fetches[tensor.name] = tensor
+                self.batch_ids[tensor.name] = bid
             except KeyError:
                 warn(("The tensor of name '{}' is not present in the "
-                      "graph.").format(name))
-
-        for mpart, tname, bid in zip(self._modelparts, self._tensors,
-                                     self.batch_dims):
-            if not hasattr(mpart, tname):
-                raise ValueError("Model part {} does not have a tensor called "
-                                 "{}.".format(mpart, tname))
-
-            tensorval = getattr(mpart, tname)
-
-            fetches[tensorval.name] = tensorval
-            self.batch_ids[tensorval.name] = bid
-
+                      "graph.").format(tensor.name))
         return fetches
 
     @property

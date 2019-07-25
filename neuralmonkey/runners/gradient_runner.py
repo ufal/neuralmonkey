@@ -3,14 +3,16 @@ from typing import Dict, List, Union
 import tensorflow as tf
 from typeguard import check_argument_types
 
+from neuralmonkey.decorators import tensor
 from neuralmonkey.runners.base_runner import BaseRunner
 from neuralmonkey.model.model_part import GenericModelPart
 from neuralmonkey.decoders.autoregressive import AutoregressiveDecoder
 from neuralmonkey.decoders.classifier import Classifier
+from neuralmonkey.decoders.sequence_labeler import SequenceLabeler
 from neuralmonkey.trainers.generic_trainer import GenericTrainer
 
 # pylint: disable=invalid-name
-SupportedDecoder = Union[AutoregressiveDecoder, Classifier]
+SupportedDecoder = Union[AutoregressiveDecoder, Classifier, SequenceLabeler]
 # pylint: enable=invalid-name
 
 
@@ -33,11 +35,11 @@ class GradientRunner(BaseRunner[GenericModelPart]):
             for sess_result in results:
                 gradient_dict = {}
                 tensor_names = [
-                    t.name for t in self.executor.fetches()["gradients"]]
+                    t.name for t in self.executor.fetches["gradients"]]
                 for name, val in zip(tensor_names, sess_result["gradients"]):
                     gradient_dict[name] = val
 
-            self.set_runner_result(outputs=gradient_dict, losses=[])
+            self.set_runner_result(outputs=[gradient_dict], losses=[])
     # pylint: enable=too-few-public-methods
 
     def __init__(self,
@@ -48,10 +50,11 @@ class GradientRunner(BaseRunner[GenericModelPart]):
         BaseRunner[GenericModelPart].__init__(
             self, output_series, decoder)
 
-        self._gradients = trainer.gradients
+        self.trainer = trainer
 
+    @tensor
     def fetches(self) -> Dict[str, tf.Tensor]:
-        return {"gradients": [g[1] for g in self._gradients]}
+        return {"gradients": [g[1] for g in self.trainer.gradients]}
 
     @property
     def loss_names(self) -> List[str]:

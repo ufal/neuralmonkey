@@ -47,8 +47,7 @@ class ClassSymbol:
                 if exc.name == module_name:  # type: ignore
                     raise Exception(
                         "Cannot import module {}.".format(module_name))
-                else:
-                    raise
+                raise
 
         try:
             clazz = getattr(module, class_name)

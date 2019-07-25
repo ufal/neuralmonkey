@@ -115,18 +115,19 @@ class DelayedUpdateTrainer(GenericTrainer):
     @tensor
     def gradient_buffers(self) -> List[tf.Variable]:
         # pylint: disable=unpacking-non-sequence
-        existing_gradients, _ = self.existing_grads_and_vars
+        existing_gradients, existing_vars = self.existing_grads_and_vars
         # pylint: enable=unpacking-non-sequence
 
         with tf.variable_scope("gradient_buffer"):
             return [tf.Variable(initial_value=tf.zeros_like(grad),
-                                trainable=False)
-                    for grad in existing_gradients]
+                                trainable=False,
+                                name=var.name[:-2])
+                    for grad, var in zip(existing_gradients, existing_vars)]
 
     @tensor
     def objective_buffers(self) -> List[tf.Variable]:
         with tf.variable_scope("loss_buffers"):
-            return [tf.Variable(0.0, trainable=False) for _ in self.objectives]
+            return [tf.Variable(tf.constant(0.0), trainable=False, name=obj.name) for obj in self.objectives]
 
     # pylint: disable=no-self-use
     @tensor
@@ -186,6 +187,16 @@ class DelayedUpdateTrainer(GenericTrainer):
                           for grad in self.gradient_buffers]
         # pylint: enable=not-an-iterable
 
+        tf.summary.scalar(
+            "train_opt_cost",
+            self.diff_buffer / tf.to_float(self.cumulator_counter),
+            collections=["summary_train"])
+
+        for obj, objbuf in zip(self.objectives, self.objective_buffers):
+            tf.summary.scalar(
+                obj.name, objbuf / tf.to_float(self.cumulator_counter),
+                collections=["summary_train"])
+
         # now, zip averaged grads with associated vars to a Gradients struct.
         # pylint: disable=unpacking-non-sequence
         _, existing_vars = self.existing_grads_and_vars
@@ -202,7 +213,7 @@ class DelayedUpdateTrainer(GenericTrainer):
         # pylint: enable=protected-access
 
         reg_values = self.regularization_losses
-        # we always want to include l2 values in the summary
+        # we always want to include L1 and L2 values in the summaries
         if L1Regularizer not in [type(r) for r in self.regularizers]:
             l1_reg = L1Regularizer(name="train_l1", weight=0.)
             tf.summary.scalar(l1_reg.name, l1_reg.value(self.regularizable),
@@ -215,16 +226,6 @@ class DelayedUpdateTrainer(GenericTrainer):
         for reg, reg_value in zip(self.regularizers, reg_values):
             tf.summary.scalar(reg.name, reg_value,
                               collections=["summary_train"])
-
-        for obj, objbuf in zip(self.objectives, self.objective_buffers):
-            tf.summary.scalar(
-                obj.name, objbuf / tf.to_float(self.cumulator_counter),
-                collections=["summary_train"])
-
-        tf.summary.scalar(
-            "train_opt_cost",
-            self.diff_buffer / tf.to_float(self.cumulator_counter),
-            collections=["summary_train"])
 
         # pylint: disable=not-an-iterable
         # Pylint does not understand @tensor annotations
@@ -240,13 +241,3 @@ class DelayedUpdateTrainer(GenericTrainer):
                 tf.get_collection("summary_train")),
             "histogram_summaries": tf.summary.merge(
                 tf.get_collection("summary_gradients"))}
-
-    @property
-    def fetches(self) -> Dict[str, tf.Tensor]:
-        return {"train_op": self.train_op,
-                "losses": self.objective_values,
-                "batch_size": self.batch_size,
-                "_update_ops": tf.get_collection(tf.GraphKeys.UPDATE_OPS),
-                "accumulators": self.accumulate_ops,
-                "counter": self.cumulator_counter,
-                "resets": self.reset_ops}

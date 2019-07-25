@@ -30,7 +30,7 @@ class GenericModelPart(metaclass=ABCMeta):
     def dependencies(self) -> List[str]:
         """Return a list of attribute names regarded as dependents."""
         return ["encoder", "parent_decoder", "input_sequence", "attentions",
-                "encoders"]
+                "encoders", "decoders"]
 
     def __get_deps(
             self,

@@ -65,7 +65,8 @@ def noam_decay(learning_rate: float,
     lrate = (d_model)^-0.5 * min(step_num^-0.5, step_num * warmup_steps^-1.5)
 
     Arguments:
-        model_dimension: Size of the hidden states of decoder and encoder
+        model_dimension: Size of the hidden states of decoder and encoder.
+            (Used for model-size learning_rate normalization.)
         warmup_steps: Number of warm-up steps
     """
     step = tf.to_float(tf.train.get_or_create_global_step())
@@ -75,5 +76,29 @@ def noam_decay(learning_rate: float,
 
     inv_sq_step = 1 / tf.sqrt(step)
     warmup = step * inv_sq3_warmup_steps
+
+    return learning_rate * inv_sq_dim * tf.minimum(inv_sq_step, warmup)
+
+def const_to_exp_decay(learning_rate: float,
+                       model_dimension: int,
+                       warmup_steps: int) -> tf.Tensor:
+    """Return a decay function that keeps constant LR for number of steps.
+
+    Similar to noam decay, except it keeps constant learning rate during
+    warmup
+
+    lrate = (d_model)^-0.5 * min(step_num^-0.5, warmup_steps^-0.5)
+
+    Arguments:
+        model_dimension: Size of the hidden states of the decoder and encoder.
+            (Used for model_size learning_rate normalization.)
+        warmup_steps: Number of warm-up steps.
+    """
+    step = tf.to_float(tf.train.get_or_create_global_step())
+
+    inv_sq_dim = 1 / math.sqrt(model_dimension)
+
+    inv_sq_step = 1 / tf.sqrt(step)
+    warmup = math.pow(warmup_steps, -0.5)
 
     return learning_rate * inv_sq_dim * tf.minimum(inv_sq_step, warmup)

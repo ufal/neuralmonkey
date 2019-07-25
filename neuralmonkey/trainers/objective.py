@@ -82,7 +82,7 @@ class CostObjective(Objective[GenericModelPart]):
         if "cost" not in dir(decoder):
             raise TypeError("The decoder does not have the 'cost' attribute")
 
-        name = "{} - cost".format(str(decoder))
+        name = "{}-cost".format(str(decoder))
 
         Objective[GenericModelPart].__init__(self, name, decoder)
         self._weight = weight

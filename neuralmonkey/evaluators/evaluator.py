@@ -122,6 +122,18 @@ class Evaluator(Generic[EvalType]):
 class SequenceEvaluator(Evaluator[Sequence[EvalType]]):
     """Base class for token-level evaluators that work with sequences."""
 
+    def __init__(self,
+                 name: str = None,
+                 mask_symbol: EvalType = None) -> None:
+        """Initialize class.
+
+        Argumets:
+            mask_symbol: Indicates which tokens to ignore during evaluation
+                based on the reference.
+        """
+        super().__init__(name)
+        self.mask_symbol = mask_symbol
+
     # pylint: disable=no-self-use
     # This method is supposed to be overriden.
     def score_token(self,
@@ -162,6 +174,11 @@ class SequenceEvaluator(Evaluator[Sequence[EvalType]]):
         token_scores = [self.score_token(h, r)
                         for hyp, ref in zip(hypotheses, references)
                         for h, r in zip(hyp, ref)]
+        references_flat = [r for ref in references for r in ref]
+        if self.mask_symbol:
+            token_scores = [score for score, ref in zip(token_scores,
+                                                        references_flat)
+                            if ref != self.mask_symbol]
 
         # All hypotheses empty - return zero score (needs to be here because of
         # the flattening)

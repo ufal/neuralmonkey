@@ -75,7 +75,7 @@ class TransformerDecoder(AutoregressiveDecoder, Attentive):
                  ff_hidden_size: int,
                  n_heads_self: int,
                  n_heads_enc: Union[List[int], int],
-                 depth: int,
+                 depths: List[int],
                  max_output_len: int,
                  attention_combination_strategy: str = "serial",
                  n_heads_hier: int = None,
@@ -119,7 +119,8 @@ class TransformerDecoder(AutoregressiveDecoder, Attentive):
                 strategy for enc-dec attention.
             n_heads_hier: Number of the attention heads for the second
                 attention in the ``hierarchical`` attention combination.
-            depth: Number of sublayers.
+            depths: Which layers should we use to predict the labels.
+                The highest number indicates overall number of layers.
             label_smoothing: A label smoothing parameter for cross entropy
                 loss computation.
             attention_dropout_keep_prob: Probability of keeping a value
@@ -162,7 +163,7 @@ class TransformerDecoder(AutoregressiveDecoder, Attentive):
 
         self.ff_hidden_size = ff_hidden_size
         self.n_heads_self = n_heads_self
-        self.depth = depth
+        self.depths = depths
         self.self_att_dropout_keep_prob = self_attention_dropout_keep_prob
 
         self._variable_scope.set_initializer(tf.variance_scaling_initializer(
@@ -231,11 +232,11 @@ class TransformerDecoder(AutoregressiveDecoder, Attentive):
         # pylint: enable=unsubscriptable-object
 
     def self_attention_sublayer(
-            self, prev_layer: TransformerLayer) -> tf.Tensor:
+            self, prev_states: tf.Tensor, mask: tf.Tensor) -> tf.Tensor:
         """Create the decoder self-attention sublayer with output mask."""
 
         # Layer normalization
-        normalized_states = layer_norm(prev_layer.temporal_states)
+        normalized_states = layer_norm(prev_states)
 
         # Run self-attention
         # TODO handle attention histories
@@ -243,7 +244,7 @@ class TransformerDecoder(AutoregressiveDecoder, Attentive):
             queries=normalized_states,
             keys=normalized_states,
             values=normalized_states,
-            keys_mask=prev_layer.temporal_mask,
+            keys_mask=mask,
             num_heads=self.n_heads_self,
             masked=True,
             dropout_callback=lambda x: dropout(
@@ -255,7 +256,7 @@ class TransformerDecoder(AutoregressiveDecoder, Attentive):
             self_context, self.dropout_keep_prob, self.train_mode)
 
         # Add residual connections
-        return self_context + prev_layer.temporal_states
+        return self_context + prev_states
 
     def encoder_attention_sublayer(self, queries: tf.Tensor) -> tf.Tensor:
         """Create the encoder-decoder attention sublayer."""
@@ -285,33 +286,31 @@ class TransformerDecoder(AutoregressiveDecoder, Attentive):
         # Add residual connections
         return ff_output + layer_input
 
-    def layer(self, level: int, inputs: tf.Tensor,
-              mask: tf.Tensor) -> TransformerLayer:
-        # Recursive implementation. Outputs of the zeroth layer
-        # are the inputs
+    def get_output_states(self, inputs: tf.Tensor,
+                          mask: tf.Tensor) -> tf.Tensor:
+        prev_states = inputs
+        output_states = tf.zeros_like(inputs)
 
-        if level == 0:
-            return TransformerLayer(inputs, mask)
+        max_depth = max(self.depths)
+        for level in range(max_depth):
+            with tf.variable_scope("layer_{}".format(level)):
+                with tf.variable_scope("self_attention"):
+                    self_context = self.self_attention_sublayer(
+                        prev_states, mask)
 
-        # Compute the outputs of the previous layer
-        prev_layer = self.layer(level - 1, inputs, mask)
+                with tf.variable_scope("encdec_attention"):
+                    encoder_context = self.encoder_attention_sublayer(
+                        self_context)
 
-        with tf.variable_scope("layer_{}".format(level - 1)):
+                with tf.variable_scope("feedforward"):
+                    prev_states = self.feedforward_sublayer(encoder_context)
 
-            with tf.variable_scope("self_attention"):
-                self_context = self.self_attention_sublayer(prev_layer)
+                if level + 1 in self.depths:
+                    output_states += prev_states
 
-            with tf.variable_scope("encdec_attention"):
-                encoder_context = self.encoder_attention_sublayer(self_context)
+        output_states = layer_norm(output_states)
 
-            with tf.variable_scope("feedforward"):
-                output_states = self.feedforward_sublayer(encoder_context)
-
-        # Layer normalization on the decoder output
-        if self.depth == level:
-            output_states = layer_norm(output_states)
-
-        return TransformerLayer(states=output_states, mask=mask)
+        return output_states
 
     @tensor
     def train_loop_result(self) -> LoopState:
@@ -323,8 +322,7 @@ class TransformerDecoder(AutoregressiveDecoder, Attentive):
         input_sequence = self.embed_input_symbols(self.train_input_symbols)
         input_mask = tf.transpose(self.train_mask)
 
-        last_layer = self.layer(
-            self.depth, input_sequence, input_mask)
+        output_states = self.get_output_states(input_sequence, input_mask)
 
         tr_feedables = TransformerFeedables(
             input_sequence=input_sequence,
@@ -332,15 +330,13 @@ class TransformerDecoder(AutoregressiveDecoder, Attentive):
 
         # t_states shape: (batch, time, channels)
         # dec_w shape: (channels, vocab)
-        last_layer_shape = tf.shape(last_layer.temporal_states)
-        last_layer_states = tf.reshape(
-            last_layer.temporal_states,
-            [-1, last_layer_shape[-1]])
+        output_shape = tf.shape(output_states)
 
         # shape (batch, time, vocab)
         logits = tf.reshape(
-            tf.matmul(last_layer_states, self.decoding_w),
-            [last_layer_shape[0], last_layer_shape[1], len(self.vocabulary)])
+            tf.matmul(tf.reshape(output_states, [-1, output_shape[-1]]),
+                      self.decoding_w),
+            [output_shape[0], output_shape[1], len(self.vocabulary)])
         logits += tf.reshape(self.decoding_b, [1, 1, -1])
 
         # TODO: record histories properly
@@ -356,7 +352,7 @@ class TransformerDecoder(AutoregressiveDecoder, Attentive):
         #        for a in range(self.depth)])
 
         feedables = DecoderFeedables(
-            step=last_layer_shape[1],
+            step=output_shape[1],
             finished=tf.ones([self.batch_size], dtype=tf.bool),
             embedded_input=self.embed_input_symbols(tf.tile(
                 [END_TOKEN_INDEX], [self.batch_size])),
@@ -365,7 +361,7 @@ class TransformerDecoder(AutoregressiveDecoder, Attentive):
         histories = DecoderHistories(
             logits=tf.transpose(logits, perm=[1, 0, 2]),
             output_states=tf.transpose(
-                last_layer.temporal_states, [1, 0, 2]),
+                output_states, [1, 0, 2]),
             output_mask=self.train_mask,
             output_symbols=self.train_inputs,
             other=tr_histories)
@@ -423,11 +419,11 @@ class TransformerDecoder(AutoregressiveDecoder, Attentive):
                 tf.expand_dims(unfinished_mask, -1),
                 axis=1)
 
-            last_layer = self.layer(
-                self.depth, input_sequence, tf.squeeze(input_mask, -1))
+            output_states = self.get_output_states(
+                input_sequence, tf.squeeze(input_mask, -1))
 
             # (batch, state_size)
-            output_state = last_layer.temporal_states[:, -1, :]
+            output_state = output_states[:, -1, :]
 
         new_feedables = TransformerFeedables(
             input_sequence=input_sequence,

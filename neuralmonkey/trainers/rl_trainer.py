@@ -122,8 +122,8 @@ class ReinforceObjective(Objective[Decoder]):
             # decoded, shape (time, batch)
             sample_loop_result = self.decoder.decoding_loop(
                 train_mode=False, sample=True, temperature=self.temperature)
-            sample_logits = sample_loop_result[0]
-            sample_decoded = sample_loop_result[3]
+            sample_logits = sample_loop_result.histories.logits
+            sample_decoded = sample_loop_result.histories.output_symbols
 
             # rewards, shape (batch)
             # simulate from reference

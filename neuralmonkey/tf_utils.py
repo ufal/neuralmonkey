@@ -219,14 +219,17 @@ def layer_norm(x: tf.Tensor, epsilon: float = 1e-6) -> tf.Tensor:
         return norm_x * gamma + beta
 
 
-def append_tensor(tensor: tf.Tensor, appendval: tf.Tensor) -> tf.Tensor:
+def append_tensor(tensor: tf.Tensor,
+                  appendval: tf.Tensor,
+                  axis: int = 0) -> tf.Tensor:
     """Append an ``N``-D Tensor to an ``(N+1)``-D Tensor.
 
     Arguments:
         tensor: The original Tensor
         appendval: The Tensor to add
+        axis: Which axis should we use
 
     Returns:
         An ``(N+1)``-D Tensor with ``appendval`` on the last position.
     """
-    return tf.concat([tensor, tf.expand_dims(appendval, 0)], 0)
+    return tf.concat([tensor, tf.expand_dims(appendval, axis)], axis)

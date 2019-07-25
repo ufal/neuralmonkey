@@ -333,23 +333,18 @@ def pad_batch(sentences: List[List[str]],
               add_start_symbol: bool = False,
               add_end_symbol: bool = False) -> List[List[str]]:
 
-    max_len = max(len(s) for s in sentences)
+    preprocessed = sentences
+    if add_start_symbol:
+        preprocessed = [[START_TOKEN] + s for s in preprocessed]
     if add_end_symbol:
-        max_len += 1
+        preprocessed = [s + [END_TOKEN] for s in preprocessed]
 
+    max_len = max(len(s) for s in preprocessed)
     if max_length is not None:
         max_len = min(max_length, max_len)
 
-    padded_sentences = []
-    for sent in sentences:
-        if add_end_symbol:
-            padded = (sent + [END_TOKEN] + [PAD_TOKEN] * max_len)[:max_len]
-        else:
-            padded = (sent + [PAD_TOKEN] * max_len)[:max_len]
-
-        if add_start_symbol:
-            padded.insert(0, START_TOKEN)
-        padded_sentences.append(padded)
+    padded_sentences = [
+        (s + [PAD_TOKEN] * max_len)[:max_len] for s in preprocessed]
 
     return padded_sentences
 

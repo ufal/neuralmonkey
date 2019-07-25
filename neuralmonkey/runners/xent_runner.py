@@ -1,33 +1,34 @@
-from typing import Dict, List
+from typing import Dict, List, Union
 
 from typeguard import check_argument_types
 import tensorflow as tf
 import numpy as np
 
 from neuralmonkey.decoders.autoregressive import AutoregressiveDecoder
+from neuralmonkey.decoders.sequence_labeler import SequenceLabeler
 from neuralmonkey.decorators import tensor
 from neuralmonkey.runners.base_runner import BaseRunner
 
+SupportedDecoders = Union[AutoregressiveDecoder, SequenceLabeler]
 
-class PerplexityRunner(BaseRunner[AutoregressiveDecoder]):
+
+class XentRunner(BaseRunner[SupportedDecoders]):
 
     # pylint: disable=too-few-public-methods
     # Pylint issue here: https://github.com/PyCQA/pylint/issues/2607
-    class Executable(BaseRunner.Executable["PerplexityRunner"]):
+    class Executable(BaseRunner.Executable["XentRunner"]):
 
         def collect_results(self, results: List[Dict]) -> None:
-            perplexities = np.mean(
-                [2 ** res["xents"] for res in results], axis=0)
-            xent = float(np.mean([res["xents"] for res in results]))
-            self.set_runner_result(outputs=perplexities.tolist(),
-                                   losses=[xent])
+            xents = np.mean([res["xents"] for res in results], axis=0)
+            self.set_runner_result(outputs=xents.tolist(),
+                                   losses=[float(np.mean(xents))])
     # pylint: enable=too-few-public-methods
 
     def __init__(self,
                  output_series: str,
-                 decoder: AutoregressiveDecoder) -> None:
+                 decoder: SupportedDecoders) -> None:
         check_argument_types()
-        BaseRunner[AutoregressiveDecoder].__init__(
+        BaseRunner[SupportedDecoders].__init__(
             self, output_series, decoder)
 
     @tensor

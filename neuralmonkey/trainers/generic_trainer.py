@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional, Sequence
+from typing import Dict, List, Optional, Tuple, Sequence
 import re
 
 import tensorflow as tf
@@ -94,7 +94,7 @@ class GenericTrainer(GraphExecutor, Feedable):
     # pylint: enable=no-self-use
 
     @tensor
-    def regularization_losses(self) -> List[tf.Tensor]:
+    def regularization_losses(self) -> Tuple[tf.Tensor, tf.Tensor]:
         """Compute the regularization losses, e.g. L1 and L2."""
         regularizable = self.regularizable
         if not regularizable:
@@ -217,7 +217,6 @@ class GenericTrainer(GraphExecutor, Feedable):
         # pylint: enable=protected-access
 
         reg_values = self.regularization_losses
-        # we always want to include l2 values in the summary
         if L1Regularizer not in [type(r) for r in self.regularizers]:
             l1_reg = L1Regularizer(name="train_l1", weight=0.)
             tf.summary.scalar(l1_reg.name, l1_reg.value(self.regularizable),

@@ -148,6 +148,55 @@ def parallel(
     return sum(contexts) + queries
 
 
+def weighted_parallel(
+        queries: tf.Tensor,
+        encoder_states: List[tf.Tensor],
+        encoder_masks: List[tf.Tensor],
+        heads: List[int],
+        attention_dropout_callbacks: List[Callable[[tf.Tensor], tf.Tensor]],
+        dropout_callback: Callable[[tf.Tensor], tf.Tensor]) -> tf.Tensor:
+    """Run attention with parallel input combination.
+
+    The procedure is as follows:
+    1. normalize queries,
+    2. attend and dropout independently for every encoder,
+    3. (weighted) sum up the results (+ tanh nonlinearity?)
+    4. add residual and return
+
+    Arguments:
+        queries: The input for the attention.
+        encoder_states: The states of each encoder.
+        encoder_masks: The temporal mask of each encoder.
+        heads: Number of attention heads to use for each encoder.
+        attention_dropout_callbacks: Dropout functions to apply in attention
+            over each encoder.
+        dropout_callback: The dropout function to apply on the outputs of each
+            sub-attention.
+
+    Returns:
+        A Tensor that contains the context vector.
+    """
+    normalized_queries = layer_norm(queries)
+    contexts = []
+
+    for i, (states, mask, n_heads, attn_drop_cb) in enumerate(zip(
+            encoder_states, encoder_masks, heads,
+            attention_dropout_callbacks)):
+
+        with tf.variable_scope("enc_{}".format(i)):
+            contexts.append(
+                single(normalized_queries, states, mask, n_heads,
+                       attention_dropout_callback=attn_drop_cb,
+                       dropout_callback=dropout_callback,
+                       normalize=False, residual=False))
+
+    contexts_concat = tf.concat(contexts, -1)
+    return (tf.layers.dense(contexts_concat,
+                            queries.shape.as_list()[-1],
+                            name="parallel_att_output")
+            + queries)
+
+
 # pylint: disable=too-many-locals
 def hierarchical(
         queries: tf.Tensor,

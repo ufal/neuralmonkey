@@ -256,9 +256,13 @@ class TensorFlowManager:
                     len(variable_files), len(self.sessions)))
 
         for sess, file_name in zip(self.sessions, variable_files):
-            log("Loading variables from {}".format(file_name))
-            self.saver.restore(sess, file_name)
-            log("Variables loaded from {}".format(file_name))
+            if os.path.isfile("{}.index".format(file_name)):
+                log("Loading variables from {}".format(file_name))
+                self.saver.restore(sess, file_name)
+                log("Variables loaded from {}".format(file_name))
+            else:
+                raise Exception("Checkpoint prefix {} does not "
+                                "exist".format(file_name))
 
     def restore_best_vars(self) -> None:
         assert self.best_score_index is not None
