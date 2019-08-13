@@ -20,7 +20,7 @@ TUPLE = re.compile(r"\(([^)]+)\)")
 STRING = re.compile(r'^"(.*)"$')
 VAR_REF = re.compile(r"^\$([a-zA-Z][a-zA-Z0-9_]*)$")
 OBJECT_REF = re.compile(
-    r"^<([a-zA-Z][a-zA-Z0-9_]*(\.[a-zA-Z][a-zA-Z0-9_]*)*)>$")
+    r"^<([a-zA-Z][a-zA-Z0-9_]*(\._*[a-zA-Z][a-zA-Z0-9_]*)*)>$")
 CLASS_NAME = re.compile(
     r"^_*[a-zA-Z][a-zA-Z0-9_]*(\._*[a-zA-Z][a-zA-Z0-9_]*)+$")
 
